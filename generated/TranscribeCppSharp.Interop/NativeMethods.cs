@@ -51,7 +51,6 @@ public enum AbiStruct
     AbiSessionLimits = 11,
     AbiExt = 12,
     AbiBackendDevice = 13,
-    AbiSpeakerSegment = 14,
 }
 
 public enum LogLevel
@@ -100,13 +99,6 @@ public enum ItnMode
     ItnModeOn = 2,
 }
 
-public enum DiarizeMode
-{
-    DiarizeModeDefault = 0,
-    DiarizeModeOff = 1,
-    DiarizeModeOn = 2,
-}
-
 public enum ExtSlot
 {
     ExtSlotRun = 0,
@@ -139,7 +131,6 @@ public enum Feature
     FeatureCancellation = 3,
     FeaturePnc = 4,
     FeatureItn = 5,
-    FeatureDiarization = 6,
 }
 
 public enum StreamState
@@ -282,7 +273,6 @@ public struct RunParams
     public TimestampKind timestamps;
     public PncMode pnc;
     public ItnMode itn;
-    public DiarizeMode diarize;
     public IntPtr language;
     public IntPtr targetLanguage;
     [MarshalAs(UnmanagedType.I1)]
@@ -382,7 +372,6 @@ public struct Segment
     public int firstToken;
     public int nTokens;
     public IntPtr text;
-    public int speakerId;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -408,16 +397,6 @@ public struct Token
     public int segIndex;
     public int wordIndex;
     public IntPtr text;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct SpeakerSegment
-{
-    public ulong structSize;
-    public long t0Ms;
-    public long t1Ms;
-    public int speakerId;
-    public float p;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -676,9 +655,6 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_full_text", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr FullText(SessionHandle session);
 
-    [LibraryImport(LibName, EntryPoint = "transcribe_raw_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr RawText(SessionHandle session);
-
     [LibraryImport(LibName, EntryPoint = "transcribe_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
     public static partial TimestampKind ReturnedTimestampKind(SessionHandle session);
 
@@ -712,15 +688,6 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_get_token", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status GetToken(SessionHandle session, int i, IntPtr /* transcribe_token */ @out);
 
-    [LibraryImport(LibName, EntryPoint = "transcribe_speaker_segment_init", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void SpeakerSegmentInit(IntPtr /* transcribe_speaker_segment */ @out);
-
-    [LibraryImport(LibName, EntryPoint = "transcribe_n_speaker_segments", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int NSpeakerSegments(SessionHandle session);
-
-    [LibraryImport(LibName, EntryPoint = "transcribe_get_speaker_segment", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status GetSpeakerSegment(SessionHandle session, int i, IntPtr /* transcribe_speaker_segment */ @out);
-
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_results", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int BatchNResults(SessionHandle session);
 
@@ -729,9 +696,6 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_full_text", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr BatchFullText(SessionHandle session, int i);
-
-    [LibraryImport(LibName, EntryPoint = "transcribe_batch_raw_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr BatchRawText(SessionHandle session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
     public static partial TimestampKind BatchReturnedTimestampKind(SessionHandle session, int i);
@@ -756,12 +720,6 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_token", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchGetToken(SessionHandle session, int i, int j, IntPtr /* transcribe_token */ @out);
-
-    [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_speaker_segments", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int BatchNSpeakerSegments(SessionHandle session, int i);
-
-    [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_speaker_segment", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status BatchGetSpeakerSegment(SessionHandle session, int i, int j, IntPtr /* transcribe_speaker_segment */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_timings", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchGetTimings(SessionHandle session, int i, IntPtr /* transcribe_timings */ @out);
