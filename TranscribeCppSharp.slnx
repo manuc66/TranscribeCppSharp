@@ -2,4 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/Generator/Generator.csproj" />
   </Folder>
+  <Folder Name="/generated/">
+    <Project Path="generated/TranscribeCppSharp.Interop/TranscribeCppSharp.Interop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TranscribeCppSharp.Interop.Tests/TranscribeCppSharp.Interop.Tests.csproj" />
+  </Folder>
 </Solution>

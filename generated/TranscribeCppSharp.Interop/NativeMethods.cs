@@ -208,6 +208,15 @@ public readonly struct SessionHandle : IEquatable<SessionHandle>
 
 // ════════════════════════════════════════════════════════════════
 // Callback delegates
+//
+// These are hand-written because the Rust FFI uses
+//   pub type transcribe_log_callback = Option<unsafe extern "C" fn(...)>
+// which the parser cannot expand into a callable signature.
+//
+// NAMING CONTRACT: ToPascalCase("transcribe_<name>_callback") must
+// produce the delegate name below (e.g. "transcribe_log_callback"
+// → "LogCallback"). If a new callback is added to transcribe_sys.rs,
+// add a matching delegate here with the same convention.
 // ════════════════════════════════════════════════════════════════
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPUTF8Str)] string msg, IntPtr userdata);
@@ -511,7 +520,7 @@ internal static partial class NativeMethods
     public static partial bool ModelAcceptsExtKind(ModelHandle model, ExtSlot slot, uint kind);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status InitBackends([MarshalAs(UnmanagedType.LPUTF8Str)] string artifactDir);
+    public static partial Status InitBackends(string artifactDir);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends_default", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status InitBackendsDefault();
@@ -561,10 +570,10 @@ internal static partial class NativeMethods
     public static partial IntPtr ModelBackend(ModelHandle model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_meta_val_str", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr ModelMetaValStr(ModelHandle model, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
+    public static partial IntPtr ModelMetaValStr(ModelHandle model, string key);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_load_file", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status ModelLoadFile([MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr /* transcribe_model_load_params */ @params, IntPtr outModel);
+    public static partial Status ModelLoadFile(string path, IntPtr /* transcribe_model_load_params */ @params, IntPtr outModel);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_free", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ModelFree(ModelHandle model);
@@ -576,7 +585,7 @@ internal static partial class NativeMethods
     public static partial void SessionFree(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_open", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status Open([MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr /* transcribe_model_load_params */ loadParams, IntPtr /* transcribe_session_params */ sessionParams, IntPtr outSession);
+    public static partial Status Open(string path, IntPtr /* transcribe_model_load_params */ loadParams, IntPtr /* transcribe_session_params */ sessionParams, IntPtr outSession);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_close", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void Close(SessionHandle session);
@@ -650,7 +659,7 @@ internal static partial class NativeMethods
     public static partial Status StreamLastStatus(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_tokenize", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int Tokenize(ModelHandle model, [MarshalAs(UnmanagedType.LPUTF8Str)] string text, IntPtr tokens, nuint nMax);
+    public static partial int Tokenize(ModelHandle model, string text, IntPtr tokens, nuint nMax);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_timings_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void TimingsInit(IntPtr /* transcribe_timings */ @out);

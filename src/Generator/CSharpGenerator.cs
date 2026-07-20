@@ -110,6 +110,15 @@ public class CSharpGenerator
         sb.AppendLine("""
             // ════════════════════════════════════════════════════════════════
             // Callback delegates
+            //
+            // These are hand-written because the Rust FFI uses
+            //   pub type transcribe_log_callback = Option<unsafe extern "C" fn(...)>
+            // which the parser cannot expand into a callable signature.
+            //
+            // NAMING CONTRACT: ToPascalCase("transcribe_<name>_callback") must
+            // produce the delegate name below (e.g. "transcribe_log_callback"
+            // → "LogCallback"). If a new callback is added to transcribe_sys.rs,
+            // add a matching delegate here with the same convention.
             // ════════════════════════════════════════════════════════════════
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPUTF8Str)] string msg, IntPtr userdata);
@@ -239,9 +248,9 @@ public class CSharpGenerator
             var name = ToCamelCase(p.Name);
             return p.Type switch
             {
-                // Immutable pointer to char → input string with UTF-8 marshalling
+                // Immutable pointer to char → input string (StringMarshalling.Utf8 handles it)
                 PointerType(PointerMutability.Const, PrimitiveType("c_char"))
-                    => $"[MarshalAs(UnmanagedType.LPUTF8Str)] string {name}",
+                    => $"string {name}",
                 // Mutable pointer to char → output buffer (IntPtr)
                 PointerType(PointerMutability.Mutable, PrimitiveType("c_char"))
                     => $"IntPtr {name}",
