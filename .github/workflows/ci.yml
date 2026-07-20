@@ -39,7 +39,7 @@ jobs:
       - run: chmod +x fetch-native.sh && ./fetch-native.sh
 
       - name: Run smoke test
-        run: dotnet run --project samples/SmokeTest -c Release --no-build
+        run: LD_LIBRARY_PATH=native/linux-x64:$LD_LIBRARY_PATH dotnet run --project samples/SmokeTest -c Release --no-build
 
   pack-native:
     runs-on: ubuntu-latest
