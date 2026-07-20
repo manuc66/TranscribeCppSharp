@@ -51,7 +51,7 @@ jobs:
       - name: Pack native NuGets
         run: |
           for dir in native-packages/win-x64 native-packages/linux-x64 native-packages/linux-arm64 native-packages/osx-arm64 native-packages/osx-x64; do
-            dotnet pack "$dir" -c Release --no-build -o nupkgs
+            dotnet pack "$dir" -c Release -o nupkgs
           done
 
       - uses: actions/upload-artifact@v4

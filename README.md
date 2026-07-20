@@ -7,22 +7,28 @@ Auto-generated C# bindings for [transcribe.cpp](https://github.com/handy-compute
 ```
 TranscribeCppSharp/
 ├── rust/
-│   └── transcribe_sys.rs          # Rust FFI (from transcribe.cpp, committed)
+│   └── transcribe_sys.rs              # Rust FFI (from transcribe.cpp, committed)
 ├── src/
-│   └── Generator/                 # CLI tool: parses Rust FFI → generates C#
-│       ├── RustFfiParser.cs
-│       ├── CSharpGenerator.cs
-│       └── Program.cs
+│   └── Generator/                     # CLI tool: parses Rust FFI → generates C#
+│       ├── Program.cs
+│       ├── RustFfiParser.cs           # Parses transcribe_sys.rs into RustType model
+│       ├── RustType.cs                # Structural type model (no string matching)
+│       └── CSharpGenerator.cs         # Pattern-matches RustType → C# declarations
 ├── generated/
 │   └── TranscribeCppSharp.Interop/
-│       └── NativeMethods.cs       # Auto-generated P/Invoke (do not edit)
-└── README.md
+│       ├── TranscribeCppSharp.Interop.csproj   # SYSLIB1051/1054/1055 as errors
+│       └── NativeMethods.cs           # Auto-generated P/Invoke (do not edit)
+├── tests/
+│   └── TranscribeCppSharp.Interop.Tests/
+│       ├── GoldenFileTest.cs          # Snapshot: catches generator drift
+│       └── EnumParityTest.cs          # Rust enum values ↔ C# enum ints
+└── TranscribeCppSharp.slnx
 ```
 
 ## How it works
 
 1. **transcribe.cpp** provides `bindings/rust/sys/src/transcribe_sys.rs` — bindgen output from the C header
-2. **Generator** parses this Rust FFI file and produces C# `DllImport` declarations
+2. **Generator** parses this Rust FFI file into a structural `RustType` model, then pattern-matches to produce C# `LibraryImport` declarations
 3. **generated/NativeMethods.cs** is committed so consumers don't need Rust tooling
 
 ## Regenerate
@@ -37,6 +43,20 @@ curl -sL -o rust/transcribe_sys.rs \
 # Regenerate C# bindings
 dotnet run --project src/Generator
 ```
+
+## Tests
+
+```bash
+dotnet test tests/TranscribeCppSharp.Interop.Tests/
+```
+
+| Test | What it catches |
+|---|---|
+| `GeneratedOutput_MatchesCommittedSnapshot` | Any silent drift in generated output |
+| `AllEnumValues_MatchRustValues` | Enum reordering, renaming, or value drift |
+| `AbiStructSize_IsNonZero` | Struct layout mismatch (requires native lib) |
+
+The interop project enforces `SYSLIB1051`/`SYSLIB1054`/`SYSLIB1055` as build errors, catching `StringMarshalling`/`MarshalAs` conflicts at compile time.
 
 ## Coverage
 
