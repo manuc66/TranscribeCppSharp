@@ -23,6 +23,27 @@ jobs:
 
       - run: dotnet test --no-build --verbosity normal
 
+  check-bindings-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+          dotnet-quality: 'preview'
+
+      - name: Regenerate bindings and check for drift
+        run: |
+          chmod +x regenerate-bindings.sh
+          ./regenerate-bindings.sh
+          if ! git diff --quiet generated/TranscribeCppSharp.Interop/NativeMethods.cs; then
+            echo "ERROR: NativeMethods.cs is out of sync with TRANSCRIBE_VERSION"
+            echo "Run ./regenerate-bindings.sh and commit the result"
+            git diff generated/TranscribeCppSharp.Interop/NativeMethods.cs
+            exit 1
+          fi
+
   smoke-test:
     needs: build-and-test
     runs-on: ubuntu-latest
