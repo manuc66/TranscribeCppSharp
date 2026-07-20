@@ -22,3 +22,40 @@ jobs:
       - run: dotnet build --no-restore
 
       - run: dotnet test --no-build --verbosity normal
+
+  pack-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: chmod +x fetch-native.sh && ./fetch-native.sh
+
+      - name: Pack native NuGets
+        run: |
+          for dir in native-packages/win-x64 native-packages/linux-x64 native-packages/linux-arm64 native-packages/osx-arm64 native-packages/osx-x64; do
+            dotnet pack "$dir" -c Release --no-build -o nupkgs
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-nupkgs
+          path: nupkgs/*.nupkg
+
+  pack-interop:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+          dotnet-quality: 'preview'
+
+      - name: Pack Interop NuGet
+        run: dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: interop-nupkg
+          path: nupkgs/*.nupkg
