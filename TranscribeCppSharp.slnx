@@ -8,4 +8,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/TranscribeCppSharp.Interop.Tests/TranscribeCppSharp.Interop.Tests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/SmokeTest/SmokeTest.csproj" />
+  </Folder>
 </Solution>

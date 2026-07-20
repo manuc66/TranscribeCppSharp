@@ -23,6 +23,24 @@ jobs:
 
       - run: dotnet test --no-build --verbosity normal
 
+  smoke-test:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+          dotnet-quality: 'preview'
+
+      - run: dotnet build samples/SmokeTest -c Release
+
+      - run: chmod +x fetch-native.sh && ./fetch-native.sh
+
+      - name: Run smoke test
+        run: dotnet run --project samples/SmokeTest -c Release --no-build
+
   pack-native:
     runs-on: ubuntu-latest
     steps:
