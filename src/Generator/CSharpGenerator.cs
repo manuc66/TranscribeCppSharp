@@ -10,12 +10,6 @@ public class CSharpGenerator
 {
     private readonly string _dllName = "transcribe";
 
-    private static readonly Dictionary<string, string> s_opaqueHandles = new()
-    {
-        ["transcribe_model"] = "ModelHandle",
-        ["transcribe_session"] = "SessionHandle",
-    };
-
     private static readonly (string Pattern, string Category)[] s_functionCategories =
     [
         ("model_load_params", "Model"), ("model_free", "Model"), ("model_", "Model"),
@@ -38,6 +32,11 @@ public class CSharpGenerator
         ("get_word", "Results"), ("get_token", "Results"), ("get_timings", "Results"),
         ("print_timings", "Results"), ("reset_timings", "Results"),
         ("tokenize", "Tokenize"), ("status_string", "Status"),
+    ];
+
+    private static readonly HashSet<string> s_opaqueHandleNames =
+    [
+        "transcribe_model", "transcribe_session",
     ];
 
     private static readonly HashSet<string> s_csharpKeywords =
@@ -102,8 +101,8 @@ public class CSharpGenerator
         sb.AppendLine("// ════════════════════════════════════════════════════════════════");
         sb.AppendLine("// Typed handles (opaque pointers with compile-time safety)");
         sb.AppendLine("// ════════════════════════════════════════════════════════════════");
-        foreach (var csName in s_opaqueHandles.Values)
-            WriteHandle(sb, csName);
+        WriteHandle(sb, "ModelHandle");
+        WriteHandle(sb, "SessionHandle");
     }
 
     private void WriteCallbacks(StringBuilder sb)
@@ -200,16 +199,13 @@ public class CSharpGenerator
         sb.AppendLine("{");
         foreach (var f in s.Fields)
         {
-            var csType = MapTypeForStructField(f.Type);
             var csField = ToCamelCase(f.Name);
 
             // Bool fields: MUST be 1 byte (Rust repr(C) bool = 1 byte)
-            if (f.Type == "bool")
+            if (f.Type is BoolType)
                 sb.AppendLine("    [MarshalAs(UnmanagedType.I1)]");
-            // String pointer fields in structs: borrowed pointers → IntPtr (safe)
-            else if (f.Type.Contains("c_char"))
-                csType = "IntPtr";
 
+            var csType = MapStructFieldType(f.Type);
             sb.AppendLine($"    public {csType} {csField};");
         }
         sb.AppendLine("}");
@@ -219,117 +215,103 @@ public class CSharpGenerator
     private void WriteFunction(StringBuilder sb, RustFunction fn)
     {
         var csName = ToPascalCase(fn.Name);
-        var parameters = ParseParams(fn.ParamsRaw);
 
         // Skip functions with callback pointer params (need manual delegate mapping)
-        if (parameters.Any(p => p.Type.Contains("Option<unsafe")))
+        if (fn.Parameters.Any(p => IsFunctionPointer(p.Type)))
         {
             sb.AppendLine($"    // TODO: {fn.Name} — function pointer params need manual delegate mapping");
             sb.AppendLine();
             return;
         }
 
-        // Detect return type: borrowed *const c_char → IntPtr (NOT string)
-        var returnsBorrowedString = fn.ReturnType.Contains("c_char");
-        var retType = returnsBorrowedString ? "IntPtr" : MapTypeForParam(fn.ReturnType);
+        // Determine return type — borrowed string pointers return IntPtr
+        var isBorrowedStringReturn = fn.ReturnType is PointerType(_, PrimitiveType("c_char"));
+        var retCsType = isBorrowedStringReturn ? "IntPtr" : MapParamType(fn.ReturnType);
 
         sb.AppendLine($"    [LibraryImport(LibName, EntryPoint = \"{fn.Name}\", StringMarshalling = StringMarshalling.Utf8)]");
 
         // Bool return: must be U1 (1 byte, not 4-byte Windows BOOL)
-        if (retType == "bool")
+        if (fn.ReturnType is BoolType)
             sb.AppendLine("    [return: MarshalAs(UnmanagedType.U1)]");
 
-        var paramsStr = string.Join(", ", parameters.Select(p =>
+        var paramsStr = string.Join(", ", fn.Parameters.Select(p =>
         {
-            var type = MapTypeForParam(p.Type);
             var name = ToCamelCase(p.Name);
-            // String params: explicit UTF-8 marshalling
-            if (p.Type.Contains("c_char"))
-                return $"[MarshalAs(UnmanagedType.LPUTF8Str)] string {name}";
-            // Bool params: must be I1 (1 byte)
-            if (p.Type == "bool")
-                return $"[MarshalAs(UnmanagedType.I1)] bool {name}";
-            return $"{type} {name}";
+            return p.Type switch
+            {
+                // Immutable pointer to char → input string with UTF-8 marshalling
+                PointerType(PointerMutability.Const, PrimitiveType("c_char"))
+                    => $"[MarshalAs(UnmanagedType.LPUTF8Str)] string {name}",
+                // Mutable pointer to char → output buffer (IntPtr)
+                PointerType(PointerMutability.Mutable, PrimitiveType("c_char"))
+                    => $"IntPtr {name}",
+                // Bool param: must be I1 (1 byte)
+                BoolType
+                    => $"[MarshalAs(UnmanagedType.I1)] bool {name}",
+                // Everything else
+                _ => $"{MapParamType(p.Type)} {name}",
+            };
         }));
 
-        sb.AppendLine($"    public static partial {retType} {csName}({paramsStr});");
+        sb.AppendLine($"    public static partial {retCsType} {csName}({paramsStr});");
         sb.AppendLine();
     }
 
-    // ── Type mapping (split by concern) ────────────────────────────
+    // ── Type mapping — structural, no string matching ───────────────
 
     /// <summary>
-    /// Map a Rust type for function return/param context.
-    /// Borrowed string pointers (*const c_char) return IntPtr — caller must marshal manually.
+    /// Map a Rust type to its C# equivalent for function parameters and return values.
     /// </summary>
-    private static string MapTypeForParam(string rustType)
+    private static string MapParamType(RustType rustType) => rustType switch
     {
-        rustType = rustType.Trim();
-        return MapPrimitive(rustType)
-            ?? MapOpaqueHandle(rustType)
-            ?? MapStruct(rustType)
-            ?? MapPointer(rustType)
-            ?? throw new NotSupportedException($"Unknown Rust type: '{rustType}'");
-    }
+        VoidType => "void",
+        BoolType => "bool",
+        PrimitiveType("i32") => "int",
+        PrimitiveType("u32") => "uint",
+        PrimitiveType("i64") => "long",
+        PrimitiveType("u64") => "ulong",
+        PrimitiveType("usize") or PrimitiveType("nuint") => "nuint",
+        PrimitiveType("f32") => "float",
+        PrimitiveType("f64") => "double",
+        PrimitiveType("c_int") => "int",
+        PrimitiveType("c_uint") => "uint",
+        PrimitiveType("c_char") => "byte",
+
+        // Opaque handles → typed handle struct
+        PointerType(_, OpaqueHandleType("transcribe_model")) => "ModelHandle",
+        PointerType(_, OpaqueHandleType("transcribe_session")) => "SessionHandle",
+
+        // Named struct types (by pointer)
+        PointerType(_, StructType(var rustName)) => $"IntPtr /* {rustName} */",
+        StructType(var rustName) => ToPascalCase(rustName),
+
+        // All other pointer types → IntPtr
+        PointerType => "IntPtr",
+
+        UnknownType(var raw) => $"/* UNKNOWN: {raw} */ object",
+        _ => throw new NotSupportedException($"Unhandled Rust type: {rustType}"),
+    };
 
     /// <summary>
     /// Map a Rust type for struct field context.
-    /// Bool gets MarshalAs I1, string pointers become IntPtr.
+    /// Bool gets MarshalAs I1, borrowed string pointers become IntPtr.
     /// </summary>
-    private static string MapTypeForStructField(string rustType)
+    private static string MapStructFieldType(RustType rustType) => rustType switch
     {
-        rustType = rustType.Trim();
-        return rustType switch
-        {
-            "bool" => "bool",  // WriteStruct adds [MarshalAs(UnmanagedType.I1)]
-            _ => MapTypeForParam(rustType),
-        };
-    }
-
-    private static string? MapPrimitive(string rustType) => rustType switch
-    {
-        "()" or "" or null => "void",
-        "void" => "void",
-        "bool" => "bool",
-        "i32" => "int",
-        "u32" => "uint",
-        "i64" => "long",
-        "u64" => "ulong",
-        "usize" => "nuint",
-        "f32" => "float",
-        "f64" => "double",
-        "c_int" => "int",
-        "c_uint" => "uint",
-        "c_char" => "byte",
-        // NOTE: *const c_char is NOT mapped here — it's a borrowed pointer.
-        // Functions return IntPtr (manual marshal). Struct fields use IntPtr directly.
-        _ => null,
+        // Borrowed string pointers in structs → IntPtr (caller marshals manually)
+        PointerType(_, PrimitiveType("c_char")) => "IntPtr",
+        // Double pointer to char → IntPtr (e.g. *const *const c_char)
+        PointerType(_, PointerType(_, PrimitiveType("c_char"))) => "IntPtr",
+        // All other types: same as param mapping
+        _ => MapParamType(rustType),
     };
 
-    private static string? MapOpaqueHandle(string rustType)
+    private static bool IsFunctionPointer(RustType rustType) => rustType switch
     {
-        foreach (var (rustName, csHandle) in s_opaqueHandles)
-        {
-            if (rustType == $"*const {rustName}" || rustType == $"*mut {rustName}")
-                return csHandle;
-        }
-        return null;
-    }
-
-    private static string? MapStruct(string rustType)
-    {
-        if (rustType.StartsWith("transcribe_") && !rustType.Contains('*'))
-            return ToPascalCase(rustType);
-        return null;
-    }
-
-    private static string? MapPointer(string rustType)
-    {
-        // All pointers → IntPtr (including *const c_char, *mut f32, etc.)
-        if (rustType.StartsWith('*'))
-            return "IntPtr";
-        return null;
-    }
+        // Option<unsafe fn(...)> shows up as UnknownType from the parser
+        UnknownType(var raw) => raw.Contains("Option<unsafe"),
+        _ => false,
+    };
 
     // ── Helpers ────────────────────────────────────────────────────
 
@@ -341,38 +323,6 @@ public class CSharpGenerator
                 return category;
         }
         return "Misc";
-    }
-
-    private static List<(string Type, string Name)> ParseParams(string raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw) || raw == "()")
-            return [];
-
-        var result = new List<(string Type, string Name)>();
-        var depth = 0;
-        var current = new StringBuilder();
-        foreach (var ch in raw)
-        {
-            if (ch is '(' or '<') depth++;
-            else if (ch is ')' or '>') depth--;
-            else if (ch == ',' && depth == 0)
-            {
-                ParseOneParam(current.ToString().Trim(), result);
-                current.Clear();
-                continue;
-            }
-            current.Append(ch);
-        }
-        if (current.Length > 0)
-            ParseOneParam(current.ToString().Trim(), result);
-        return result;
-    }
-
-    private static void ParseOneParam(string raw, List<(string Type, string Name)> result)
-    {
-        var colonIdx = raw.IndexOf(':');
-        if (colonIdx < 0) return;
-        result.Add((raw[(colonIdx + 1)..].Trim(), raw[..colonIdx].Trim()));
     }
 
     private static string ToPascalCase(string s)
