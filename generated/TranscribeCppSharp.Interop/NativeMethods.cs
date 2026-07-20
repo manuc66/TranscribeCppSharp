@@ -210,7 +210,7 @@ public readonly struct SessionHandle : IEquatable<SessionHandle>
 // Callback delegates
 // ════════════════════════════════════════════════════════════════
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPStr)] string msg, IntPtr userdata);
+public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPUTF8Str)] string msg, IntPtr userdata);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 [return: MarshalAs(UnmanagedType.U1)]
@@ -239,10 +239,10 @@ public struct Ext
 public struct BackendDevice
 {
     public ulong structSize;
-    public string name;
-    public string description;
-    public string kind;
-    public string deviceId;
+    public IntPtr name;
+    public IntPtr description;
+    public IntPtr kind;
+    public IntPtr deviceId;
     public ulong memoryTotal;
     public ulong memoryFree;
     public DeviceType deviceType;
@@ -274,8 +274,9 @@ public struct RunParams
     public PncMode pnc;
     public ItnMode itn;
     public DiarizeMode diarize;
-    public string language;
-    public string targetLanguage;
+    public IntPtr language;
+    public IntPtr targetLanguage;
+    [MarshalAs(UnmanagedType.I1)]
     public bool keepSpecialTags;
     public IntPtr family;
     public int specKDrafts;
@@ -289,9 +290,13 @@ public struct Capabilities
     public int nLanguages;
     public IntPtr languages;
     public TimestampKind maxTimestampKind;
+    [MarshalAs(UnmanagedType.I1)]
     public bool supportsLanguageDetect;
+    [MarshalAs(UnmanagedType.I1)]
     public bool supportsTranslate;
+    [MarshalAs(UnmanagedType.I1)]
     public bool supportsStreaming;
+    [MarshalAs(UnmanagedType.I1)]
     public bool supportsSpecDecode;
     public long maxAudioMs;
     public int nTranslateTargetLanguages;
@@ -320,13 +325,17 @@ public struct StreamParams
 public struct StreamUpdate
 {
     public ulong structSize;
+    [MarshalAs(UnmanagedType.I1)]
     public bool resultChanged;
+    [MarshalAs(UnmanagedType.I1)]
     public bool isFinal;
     public int revision;
     public long inputReceivedMs;
     public long audioCommittedMs;
     public long bufferedMs;
+    [MarshalAs(UnmanagedType.I1)]
     public bool committedChanged;
+    [MarshalAs(UnmanagedType.I1)]
     public bool tentativeChanged;
 }
 
@@ -334,11 +343,11 @@ public struct StreamUpdate
 public struct StreamText
 {
     public ulong structSize;
-    public string fullText;
+    public IntPtr fullText;
     public ulong fullTextBytes;
-    public string committedText;
+    public IntPtr committedText;
     public ulong committedTextBytes;
-    public string tentativeText;
+    public IntPtr tentativeText;
     public ulong tentativeTextBytes;
     public ulong rawTentativeStartBytes;
 }
@@ -363,7 +372,7 @@ public struct Segment
     public int nWords;
     public int firstToken;
     public int nTokens;
-    public string text;
+    public IntPtr text;
     public int speakerId;
 }
 
@@ -376,7 +385,7 @@ public struct Word
     public int segIndex;
     public int firstToken;
     public int nTokens;
-    public string text;
+    public IntPtr text;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -389,7 +398,7 @@ public struct Token
     public long t1Ms;
     public int segIndex;
     public int wordIndex;
-    public string text;
+    public IntPtr text;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -437,10 +446,11 @@ public struct VoxtralRealtimeStreamExt
 public struct WhisperRunExt
 {
     public Ext ext;
-    public string initialPrompt;
+    public IntPtr initialPrompt;
     public IntPtr promptTokens;
     public nuint nPromptTokens;
     public WhisperPromptCondition promptCondition;
+    [MarshalAs(UnmanagedType.I1)]
     public bool conditionOnPrevTokens;
     public int maxPrevContextTokens;
     public float temperature;
@@ -462,6 +472,7 @@ public struct WhisperChunkTrace
     public float compressionRatio;
     public float avgLogprob;
     public float noSpeechProb;
+    [MarshalAs(UnmanagedType.I1)]
     public bool noSpeechTriggered;
     public int nFallbacks;
 }
@@ -475,13 +486,13 @@ internal static partial class NativeMethods
 
     // ── Misc ──
     [LibraryImport(LibName, EntryPoint = "transcribe_status_string", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string StatusString(int status);
+    public static partial IntPtr StatusString(int status);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_version", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string Version();
+    public static partial IntPtr Version();
 
     [LibraryImport(LibName, EntryPoint = "transcribe_version_commit", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string VersionCommit();
+    public static partial IntPtr VersionCommit();
 
     [LibraryImport(LibName, EntryPoint = "transcribe_abi_struct_size", StringMarshalling = StringMarshalling.Utf8)]
     public static partial nuint AbiStructSize(AbiStruct which);
@@ -500,7 +511,7 @@ internal static partial class NativeMethods
     public static partial bool ModelAcceptsExtKind(ModelHandle model, ExtSlot slot, uint kind);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status InitBackends(string artifactDir);
+    public static partial Status InitBackends([MarshalAs(UnmanagedType.LPUTF8Str)] string artifactDir);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends_default", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status InitBackendsDefault();
@@ -541,19 +552,19 @@ internal static partial class NativeMethods
     public static partial bool ModelSupports(ModelHandle model, Feature feature);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_arch_string", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string ModelArchString(ModelHandle model);
+    public static partial IntPtr ModelArchString(ModelHandle model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_variant_string", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string ModelVariantString(ModelHandle model);
+    public static partial IntPtr ModelVariantString(ModelHandle model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_backend", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string ModelBackend(ModelHandle model);
+    public static partial IntPtr ModelBackend(ModelHandle model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_meta_val_str", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string ModelMetaValStr(ModelHandle model, string key);
+    public static partial IntPtr ModelMetaValStr(ModelHandle model, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_load_file", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status ModelLoadFile(string path, IntPtr @params, IntPtr outModel);
+    public static partial Status ModelLoadFile([MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr @params, IntPtr outModel);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_free", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ModelFree(ModelHandle model);
@@ -565,7 +576,7 @@ internal static partial class NativeMethods
     public static partial void SessionFree(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_open", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status Open(string path, IntPtr loadParams, IntPtr sessionParams, IntPtr outSession);
+    public static partial Status Open([MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr loadParams, IntPtr sessionParams, IntPtr outSession);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_close", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void Close(SessionHandle session);
@@ -639,7 +650,7 @@ internal static partial class NativeMethods
     public static partial Status StreamLastStatus(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_tokenize", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int Tokenize(ModelHandle model, string text, IntPtr tokens, nuint nMax);
+    public static partial int Tokenize(ModelHandle model, [MarshalAs(UnmanagedType.LPUTF8Str)] string text, IntPtr tokens, nuint nMax);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_timings_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void TimingsInit(IntPtr @out);
@@ -654,10 +665,10 @@ internal static partial class NativeMethods
     public static partial void ResetTimings(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_full_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string FullText(SessionHandle session);
+    public static partial IntPtr FullText(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_raw_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string RawText(SessionHandle session);
+    public static partial IntPtr RawText(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
     public static partial TimestampKind ReturnedTimestampKind(SessionHandle session);
@@ -672,7 +683,7 @@ internal static partial class NativeMethods
     public static partial int NTokens(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_detected_language", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string DetectedLanguage(SessionHandle session);
+    public static partial IntPtr DetectedLanguage(SessionHandle session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_segment_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SegmentInit(IntPtr @out);
@@ -708,16 +719,16 @@ internal static partial class NativeMethods
     public static partial Status BatchStatus(SessionHandle session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_full_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string BatchFullText(SessionHandle session, int i);
+    public static partial IntPtr BatchFullText(SessionHandle session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_raw_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string BatchRawText(SessionHandle session, int i);
+    public static partial IntPtr BatchRawText(SessionHandle session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
     public static partial TimestampKind BatchReturnedTimestampKind(SessionHandle session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_detected_language", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial string BatchDetectedLanguage(SessionHandle session, int i);
+    public static partial IntPtr BatchDetectedLanguage(SessionHandle session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_segments", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int BatchNSegments(SessionHandle session, int i);
