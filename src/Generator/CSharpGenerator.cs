@@ -18,55 +18,26 @@ public class CSharpGenerator
 
     private static readonly (string Pattern, string Category)[] s_functionCategories =
     [
-        ("model_load_params", "Model"),
-        ("model_free", "Model"),
-        ("model_", "Model"),
-        ("session_init", "Session"),
-        ("session_free", "Session"),
-        ("session_limits", "Session"),
-        ("session_", "Session"),
-        ("stream_", "Streaming"),
-        ("batch_", "Batch"),
-        ("run_batch", "Batch"),
-        ("run_params", "Run"),
-        ("run", "Run"),
-        ("segment_", "Results — Segments"),
-        ("word_", "Results — Words"),
-        ("token", "Results — Tokens"),
-        ("speaker_", "Results — Speaker"),
-        ("timing", "Timings"),
-        ("backend", "Backend"),
-        ("device", "Backend"),
-        ("log_", "Logging"),
-        ("version", "Version"),
-        ("abi_", "ABI Metadata"),
-        ("open", "Lifecycle"),
-        ("close", "Lifecycle"),
-        ("get_model", "Lifecycle"),
-        ("init_backends", "Backend"),
-        ("capabilities", "Model"),
-        ("supports", "Model"),
-        ("arch_string", "Model"),
-        ("variant_string", "Model"),
-        ("meta_val", "Model"),
-        ("set_abort", "Cancellation"),
-        ("was_aborted", "Cancellation"),
-        ("was_truncated", "Cancellation"),
-        ("n_segments", "Results"),
-        ("n_words", "Results"),
-        ("n_tokens", "Results"),
-        ("full_text", "Results"),
-        ("raw_text", "Results"),
-        ("detected_language", "Results"),
-        ("returned_timestamp", "Results"),
-        ("get_segment", "Results"),
-        ("get_word", "Results"),
-        ("get_token", "Results"),
-        ("get_timings", "Results"),
-        ("print_timings", "Results"),
-        ("reset_timings", "Results"),
-        ("tokenize", "Tokenize"),
-        ("status_string", "Status"),
+        ("model_load_params", "Model"), ("model_free", "Model"), ("model_", "Model"),
+        ("session_init", "Session"), ("session_free", "Session"),
+        ("session_limits", "Session"), ("session_", "Session"),
+        ("stream_", "Streaming"), ("batch_", "Batch"), ("run_batch", "Batch"),
+        ("run_params", "Run"), ("run", "Run"),
+        ("segment_", "Results — Segments"), ("word_", "Results — Words"),
+        ("token", "Results — Tokens"), ("speaker_", "Results — Speaker"),
+        ("timing", "Timings"), ("backend", "Backend"), ("device", "Backend"),
+        ("log_", "Logging"), ("version", "Version"), ("abi_", "ABI Metadata"),
+        ("open", "Lifecycle"), ("close", "Lifecycle"), ("get_model", "Lifecycle"),
+        ("init_backends", "Backend"), ("capabilities", "Model"), ("supports", "Model"),
+        ("arch_string", "Model"), ("variant_string", "Model"), ("meta_val", "Model"),
+        ("set_abort", "Cancellation"), ("was_aborted", "Cancellation"),
+        ("was_truncated", "Cancellation"), ("n_segments", "Results"),
+        ("n_words", "Results"), ("n_tokens", "Results"), ("full_text", "Results"),
+        ("raw_text", "Results"), ("detected_language", "Results"),
+        ("returned_timestamp", "Results"), ("get_segment", "Results"),
+        ("get_word", "Results"), ("get_token", "Results"), ("get_timings", "Results"),
+        ("print_timings", "Results"), ("reset_timings", "Results"),
+        ("tokenize", "Tokenize"), ("status_string", "Status"),
     ];
 
     private static readonly HashSet<string> s_csharpKeywords =
@@ -142,7 +113,7 @@ public class CSharpGenerator
             // Callback delegates
             // ════════════════════════════════════════════════════════════════
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-            public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPStr)] string msg, IntPtr userdata);
+            public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPUTF8Str)] string msg, IntPtr userdata);
 
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             [return: MarshalAs(UnmanagedType.U1)]
@@ -229,10 +200,16 @@ public class CSharpGenerator
         sb.AppendLine("{");
         foreach (var f in s.Fields)
         {
-            var csType = MapType(f.Type);
+            var csType = MapTypeForStructField(f.Type);
             var csField = ToCamelCase(f.Name);
-            if (f.Type.Contains("*const c_char"))
-                sb.AppendLine("    [MarshalAs(UnmanagedType.LPStr)]");
+
+            // Bool fields: MUST be 1 byte (Rust repr(C) bool = 1 byte)
+            if (f.Type == "bool")
+                sb.AppendLine("    [MarshalAs(UnmanagedType.I1)]");
+            // String pointer fields in structs: borrowed pointers → IntPtr (safe)
+            else if (f.Type.Contains("c_char"))
+                csType = "IntPtr";
+
             sb.AppendLine($"    public {csType} {csField};");
         }
         sb.AppendLine("}");
@@ -242,10 +219,9 @@ public class CSharpGenerator
     private void WriteFunction(StringBuilder sb, RustFunction fn)
     {
         var csName = ToPascalCase(fn.Name);
-        var retType = MapType(fn.ReturnType);
-
-        // Resolve callback pointer params to delegate types
         var parameters = ParseParams(fn.ParamsRaw);
+
+        // Skip functions with callback pointer params (need manual delegate mapping)
         if (parameters.Any(p => p.Type.Contains("Option<unsafe")))
         {
             sb.AppendLine($"    // TODO: {fn.Name} — function pointer params need manual delegate mapping");
@@ -253,21 +229,26 @@ public class CSharpGenerator
             return;
         }
 
+        // Detect return type: borrowed *const c_char → IntPtr (NOT string)
+        var returnsBorrowedString = fn.ReturnType.Contains("c_char");
+        var retType = returnsBorrowedString ? "IntPtr" : MapTypeForParam(fn.ReturnType);
+
         sb.AppendLine($"    [LibraryImport(LibName, EntryPoint = \"{fn.Name}\", StringMarshalling = StringMarshalling.Utf8)]");
 
-        if (fn.ReturnType.Contains("*const c_char"))
-            sb.AppendLine("    [return: MarshalAs(UnmanagedType.LPStr)]");
-        else if (retType == "bool")
+        // Bool return: must be U1 (1 byte, not 4-byte Windows BOOL)
+        if (retType == "bool")
             sb.AppendLine("    [return: MarshalAs(UnmanagedType.U1)]");
 
         var paramsStr = string.Join(", ", parameters.Select(p =>
         {
-            var type = MapType(p.Type);
+            var type = MapTypeForParam(p.Type);
             var name = ToCamelCase(p.Name);
-            if (p.Type.Contains("*const c_char"))
+            // String params: explicit UTF-8 marshalling
+            if (p.Type.Contains("c_char"))
                 return $"[MarshalAs(UnmanagedType.LPUTF8Str)] string {name}";
-            if (type == "bool")
-                return $"[MarshalAs(UnmanagedType.U1)] bool {name}";
+            // Bool params: must be I1 (1 byte)
+            if (p.Type == "bool")
+                return $"[MarshalAs(UnmanagedType.I1)] bool {name}";
             return $"{type} {name}";
         }));
 
@@ -277,7 +258,11 @@ public class CSharpGenerator
 
     // ── Type mapping (split by concern) ────────────────────────────
 
-    private string MapType(string rustType)
+    /// <summary>
+    /// Map a Rust type for function return/param context.
+    /// Borrowed string pointers (*const c_char) return IntPtr — caller must marshal manually.
+    /// </summary>
+    private static string MapTypeForParam(string rustType)
     {
         rustType = rustType.Trim();
         return MapPrimitive(rustType)
@@ -285,6 +270,20 @@ public class CSharpGenerator
             ?? MapStruct(rustType)
             ?? MapPointer(rustType)
             ?? throw new NotSupportedException($"Unknown Rust type: '{rustType}'");
+    }
+
+    /// <summary>
+    /// Map a Rust type for struct field context.
+    /// Bool gets MarshalAs I1, string pointers become IntPtr.
+    /// </summary>
+    private static string MapTypeForStructField(string rustType)
+    {
+        rustType = rustType.Trim();
+        return rustType switch
+        {
+            "bool" => "bool",  // WriteStruct adds [MarshalAs(UnmanagedType.I1)]
+            _ => MapTypeForParam(rustType),
+        };
     }
 
     private static string? MapPrimitive(string rustType) => rustType switch
@@ -299,11 +298,11 @@ public class CSharpGenerator
         "usize" => "nuint",
         "f32" => "float",
         "f64" => "double",
-        "::std::os::raw::c_int" => "int",
-        "::std::os::raw::c_uint" => "uint",
-        "::std::os::raw::c_char" => "byte",
-        "*const ::std::os::raw::c_char" => "string",
-        "*const c_char" => "string",
+        "c_int" => "int",
+        "c_uint" => "uint",
+        "c_char" => "byte",
+        // NOTE: *const c_char is NOT mapped here — it's a borrowed pointer.
+        // Functions return IntPtr (manual marshal). Struct fields use IntPtr directly.
         _ => null,
     };
 
@@ -326,6 +325,7 @@ public class CSharpGenerator
 
     private static string? MapPointer(string rustType)
     {
+        // All pointers → IntPtr (including *const c_char, *mut f32, etc.)
         if (rustType.StartsWith('*'))
             return "IntPtr";
         return null;

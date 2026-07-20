@@ -37,8 +37,8 @@ public partial class RustFfiParser
         foreach (Match m in ExternFuncRegex().Matches(_content))
         {
             var name = m.Groups["name"].Value;
-            var retType = m.Groups["ret"].Value.Trim();
-            var paramsRaw = m.Groups["params"].Value.Trim();
+            var retType = NormalizeType(m.Groups["ret"].Value.Trim());
+            var paramsRaw = NormalizeType(m.Groups["params"].Value.Trim());
             results.Add(new RustFunction(name, retType, paramsRaw));
         }
         return results;
@@ -54,11 +54,16 @@ public partial class RustFfiParser
             var fields = new List<RustStructField>();
             foreach (Match f in StructFieldRegex().Matches(body))
             {
-                fields.Add(new(f.Groups["type"].Value.Trim(), f.Groups["name"].Value.Trim()));
+                fields.Add(new(NormalizeType(f.Groups["type"].Value.Trim()), f.Groups["name"].Value.Trim()));
             }
             results.Add(new RustStruct(name, fields));
         }
         return results;
+    }
+
+    private static string NormalizeType(string rustType)
+    {
+        return rustType.Replace("::std::os::raw::", "");
     }
 
     // Match: impl TypeName { pub const NAME: TypeName = TypeName(N); ... }
