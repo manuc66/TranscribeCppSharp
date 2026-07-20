@@ -22,6 +22,7 @@
   <ItemGroup>
     <Import Include="System.Runtime.InteropServices" />
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
+    <InternalsVisibleTo Include="SmokeTest" />
   </ItemGroup>
 
 </Project>
