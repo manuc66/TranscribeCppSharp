@@ -70,4 +70,4 @@ Full coverage of the transcribe.cpp C API — generated from the same source as 
 
 ## Status
 
-This generates the **raw P/Invoke layer**. A higher-level C# wrapper (Model, Session, Transcript classes) should be built on top of this.
+The generated P/Invoke layer is **complete and usable as-is**. Typed handles, correct marshalling, callback delegates — no wrapper required for direct usage. See `tests/TranscribeCppSharp.Interop.Tests/` for usage examples.
