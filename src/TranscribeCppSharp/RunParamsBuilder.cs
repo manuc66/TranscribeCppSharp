@@ -76,6 +76,13 @@ public sealed class RunParamsBuilder : IDisposable
         return this;
     }
 
+    /// <summary>Whisper-specific extension parameters (prompt, temperature, etc.).</summary>
+    public RunParamsBuilder WithWhisperExt(WhisperExtBuilder ext)
+    {
+        _params.family = ext.Handle;
+        return this;
+    }
+
     internal IntPtr Handle
     {
         get

@@ -76,7 +76,11 @@ public sealed class Model : IDisposable
         }
     }
 
-    /// <summary>Query a metadata string from the loaded model.</summary>
+    /// <summary>
+    /// Query a metadata string from the loaded model.
+    /// The returned string is a snapshot copy — safe to keep after the call.
+    /// The native pointer is borrowed from the model and must not be freed.
+    /// </summary>
     public string? GetMetaValue(string key)
     {
         BeginUse();
@@ -98,6 +102,39 @@ public sealed class Model : IDisposable
         try
         {
             return NativeMethods.ModelSupports(_handle, feature);
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
+    /// <summary>
+    /// Tokenize text using the model's tokenizer.
+    /// </summary>
+    /// <param name="text">The text to tokenize.</param>
+    /// <param name="maxTokens">Maximum number of tokens to output.</param>
+    /// <returns>Array of token IDs.</returns>
+    public int[] Tokenize(string text, int maxTokens = 1024)
+    {
+        BeginUse();
+        try
+        {
+            var tokensPtr = Marshal.AllocHGlobal(maxTokens * sizeof(int));
+            try
+            {
+                var count = NativeMethods.Tokenize(_handle, text, tokensPtr, (nuint)maxTokens);
+                if (count < 0)
+                    throw new InvalidOperationException("Tokenization failed");
+
+                var tokens = new int[count];
+                Marshal.Copy(tokensPtr, tokens, 0, count);
+                return tokens;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(tokensPtr);
+            }
         }
         finally
         {

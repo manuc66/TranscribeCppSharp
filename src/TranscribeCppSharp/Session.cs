@@ -61,6 +61,20 @@ public sealed class Session : IDisposable
         Interlocked.Decrement(ref _useCount);
     }
 
+    /// <summary>Create a streaming session bound to this session handle.</summary>
+    public StreamSession CreateStream()
+    {
+        BeginUse();
+        try
+        {
+            return new StreamSession(_handle);
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
     /// <summary>
     /// Transcribe a PCM buffer (16 kHz mono f32, samples in [-1, 1]).
     /// Returns a Transcript with FullText and DetectedLanguage eagerly loaded.
@@ -92,7 +106,11 @@ public sealed class Session : IDisposable
         }
     }
 
-    /// <summary>Get the full transcription text after a run.</summary>
+    /// <summary>
+    /// Get the full transcription text after a run.
+    /// The returned string is a snapshot copy — safe to keep after the call.
+    /// The native pointer is borrowed from the session and must not be freed.
+    /// </summary>
     public string FullText
     {
         get
@@ -276,6 +294,77 @@ public sealed class Session : IDisposable
             EndUse();
         }
     }
+
+    /// <summary>
+    /// Set a cancellation callback. Return true from the callback to abort transcription.
+    /// The callback is invoked periodically during long-running operations.
+    /// </summary>
+    public void SetAbortCallback(Interop.AbortCallback callback)
+    {
+        BeginUse();
+        try
+        {
+            _abortCallback = callback;
+            NativeMethods.SetAbortCallback(_handle, callback, IntPtr.Zero);
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
+    /// <summary>
+    /// Clear the cancellation callback.
+    /// </summary>
+    public void ClearAbortCallback()
+    {
+        BeginUse();
+        try
+        {
+            _abortCallback = null;
+            NativeMethods.SetAbortCallback(_handle, _ => false, IntPtr.Zero);
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
+    /// <summary>Whether the last transcription was aborted.</summary>
+    public bool WasAborted
+    {
+        get
+        {
+            BeginUse();
+            try
+            {
+                return NativeMethods.WasAborted(_handle);
+            }
+            finally
+            {
+                EndUse();
+            }
+        }
+    }
+
+    /// <summary>Whether the last transcription was truncated (hit context limit).</summary>
+    public bool WasTruncated
+    {
+        get
+        {
+            BeginUse();
+            try
+            {
+                return NativeMethods.WasTruncated(_handle);
+            }
+            finally
+            {
+                EndUse();
+            }
+        }
+    }
+
+    private Interop.AbortCallback? _abortCallback;
 
     internal SessionHandle Handle => _handle;
 

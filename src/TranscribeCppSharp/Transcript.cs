@@ -17,7 +17,10 @@ public record TokenResult(int Id, float Probability, TimeSpan Start, TimeSpan En
 /// <summary>Performance timings for a transcription run.</summary>
 public record TimingsResult(float LoadMs, float MelMs, float EncodeMs, float DecodeMs);
 
-/// <summary>Complete transcription result.</summary>
+/// <summary>
+/// Complete transcription result.
+/// All strings are managed copies — safe to keep after the session is disposed.
+/// </summary>
 public sealed class Transcript
 {
     public string FullText { get; init; } = "";
