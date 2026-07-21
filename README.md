@@ -46,8 +46,21 @@ dotnet run --project src/Generator
 
 ## Tests
 
+### Unit Tests
 ```bash
-dotnet test tests/TranscribeCppSharp.Interop.Tests/
+dotnet test
+```
+
+### Integration Tests (with real model)
+Requires the native libraries to be fetched first.
+```bash
+./fetch-native.sh
+./run-integration-tests.sh
+```
+
+### Smoke Test
+```bash
+dotnet run --project samples/SmokeTest -- test-models/ggml-tiny.bin test-audio/jfk.wav
 ```
 
 | Test | What it catches |

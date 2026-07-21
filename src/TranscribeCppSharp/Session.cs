@@ -29,7 +29,7 @@ public sealed class Session : IDisposable
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(NativeMethods.SessionInit));
 
-            var handle = Marshal.PtrToStructure<SessionHandle>(outSession);
+            var handle = new SessionHandle(Marshal.ReadIntPtr(outSession));
             return new Session(handle);
         }
         finally
@@ -104,6 +104,67 @@ public sealed class Session : IDisposable
             ThrowIfDisposed();
             return NativeMethods.NWords(_handle);
         }
+    }
+
+    /// <summary>Number of tokens in the last result.</summary>
+    public int TokenCount
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return NativeMethods.NTokens(_handle);
+        }
+    }
+
+    /// <summary>Check if the session was aborted.</summary>
+    public bool WasAborted
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return NativeMethods.WasAborted(_handle);
+        }
+    }
+
+    /// <summary>Check if the output was truncated due to buffer limits.</summary>
+    public bool WasTruncated
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return NativeMethods.WasTruncated(_handle);
+        }
+    }
+
+    /// <summary>Get the kind of timestamps returned by the session.</summary>
+    public TimestampKind ReturnedTimestampKind => NativeMethods.ReturnedTimestampKind(_handle);
+
+    /// <summary>Get resource limits for this session.</summary>
+    public SessionLimits GetLimits()
+    {
+        ThrowIfDisposed();
+        var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSessionLimits);
+        var ptr = Marshal.AllocHGlobal(size);
+        try
+        {
+            NativeMethods.SessionLimitsInit(ptr);
+            var status = NativeMethods.SessionGetLimits(_handle, ptr);
+            if (status != Status.Ok)
+                throw new TranscribeException(status, nameof(NativeMethods.SessionGetLimits));
+
+            return Marshal.PtrToStructure<SessionLimits>(ptr);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
+    }
+
+    /// <summary>Reset timing statistics for this session.</summary>
+    public void ResetTimings()
+    {
+        ThrowIfDisposed();
+        NativeMethods.ResetTimings(_handle);
     }
 
     /// <summary>Read segments from the last run result.</summary>
@@ -239,25 +300,6 @@ public sealed class Session : IDisposable
         NativeMethods.SetAbortCallback(_handle, _abortCallback, IntPtr.Zero);
     }
 
-    /// <summary>Whether the last transcription was aborted.</summary>
-    public bool WasAborted
-    {
-        get
-        {
-            ThrowIfDisposed();
-            return NativeMethods.WasAborted(_handle);
-        }
-    }
-
-    /// <summary>Whether the last transcription was truncated (hit context limit).</summary>
-    public bool WasTruncated
-    {
-        get
-        {
-            ThrowIfDisposed();
-            return NativeMethods.WasTruncated(_handle);
-        }
-    }
 
     private Interop.AbortCallback? _abortCallback;
 
@@ -331,11 +373,18 @@ public sealed class Session : IDisposable
         var langPtr = NativeMethods.DetectedLanguage(_handle);
         var lang = langPtr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(langPtr) ?? "";
 
+        var segments = ReadSegments();
+        var words = WordCount > 0 ? ReadWords() : Array.Empty<WordResult>();
+        var tokens = NativeMethods.NTokens(_handle) > 0 ? ReadTokens() : Array.Empty<TokenResult>();
+
         return new Transcript
         {
             FullText = FullText,
             DetectedLanguage = lang,
             Timing = timings,
+            Segments = segments,
+            Words = words,
+            Tokens = tokens,
         };
     }
 
