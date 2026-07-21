@@ -176,25 +176,33 @@ public class CSharpGenerator
 
     private void WriteHandle(StringBuilder sb, string csName)
     {
+        var freeMethod = csName switch
+        {
+            "ModelHandle" => "ModelFree",
+            "SessionHandle" => "SessionFree",
+            _ => throw new InvalidOperationException($"Unknown handle type: {csName}")
+        };
+
         sb.AppendLine($$"""
-            [StructLayout(LayoutKind.Sequential)]
-            public readonly struct {{csName}} : IEquatable<{{csName}}>
+            public sealed class {{csName}} : SafeHandle
             {
-                internal readonly IntPtr Value;
-                internal {{csName}}(IntPtr value) => Value = value;
+                public static readonly {{csName}} Null = new {{csName}}(IntPtr.Zero);
 
-                public static implicit operator IntPtr({{csName}} h) => h.Value;
-                public static explicit operator {{csName}}(IntPtr v) => new(v);
-                public static {{csName}} Null => new(IntPtr.Zero);
-                public bool IsNull => Value == IntPtr.Zero;
+                public {{csName}}() : base(IntPtr.Zero, true) { }
+                public {{csName}}(IntPtr handle) : base(IntPtr.Zero, true) => SetHandle(handle);
 
-                public bool Equals({{csName}} other) => Value == other.Value;
-                public override bool Equals(object? obj) => obj is {{csName}} h && Equals(h);
-                public override int GetHashCode() => Value.GetHashCode();
-                public override string ToString() => $"{{csName}}(0x{Value:X})";
+                public override bool IsInvalid => handle == IntPtr.Zero;
 
-                public static bool operator ==({{csName}} left, {{csName}} right) => left.Equals(right);
-                public static bool operator !=({{csName}} left, {{csName}} right) => !left.Equals(right);
+                protected override bool ReleaseHandle()
+                {
+                    NativeMethods.{{freeMethod}}(handle);
+                    return true;
+                }
+
+                public static implicit operator IntPtr({{csName}} h) => h.handle;
+                public static explicit operator {{csName}}(IntPtr v) => new {{csName}}(v);
+
+                public override string ToString() => $"{{csName}}(0x{handle:X})";
             }
             """);
         sb.AppendLine();
@@ -286,9 +294,9 @@ public class CSharpGenerator
         PrimitiveType("c_uint") => "uint",
         PrimitiveType("c_char") => "byte",
 
-        // Opaque handles → typed handle struct
-        PointerType(_, OpaqueHandleType("transcribe_model")) => "ModelHandle",
-        PointerType(_, OpaqueHandleType("transcribe_session")) => "SessionHandle",
+        // Opaque handles → IntPtr (P/Invoke works with raw pointers)
+        PointerType(_, OpaqueHandleType("transcribe_model")) => "IntPtr",
+        PointerType(_, OpaqueHandleType("transcribe_session")) => "IntPtr",
 
         // Named struct types (by pointer)
         PointerType(_, StructType(var rustName)) => $"IntPtr /* {rustName} */",

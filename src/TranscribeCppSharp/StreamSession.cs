@@ -2,7 +2,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Threading;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
@@ -29,28 +28,20 @@ public record StreamTextResult(
 /// <summary>
 /// Real-time streaming transcription session.
 /// Feed PCM audio chunks incrementally and read partial/final results.
+/// Thread-safe: SafeHandle on the parent Session ensures correct handle management.
 /// </summary>
 public sealed class StreamSession : IDisposable
 {
     private readonly SessionHandle _session;
     private bool _disposed;
-    private int _useCount;
 
     internal StreamSession(SessionHandle session) => _session = session;
 
-    private void BeginUse()
+    private void ThrowIfDisposed()
     {
-        if (_disposed)
+        if (_disposed || _session.IsInvalid)
             throw new ObjectDisposedException(nameof(StreamSession));
-        Interlocked.Increment(ref _useCount);
-        if (_disposed)
-        {
-            Interlocked.Decrement(ref _useCount);
-            throw new ObjectDisposedException(nameof(StreamSession));
-        }
     }
-
-    private void EndUse() => Interlocked.Decrement(ref _useCount);
 
     /// <summary>
     /// Start a new streaming transcription.
@@ -59,22 +50,16 @@ public sealed class StreamSession : IDisposable
         Action<RunParamsBuilder>? runConfig = null,
         Action<StreamParamsBuilder>? streamConfig = null)
     {
-        BeginUse();
-        try
-        {
-            using var runParams = new RunParamsBuilder();
-            runConfig?.Invoke(runParams);
-            using var streamParams = new StreamParamsBuilder();
-            streamConfig?.Invoke(streamParams);
+        ThrowIfDisposed();
 
-            var status = NativeMethods.StreamBegin(_session, runParams.Build(), streamParams.Build());
-            if (status != Status.Ok)
-                throw new TranscribeException(status, nameof(NativeMethods.StreamBegin));
-        }
-        finally
-        {
-            EndUse();
-        }
+        using var runParams = new RunParamsBuilder();
+        runConfig?.Invoke(runParams);
+        using var streamParams = new StreamParamsBuilder();
+        streamConfig?.Invoke(streamParams);
+
+        var status = NativeMethods.StreamBegin(_session, runParams.Build(), streamParams.Build());
+        if (status != Status.Ok)
+            throw new TranscribeException(status, nameof(NativeMethods.StreamBegin));
     }
 
     /// <summary>
@@ -83,37 +68,31 @@ public sealed class StreamSession : IDisposable
     /// </summary>
     public unsafe StreamUpdateResult Feed(ReadOnlySpan<float> pcm)
     {
-        BeginUse();
-        try
+        ThrowIfDisposed();
+
+        var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
+        StackAllocHelper.ThrowIfTooLarge(updateSize, nameof(StreamUpdate));
+        Span<byte> updateBuffer = stackalloc byte[updateSize];
+        fixed (byte* pBuffer = updateBuffer)
         {
-            var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
-            StackAllocHelper.ThrowIfTooLarge(updateSize, nameof(StreamUpdate));
-            Span<byte> updateBuffer = stackalloc byte[updateSize];
-            fixed (byte* pBuffer = updateBuffer)
+            var updatePtr = (IntPtr)pBuffer;
+            NativeMethods.StreamUpdateInit(updatePtr);
+
+            fixed (float* pPcm = pcm)
             {
-                var updatePtr = (IntPtr)pBuffer;
-                NativeMethods.StreamUpdateInit(updatePtr);
-
-                fixed (float* pPcm = pcm)
-                {
-                    var status = NativeMethods.StreamFeed(_session, (IntPtr)pPcm, pcm.Length, updatePtr);
-                    if (status != Status.Ok)
-                        throw new TranscribeException(status, nameof(NativeMethods.StreamFeed));
-                }
-
-                var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
-                return new StreamUpdateResult(
-                    ResultChanged: u.resultChanged,
-                    IsFinal: u.isFinal,
-                    Revision: u.revision,
-                    InputReceived: TimeSpan.FromMilliseconds(u.inputReceivedMs),
-                    AudioCommitted: TimeSpan.FromMilliseconds(u.audioCommittedMs),
-                    Buffered: TimeSpan.FromMilliseconds(u.bufferedMs));
+                var status = NativeMethods.StreamFeed(_session, (IntPtr)pPcm, pcm.Length, updatePtr);
+                if (status != Status.Ok)
+                    throw new TranscribeException(status, nameof(NativeMethods.StreamFeed));
             }
-        }
-        finally
-        {
-            EndUse();
+
+            var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
+            return new StreamUpdateResult(
+                ResultChanged: u.resultChanged,
+                IsFinal: u.isFinal,
+                Revision: u.revision,
+                InputReceived: TimeSpan.FromMilliseconds(u.inputReceivedMs),
+                AudioCommitted: TimeSpan.FromMilliseconds(u.audioCommittedMs),
+                Buffered: TimeSpan.FromMilliseconds(u.bufferedMs));
         }
     }
 
@@ -122,34 +101,28 @@ public sealed class StreamSession : IDisposable
     /// </summary>
     public unsafe StreamUpdateResult Finalize()
     {
-        BeginUse();
-        try
-        {
-            var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
-            StackAllocHelper.ThrowIfTooLarge(updateSize, nameof(StreamUpdate));
-            Span<byte> updateBuffer = stackalloc byte[updateSize];
-            fixed (byte* pBuffer = updateBuffer)
-            {
-                var updatePtr = (IntPtr)pBuffer;
-                NativeMethods.StreamUpdateInit(updatePtr);
+        ThrowIfDisposed();
 
-                var status = NativeMethods.StreamFinalize(_session, updatePtr);
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.StreamFinalize));
-
-                var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
-                return new StreamUpdateResult(
-                    ResultChanged: u.resultChanged,
-                    IsFinal: u.isFinal,
-                    Revision: u.revision,
-                    InputReceived: TimeSpan.FromMilliseconds(u.inputReceivedMs),
-                    AudioCommitted: TimeSpan.FromMilliseconds(u.audioCommittedMs),
-                    Buffered: TimeSpan.FromMilliseconds(u.bufferedMs));
-            }
-        }
-        finally
+        var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
+        StackAllocHelper.ThrowIfTooLarge(updateSize, nameof(StreamUpdate));
+        Span<byte> updateBuffer = stackalloc byte[updateSize];
+        fixed (byte* pBuffer = updateBuffer)
         {
-            EndUse();
+            var updatePtr = (IntPtr)pBuffer;
+            NativeMethods.StreamUpdateInit(updatePtr);
+
+            var status = NativeMethods.StreamFinalize(_session, updatePtr);
+            if (status != Status.Ok)
+                throw new TranscribeException(status, nameof(NativeMethods.StreamFinalize));
+
+            var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
+            return new StreamUpdateResult(
+                ResultChanged: u.resultChanged,
+                IsFinal: u.isFinal,
+                Revision: u.revision,
+                InputReceived: TimeSpan.FromMilliseconds(u.inputReceivedMs),
+                AudioCommitted: TimeSpan.FromMilliseconds(u.audioCommittedMs),
+                Buffered: TimeSpan.FromMilliseconds(u.bufferedMs));
         }
     }
 
@@ -158,15 +131,8 @@ public sealed class StreamSession : IDisposable
     /// </summary>
     public void Reset()
     {
-        BeginUse();
-        try
-        {
-            NativeMethods.StreamReset(_session);
-        }
-        finally
-        {
-            EndUse();
-        }
+        ThrowIfDisposed();
+        NativeMethods.StreamReset(_session);
     }
 
     /// <summary>Read the current streaming text (full, committed, tentative).</summary>
@@ -174,38 +140,32 @@ public sealed class StreamSession : IDisposable
     {
         get
         {
-            BeginUse();
-            try
+            ThrowIfDisposed();
+
+            var textSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamText);
+            StackAllocHelper.ThrowIfTooLarge(textSize, nameof(StreamText));
+            Span<byte> textBuffer = stackalloc byte[textSize];
+            fixed (byte* pBuffer = textBuffer)
             {
-                var textSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamText);
-                StackAllocHelper.ThrowIfTooLarge(textSize, nameof(StreamText));
-                Span<byte> textBuffer = stackalloc byte[textSize];
-                fixed (byte* pBuffer = textBuffer)
-                {
-                    var textPtr = (IntPtr)pBuffer;
-                    NativeMethods.StreamTextInit(textPtr);
+                var textPtr = (IntPtr)pBuffer;
+                NativeMethods.StreamTextInit(textPtr);
 
-                    var status = NativeMethods.StreamGetText(_session, textPtr);
-                    if (status != Status.Ok)
-                        throw new TranscribeException(status, nameof(NativeMethods.StreamGetText));
+                var status = NativeMethods.StreamGetText(_session, textPtr);
+                if (status != Status.Ok)
+                    throw new TranscribeException(status, nameof(NativeMethods.StreamGetText));
 
-                    var t = Marshal.PtrToStructure<Interop.StreamText>(textPtr);
-                    var fullText = t.fullText != IntPtr.Zero && t.fullTextBytes > 0
-                        ? Marshal.PtrToStringUTF8(t.fullText, (int)t.fullTextBytes) ?? ""
-                        : "";
-                    var committedText = t.committedText != IntPtr.Zero && t.committedTextBytes > 0
-                        ? Marshal.PtrToStringUTF8(t.committedText, (int)t.committedTextBytes) ?? ""
-                        : "";
-                    var tentativeText = t.tentativeText != IntPtr.Zero && t.tentativeTextBytes > 0
-                        ? Marshal.PtrToStringUTF8(t.tentativeText, (int)t.tentativeTextBytes) ?? ""
-                        : "";
+                var t = Marshal.PtrToStructure<Interop.StreamText>(textPtr);
+                var fullText = t.fullText != IntPtr.Zero && t.fullTextBytes > 0
+                    ? Marshal.PtrToStringUTF8(t.fullText, (int)t.fullTextBytes) ?? ""
+                    : "";
+                var committedText = t.committedText != IntPtr.Zero && t.committedTextBytes > 0
+                    ? Marshal.PtrToStringUTF8(t.committedText, (int)t.committedTextBytes) ?? ""
+                    : "";
+                var tentativeText = t.tentativeText != IntPtr.Zero && t.tentativeTextBytes > 0
+                    ? Marshal.PtrToStringUTF8(t.tentativeText, (int)t.tentativeTextBytes) ?? ""
+                    : "";
 
-                    return new StreamTextResult(fullText, committedText, tentativeText);
-                }
-            }
-            finally
-            {
-                EndUse();
+                return new StreamTextResult(fullText, committedText, tentativeText);
             }
         }
     }
@@ -215,15 +175,8 @@ public sealed class StreamSession : IDisposable
     {
         get
         {
-            BeginUse();
-            try
-            {
-                return NativeMethods.StreamGetState(_session);
-            }
-            finally
-            {
-                EndUse();
-            }
+            ThrowIfDisposed();
+            return NativeMethods.StreamGetState(_session);
         }
     }
 
@@ -232,15 +185,8 @@ public sealed class StreamSession : IDisposable
     {
         get
         {
-            BeginUse();
-            try
-            {
-                return NativeMethods.StreamNCommittedSegments(_session);
-            }
-            finally
-            {
-                EndUse();
-            }
+            ThrowIfDisposed();
+            return NativeMethods.StreamNCommittedSegments(_session);
         }
     }
 
@@ -249,15 +195,8 @@ public sealed class StreamSession : IDisposable
     {
         get
         {
-            BeginUse();
-            try
-            {
-                return NativeMethods.StreamNCommittedWords(_session);
-            }
-            finally
-            {
-                EndUse();
-            }
+            ThrowIfDisposed();
+            return NativeMethods.StreamNCommittedWords(_session);
         }
     }
 
@@ -266,15 +205,8 @@ public sealed class StreamSession : IDisposable
     {
         get
         {
-            BeginUse();
-            try
-            {
-                return NativeMethods.StreamNCommittedTokens(_session);
-            }
-            finally
-            {
-                EndUse();
-            }
+            ThrowIfDisposed();
+            return NativeMethods.StreamNCommittedTokens(_session);
         }
     }
 
@@ -283,15 +215,8 @@ public sealed class StreamSession : IDisposable
     {
         get
         {
-            BeginUse();
-            try
-            {
-                return NativeMethods.StreamLastStatus(_session);
-            }
-            finally
-            {
-                EndUse();
-            }
+            ThrowIfDisposed();
+            return NativeMethods.StreamLastStatus(_session);
         }
     }
 
@@ -300,26 +225,13 @@ public sealed class StreamSession : IDisposable
     {
         get
         {
-            BeginUse();
-            try
-            {
-                return NativeMethods.StreamRevision(_session);
-            }
-            finally
-            {
-                EndUse();
-            }
+            ThrowIfDisposed();
+            return NativeMethods.StreamRevision(_session);
         }
     }
 
     public void Dispose()
     {
-        if (!_disposed)
-        {
-            _disposed = true;
-            var sw = new SpinWait();
-            while (Volatile.Read(ref _useCount) > 0)
-                sw.SpinOnce();
-        }
+        _disposed = true;
     }
 }
