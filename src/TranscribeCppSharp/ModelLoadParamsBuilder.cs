@@ -42,13 +42,10 @@ public sealed class ModelLoadParamsBuilder : IDisposable
         return this;
     }
 
-    internal IntPtr Handle
+    internal IntPtr Build()
     {
-        get
-        {
-            Marshal.StructureToPtr(_params, _handle, false);
-            return _handle;
-        }
+        Marshal.StructureToPtr(_params, _handle, false);
+        return _handle;
     }
 
     public void Dispose()

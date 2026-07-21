@@ -67,7 +67,7 @@ public sealed class StreamSession : IDisposable
             using var streamParams = new StreamParamsBuilder();
             streamConfig?.Invoke(streamParams);
 
-            var status = NativeMethods.StreamBegin(_session, runParams.Handle, streamParams.Handle);
+            var status = NativeMethods.StreamBegin(_session, runParams.Build(), streamParams.Build());
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(NativeMethods.StreamBegin));
         }
@@ -87,6 +87,7 @@ public sealed class StreamSession : IDisposable
         try
         {
             var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
+            StackAllocHelper.ThrowIfTooLarge(updateSize, nameof(StreamUpdate));
             Span<byte> updateBuffer = stackalloc byte[updateSize];
             fixed (byte* pBuffer = updateBuffer)
             {
@@ -125,6 +126,7 @@ public sealed class StreamSession : IDisposable
         try
         {
             var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
+            StackAllocHelper.ThrowIfTooLarge(updateSize, nameof(StreamUpdate));
             Span<byte> updateBuffer = stackalloc byte[updateSize];
             fixed (byte* pBuffer = updateBuffer)
             {
@@ -176,6 +178,7 @@ public sealed class StreamSession : IDisposable
             try
             {
                 var textSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamText);
+                StackAllocHelper.ThrowIfTooLarge(textSize, nameof(StreamText));
                 Span<byte> textBuffer = stackalloc byte[textSize];
                 fixed (byte* pBuffer = textBuffer)
                 {

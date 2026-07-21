@@ -30,7 +30,7 @@ public sealed class Model : IDisposable
         var outModel = Marshal.AllocHGlobal(IntPtr.Size);
         try
         {
-            var status = NativeMethods.ModelLoadFile(modelPath, buildParams.Handle, outModel);
+            var status = NativeMethods.ModelLoadFile(modelPath, buildParams.Build(), outModel);
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(NativeMethods.ModelLoadFile));
 
@@ -146,7 +146,14 @@ public sealed class Model : IDisposable
 
     ~Model()
     {
+        // Mark as disposed to prevent new operations
         Volatile.Write(ref _disposed, 1);
+
+        // Wait for all in-flight operations to complete before freeing
+        var sw = new SpinWait();
+        while (Volatile.Read(ref _useCount) > 0)
+            sw.SpinOnce();
+
         NativeMethods.ModelFree(_handle);
         _handle = ModelHandle.Null;
     }

@@ -15,6 +15,7 @@ public sealed class RunParamsBuilder : IDisposable
     private RunParams _params;
     private IntPtr _languagePtr;
     private IntPtr _targetLanguagePtr;
+    private WhisperExtBuilder? _whisperExt;
     private bool _disposed;
 
     public RunParamsBuilder()
@@ -79,17 +80,15 @@ public sealed class RunParamsBuilder : IDisposable
     /// <summary>Whisper-specific extension parameters (prompt, temperature, etc.).</summary>
     public RunParamsBuilder WithWhisperExt(WhisperExtBuilder ext)
     {
-        _params.family = ext.Handle;
+        _whisperExt = ext;
+        _params.family = ext.Build();
         return this;
     }
 
-    internal IntPtr Handle
+    internal IntPtr Build()
     {
-        get
-        {
-            Marshal.StructureToPtr(_params, _handle, false);
-            return _handle;
-        }
+        Marshal.StructureToPtr(_params, _handle, false);
+        return _handle;
     }
 
     public void Dispose()
@@ -98,6 +97,8 @@ public sealed class RunParamsBuilder : IDisposable
         {
             FreePtr(ref _languagePtr);
             FreePtr(ref _targetLanguagePtr);
+            _whisperExt?.Dispose();
+            _whisperExt = null;
             Marshal.FreeHGlobal(_handle);
             _disposed = true;
         }

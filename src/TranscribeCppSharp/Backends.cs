@@ -55,6 +55,7 @@ public static class Backends
 
         var devices = new List<BackendDevice>(count);
         var deviceSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiBackendDevice);
+        StackAllocHelper.ThrowIfTooLarge(deviceSize, nameof(BackendDevice));
         Span<byte> buffer = stackalloc byte[deviceSize];
 
         fixed (byte* pBuffer = buffer)
