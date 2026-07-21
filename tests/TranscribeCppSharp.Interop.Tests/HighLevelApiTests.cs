@@ -18,7 +18,7 @@ public class HighLevelApiTests : IDisposable
     {
     }
 
-    [Fact(Skip = "Requires native library")]
+    [Fact(Skip = "Requires test audio file")]
     public void PcmExtensions_ReadWavToPcm_ShouldLoadTestWav()
     {
         // Arrange & Act
@@ -30,7 +30,7 @@ public class HighLevelApiTests : IDisposable
         Assert.All(pcm, s => Assert.InRange(s, -1f, 1f));
     }
 
-    [Fact(Skip = "Requires native library")]
+    [Fact]
     public void PcmExtensions_ReadWavToPcm_InvalidFile_ShouldThrow()
     {
         // Arrange
