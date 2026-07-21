@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
@@ -23,15 +25,27 @@ public static class Batch
 {
     /// <summary>
     /// Transcribe multiple PCM buffers in a single batch.
+    /// Supports cancellation via <paramref name="ct"/>.
     /// </summary>
     /// <param name="session">The session to use for transcription.</param>
     /// <param name="pcmBuffers">Array of PCM buffers (16 kHz mono f32).</param>
     /// <param name="configure">Optional configuration for run parameters.</param>
+    /// <param name="ct">Optional cancellation token.</param>
     /// <returns>Array of results, one per input buffer.</returns>
     public static unsafe IReadOnlyList<BatchResult> Run(
         Session session,
         float[][] pcmBuffers,
-        Action<RunParamsBuilder>? configure = null)
+        Action<RunParamsBuilder>? configure = null,
+        CancellationToken ct = default)
+    {
+        return RunInternal(session, pcmBuffers, configure, ct);
+    }
+
+    private static unsafe IReadOnlyList<BatchResult> RunInternal(
+        Session session,
+        float[][] pcmBuffers,
+        Action<RunParamsBuilder>? configure,
+        CancellationToken ct)
     {
         if (session == null)
             throw new ArgumentNullException(nameof(session));
@@ -65,9 +79,24 @@ public static class Batch
                 using var runParams = new RunParamsBuilder();
                 configure?.Invoke(runParams);
 
-                var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams.Build());
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
+                if (ct.CanBeCanceled)
+                {
+                    session.SetAbortCallback(_ => ct.IsCancellationRequested);
+                }
+
+                try
+                {
+                    var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams.Build());
+                    if (status != Status.Ok)
+                        throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
+                }
+                finally
+                {
+                    if (ct.CanBeCanceled)
+                    {
+                        session.ClearAbortCallback();
+                    }
+                }
 
                 // Read results
                 var resultCount = session.GetBatchResultCount();

@@ -35,7 +35,11 @@ public sealed class ModelLoadParamsBuilder : IDisposable
         return this;
     }
 
-    /// <summary>Select a specific GPU device index.</summary>
+    /// <summary>
+    /// Select a specific GPU device index. 
+    /// If the index is invalid or the device is busy, <see cref="Model.Load"/> 
+    /// will throw a <see cref="TranscribeException"/> with <see cref="Status.ErrBackend"/>.
+    /// </summary>
     public ModelLoadParamsBuilder WithGpuDevice(int device)
     {
         _params.gpuDevice = device;

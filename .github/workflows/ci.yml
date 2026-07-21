@@ -38,7 +38,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
-          dotnet-quality: 'preview'
           cache: true
           cache-dependency-path: '**/packages.lock.json'
 
@@ -74,7 +73,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
-          dotnet-quality: 'preview'
 
       - name: Regenerate bindings and check for drift
         run: |
@@ -96,7 +94,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
-          dotnet-quality: 'preview'
 
       - run: dotnet build samples/SmokeTest -c Release
 
@@ -136,7 +133,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
-          dotnet-quality: 'preview'
 
       - name: Cache native libraries
         uses: actions/cache@v4
@@ -166,7 +162,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
-          dotnet-quality: 'preview'
 
       - name: Pack Interop NuGet
         run: dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs /p:Version=${{ needs.get-version.outputs.version }}
@@ -185,7 +180,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
-          dotnet-quality: 'preview'
 
       - name: Pack Wrapper NuGet
         run: dotnet pack src/TranscribeCppSharp -c Release -o nupkgs /p:Version=${{ needs.get-version.outputs.version }}

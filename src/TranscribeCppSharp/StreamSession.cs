@@ -28,8 +28,14 @@ public record StreamTextResult(
 /// <summary>
 /// Real-time streaming transcription session.
 /// Feed PCM audio chunks incrementally and read partial/final results.
-/// Thread-safe: SafeHandle on the parent Session ensures correct handle management.
 /// </summary>
+/// <remarks>
+/// <b>Lifecycle:</b> <c>Begin()</c> -> <c>Feed()*</c> -> <c>Finalize()</c>.
+/// <br/>
+/// This class is a view over a <see cref="Session"/> and shares its state. 
+/// It is <b>not thread-safe</b> for concurrent access, but the underlying 
+/// handle management is safe.
+/// </remarks>
 public sealed class StreamSession : IDisposable
 {
     private readonly SessionHandle _session;
@@ -98,7 +104,11 @@ public sealed class StreamSession : IDisposable
 
     /// <summary>
     /// Finalize the stream. No more audio can be fed after this.
+    /// This should be called before <see cref="Dispose"/> to ensure all 
+    /// buffered audio is processed and final results are generated.
     /// </summary>
+    /// <returns>Result indicating if the final transcription changed or is final.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown if called after Dispose.</exception>
     public unsafe StreamUpdateResult Finalize()
     {
         ThrowIfDisposed();
@@ -230,6 +240,13 @@ public sealed class StreamSession : IDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the streaming view. 
+    /// Note: This does not close the underlying session, but prevents further 
+    /// streaming operations on this instance.
+    /// It is recommended to call <see cref="Finalize"/> before Disposing if you 
+    /// want the last transcription results.
+    /// </summary>
     public void Dispose()
     {
         _disposed = true;
