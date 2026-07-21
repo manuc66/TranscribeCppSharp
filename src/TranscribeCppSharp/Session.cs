@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
@@ -55,10 +57,28 @@ public sealed class Session : IDisposable
     /// Transcribe a PCM buffer (16 kHz mono f32, samples in [-1, 1]).
     /// Returns a Transcript with FullText and DetectedLanguage eagerly loaded.
     /// Call ReadSegments(), ReadWords(), ReadTokens() to get detailed results.
+    /// Supports cancellation via <paramref name="ct"/>.
     /// </summary>
-    public Transcript Run(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure = null)
+    public Transcript Run(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure = null, CancellationToken ct = default)
     {
-        RunNative(pcm, configure);
+        if (ct.CanBeCanceled)
+        {
+            var previousCallback = _abortCallback;
+            SetAbortCallback(_ => ct.IsCancellationRequested);
+            try
+            {
+                RunNative(pcm, configure);
+            }
+            finally
+            {
+                if (previousCallback != null) SetAbortCallback(previousCallback);
+                else ClearAbortCallback();
+            }
+        }
+        else
+        {
+            RunNative(pcm, configure);
+        }
         return ReadResults();
     }
 

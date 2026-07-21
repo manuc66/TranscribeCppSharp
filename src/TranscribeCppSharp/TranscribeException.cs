@@ -10,7 +10,17 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class TranscribeException : Exception
 {
-    /// <summary>The native status code returned by the library.</summary>
+    /// <summary>
+    /// The native status code returned by the library.
+    /// Common values include:
+    /// <list type="bullet">
+    /// <item><description><see cref="Status.Ok"/> (0): Success.</description></item>
+    /// <item><description><see cref="Status.ErrInvalidArg"/> (1): Invalid argument provided.</description></item>
+    /// <item><description><see cref="Status.ErrModelLoad"/> (4): Failed to load or parse the model file.</description></item>
+    /// <item><description><see cref="Status.ErrBackend"/> (8): Hardware acceleration backend failure.</description></item>
+    /// <item><description><see cref="Status.ErrAborted"/> (13): Operation was cancelled via CancellationToken.</description></item>
+    /// </list>
+    /// </summary>
     public Status StatusCode { get; }
 
     /// <summary>The raw integer value of the status code.</summary>
