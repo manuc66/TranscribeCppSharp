@@ -32,3 +32,8 @@ bld/
 .idea/
 *.swp
 *~
+
+## Test artifacts
+test-audio/
+test-models/
+native-packages/*/runtimes/

@@ -1,66 +1,66 @@
-# Tests d'intégration
+# Integration Tests
 
-Ce projet contient des tests unitaires et des tests d'intégration pour valider le wrapper C# de transcribe.cpp.
+This project contains unit tests and integration tests to validate the C# wrapper for transcribe.cpp.
 
-## Tests unitaires
+## Unit Tests
 
-Les tests unitaires ne nécessitent pas de bibliothèque native ni de modèle GGUF. Ils valident :
-- La génération de code
-- La parité des enums
-- La structure des types
+Unit tests do not require the native library or GGUF model. They validate:
+- Code generation
+- Enum parity
+- Type structure
 
-Exécution :
+Run:
 ```bash
 dotnet test
 ```
 
-## Tests d'intégration
+## Integration Tests
 
-Les tests d'intégration nécessitent :
-1. La bibliothèque native transcribe.cpp
-2. Un modèle GGUF de Whisper
+Integration tests require:
+1. The native transcribe.cpp library
+2. A Whisper GGUF model
 
-### Configuration
+### Setup
 
-1. Téléchargez la bibliothèque native :
+1. Download the native library:
 ```bash
 ./fetch-native.sh
 ```
 
-2. Téléchargez un modèle GGUF (par exemple, le modèle tiny) :
+2. Download a GGUF model (e.g., tiny model):
 ```bash
 mkdir -p test-models
 curl -L -o test-models/ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
 ```
 
-3. Créez un fichier audio de test :
+3. Create a test audio file:
 ```bash
 mkdir -p test-audio
-# Utilisez ffmpeg ou un autre outil pour créer un fichier WAV 16kHz mono
+# Use ffmpeg or another tool to create a 16kHz mono WAV file
 ffmpeg -f lavfi -i "sine=frequency=440:duration=1" -ar 16000 -ac 1 test-audio/test.wav
 ```
 
-### Exécution
+### Running
 
-Utilisez le script d'intégration :
+Use the integration script:
 ```bash
 ./run-integration-tests.sh
 ```
 
-Ou exécutez les tests directement :
+Or run tests directly:
 ```bash
 export LD_LIBRARY_PATH="$PWD/native-packages/linux-x64/runtimes/linux-x64/native:$LD_LIBRARY_PATH"
 dotnet test --filter "FullyQualifiedName~HighLevelApiTests"
 ```
 
-## Structure des tests
+## Test Structure
 
-- `EnumParityTest.cs` : Vérifie la parité des enums entre Rust et C#
-- `GoldenFileTest.cs` : Vérifie que le code généré correspond au fichier de référence
-- `HighLevelApiTests.cs` : Tests d'intégration de l'API haut niveau
+- `EnumParityTest.cs`: Verifies enum parity between Rust and C#
+- `GoldenFileTest.cs`: Verifies generated code matches reference file
+- `HighLevelApiTests.cs`: High-level API integration tests
 
 ## Notes
 
-- Les tests nécessitant la bibliothèque native sont marqués avec `Skip = "Requires native library"`
-- Les tests nécessitant un modèle GGUF sont marqués avec `Skip = "Requires integration test environment"`
-- Les tests sont automatiquement ignorés si les dépendances ne sont pas présentes
+- Tests requiring the native library are marked with `Skip = "Requires native library"`
+- Tests requiring a GGUF model are marked with `Skip = "Requires integration test environment"`
+- Tests are automatically skipped if dependencies are not present
