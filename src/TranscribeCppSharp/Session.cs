@@ -28,7 +28,7 @@ public sealed class Session : IDisposable
         var outSession = Marshal.AllocHGlobal(IntPtr.Size);
         try
         {
-            var status = NativeMethods.SessionInit(model, sessionParams.Handle, outSession);
+            var status = NativeMethods.SessionInit(model, sessionParams.Build(), outSession);
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(NativeMethods.SessionInit));
 
@@ -94,7 +94,7 @@ public sealed class Session : IDisposable
         BeginUse();
         try
         {
-            var status = NativeMethods.Run(_handle, pcmPtr, nSamples, runParams.Handle);
+            var status = NativeMethods.Run(_handle, pcmPtr, nSamples, runParams.Build());
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(Run));
 
@@ -173,6 +173,7 @@ public sealed class Session : IDisposable
             if (segCount == 0) return segments;
 
             var segSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSegment);
+            StackAllocHelper.ThrowIfTooLarge(segSize, nameof(Segment));
             Span<byte> segBuffer = stackalloc byte[segSize];
             fixed (byte* pSegBuffer = segBuffer)
             {
@@ -212,6 +213,7 @@ public sealed class Session : IDisposable
             if (wordCount == 0) return words;
 
             var wordSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiWord);
+            StackAllocHelper.ThrowIfTooLarge(wordSize, nameof(Word));
             Span<byte> wordBuffer = stackalloc byte[wordSize];
             fixed (byte* pWordBuffer = wordBuffer)
             {
@@ -251,6 +253,7 @@ public sealed class Session : IDisposable
             if (tokenCount == 0) return tokens;
 
             var tokenSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiToken);
+            StackAllocHelper.ThrowIfTooLarge(tokenSize, nameof(Token));
             Span<byte> tokenBuffer = stackalloc byte[tokenSize];
             fixed (byte* pTokenBuffer = tokenBuffer)
             {
@@ -321,8 +324,9 @@ public sealed class Session : IDisposable
         BeginUse();
         try
         {
-            _abortCallback = null;
-            NativeMethods.SetAbortCallback(_handle, _ => false, IntPtr.Zero);
+            // Store a no-op callback to keep the delegate rooted
+            _abortCallback = _ => false;
+            NativeMethods.SetAbortCallback(_handle, _abortCallback, IntPtr.Zero);
         }
         finally
         {
@@ -366,6 +370,88 @@ public sealed class Session : IDisposable
 
     private Interop.AbortCallback? _abortCallback;
 
+    /// <summary>
+    /// Internal method for batch transcription with proper thread-safety.
+    /// </summary>
+    internal unsafe Status RunBatchInternal(IntPtr pcmPtrArray, IntPtr sampleCountArray, int n, IntPtr runParams)
+    {
+        BeginUse();
+        try
+        {
+            return NativeMethods.RunBatch(_handle, pcmPtrArray, sampleCountArray, n, runParams);
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
+    /// <summary>
+    /// Get the number of batch results.
+    /// </summary>
+    internal int GetBatchResultCount()
+    {
+        BeginUse();
+        try
+        {
+            return NativeMethods.BatchNResults(_handle);
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
+    /// <summary>
+    /// Get the status of a batch result.
+    /// </summary>
+    internal Status GetBatchResultStatus(int index)
+    {
+        BeginUse();
+        try
+        {
+            return NativeMethods.BatchStatus(_handle, index);
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
+    /// <summary>
+    /// Get the full text of a batch result.
+    /// </summary>
+    internal string GetBatchResultFullText(int index)
+    {
+        BeginUse();
+        try
+        {
+            var ptr = NativeMethods.BatchFullText(_handle, index);
+            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
+    /// <summary>
+    /// Get the detected language of a batch result.
+    /// </summary>
+    internal string GetBatchResultDetectedLanguage(int index)
+    {
+        BeginUse();
+        try
+        {
+            var ptr = NativeMethods.BatchDetectedLanguage(_handle, index);
+            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        }
+        finally
+        {
+            EndUse();
+        }
+    }
+
     internal SessionHandle Handle => _handle;
 
     private unsafe void RunNative(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure)
@@ -378,7 +464,7 @@ public sealed class Session : IDisposable
 
             fixed (float* pPcm = pcm)
             {
-                var status = NativeMethods.Run(_handle, (IntPtr)pPcm, pcm.Length, runParams.Handle);
+                var status = NativeMethods.Run(_handle, (IntPtr)pPcm, pcm.Length, runParams.Build());
                 if (status != Status.Ok)
                     throw new TranscribeException(status, nameof(Run));
             }
@@ -406,6 +492,7 @@ public sealed class Session : IDisposable
     private unsafe TimingsResult? ReadTimings()
     {
         var timingsSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiTimings);
+        StackAllocHelper.ThrowIfTooLarge(timingsSize, nameof(Timings));
         Span<byte> timingsBuffer = stackalloc byte[timingsSize];
         fixed (byte* pTimingsBuffer = timingsBuffer)
         {
@@ -422,7 +509,14 @@ public sealed class Session : IDisposable
 
     ~Session()
     {
+        // Mark as disposed to prevent new operations
         Volatile.Write(ref _disposed, 1);
+
+        // Wait for all in-flight operations to complete before freeing
+        var sw = new SpinWait();
+        while (Volatile.Read(ref _useCount) > 0)
+            sw.SpinOnce();
+
         NativeMethods.SessionFree(_handle);
         _handle = SessionHandle.Null;
     }

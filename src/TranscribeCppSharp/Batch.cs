@@ -65,26 +65,19 @@ public static class Batch
                 using var runParams = new RunParamsBuilder();
                 configure?.Invoke(runParams);
 
-                var status = NativeMethods.RunBatch(session.Handle, pcmPtrArray, sampleCountArray, n, runParams.Handle);
+                var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams.Build());
                 if (status != Status.Ok)
                     throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
 
                 // Read results
-                var resultCount = NativeMethods.BatchNResults(session.Handle);
+                var resultCount = session.GetBatchResultCount();
                 var results = new List<BatchResult>(resultCount);
 
                 for (int i = 0; i < resultCount; i++)
                 {
-                    var batchStatus = NativeMethods.BatchStatus(session.Handle, i);
-                    var fullTextPtr = NativeMethods.BatchFullText(session.Handle, i);
-                    var langPtr = NativeMethods.BatchDetectedLanguage(session.Handle, i);
-
-                    var fullText = fullTextPtr != IntPtr.Zero
-                        ? Marshal.PtrToStringUTF8(fullTextPtr) ?? ""
-                        : "";
-                    var lang = langPtr != IntPtr.Zero
-                        ? Marshal.PtrToStringUTF8(langPtr) ?? ""
-                        : "";
+                    var batchStatus = session.GetBatchResultStatus(i);
+                    var fullText = session.GetBatchResultFullText(i);
+                    var lang = session.GetBatchResultDetectedLanguage(i);
 
                     results.Add(new BatchResult(
                         Index: i,
