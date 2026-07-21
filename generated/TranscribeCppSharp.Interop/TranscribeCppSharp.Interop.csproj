@@ -7,7 +7,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
     <PackageId>TranscribeCppSharp.Interop</PackageId>
-    <Version>1.0.0</Version>
     <Description>C# interop bindings for transcribe.cpp — native speech-to-text inference library</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
