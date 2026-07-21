@@ -128,7 +128,7 @@ jobs:
           test-models/ggml-tiny.bin test-audio/jfk.wav
 
   pack-native:
-    needs: [get-version]
+    needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
