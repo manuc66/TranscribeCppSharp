@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Generator\Generator.csproj" />
     <ProjectReference Include="..\..\generated\TranscribeCppSharp.Interop\TranscribeCppSharp.Interop.csproj" />
+    <ProjectReference Include="..\..\src\TranscribeCppSharp\TranscribeCppSharp.csproj" />
   </ItemGroup>
 
 </Project>

@@ -157,44 +157,46 @@ public enum WhisperPromptCondition
 // ════════════════════════════════════════════════════════════════
 // Typed handles (opaque pointers with compile-time safety)
 // ════════════════════════════════════════════════════════════════
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct ModelHandle : IEquatable<ModelHandle>
+public sealed class ModelHandle : SafeHandle
 {
-    internal readonly IntPtr Value;
-    internal ModelHandle(IntPtr value) => Value = value;
+    public static readonly ModelHandle Null = new ModelHandle(IntPtr.Zero);
 
-    public static implicit operator IntPtr(ModelHandle h) => h.Value;
-    public static explicit operator ModelHandle(IntPtr v) => new(v);
-    public static ModelHandle Null => new(IntPtr.Zero);
-    public bool IsNull => Value == IntPtr.Zero;
+    public ModelHandle() : base(IntPtr.Zero, true) { }
+    public ModelHandle(IntPtr handle) : base(IntPtr.Zero, true) => SetHandle(handle);
 
-    public bool Equals(ModelHandle other) => Value == other.Value;
-    public override bool Equals(object? obj) => obj is ModelHandle h && Equals(h);
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => $"ModelHandle(0x{Value:X})";
+    public override bool IsInvalid => handle == IntPtr.Zero;
 
-    public static bool operator ==(ModelHandle left, ModelHandle right) => left.Equals(right);
-    public static bool operator !=(ModelHandle left, ModelHandle right) => !left.Equals(right);
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.ModelFree(handle);
+        return true;
+    }
+
+    public static implicit operator IntPtr(ModelHandle h) => h.handle;
+    public static explicit operator ModelHandle(IntPtr v) => new ModelHandle(v);
+
+    public override string ToString() => $"ModelHandle(0x{handle:X})";
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct SessionHandle : IEquatable<SessionHandle>
+public sealed class SessionHandle : SafeHandle
 {
-    internal readonly IntPtr Value;
-    internal SessionHandle(IntPtr value) => Value = value;
+    public static readonly SessionHandle Null = new SessionHandle(IntPtr.Zero);
 
-    public static implicit operator IntPtr(SessionHandle h) => h.Value;
-    public static explicit operator SessionHandle(IntPtr v) => new(v);
-    public static SessionHandle Null => new(IntPtr.Zero);
-    public bool IsNull => Value == IntPtr.Zero;
+    public SessionHandle() : base(IntPtr.Zero, true) { }
+    public SessionHandle(IntPtr handle) : base(IntPtr.Zero, true) => SetHandle(handle);
 
-    public bool Equals(SessionHandle other) => Value == other.Value;
-    public override bool Equals(object? obj) => obj is SessionHandle h && Equals(h);
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => $"SessionHandle(0x{Value:X})";
+    public override bool IsInvalid => handle == IntPtr.Zero;
 
-    public static bool operator ==(SessionHandle left, SessionHandle right) => left.Equals(right);
-    public static bool operator !=(SessionHandle left, SessionHandle right) => !left.Equals(right);
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.SessionFree(handle);
+        return true;
+    }
+
+    public static implicit operator IntPtr(SessionHandle h) => h.handle;
+    public static explicit operator SessionHandle(IntPtr v) => new SessionHandle(v);
+
+    public override string ToString() => $"SessionHandle(0x{handle:X})";
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -496,7 +498,7 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_accepts_ext_kind", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
-    public static partial bool ModelAcceptsExtKind(ModelHandle model, ExtSlot slot, uint kind);
+    public static partial bool ModelAcceptsExtKind(IntPtr model, ExtSlot slot, uint kind);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status InitBackends(string artifactDir);
@@ -518,7 +520,7 @@ internal static partial class NativeMethods
     public static partial bool BackendAvailable(BackendRequest kind);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_get_device", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status ModelGetDevice(ModelHandle model, IntPtr /* transcribe_backend_device */ @out);
+    public static partial Status ModelGetDevice(IntPtr model, IntPtr /* transcribe_backend_device */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_load_params_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ModelLoadParamsInit(IntPtr /* transcribe_model_load_params */ @params);
@@ -533,67 +535,67 @@ internal static partial class NativeMethods
     public static partial void CapabilitiesInit(IntPtr /* transcribe_capabilities */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_get_capabilities", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status ModelGetCapabilities(ModelHandle model, IntPtr /* transcribe_capabilities */ outCaps);
+    public static partial Status ModelGetCapabilities(IntPtr model, IntPtr /* transcribe_capabilities */ outCaps);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_supports", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
-    public static partial bool ModelSupports(ModelHandle model, Feature feature);
+    public static partial bool ModelSupports(IntPtr model, Feature feature);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_arch_string", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr ModelArchString(ModelHandle model);
+    public static partial IntPtr ModelArchString(IntPtr model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_variant_string", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr ModelVariantString(ModelHandle model);
+    public static partial IntPtr ModelVariantString(IntPtr model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_backend", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr ModelBackend(ModelHandle model);
+    public static partial IntPtr ModelBackend(IntPtr model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_meta_val_str", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr ModelMetaValStr(ModelHandle model, string key);
+    public static partial IntPtr ModelMetaValStr(IntPtr model, string key);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_load_file", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status ModelLoadFile(string path, IntPtr /* transcribe_model_load_params */ @params, IntPtr outModel);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_free", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void ModelFree(ModelHandle model);
+    public static partial void ModelFree(IntPtr model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_session_init", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status SessionInit(ModelHandle model, IntPtr /* transcribe_session_params */ @params, IntPtr outSession);
+    public static partial Status SessionInit(IntPtr model, IntPtr /* transcribe_session_params */ @params, IntPtr outSession);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_session_free", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void SessionFree(SessionHandle session);
+    public static partial void SessionFree(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_open", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status Open(string path, IntPtr /* transcribe_model_load_params */ loadParams, IntPtr /* transcribe_session_params */ sessionParams, IntPtr outSession);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_close", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void Close(SessionHandle session);
+    public static partial void Close(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_get_model", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial ModelHandle GetModel(SessionHandle session);
+    public static partial IntPtr GetModel(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_run", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status Run(SessionHandle session, IntPtr pcm, int nSamples, IntPtr /* transcribe_run_params */ @params);
+    public static partial Status Run(IntPtr session, IntPtr pcm, int nSamples, IntPtr /* transcribe_run_params */ @params);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_run_batch", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status RunBatch(SessionHandle session, IntPtr pcm, IntPtr nSamples, int n, IntPtr /* transcribe_run_params */ @params);
+    public static partial Status RunBatch(IntPtr session, IntPtr pcm, IntPtr nSamples, int n, IntPtr /* transcribe_run_params */ @params);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_set_abort_callback", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void SetAbortCallback(SessionHandle session, AbortCallback cb, IntPtr userData);
+    public static partial void SetAbortCallback(IntPtr session, AbortCallback cb, IntPtr userData);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_was_aborted", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
-    public static partial bool WasAborted(SessionHandle session);
+    public static partial bool WasAborted(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_was_truncated", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
-    public static partial bool WasTruncated(SessionHandle session);
+    public static partial bool WasTruncated(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_session_limits_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SessionLimitsInit(IntPtr /* transcribe_session_limits */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_session_get_limits", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status SessionGetLimits(SessionHandle session, IntPtr /* transcribe_session_limits */ @out);
+    public static partial Status SessionGetLimits(IntPtr session, IntPtr /* transcribe_session_limits */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_params_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void StreamParamsInit(IntPtr /* transcribe_stream_params */ @params);
@@ -605,70 +607,70 @@ internal static partial class NativeMethods
     public static partial void StreamTextInit(IntPtr /* transcribe_stream_text */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_get_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status StreamGetText(SessionHandle session, IntPtr /* transcribe_stream_text */ @out);
+    public static partial Status StreamGetText(IntPtr session, IntPtr /* transcribe_stream_text */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_begin", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status StreamBegin(SessionHandle session, IntPtr /* transcribe_run_params */ runParams, IntPtr /* transcribe_stream_params */ streamParams);
+    public static partial Status StreamBegin(IntPtr session, IntPtr /* transcribe_run_params */ runParams, IntPtr /* transcribe_stream_params */ streamParams);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_feed", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status StreamFeed(SessionHandle session, IntPtr pcm, int nSamples, IntPtr /* transcribe_stream_update */ update);
+    public static partial Status StreamFeed(IntPtr session, IntPtr pcm, int nSamples, IntPtr /* transcribe_stream_update */ update);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_finalize", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status StreamFinalize(SessionHandle session, IntPtr /* transcribe_stream_update */ update);
+    public static partial Status StreamFinalize(IntPtr session, IntPtr /* transcribe_stream_update */ update);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_reset", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void StreamReset(SessionHandle session);
+    public static partial void StreamReset(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_get_state", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial StreamState StreamGetState(SessionHandle session);
+    public static partial StreamState StreamGetState(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_revision", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int StreamRevision(SessionHandle session);
+    public static partial int StreamRevision(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_n_committed_segments", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int StreamNCommittedSegments(SessionHandle session);
+    public static partial int StreamNCommittedSegments(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_n_committed_words", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int StreamNCommittedWords(SessionHandle session);
+    public static partial int StreamNCommittedWords(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_n_committed_tokens", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int StreamNCommittedTokens(SessionHandle session);
+    public static partial int StreamNCommittedTokens(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_last_status", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status StreamLastStatus(SessionHandle session);
+    public static partial Status StreamLastStatus(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_tokenize", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int Tokenize(ModelHandle model, string text, IntPtr tokens, nuint nMax);
+    public static partial int Tokenize(IntPtr model, string text, IntPtr tokens, nuint nMax);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_timings_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void TimingsInit(IntPtr /* transcribe_timings */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_get_timings", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status GetTimings(SessionHandle session, IntPtr /* transcribe_timings */ outTimings);
+    public static partial Status GetTimings(IntPtr session, IntPtr /* transcribe_timings */ outTimings);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_print_timings", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void PrintTimings(SessionHandle session);
+    public static partial void PrintTimings(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_reset_timings", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void ResetTimings(SessionHandle session);
+    public static partial void ResetTimings(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_full_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr FullText(SessionHandle session);
+    public static partial IntPtr FullText(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial TimestampKind ReturnedTimestampKind(SessionHandle session);
+    public static partial TimestampKind ReturnedTimestampKind(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_n_segments", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int NSegments(SessionHandle session);
+    public static partial int NSegments(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_n_words", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int NWords(SessionHandle session);
+    public static partial int NWords(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_n_tokens", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int NTokens(SessionHandle session);
+    public static partial int NTokens(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_detected_language", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr DetectedLanguage(SessionHandle session);
+    public static partial IntPtr DetectedLanguage(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_segment_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SegmentInit(IntPtr /* transcribe_segment */ @out);
@@ -680,49 +682,49 @@ internal static partial class NativeMethods
     public static partial void TokenInit(IntPtr /* transcribe_token */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_get_segment", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status GetSegment(SessionHandle session, int i, IntPtr /* transcribe_segment */ @out);
+    public static partial Status GetSegment(IntPtr session, int i, IntPtr /* transcribe_segment */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_get_word", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status GetWord(SessionHandle session, int i, IntPtr /* transcribe_word */ @out);
+    public static partial Status GetWord(IntPtr session, int i, IntPtr /* transcribe_word */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_get_token", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status GetToken(SessionHandle session, int i, IntPtr /* transcribe_token */ @out);
+    public static partial Status GetToken(IntPtr session, int i, IntPtr /* transcribe_token */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_results", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int BatchNResults(SessionHandle session);
+    public static partial int BatchNResults(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_status", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status BatchStatus(SessionHandle session, int i);
+    public static partial Status BatchStatus(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_full_text", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr BatchFullText(SessionHandle session, int i);
+    public static partial IntPtr BatchFullText(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial TimestampKind BatchReturnedTimestampKind(SessionHandle session, int i);
+    public static partial TimestampKind BatchReturnedTimestampKind(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_detected_language", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr BatchDetectedLanguage(SessionHandle session, int i);
+    public static partial IntPtr BatchDetectedLanguage(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_segments", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int BatchNSegments(SessionHandle session, int i);
+    public static partial int BatchNSegments(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_words", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int BatchNWords(SessionHandle session, int i);
+    public static partial int BatchNWords(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_tokens", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int BatchNTokens(SessionHandle session, int i);
+    public static partial int BatchNTokens(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_segment", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status BatchGetSegment(SessionHandle session, int i, int j, IntPtr /* transcribe_segment */ @out);
+    public static partial Status BatchGetSegment(IntPtr session, int i, int j, IntPtr /* transcribe_segment */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_word", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status BatchGetWord(SessionHandle session, int i, int j, IntPtr /* transcribe_word */ @out);
+    public static partial Status BatchGetWord(IntPtr session, int i, int j, IntPtr /* transcribe_word */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_token", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status BatchGetToken(SessionHandle session, int i, int j, IntPtr /* transcribe_token */ @out);
+    public static partial Status BatchGetToken(IntPtr session, int i, int j, IntPtr /* transcribe_token */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_timings", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status BatchGetTimings(SessionHandle session, int i, IntPtr /* transcribe_timings */ @out);
+    public static partial Status BatchGetTimings(IntPtr session, int i, IntPtr /* transcribe_timings */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_moonshine_streaming_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void MoonshineStreamingStreamExtInit(IntPtr /* transcribe_moonshine_streaming_stream_ext */ ext);
@@ -743,10 +745,10 @@ internal static partial class NativeMethods
     public static partial void WhisperChunkTraceInit(IntPtr /* transcribe_whisper_chunk_trace */ @out);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_get_whisper_chunk_count", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int GetWhisperChunkCount(SessionHandle session);
+    public static partial int GetWhisperChunkCount(IntPtr session);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_get_whisper_chunk_trace", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status GetWhisperChunkTrace(SessionHandle session, int i, IntPtr /* transcribe_whisper_chunk_trace */ outTrace);
+    public static partial Status GetWhisperChunkTrace(IntPtr session, int i, IntPtr /* transcribe_whisper_chunk_trace */ outTrace);
 
 
 }
