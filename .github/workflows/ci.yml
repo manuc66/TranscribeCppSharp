@@ -21,6 +21,7 @@ jobs:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
           cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - run: dotnet restore
 
@@ -56,6 +57,7 @@ jobs:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
           cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Regenerate bindings and check for drift
         run: |
@@ -79,6 +81,7 @@ jobs:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
           cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - run: dotnet build samples/SmokeTest -c Release
 
@@ -144,6 +147,7 @@ jobs:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
           cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Pack Interop NuGet
         run: dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs
@@ -164,6 +168,7 @@ jobs:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
           cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Pack Wrapper NuGet
         run: dotnet pack src/TranscribeCppSharp -c Release -o nupkgs
