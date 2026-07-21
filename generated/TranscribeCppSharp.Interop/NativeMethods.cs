@@ -218,24 +218,24 @@ public delegate bool AbortCallback(IntPtr userdata);
 // ════════════════════════════════════════════════════════════════
 // Structs
 // ════════════════════════════════════════════════════════════════
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Model
 {
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Session
 {
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Ext
 {
     public ulong size;
     public uint kind;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct BackendDevice
 {
     public ulong structSize;
@@ -248,7 +248,7 @@ public struct BackendDevice
     public DeviceType deviceType;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct ModelLoadParams
 {
     public ulong structSize;
@@ -256,7 +256,7 @@ public struct ModelLoadParams
     public int gpuDevice;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct SessionParams
 {
     public ulong structSize;
@@ -265,7 +265,7 @@ public struct SessionParams
     public int nCtx;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct RunParams
 {
     public ulong structSize;
@@ -281,7 +281,7 @@ public struct RunParams
     public int specKDrafts;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Capabilities
 {
     public ulong structSize;
@@ -302,7 +302,7 @@ public struct Capabilities
     public IntPtr translateTargetLanguages;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct SessionLimits
 {
     public ulong structSize;
@@ -311,7 +311,7 @@ public struct SessionLimits
     public long maxKvBytes;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct StreamParams
 {
     public ulong structSize;
@@ -320,7 +320,7 @@ public struct StreamParams
     public uint stablePrefixAgreementN;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct StreamUpdate
 {
     public ulong structSize;
@@ -338,7 +338,7 @@ public struct StreamUpdate
     public bool tentativeChanged;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct StreamText
 {
     public ulong structSize;
@@ -351,7 +351,7 @@ public struct StreamText
     public ulong rawTentativeStartBytes;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Timings
 {
     public ulong structSize;
@@ -361,7 +361,7 @@ public struct Timings
     public float decodeMs;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Segment
 {
     public ulong structSize;
@@ -374,7 +374,7 @@ public struct Segment
     public IntPtr text;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Word
 {
     public ulong structSize;
@@ -386,7 +386,7 @@ public struct Word
     public IntPtr text;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Token
 {
     public ulong structSize;
@@ -399,21 +399,21 @@ public struct Token
     public IntPtr text;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct MoonshineStreamingStreamExt
 {
     public Ext ext;
     public int minDecodeIntervalMs;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct ParakeetStreamExt
 {
     public Ext ext;
     public int attContextRight;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct ParakeetBufferedStreamExt
 {
     public Ext ext;
@@ -422,7 +422,7 @@ public struct ParakeetBufferedStreamExt
     public int rightMs;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct VoxtralRealtimeStreamExt
 {
     public Ext ext;
@@ -430,7 +430,7 @@ public struct VoxtralRealtimeStreamExt
     public int minDecodeIntervalMs;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct WhisperRunExt
 {
     public Ext ext;
@@ -450,7 +450,7 @@ public struct WhisperRunExt
     public float maxInitialTimestamp;
 }
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct WhisperChunkTrace
 {
     public ulong structSize;

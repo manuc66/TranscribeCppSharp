@@ -99,6 +99,35 @@ jobs:
           name: interop-nupkg
           path: nupkgs/*.nupkg
 
-      - name: Push to GitHub Packages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  pack-wrapper:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+          dotnet-quality: 'preview'
+
+      - name: Pack Wrapper NuGet
+        run: dotnet pack src/TranscribeCppSharp -c Release -o nupkgs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wrapper-nupkg
+          path: nupkgs/*.nupkg
+
+  push-nugets:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [pack-native, pack-interop, pack-wrapper]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: nupkgs
+          pattern: '*-nupkg'
+          merge-multiple: true
+
+      - name: Push all NuGets to GitHub Packages
         run: dotnet nuget push "nupkgs/*.nupkg" --source "https://nuget.pkg.github.com/manuc66/index.json" --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate

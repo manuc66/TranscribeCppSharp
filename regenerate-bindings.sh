@@ -11,5 +11,8 @@ echo "Regenerating bindings from ${TAG}..."
 git clone --depth 1 --branch "${TAG}" "${REPO}" "${TMPDIR}"
 dotnet run --project src/Generator -- "${TMPDIR}/bindings/rust/sys/src/transcribe_sys.rs"
 
+mkdir -p rust
+cp "${TMPDIR}/bindings/rust/sys/src/transcribe_sys.rs" rust/transcribe_sys.rs
+
 rm -rf "${TMPDIR}"
 echo "Done. Bindings match ${TAG}."

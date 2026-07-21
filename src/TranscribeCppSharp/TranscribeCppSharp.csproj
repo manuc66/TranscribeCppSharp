@@ -6,25 +6,20 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
-    <PackageId>TranscribeCppSharp.Interop</PackageId>
+    <PackageId>TranscribeCppSharp</PackageId>
     <Version>1.0.0</Version>
-    <Description>C# interop bindings for transcribe.cpp — native speech-to-text inference library</Description>
+    <Description>Safe C# wrapper for transcribe.cpp — speech-to-text inference library</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
-
-    <WarningsAsErrors>
-      SYSLIB1051;
-      SYSLIB1054;
-      SYSLIB1055;
-    </WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <Import Include="System.Runtime.InteropServices" />
+    <ProjectReference Include="..\..\generated\TranscribeCppSharp.Interop\TranscribeCppSharp.Interop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
     <InternalsVisibleTo Include="SmokeTest" />
-    <InternalsVisibleTo Include="ScribeManIA" />
-    <InternalsVisibleTo Include="TranscribeCppSharp" />
   </ItemGroup>
 
 </Project>
