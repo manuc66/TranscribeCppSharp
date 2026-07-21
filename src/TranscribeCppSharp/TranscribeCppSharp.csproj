@@ -7,7 +7,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
     <PackageId>TranscribeCppSharp</PackageId>
-    <Version>1.0.0</Version>
     <Description>Safe C# wrapper for transcribe.cpp — speech-to-text inference library</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>

@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <TranscribeVersionFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)TRANSCRIBE_VERSION).Trim())</TranscribeVersionFile>
+    <!-- Use the version from TRANSCRIBE_VERSION by default, but allow override from CLI -->
+    <Version Condition="'$(Version)' == ''">$(TranscribeVersionFile)</Version>
   </PropertyGroup>
 </Project>
