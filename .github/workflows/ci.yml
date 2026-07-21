@@ -20,11 +20,26 @@ jobs:
         with:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
+          cache: true
 
       - run: dotnet restore
 
       - run: dotnet build --no-restore
       
+      - name: Cache native libraries
+        uses: actions/cache@v4
+        with:
+          path: native-packages
+          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh') }}
+
+      - name: Cache test assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            test-models
+            test-audio
+          key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
+
       - name: Fetch native libraries
         run: chmod +x fetch-native.sh && ./fetch-native.sh
 
@@ -40,6 +55,7 @@ jobs:
         with:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
+          cache: true
 
       - name: Regenerate bindings and check for drift
         run: |
@@ -62,8 +78,23 @@ jobs:
         with:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
+          cache: true
 
       - run: dotnet build samples/SmokeTest -c Release
+
+      - name: Cache native libraries
+        uses: actions/cache@v4
+        with:
+          path: native-packages
+          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh') }}
+
+      - name: Cache test assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            test-models
+            test-audio
+          key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
 
       - run: chmod +x fetch-native.sh && ./fetch-native.sh
 
@@ -82,6 +113,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache native libraries
+        uses: actions/cache@v4
+        with:
+          path: native-packages
+          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh') }}
 
       - run: chmod +x fetch-native.sh && ./fetch-native.sh
 
@@ -106,6 +143,7 @@ jobs:
         with:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
+          cache: true
 
       - name: Pack Interop NuGet
         run: dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs
@@ -125,6 +163,7 @@ jobs:
         with:
           dotnet-version: '10.x'
           dotnet-quality: 'preview'
+          cache: true
 
       - name: Pack Wrapper NuGet
         run: dotnet pack src/TranscribeCppSharp -c Release -o nupkgs
