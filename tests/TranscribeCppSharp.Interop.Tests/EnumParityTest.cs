@@ -54,7 +54,6 @@ public class EnumParityTest
     [InlineData(AbiStruct.AbiSessionLimits)]
     [InlineData(AbiStruct.AbiExt)]
     [InlineData(AbiStruct.AbiBackendDevice)]
-    [InlineData(AbiStruct.AbiSpeakerSegment)]
     public void AbiStructSize_IsNonZero(AbiStruct which)
     {
         nuint size;

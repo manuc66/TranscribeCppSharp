@@ -28,5 +28,6 @@ Directory.CreateDirectory(outputDir);
 var outputPath = Path.Combine(outputDir, "NativeMethods.cs");
 File.WriteAllText(outputPath, code);
 Console.WriteLine($"Generated: {outputPath}");
+
 Console.WriteLine("Done.");
 return 0;

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Generator/Generator.csproj" />
+    <Project Path="src/TranscribeCppSharp/TranscribeCppSharp.csproj" />
   </Folder>
   <Folder Name="/generated/">
     <Project Path="generated/TranscribeCppSharp.Interop/TranscribeCppSharp.Interop.csproj" />

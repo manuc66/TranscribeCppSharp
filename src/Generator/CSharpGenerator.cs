@@ -203,7 +203,7 @@ public class CSharpGenerator
     private void WriteStruct(StringBuilder sb, RustStruct s)
     {
         var csName = ToPascalCase(s.Name);
-        sb.AppendLine("[StructLayout(LayoutKind.Sequential)]");
+        sb.AppendLine("[StructLayout(LayoutKind.Sequential, Pack = 8)]");
         sb.AppendLine($"public struct {csName}");
         sb.AppendLine("{");
         foreach (var f in s.Fields)

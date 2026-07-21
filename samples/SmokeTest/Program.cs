@@ -1,9 +1,10 @@
 using System.Runtime.InteropServices;
+using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
 
 Console.WriteLine("=== TranscribeCppSharp Smoke Test ===");
 
-// Test 1: Version
+// Test 1: Version (raw P/Invoke — no safe wrapper needed)
 var versionPtr = NativeMethods.Version();
 var version = Marshal.PtrToStringUTF8(versionPtr)!;
 Console.WriteLine($"Version: {version}");
@@ -33,154 +34,54 @@ if (status != Status.Ok)
 var deviceCount = NativeMethods.BackendDeviceCount();
 Console.WriteLine($"Backend devices: {deviceCount}");
 
-// Test 5: Full transcription (if model provided)
+// Test 5: Full transcription using safe wrapper (if model provided)
 if (args.Length > 0)
 {
     var modelPath = args[0];
     var wavPath = args.Length > 1 ? args[1] : null;
 
-    Console.WriteLine($"\n=== Full Transcription Test ===");
+    Console.WriteLine($"\n=== Full Transcription Test (Safe API) ===");
     Console.WriteLine($"Model: {modelPath}");
 
-    // Load model
-    var loadParams = Marshal.AllocHGlobal(256);
-    NativeMethods.ModelLoadParamsInit(loadParams);
-
-    var modelHandle = Marshal.AllocHGlobal(IntPtr.Size);
-    status = NativeMethods.ModelLoadFile(modelPath, loadParams, modelHandle);
-    Console.WriteLine($"ModelLoadFile: {status}");
-
-    if (status != Status.Ok)
+    try
     {
-        Console.WriteLine($"Failed to load model: {NativeMethods.StatusString((int)status)}");
-        return;
-    }
+        using var model = TranscribeCppSharp.Model.Load(modelPath);
+        Console.WriteLine($"Model loaded: {model}");
 
-    var model = Marshal.PtrToStructure<ModelHandle>(modelHandle);
-    Console.WriteLine($"Model loaded: {model}");
+        using var session = model.CreateSession();
+        Console.WriteLine("Session created");
 
-    // Get capabilities
-    var caps = Marshal.AllocHGlobal(256);
-    NativeMethods.CapabilitiesInit(caps);
-    status = NativeMethods.ModelGetCapabilities(model, caps);
-    Console.WriteLine($"Capabilities: {status}");
-
-    if (wavPath != null && File.Exists(wavPath))
-    {
-        // Read WAV file (16kHz mono PCM f32)
-        var pcm = ReadWavFile(wavPath, out var nSamples);
-        Console.WriteLine($"Audio: {nSamples} samples ({(double)nSamples / 16000:F1}s)");
-
-        // Create session
-        var sessionParams = Marshal.AllocHGlobal(256);
-        NativeMethods.SessionParamsInit(sessionParams);
-
-        var sessionHandle = Marshal.AllocHGlobal(IntPtr.Size);
-        status = NativeMethods.SessionInit(model, sessionParams, sessionHandle);
-        Console.WriteLine($"SessionInit: {status}");
-
-        if (status == Status.Ok)
+        if (wavPath != null && File.Exists(wavPath))
         {
-            var session = Marshal.PtrToStructure<SessionHandle>(sessionHandle);
+            var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(wavPath);
+            Console.WriteLine($"Audio: {pcm.Length} samples ({(double)pcm.Length / 16000:F1}s)");
 
-            // Run transcription
-            var runParams = Marshal.AllocHGlobal(256);
-            NativeMethods.RunParamsInit(runParams);
+            var transcript = session.Run(pcm);
+            Console.WriteLine($"\n--- Transcription ---");
+            Console.WriteLine(transcript.FullText);
+            Console.WriteLine($"--- End ---");
+            Console.WriteLine($"Language: {transcript.DetectedLanguage}");
+            Console.WriteLine($"Segments: {transcript.Segments.Count}");
+            Console.WriteLine($"Words: {transcript.Words.Count}");
 
-            var pcmPtr = Marshal.AllocHGlobal(nSamples * sizeof(float));
-            Marshal.Copy(pcm, 0, pcmPtr, nSamples);
-
-            status = NativeMethods.Run(session, pcmPtr, nSamples, runParams);
-            Console.WriteLine($"Run: {status}");
-
-            if (status == Status.Ok)
+            if (transcript.Timing != null)
             {
-                var textPtr = NativeMethods.FullText(session);
-                var text = Marshal.PtrToStringUTF8(textPtr)!;
-                Console.WriteLine($"\n--- Transcription ---");
-                Console.WriteLine(text);
-                Console.WriteLine($"--- End ---");
+                var t = transcript.Timing;
+                Console.WriteLine($"Timings: load={t.LoadMs:F1}ms mel={t.MelMs:F1}ms encode={t.EncodeMs:F1}ms decode={t.DecodeMs:F1}ms");
             }
-
-            NativeMethods.PrintTimings(session);
-            NativeMethods.SessionFree(session);
-        }
-    }
-    else
-    {
-        Console.WriteLine("No WAV file provided, skipping transcription.");
-        Console.WriteLine("Usage: SmokeTest <model.gguf> [audio.wav]");
-    }
-
-    NativeMethods.ModelFree(model);
-}
-
-Console.WriteLine("\nSmoke test passed!");
-
-static float[] ReadWavFile(string path, out int nSamples)
-{
-    using var fs = File.OpenRead(path);
-    using var br = new BinaryReader(fs);
-
-    // Read RIFF header
-    var riff = new string(br.ReadChars(4));
-    var fileSize = br.ReadInt32();
-    var wave = new string(br.ReadChars(4));
-
-    if (riff != "RIFF" || wave != "WAVE")
-        throw new InvalidDataException("Not a WAV file");
-
-    int sampleRate = 0, bitsPerSample = 0, numChannels = 0;
-    int dataSize = 0;
-    long dataStart = 0;
-
-    while (fs.Position < fs.Length)
-    {
-        var chunkId = new string(br.ReadChars(4));
-        var chunkSize = br.ReadInt32();
-
-        if (chunkId == "fmt ")
-        {
-            var audioFormat = br.ReadInt16();
-            numChannels = br.ReadInt16();
-            sampleRate = br.ReadInt32();
-            br.ReadInt32(); // byte rate
-            br.ReadInt16(); // block align
-            bitsPerSample = br.ReadInt16();
-            fs.Position += chunkSize - 16;
-        }
-        else if (chunkId == "data")
-        {
-            dataSize = chunkSize;
-            dataStart = fs.Position;
-            break;
         }
         else
         {
-            fs.Position += chunkSize;
+            Console.WriteLine("No WAV file provided, skipping transcription.");
+            Console.WriteLine("Usage: SmokeTest <model.gguf> [audio.wav]");
         }
     }
-
-    if (sampleRate != 16000)
-        throw new InvalidDataException($"Expected 16kHz, got {sampleRate}Hz");
-    if (bitsPerSample != 16)
-        throw new InvalidDataException($"Expected 16-bit, got {bitsPerSample}-bit");
-
-    fs.Position = dataStart;
-    var samples16 = new short[dataSize / 2];
-    for (int i = 0; i < samples16.Length; i++)
-        samples16[i] = br.ReadInt16();
-
-    nSamples = samples16.Length / numChannels;
-    var pcm = new float[nSamples];
-    for (int i = 0; i < nSamples; i++)
+    catch (TranscribeException ex)
     {
-        // Mix to mono, normalize to [-1, 1]
-        float sum = 0;
-        for (int ch = 0; ch < numChannels; ch++)
-            sum += samples16[i * numChannels + ch];
-        pcm[i] = sum / numChannels / 32768f;
+        Console.WriteLine($"Error: {ex.Message}");
+        return 1;
     }
-
-    return pcm;
 }
+
+Console.WriteLine("\nSmoke test passed!");
+return 0;
