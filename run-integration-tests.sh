@@ -12,8 +12,13 @@ MODEL_DIR="./test-models"
 MODEL_FILE="$MODEL_DIR/ggml-tiny.bin"
 MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
 
-# Create model directory
+AUDIO_DIR="./test-audio"
+AUDIO_FILE="$AUDIO_DIR/jfk.wav"
+AUDIO_URL="https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav"
+
+# Create directories
 mkdir -p "$MODEL_DIR"
+mkdir -p "$AUDIO_DIR"
 
 # Download model if not exists
 if [ ! -f "$MODEL_FILE" ]; then
@@ -22,6 +27,15 @@ if [ ! -f "$MODEL_FILE" ]; then
     echo "Model downloaded to $MODEL_FILE"
 else
     echo "Model already exists at $MODEL_FILE"
+fi
+
+# Download audio if not exists
+if [ ! -f "$AUDIO_FILE" ]; then
+    echo "Downloading test audio..."
+    curl -L -o "$AUDIO_FILE" "$AUDIO_URL"
+    echo "Audio downloaded to $AUDIO_FILE"
+else
+    echo "Audio already exists at $AUDIO_FILE"
 fi
 
 # Set library path for native library
@@ -38,7 +52,7 @@ echo "Running integration tests..."
 echo ""
 
 # Run tests with the model path
-dotnet test --no-build --filter "FullyQualifiedName~HighLevelApiTests" --logger "console;verbosity=detailed"
+dotnet test --filter "FullyQualifiedName~HighLevelApiTests" --logger "console;verbosity=detailed"
 
 echo ""
 echo "=== Integration tests completed ==="

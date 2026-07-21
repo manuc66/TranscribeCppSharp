@@ -1,14 +1,31 @@
 #nullable enable
 
+using System;
+using System.IO;
+
 namespace TranscribeCppSharp.Interop.Tests;
 
 public static class TestConfig
 {
-    public static string ModelPath => "./test-models/ggml-tiny.bin";
-    public static string AudioPath => "./test-audio/test.wav";
+    private static readonly string RootPath = FindRoot(AppContext.BaseDirectory);
+
+    public static string ModelPath => Path.Combine(RootPath, "test-models/ggml-tiny.bin");
+    public static string AudioPath => Path.Combine(RootPath, "test-audio/jfk.wav");
 
     public static bool IsIntegrationTestEnvironment()
     {
-        return System.IO.File.Exists(ModelPath) && System.IO.File.Exists(AudioPath);
+        return File.Exists(ModelPath) && File.Exists(AudioPath);
+    }
+
+    private static string FindRoot(string startDir)
+    {
+        var current = new DirectoryInfo(startDir);
+        while (current != null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "TranscribeCppSharp.slnx")))
+                return current.FullName;
+            current = current.Parent;
+        }
+        return startDir;
     }
 }

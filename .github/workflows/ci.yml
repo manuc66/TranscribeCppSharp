@@ -24,8 +24,12 @@ jobs:
       - run: dotnet restore
 
       - run: dotnet build --no-restore
+      
+      - name: Fetch native libraries
+        run: chmod +x fetch-native.sh && ./fetch-native.sh
 
-      - run: dotnet test --no-build --verbosity normal
+      - name: Run tests (including integration)
+        run: chmod +x run-integration-tests.sh && ./run-integration-tests.sh
 
   check-bindings-sync:
     runs-on: ubuntu-latest
@@ -64,7 +68,15 @@ jobs:
       - run: chmod +x fetch-native.sh && ./fetch-native.sh
 
       - name: Run smoke test
-        run: LD_LIBRARY_PATH=native-packages/linux-x64/runtimes/linux-x64/native:$LD_LIBRARY_PATH dotnet run --project samples/SmokeTest -c Release --no-build
+        run: |
+          # The model and audio are needed for smoke test too
+          mkdir -p test-models test-audio
+          [ -f test-models/ggml-tiny.bin ] || curl -L -o test-models/ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+          [ -f test-audio/jfk.wav ] || curl -L -o test-audio/jfk.wav https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav
+          
+          LD_LIBRARY_PATH=native-packages/linux-x64/runtimes/linux-x64/native:$LD_LIBRARY_PATH \
+          dotnet run --project samples/SmokeTest -c Release --no-build -- \
+          test-models/ggml-tiny.bin test-audio/jfk.wav
 
   pack-native:
     runs-on: ubuntu-latest

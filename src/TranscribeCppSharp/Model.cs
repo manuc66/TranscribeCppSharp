@@ -31,7 +31,7 @@ public sealed class Model : IDisposable
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(NativeMethods.ModelLoadFile));
 
-            var handle = Marshal.PtrToStructure<ModelHandle>(outModel);
+            var handle = new ModelHandle(Marshal.ReadIntPtr(outModel));
             return new Model(handle);
         }
         finally
@@ -63,6 +63,60 @@ public sealed class Model : IDisposable
         ThrowIfDisposed();
         var ptr = NativeMethods.ModelMetaValStr(_handle, key);
         return ptr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(ptr);
+    }
+
+    /// <summary>Architecture of the model (e.g. "whisper").</summary>
+    public string Architecture
+    {
+        get
+        {
+            ThrowIfDisposed();
+            var ptr = NativeMethods.ModelArchString(_handle);
+            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        }
+    }
+
+    /// <summary>Variant of the architecture (e.g. "tiny").</summary>
+    public string Variant
+    {
+        get
+        {
+            ThrowIfDisposed();
+            var ptr = NativeMethods.ModelVariantString(_handle);
+            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        }
+    }
+
+    /// <summary>Name of the backend being used (e.g. "cpu").</summary>
+    public string Backend
+    {
+        get
+        {
+            ThrowIfDisposed();
+            var ptr = NativeMethods.ModelBackend(_handle);
+            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        }
+    }
+
+    /// <summary>Get capabilities of the loaded model.</summary>
+    public Interop.Capabilities GetCapabilities()
+    {
+        ThrowIfDisposed();
+        var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiCapabilities);
+        var ptr = Marshal.AllocHGlobal(size);
+        try
+        {
+            NativeMethods.CapabilitiesInit(ptr);
+            var status = NativeMethods.ModelGetCapabilities(_handle, ptr);
+            if (status != Status.Ok)
+                throw new TranscribeException(status, nameof(NativeMethods.ModelGetCapabilities));
+
+            return Marshal.PtrToStructure<Interop.Capabilities>(ptr);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
     }
 
     /// <summary>Check if the model supports a given feature.</summary>

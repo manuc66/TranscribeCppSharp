@@ -45,7 +45,7 @@ if (args.Length > 0)
 
     try
     {
-        using var model = TranscribeCppSharp.Model.Load(modelPath);
+        using var model = TranscribeCppSharp.Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Console.WriteLine($"Model loaded: {model}");
 
         using var session = model.CreateSession();
@@ -56,18 +56,46 @@ if (args.Length > 0)
             var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(wavPath);
             Console.WriteLine($"Audio: {pcm.Length} samples ({(double)pcm.Length / 16000:F1}s)");
 
+            // Test A: Normal Run
+            Console.WriteLine($"\n--- Test A: Normal Run ---");
             var transcript = session.Run(pcm);
-            Console.WriteLine($"\n--- Transcription ---");
-            Console.WriteLine(transcript.FullText);
-            Console.WriteLine($"--- End ---");
+            Console.WriteLine($"Text: {transcript.FullText}");
             Console.WriteLine($"Language: {transcript.DetectedLanguage}");
             Console.WriteLine($"Segments: {transcript.Segments.Count}");
-            Console.WriteLine($"Words: {transcript.Words.Count}");
+
+            // Test B: Batch Run
+            Console.WriteLine($"\n--- Test B: Batch Run (2x same audio) ---");
+            var batchResults = Batch.Run(session, new[] { pcm, pcm });
+            Console.WriteLine($"Batch results: {batchResults.Count}");
+            for (int i = 0; i < batchResults.Count; i++)
+                Console.WriteLine($"  [{i}]: {batchResults[i].FullText.Trim()}");
+
+            // Test C: Tokenization
+            Console.WriteLine($"\n--- Test C: Tokenization ---");
+            var tokens = model.Tokenize("Hello world, this is a test.");
+            Console.WriteLine($"Tokens: [{string.Join(", ", tokens)}]");
+
+            // Test D: Streaming (if supported)
+            Console.WriteLine($"\n--- Test D: Streaming ---");
+            try
+            {
+                using var stream = session.CreateStream();
+                stream.Begin();
+                var chunk = pcm.AsSpan(0, Math.Min(pcm.Length, 16000));
+                var update = stream.Feed(chunk);
+                Console.WriteLine($"Stream update: ResultChanged={update.ResultChanged}, IsFinal={update.IsFinal}");
+                stream.Finalize();
+                Console.WriteLine("Stream finalized");
+            }
+            catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
+            {
+                Console.WriteLine("Streaming not implemented in this build.");
+            }
 
             if (transcript.Timing != null)
             {
                 var t = transcript.Timing;
-                Console.WriteLine($"Timings: load={t.LoadMs:F1}ms mel={t.MelMs:F1}ms encode={t.EncodeMs:F1}ms decode={t.DecodeMs:F1}ms");
+                Console.WriteLine($"\nTimings: load={t.LoadMs:F1}ms mel={t.MelMs:F1}ms encode={t.EncodeMs:F1}ms decode={t.DecodeMs:F1}ms");
             }
         }
         else
