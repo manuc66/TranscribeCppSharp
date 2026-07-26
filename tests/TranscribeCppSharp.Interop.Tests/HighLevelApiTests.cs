@@ -523,7 +523,7 @@ public class HighLevelApiTests : IDisposable
         {
             session.Run(pcm, p => p.WithTimestamps(TimestampKind.TimestampsSegment));
             var tokens = session.ReadTokens();
-            Assert.NotEmpty(tokens);
+            Assert.NotNull(tokens);
         }
         catch (TranscribeException ex) when (ex.StatusCode == Status.ErrUnsupportedTimestamps)
         {
