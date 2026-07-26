@@ -447,6 +447,14 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void Log_Configure_ShouldNotThrow()
+    {
+        Log.Configure((level, msg) => { });
+        Log.Configure(null);
+        Log.Configure(null); // double-disable is safe
+    }
+
+    [Fact]
     public void TranscribeException_ShouldContainStatus()
     {
         var status = Status.ErrInvalidArg;
