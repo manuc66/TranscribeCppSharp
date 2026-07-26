@@ -214,7 +214,8 @@ public sealed class Session : IDisposable
             {
                 NativeMethods.SegmentInit(segPtr);
                 var status = NativeMethods.GetSegment(_handle, i, segPtr);
-                if (status != Status.Ok) continue;
+                if (status != Status.Ok)
+                    throw new TranscribeException(status, nameof(NativeMethods.GetSegment));
 
                 var seg = Marshal.PtrToStructure<Interop.Segment>(segPtr);
                 var text = Marshal.PtrToStringUTF8(seg.text) ?? "";
@@ -248,7 +249,8 @@ public sealed class Session : IDisposable
             {
                 NativeMethods.WordInit(wordPtr);
                 var status = NativeMethods.GetWord(_handle, i, wordPtr);
-                if (status != Status.Ok) continue;
+                if (status != Status.Ok)
+                    throw new TranscribeException(status, nameof(NativeMethods.GetWord));
 
                 var w = Marshal.PtrToStructure<Interop.Word>(wordPtr);
                 var text = Marshal.PtrToStringUTF8(w.text) ?? "";
@@ -282,7 +284,8 @@ public sealed class Session : IDisposable
             {
                 NativeMethods.TokenInit(tokenPtr);
                 var status = NativeMethods.GetToken(_handle, i, tokenPtr);
-                if (status != Status.Ok) continue;
+                if (status != Status.Ok)
+                    throw new TranscribeException(status, nameof(NativeMethods.GetToken));
 
                 var t = Marshal.PtrToStructure<Interop.Token>(tokenPtr);
                 var text = Marshal.PtrToStringUTF8(t.text) ?? "";

@@ -14,6 +14,7 @@ public sealed class MoonshineExtBuilder : IDisposable
     private IntPtr _handle;
     private MoonshineStreamingStreamExt _params;
     private bool _disposed;
+    internal bool _ownershipTransferred;
 
     public MoonshineExtBuilder()
     {
@@ -38,10 +39,10 @@ public sealed class MoonshineExtBuilder : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!_disposed && !_ownershipTransferred)
         {
             Marshal.FreeHGlobal(_handle);
-            _disposed = true;
         }
+        _disposed = true;
     }
 }

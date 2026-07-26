@@ -14,6 +14,7 @@ public sealed class ParakeetStreamExtBuilder : IDisposable
     private IntPtr _handle;
     private ParakeetStreamExt _params;
     private bool _disposed;
+    internal bool _ownershipTransferred;
 
     public ParakeetStreamExtBuilder()
     {
@@ -38,10 +39,10 @@ public sealed class ParakeetStreamExtBuilder : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!_disposed && !_ownershipTransferred)
         {
             Marshal.FreeHGlobal(_handle);
-            _disposed = true;
         }
+        _disposed = true;
     }
 }

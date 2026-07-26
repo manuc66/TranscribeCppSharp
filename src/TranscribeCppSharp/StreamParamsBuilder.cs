@@ -50,6 +50,7 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ClearFamily();
         _moonshineExt = ext;
+        ext._ownershipTransferred = true;
         _params.family = ext.Build();
         return this;
     }
@@ -59,6 +60,7 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ClearFamily();
         _parakeetStreamExt = ext;
+        ext._ownershipTransferred = true;
         _params.family = ext.Build();
         return this;
     }
@@ -68,6 +70,7 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ClearFamily();
         _parakeetBufferedExt = ext;
+        ext._ownershipTransferred = true;
         _params.family = ext.Build();
         return this;
     }
@@ -77,6 +80,7 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ClearFamily();
         _voxtralExt = ext;
+        ext._ownershipTransferred = true;
         _params.family = ext.Build();
         return this;
     }

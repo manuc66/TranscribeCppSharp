@@ -16,6 +16,7 @@ public sealed class WhisperExtBuilder : IDisposable
     private IntPtr _initialPromptPtr;
     private IntPtr _promptTokensPtr;
     private bool _disposed;
+    internal bool _ownershipTransferred;
 
     public WhisperExtBuilder()
     {
@@ -125,14 +126,14 @@ public sealed class WhisperExtBuilder : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!_disposed && !_ownershipTransferred)
         {
             if (_initialPromptPtr != IntPtr.Zero)
                 Marshal.FreeCoTaskMem(_initialPromptPtr);
             if (_promptTokensPtr != IntPtr.Zero)
                 Marshal.FreeHGlobal(_promptTokensPtr);
             Marshal.FreeHGlobal(_handle);
-            _disposed = true;
         }
+        _disposed = true;
     }
 }
