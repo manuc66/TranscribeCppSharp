@@ -9,7 +9,7 @@
 ## Features
 
 - **Multi-Model Architecture**: Seamless support for Whisper, Moonshine, Parakeet, and Voxtral.
-- **Hardware Acceleration**: Built-in support for CPU, CUDA, Vulkan, Metal, and CoreML backends.
+- **Hardware Acceleration**: Built-in support for CPU, CUDA, Vulkan, and Metal backends.
 - **Modern .NET Core**: Leverages `LibraryImport` for high-performance interop and `SafeHandle` for reliable memory management.
 - **Flexible APIs**:
   - **High-Level Wrapper**: Intuitive C# API for rapid development.
