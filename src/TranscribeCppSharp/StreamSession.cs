@@ -15,7 +15,9 @@ public record StreamUpdateResult(
     int Revision,
     TimeSpan InputReceived,
     TimeSpan AudioCommitted,
-    TimeSpan Buffered);
+    TimeSpan Buffered,
+    bool CommittedChanged,
+    bool TentativeChanged);
 
 /// <summary>
 /// Current text state of a streaming session.
@@ -98,7 +100,9 @@ public sealed class StreamSession : IDisposable
                 Revision: u.revision,
                 InputReceived: TimeSpan.FromMilliseconds(u.inputReceivedMs),
                 AudioCommitted: TimeSpan.FromMilliseconds(u.audioCommittedMs),
-                Buffered: TimeSpan.FromMilliseconds(u.bufferedMs));
+                Buffered: TimeSpan.FromMilliseconds(u.bufferedMs),
+                CommittedChanged: u.committedChanged,
+                TentativeChanged: u.tentativeChanged);
         }
     }
 
@@ -132,7 +136,9 @@ public sealed class StreamSession : IDisposable
                 Revision: u.revision,
                 InputReceived: TimeSpan.FromMilliseconds(u.inputReceivedMs),
                 AudioCommitted: TimeSpan.FromMilliseconds(u.audioCommittedMs),
-                Buffered: TimeSpan.FromMilliseconds(u.bufferedMs));
+                Buffered: TimeSpan.FromMilliseconds(u.bufferedMs),
+                CommittedChanged: u.committedChanged,
+                TentativeChanged: u.tentativeChanged);
         }
     }
 

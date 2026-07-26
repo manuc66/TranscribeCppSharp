@@ -162,7 +162,7 @@ catch (TranscribeException ex) when (ex.StatusCode == Status.ErrGguf)
 ### Thread-Safety
 - **`Model`**: **Thread-safe**. You can create multiple `Session` objects from a single `Model` instance across different threads.
 - **`Session`**: **Not thread-safe**. A session maintains internal state (KV cache) for transcription. For concurrent processing, use multiple sessions or synchronize access.
-- **`Batch`**: **Thread-safe wrapper**. It uses the provided session exclusively for the duration of the call.
+- **`Batch`**: **Not thread-safe**. Calls into the provided session internally. Use separate sessions for concurrent batch processing.
 - **`StreamSession`**: **Not thread-safe**. It is a view over a `Session` and shares its state.
 
 ### Hardware Requirements

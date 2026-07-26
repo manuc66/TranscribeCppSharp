@@ -79,7 +79,7 @@ jobs:
           chmod +x regenerate-bindings.sh
           ./regenerate-bindings.sh
           if ! git diff --quiet generated/TranscribeCppSharp.Interop/NativeMethods.cs; then
-            echo "ERROR: NativeMethods.cs is out of sync with TRANSCRIBE_VERSION"
+            echo "ERROR: NativeMethods.cs is out of sync with upstream transcribe.cpp"
             echo "Run ./regenerate-bindings.sh and commit the result"
             git diff generated/TranscribeCppSharp.Interop/NativeMethods.cs
             exit 1

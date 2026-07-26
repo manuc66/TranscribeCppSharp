@@ -323,8 +323,10 @@ public sealed class Session : IDisposable
     public void ClearAbortCallback()
     {
         ThrowIfDisposed();
-        _abortCallback = null;
-        NativeMethods.SetAbortCallback(_handle, null, IntPtr.Zero);
+        // Set a no-op callback to disable abort checks while keeping
+        // the delegate rooted to prevent GC.
+        _abortCallback = _ => false;
+        NativeMethods.SetAbortCallback(_handle, _abortCallback, IntPtr.Zero);
     }
 
     /// <summary>

@@ -65,7 +65,10 @@ public sealed class Model : IDisposable
         return ptr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(ptr);
     }
 
-    /// <summary>Architecture of the model (e.g. "whisper").</summary>
+    /// <summary>
+    /// Architecture of the model (e.g. "whisper").
+    /// Returns a managed copy of the native string — safe to keep.
+    /// </summary>
     public string Architecture
     {
         get
@@ -76,7 +79,10 @@ public sealed class Model : IDisposable
         }
     }
 
-    /// <summary>Variant of the architecture (e.g. "tiny").</summary>
+    /// <summary>
+    /// Variant of the architecture (e.g. "tiny").
+    /// Returns a managed copy of the native string — safe to keep.
+    /// </summary>
     public string Variant
     {
         get
@@ -87,7 +93,10 @@ public sealed class Model : IDisposable
         }
     }
 
-    /// <summary>Name of the backend being used (e.g. "cpu").</summary>
+    /// <summary>
+    /// Name of the backend being used (e.g. "cpu").
+    /// Returns a managed copy of the native string — safe to keep.
+    /// </summary>
     public string Backend
     {
         get
