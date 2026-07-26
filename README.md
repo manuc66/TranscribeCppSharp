@@ -149,7 +149,7 @@ try
 {
     using var model = Model.Load("invalid.gguf");
 }
-catch (TranscribeException ex) when (ex.StatusCode == Status.ErrModelLoad)
+catch (TranscribeException ex) when (ex.StatusCode == Status.ErrGguf)
 {
     Console.WriteLine("Failed to load model: Check file path and format.");
 }
