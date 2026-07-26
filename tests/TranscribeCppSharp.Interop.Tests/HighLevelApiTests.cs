@@ -588,6 +588,9 @@ public class HighLevelApiTests : IDisposable
         Assert.NotNull(results);
         Assert.Equal(2, results.Count);
         Assert.NotEmpty(results[0].FullText);
+        Assert.NotNull(results[0].Segments);
+        Assert.NotNull(results[0].Words);
+        Assert.NotNull(results[0].Tokens);
     }
 
     [Fact]
