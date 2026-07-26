@@ -84,16 +84,24 @@ public sealed class Session : IDisposable
 
     /// <summary>
     /// Transcribe a PCM buffer with pre-allocated params (no closure allocation).
+    /// Takes ownership of the RunParamsBuilder — it will be disposed after the call.
     /// </summary>
     public Transcript Run(IntPtr pcmPtr, int nSamples, RunParamsBuilder runParams)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(runParams);
-        var status = NativeMethods.Run(_handle, pcmPtr, nSamples, runParams.Build());
-        if (status != Status.Ok)
-            throw new TranscribeException(status, nameof(Run));
+        try
+        {
+            var status = NativeMethods.Run(_handle, pcmPtr, nSamples, runParams.Build());
+            if (status != Status.Ok)
+                throw new TranscribeException(status, nameof(Run));
 
-        return ReadResults();
+            return ReadResults();
+        }
+        finally
+        {
+            runParams.Dispose();
+        }
     }
 
     /// <summary>Get the full transcription text after a run.</summary>
