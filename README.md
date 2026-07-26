@@ -63,7 +63,7 @@ By default, the library detects and uses the best available backend. You can for
 
 ```csharp
 using var model = Model.Load("model.gguf", p => p
-    .WithBackend(BackendRequest.Cuda) // or Vulkan, Metal, etc.
+    .WithBackend(BackendRequest.BackendCuda) // or BackendVulkan, BackendMetal, etc.
     .WithGpuDevice(0)); // Throws ErrBackend if device index is invalid or unavailable
 ```
 

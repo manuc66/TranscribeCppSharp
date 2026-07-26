@@ -52,7 +52,7 @@ echo "Running integration tests..."
 echo ""
 
 # Run tests with the model path
-dotnet test --filter "FullyQualifiedName~HighLevelApiTests" --logger "console;verbosity=detailed"
+dotnet test --logger "console;verbosity=detailed"
 
 echo ""
 echo "=== Integration tests completed ==="

@@ -157,7 +157,14 @@ public sealed class Session : IDisposable
     }
 
     /// <summary>Get the kind of timestamps returned by the session.</summary>
-    public TimestampKind ReturnedTimestampKind => NativeMethods.ReturnedTimestampKind(_handle);
+    public TimestampKind ReturnedTimestampKind
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return NativeMethods.ReturnedTimestampKind(_handle);
+        }
+    }
 
     /// <summary>Get resource limits for this session.</summary>
     public SessionLimits GetLimits()
