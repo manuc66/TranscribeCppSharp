@@ -152,6 +152,24 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void RunParamsBuilder_WithKeepSpecialTags_ShouldSetTags()
+    {
+        using var builder = new RunParamsBuilder();
+        builder.WithKeepSpecialTags(true);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void RunParamsBuilder_WithSpecKDrafts_ShouldSetDrafts()
+    {
+        using var builder = new RunParamsBuilder();
+        builder.WithSpecKDrafts(5);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
     public void RunParamsBuilder_WithWhisperExt_ShouldSetExtension()
     {
         using var extBuilder = new WhisperExtBuilder();

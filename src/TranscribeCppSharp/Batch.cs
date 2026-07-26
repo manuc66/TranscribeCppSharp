@@ -79,8 +79,10 @@ public static class Batch
                 using var runParams = new RunParamsBuilder();
                 configure?.Invoke(runParams);
 
+                Interop.AbortCallback? previousCallback = null;
                 if (ct.CanBeCanceled)
                 {
+                    previousCallback = session.GetAbortCallback();
                     session.SetAbortCallback(_ => ct.IsCancellationRequested);
                 }
 
@@ -94,7 +96,8 @@ public static class Batch
                 {
                     if (ct.CanBeCanceled)
                     {
-                        session.ClearAbortCallback();
+                        if (previousCallback != null) session.SetAbortCallback(previousCallback);
+                        else session.ClearAbortCallback();
                     }
                 }
 

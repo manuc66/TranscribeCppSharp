@@ -320,6 +320,14 @@ public sealed class Session : IDisposable
         NativeMethods.SetAbortCallback(_handle, _abortCallback, IntPtr.Zero);
     }
 
+    /// <summary>
+    /// Get the current abort callback, if any.
+    /// </summary>
+    internal Interop.AbortCallback? GetAbortCallback()
+    {
+        return _abortCallback;
+    }
+
 
     private Interop.AbortCallback? _abortCallback;
 

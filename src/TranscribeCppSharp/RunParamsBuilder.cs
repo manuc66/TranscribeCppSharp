@@ -77,6 +77,20 @@ public sealed class RunParamsBuilder : IDisposable
         return this;
     }
 
+    /// <summary>Whether to keep special tags (e.g. &lt;|notimestamps|&gt;) in the output.</summary>
+    public RunParamsBuilder WithKeepSpecialTags(bool keep)
+    {
+        _params.keepSpecialTags = keep;
+        return this;
+    }
+
+    /// <summary>Number of speculative decoding drafts (0 to disable).</summary>
+    public RunParamsBuilder WithSpecKDrafts(int drafts)
+    {
+        _params.specKDrafts = drafts;
+        return this;
+    }
+
     /// <summary>Whisper-specific extension parameters (prompt, temperature, etc.).</summary>
     public RunParamsBuilder WithWhisperExt(WhisperExtBuilder ext)
     {

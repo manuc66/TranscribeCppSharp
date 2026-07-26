@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace TranscribeCppSharp;
 
 /// <summary>A transcribed text segment with timestamps.</summary>
-public record SegmentResult(TimeSpan Start, TimeSpan End, string Text, int SpeakerId = -1);
+public record SegmentResult(TimeSpan Start, TimeSpan End, string Text);
 
 /// <summary>A transcribed word with timestamps.</summary>
 public record WordResult(TimeSpan Start, TimeSpan End, string Text);
