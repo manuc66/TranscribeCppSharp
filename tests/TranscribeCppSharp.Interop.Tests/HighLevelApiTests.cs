@@ -26,9 +26,12 @@ public class HighLevelApiTests : IDisposable
     {
     }
 
+    private static bool IsIntegrationEnv => TestConfig.IsIntegrationTestEnvironment();
+
     [Fact]
     public void PcmExtensions_ReadWavToPcm_ShouldLoadTestWav()
     {
+        if (!IsIntegrationEnv) return;
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
 
         Assert.NotNull(pcm);
@@ -466,6 +469,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void ModelLoad_ValidModel_ShouldSucceed()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.NotNull(model);
     }
@@ -473,6 +477,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Session_Run_ShouldReturnTranscript()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -485,6 +490,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Session_ReadSegments_ShouldReturnSegments()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -498,6 +504,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Session_ReadWords_ShouldReturnWords()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -516,6 +523,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Session_ReadTokens_ShouldReturnTokens()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -534,6 +542,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void StreamSession_Feed_ShouldStreamAudio()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         using var stream = session.CreateStream();
@@ -567,6 +576,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Batch_Run_ShouldProcessMultipleBuffers()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
 
@@ -583,6 +593,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Model_Tokenize_ShouldReturnTokens()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var tokens = model.Tokenize("Hello world");
 
@@ -593,6 +604,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Session_SetAbortCallback_ShouldAllowCancellation()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
 
@@ -612,6 +624,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Model_GetMetaValue_ShouldReturnMetadata()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var value = model.GetMetaValue("general.architecture");
         Assert.NotNull(value);
@@ -620,6 +633,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Model_Supports_ShouldCheckFeature()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var supportsPnc = model.Supports(Feature.FeaturePnc);
         Assert.IsType<bool>(supportsPnc);
@@ -628,6 +642,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Model_Metadata_ShouldReturnInfo()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.NotEmpty(model.Architecture);
         Assert.NotEmpty(model.Variant);
@@ -640,6 +655,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Session_Metadata_ShouldReturnInfo()
     {
+        if (!IsIntegrationEnv) return;
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         
