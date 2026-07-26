@@ -67,9 +67,9 @@ public static class PcmExtensions
             throw new InvalidDataException("WAV file has no data chunk");
 
         fs.Position = dataStart;
+        var dataBytes = br.ReadBytes(dataSize);
         var samples16 = new short[dataSize / 2];
-        for (int i = 0; i < samples16.Length; i++)
-            samples16[i] = br.ReadInt16();
+        Buffer.BlockCopy(dataBytes, 0, samples16, 0, dataSize);
 
         var nSamples = samples16.Length / numChannels;
         var pcm = new float[nSamples];

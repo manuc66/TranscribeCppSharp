@@ -16,7 +16,10 @@ public record BatchResult(
     int Index,
     string FullText,
     string DetectedLanguage,
-    Status Status);
+    Status Status,
+    IReadOnlyList<SegmentResult> Segments,
+    IReadOnlyList<WordResult> Words,
+    IReadOnlyList<TokenResult> Tokens);
 
 /// <summary>
 /// Batch transcription API. Process multiple audio clips in a single call.
@@ -110,12 +113,18 @@ public static class Batch
                     var batchStatus = session.GetBatchResultStatus(i);
                     var fullText = session.GetBatchResultFullText(i);
                     var lang = session.GetBatchResultDetectedLanguage(i);
+                    var segments = session.GetBatchSegments(i);
+                    var words = session.GetBatchWords(i);
+                    var tokens = session.GetBatchTokens(i);
 
                     results.Add(new BatchResult(
                         Index: i,
                         FullText: fullText,
                         DetectedLanguage: lang,
-                        Status: batchStatus));
+                        Status: batchStatus,
+                        Segments: segments,
+                        Words: words,
+                        Tokens: tokens));
                 }
 
                 return results;

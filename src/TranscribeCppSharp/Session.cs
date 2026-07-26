@@ -386,6 +386,101 @@ public sealed class Session : IDisposable
         return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
     }
 
+    internal unsafe IReadOnlyList<SegmentResult> GetBatchSegments(int batchIndex)
+    {
+        ThrowIfDisposed();
+        var segments = new List<SegmentResult>();
+        var segCount = NativeMethods.BatchNSegments(_handle, batchIndex);
+        if (segCount == 0) return segments;
+
+        var segSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSegment);
+        StackAllocHelper.ThrowIfTooLarge(segSize, nameof(Segment));
+        Span<byte> segBuffer = stackalloc byte[segSize];
+        fixed (byte* pSegBuffer = segBuffer)
+        {
+            var segPtr = (IntPtr)pSegBuffer;
+            for (int j = 0; j < segCount; j++)
+            {
+                NativeMethods.SegmentInit(segPtr);
+                var status = NativeMethods.BatchGetSegment(_handle, batchIndex, j, segPtr);
+                if (status != Status.Ok) continue;
+
+                var seg = Marshal.PtrToStructure<Interop.Segment>(segPtr);
+                var text = Marshal.PtrToStringUTF8(seg.text) ?? "";
+                segments.Add(new SegmentResult(
+                    Start: TimeSpan.FromMilliseconds(seg.t0Ms),
+                    End: TimeSpan.FromMilliseconds(seg.t1Ms),
+                    Text: text
+                ));
+            }
+        }
+        return segments;
+    }
+
+    internal unsafe IReadOnlyList<WordResult> GetBatchWords(int batchIndex)
+    {
+        ThrowIfDisposed();
+        var words = new List<WordResult>();
+        var wordCount = NativeMethods.BatchNWords(_handle, batchIndex);
+        if (wordCount == 0) return words;
+
+        var wordSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiWord);
+        StackAllocHelper.ThrowIfTooLarge(wordSize, nameof(Word));
+        Span<byte> wordBuffer = stackalloc byte[wordSize];
+        fixed (byte* pWordBuffer = wordBuffer)
+        {
+            var wordPtr = (IntPtr)pWordBuffer;
+            for (int j = 0; j < wordCount; j++)
+            {
+                NativeMethods.WordInit(wordPtr);
+                var status = NativeMethods.BatchGetWord(_handle, batchIndex, j, wordPtr);
+                if (status != Status.Ok) continue;
+
+                var w = Marshal.PtrToStructure<Interop.Word>(wordPtr);
+                var text = Marshal.PtrToStringUTF8(w.text) ?? "";
+                words.Add(new WordResult(
+                    Start: TimeSpan.FromMilliseconds(w.t0Ms),
+                    End: TimeSpan.FromMilliseconds(w.t1Ms),
+                    Text: text
+                ));
+            }
+        }
+        return words;
+    }
+
+    internal unsafe IReadOnlyList<TokenResult> GetBatchTokens(int batchIndex)
+    {
+        ThrowIfDisposed();
+        var tokens = new List<TokenResult>();
+        var tokenCount = NativeMethods.BatchNTokens(_handle, batchIndex);
+        if (tokenCount == 0) return tokens;
+
+        var tokenSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiToken);
+        StackAllocHelper.ThrowIfTooLarge(tokenSize, nameof(Token));
+        Span<byte> tokenBuffer = stackalloc byte[tokenSize];
+        fixed (byte* pTokenBuffer = tokenBuffer)
+        {
+            var tokenPtr = (IntPtr)pTokenBuffer;
+            for (int j = 0; j < tokenCount; j++)
+            {
+                NativeMethods.TokenInit(tokenPtr);
+                var status = NativeMethods.BatchGetToken(_handle, batchIndex, j, tokenPtr);
+                if (status != Status.Ok) continue;
+
+                var t = Marshal.PtrToStructure<Interop.Token>(tokenPtr);
+                var text = Marshal.PtrToStringUTF8(t.text) ?? "";
+                tokens.Add(new TokenResult(
+                    Id: t.id,
+                    Probability: t.p,
+                    Start: TimeSpan.FromMilliseconds(t.t0Ms),
+                    End: TimeSpan.FromMilliseconds(t.t1Ms),
+                    Text: text
+                ));
+            }
+        }
+        return tokens;
+    }
+
     internal SessionHandle Handle => _handle;
 
     private unsafe void RunNative(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure)
