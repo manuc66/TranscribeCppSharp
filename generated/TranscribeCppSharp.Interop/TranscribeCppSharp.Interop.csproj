@@ -22,7 +22,6 @@
     <Import Include="System.Runtime.InteropServices" />
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
     <InternalsVisibleTo Include="SmokeTest" />
-    <InternalsVisibleTo Include="ScribeManIA" />
     <InternalsVisibleTo Include="TranscribeCppSharp" />
   </ItemGroup>
 
