@@ -66,7 +66,11 @@ public static class Backends
             {
                 NativeMethods.BackendDeviceInit(devicePtr);
                 var status = NativeMethods.GetBackendDevice(i, devicePtr);
-                if (status != Status.Ok) continue;
+                if (status != Status.Ok)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to enumerate backend device {i}: {status}");
+                    continue;
+                }
 
                 var d = Marshal.PtrToStructure<Interop.BackendDevice>(devicePtr);
                 var name = d.name != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.name) ?? "" : "";

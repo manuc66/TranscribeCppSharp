@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
-    <InternalsVisibleTo Include="SmokeTest" />
   </ItemGroup>
 
 </Project>

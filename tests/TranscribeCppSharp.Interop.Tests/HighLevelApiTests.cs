@@ -622,7 +622,7 @@ public class HighLevelApiTests : IDisposable
     {
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var supportsPnc = model.Supports(Feature.FeaturePnc);
-        Assert.True(supportsPnc || !supportsPnc);
+        Assert.IsType<bool>(supportsPnc);
     }
 
     [Fact]

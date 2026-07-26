@@ -35,6 +35,8 @@ public static class PcmExtensions
 
             if (chunkId == "fmt ")
             {
+                if (chunkSize < 16)
+                    throw new InvalidDataException("fmt chunk too small");
                 br.ReadInt16(); // audio format
                 numChannels = br.ReadInt16();
                 sampleRate = br.ReadInt32();

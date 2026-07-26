@@ -242,13 +242,14 @@ public sealed class StreamSession : IDisposable
 
     /// <summary>
     /// Disposes the streaming view. 
-    /// Note: This does not close the underlying session, but prevents further 
-    /// streaming operations on this instance.
-    /// It is recommended to call <see cref="Finalize"/> before Disposing if you 
-    /// want the last transcription results.
+    /// If streaming was started via <see cref="Begin"/>, resets the native
+    /// stream state. It is recommended to call <see cref="Finalize"/> before
+    /// Disposing to get the last transcription results.
     /// </summary>
     public void Dispose()
     {
+        if (!_disposed && !_session.IsInvalid)
+            NativeMethods.StreamReset(_session);
         _disposed = true;
     }
 }
