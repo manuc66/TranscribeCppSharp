@@ -53,6 +53,41 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void PcmExtensions_ReadWavToPcm_MissingDataChunk_ShouldThrow()
+    {
+        // WAV with RIFF header + fmt chunk but no data chunk
+        var path = Path.Combine(Path.GetTempPath(), "no_data.wav");
+        try
+        {
+            using var ms = new MemoryStream();
+            using (var bw = new BinaryWriter(ms))
+            {
+                // RIFF header
+                bw.Write("RIFF".ToCharArray());
+                bw.Write(0); // file size placeholder
+                bw.Write("WAVE".ToCharArray());
+                // fmt chunk
+                bw.Write("fmt ".ToCharArray());
+                bw.Write(16); // chunk size
+                bw.Write((short)1); // PCM format
+                bw.Write((short)1); // mono
+                bw.Write(16000); // sample rate
+                bw.Write(32000); // byte rate
+                bw.Write((short)2); // block align
+                bw.Write((short)16); // bits per sample
+                // No data chunk!
+            }
+            File.WriteAllBytes(path, ms.ToArray());
+
+            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void ModelLoadParamsBuilder_WithBackend_ShouldSetBackend()
     {
         using var builder = new ModelLoadParamsBuilder();
@@ -194,6 +229,23 @@ public class HighLevelApiTests : IDisposable
 
         var p = Marshal.PtrToStructure<RunParams>(builder.Build());
         Assert.NotEqual(IntPtr.Zero, p.family);
+    }
+
+    [Fact]
+    public void RunParamsBuilder_WithWhisperExt_ReplacesPreviousExt()
+    {
+        using var ext1 = new WhisperExtBuilder();
+        ext1.WithTemperature(0.5f);
+        using var ext2 = new WhisperExtBuilder();
+        ext2.WithTemperature(0.9f);
+
+        using var builder = new RunParamsBuilder();
+        builder.WithWhisperExt(ext1);
+        builder.WithWhisperExt(ext2);
+
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        var ext = Marshal.PtrToStructure<WhisperRunExt>(p.family);
+        Assert.Equal(0.9f, ext.temperature);
     }
 
     [Fact]

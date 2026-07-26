@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.1.3"
+VERSION=$(cat "$(dirname "$0")/TRANSCRIBE_VERSION")
 BASE_URL="https://github.com/handy-computer/transcribe.cpp/releases/download/v${VERSION}"
 DEST="native-packages"
 

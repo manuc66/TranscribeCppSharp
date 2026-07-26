@@ -59,6 +59,8 @@ public static class PcmExtensions
             throw new InvalidDataException($"Expected 16kHz, got {sampleRate}Hz");
         if (bitsPerSample != 16)
             throw new InvalidDataException($"Expected 16-bit, got {bitsPerSample}-bit");
+        if (dataStart == 0 || dataSize == 0)
+            throw new InvalidDataException("WAV file has no data chunk");
 
         fs.Position = dataStart;
         var samples16 = new short[dataSize / 2];

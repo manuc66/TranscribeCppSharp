@@ -141,6 +141,8 @@ public sealed class Model : IDisposable
             var count = NativeMethods.Tokenize(_handle, text, tokensPtr, (nuint)maxTokens);
             if (count < 0)
                 throw new InvalidOperationException("Tokenization failed");
+            if (count > maxTokens)
+                count = maxTokens;
 
             var tokens = new int[count];
             Marshal.Copy(tokensPtr, tokens, 0, count);
