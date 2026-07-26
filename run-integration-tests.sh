@@ -16,6 +16,24 @@ AUDIO_DIR="./test-audio"
 AUDIO_FILE="$AUDIO_DIR/jfk.wav"
 AUDIO_URL="https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav"
 
+# Detect platform
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+
+case "$OS" in
+  Linux)  RID="linux" ;;
+  Darwin) RID="osx" ;;
+  *)      echo "Unsupported OS: $OS"; exit 1 ;;
+esac
+
+case "$ARCH" in
+  x86_64|amd64)  RID="${RID}-x64" ;;
+  aarch64|arm64) RID="${RID}-arm64" ;;
+  *)             echo "Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+NATIVE_DIR="native-packages/${RID}/runtimes/${RID}/native"
+
 # Create directories
 mkdir -p "$MODEL_DIR"
 mkdir -p "$AUDIO_DIR"
@@ -39,16 +57,17 @@ else
 fi
 
 # Set library path for native library
-export LD_LIBRARY_PATH="$PWD/native-packages/linux-x64/runtimes/linux-x64/native:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$PWD/${NATIVE_DIR}:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$PWD/${NATIVE_DIR}:$DYLD_LIBRARY_PATH"
 
 # Check if native library exists
-if [ ! -f "native-packages/linux-x64/runtimes/linux-x64/native/libtranscribe.so" ]; then
-    echo "Error: Native library not found. Run ./fetch-native.sh first."
+if [ ! -f "${NATIVE_DIR}/libtranscribe.so" ] && [ ! -f "${NATIVE_DIR}/libtranscribe.dylib" ]; then
+    echo "Error: Native library not found in ${NATIVE_DIR}. Run ./fetch-native.sh first."
     exit 1
 fi
 
 echo ""
-echo "Running integration tests..."
+echo "Running integration tests (RID: ${RID})..."
 echo ""
 
 # Run tests with the model path

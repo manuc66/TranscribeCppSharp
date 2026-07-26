@@ -42,6 +42,7 @@ public static class PcmExtensions
                 br.ReadInt16(); // block align
                 bitsPerSample = br.ReadInt16();
                 fs.Position += chunkSize - 16;
+                if (chunkSize % 2 != 0) fs.Position++; // WAV padding byte
             }
             else if (chunkId == "data")
             {
@@ -52,6 +53,7 @@ public static class PcmExtensions
             else
             {
                 fs.Position += chunkSize;
+                if (chunkSize % 2 != 0) fs.Position++; // WAV padding byte
             }
         }
 
