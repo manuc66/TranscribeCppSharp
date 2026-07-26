@@ -323,9 +323,8 @@ public sealed class Session : IDisposable
     public void ClearAbortCallback()
     {
         ThrowIfDisposed();
-        // Store a no-op callback to keep the delegate rooted
-        _abortCallback = _ => false;
-        NativeMethods.SetAbortCallback(_handle, _abortCallback, IntPtr.Zero);
+        _abortCallback = null;
+        NativeMethods.SetAbortCallback(_handle, null, IntPtr.Zero);
     }
 
     /// <summary>

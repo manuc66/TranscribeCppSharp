@@ -91,7 +91,12 @@ public sealed class RunParamsBuilder : IDisposable
         return this;
     }
 
-    /// <summary>Whisper-specific extension parameters (prompt, temperature, etc.).</summary>
+    /// <summary>
+    /// Whisper-specific extension parameters (prompt, temperature, etc.).
+    /// Takes ownership of the builder — it will be disposed when this
+    /// RunParamsBuilder is disposed or when another ext is set.
+    /// Do not reuse the WhisperExtBuilder after passing it here.
+    /// </summary>
     public RunParamsBuilder WithWhisperExt(WhisperExtBuilder ext)
     {
         _whisperExt?.Dispose();
