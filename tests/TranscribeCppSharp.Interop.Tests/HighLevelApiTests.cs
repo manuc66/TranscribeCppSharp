@@ -210,6 +210,93 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void MoonshineExtBuilder_WithMinDecodeIntervalMs_ShouldSet()
+    {
+        using var builder = new MoonshineExtBuilder();
+        builder.WithMinDecodeIntervalMs(200);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_WithMoonshineExt_ShouldSetFamily()
+    {
+        using var ext = new MoonshineExtBuilder();
+        ext.WithMinDecodeIntervalMs(200);
+
+        using var builder = new StreamParamsBuilder();
+        builder.WithMoonshineExt(ext);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void ParakeetStreamExtBuilder_WithAttContextRight_ShouldSet()
+    {
+        using var builder = new ParakeetStreamExtBuilder();
+        builder.WithAttContextRight(5);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_WithParakeetStreamExt_ShouldSetFamily()
+    {
+        using var ext = new ParakeetStreamExtBuilder();
+        ext.WithAttContextRight(5);
+
+        using var builder = new StreamParamsBuilder();
+        builder.WithParakeetStreamExt(ext);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void ParakeetBufferedStreamExtBuilder_WithAllFields_ShouldSet()
+    {
+        using var builder = new ParakeetBufferedStreamExtBuilder();
+        builder.WithLeftMs(500)
+               .WithChunkMs(1000)
+               .WithRightMs(200);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_WithParakeetBufferedStreamExt_ShouldSetFamily()
+    {
+        using var ext = new ParakeetBufferedStreamExtBuilder();
+        ext.WithLeftMs(500).WithChunkMs(1000).WithRightMs(200);
+
+        using var builder = new StreamParamsBuilder();
+        builder.WithParakeetBufferedStreamExt(ext);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void VoxtralExtBuilder_WithAllFields_ShouldSet()
+    {
+        using var builder = new VoxtralExtBuilder();
+        builder.WithNumDelayTokens(10)
+               .WithMinDecodeIntervalMs(300);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_WithVoxtralExt_ShouldSetFamily()
+    {
+        using var ext = new VoxtralExtBuilder();
+        ext.WithNumDelayTokens(10).WithMinDecodeIntervalMs(300);
+
+        using var builder = new StreamParamsBuilder();
+        builder.WithVoxtralExt(ext);
+
+        Assert.NotNull(builder);
+    }
+
+    [Fact]
     public void Backends_InitDefault_ShouldNotThrow()
     {
         TranscribeCppSharp.Backends.InitDefault();

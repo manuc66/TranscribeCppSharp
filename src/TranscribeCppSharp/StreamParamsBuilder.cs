@@ -13,6 +13,10 @@ public sealed class StreamParamsBuilder : IDisposable
 {
     private IntPtr _handle;
     private StreamParams _params;
+    private MoonshineExtBuilder? _moonshineExt;
+    private ParakeetStreamExtBuilder? _parakeetStreamExt;
+    private ParakeetBufferedStreamExtBuilder? _parakeetBufferedExt;
+    private VoxtralExtBuilder? _voxtralExt;
     private bool _disposed;
 
     public StreamParamsBuilder()
@@ -41,6 +45,55 @@ public sealed class StreamParamsBuilder : IDisposable
         return this;
     }
 
+    /// <summary>Moonshine streaming extension parameters.</summary>
+    public StreamParamsBuilder WithMoonshineExt(MoonshineExtBuilder ext)
+    {
+        ClearFamily();
+        _moonshineExt = ext;
+        _params.family = ext.Build();
+        return this;
+    }
+
+    /// <summary>Parakeet streaming extension parameters.</summary>
+    public StreamParamsBuilder WithParakeetStreamExt(ParakeetStreamExtBuilder ext)
+    {
+        ClearFamily();
+        _parakeetStreamExt = ext;
+        _params.family = ext.Build();
+        return this;
+    }
+
+    /// <summary>Parakeet buffered streaming extension parameters.</summary>
+    public StreamParamsBuilder WithParakeetBufferedStreamExt(ParakeetBufferedStreamExtBuilder ext)
+    {
+        ClearFamily();
+        _parakeetBufferedExt = ext;
+        _params.family = ext.Build();
+        return this;
+    }
+
+    /// <summary>Voxtral realtime streaming extension parameters.</summary>
+    public StreamParamsBuilder WithVoxtralExt(VoxtralExtBuilder ext)
+    {
+        ClearFamily();
+        _voxtralExt = ext;
+        _params.family = ext.Build();
+        return this;
+    }
+
+    private void ClearFamily()
+    {
+        _moonshineExt?.Dispose();
+        _moonshineExt = null;
+        _parakeetStreamExt?.Dispose();
+        _parakeetStreamExt = null;
+        _parakeetBufferedExt?.Dispose();
+        _parakeetBufferedExt = null;
+        _voxtralExt?.Dispose();
+        _voxtralExt = null;
+        _params.family = IntPtr.Zero;
+    }
+
     internal IntPtr Build()
     {
         Marshal.StructureToPtr(_params, _handle, false);
@@ -51,6 +104,7 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         if (!_disposed)
         {
+            ClearFamily();
             Marshal.FreeHGlobal(_handle);
             _disposed = true;
         }
