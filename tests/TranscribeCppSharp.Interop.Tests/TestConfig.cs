@@ -9,6 +9,7 @@ public static class TestConfig
 {
     private static readonly string RootPath = FindRoot(AppContext.BaseDirectory);
 
+    public static string RepoRoot => RootPath;
     public static string ModelPath => Path.Combine(RootPath, "test-models/ggml-tiny.bin");
     public static string AudioPath => Path.Combine(RootPath, "test-audio/jfk.wav");
 

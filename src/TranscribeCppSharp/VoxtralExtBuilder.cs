@@ -14,7 +14,9 @@ public sealed class VoxtralExtBuilder : IDisposable
     private IntPtr _handle;
     private VoxtralRealtimeStreamExt _params;
     private bool _disposed;
-    internal bool _ownershipTransferred;
+    private bool _ownershipTransferred;
+
+    internal void TransferOwnership() => _ownershipTransferred = true;
 
     public VoxtralExtBuilder()
     {

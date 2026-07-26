@@ -16,7 +16,9 @@ public sealed class WhisperExtBuilder : IDisposable
     private IntPtr _initialPromptPtr;
     private IntPtr _promptTokensPtr;
     private bool _disposed;
-    internal bool _ownershipTransferred;
+    private bool _ownershipTransferred;
+
+    internal void TransferOwnership() => _ownershipTransferred = true;
 
     public WhisperExtBuilder()
     {

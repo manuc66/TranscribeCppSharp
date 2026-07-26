@@ -12,12 +12,10 @@ public class EnumParityTest
 {
     private static readonly Assembly InteropAssembly = typeof(NativeMethods).Assembly;
 
-    private static string RepoRoot { get; } = FindRepoRoot();
-
     [Fact]
     public void AllEnumValues_MatchRustValues()
     {
-        var rustPath = Path.Combine(RepoRoot, "rust", "transcribe_sys.rs");
+        var rustPath = Path.Combine(TestConfig.RepoRoot, "rust", "transcribe_sys.rs");
         var parser = RustFfiParser.FromFile(rustPath);
 
         foreach (var rustEnum in parser.ParseEnums())
@@ -75,17 +73,5 @@ public class EnumParityTest
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         return string.Join("", s.Split('_', StringSplitOptions.RemoveEmptyEntries)
             .Select(w => char.ToUpper(w[0]) + (w.Length > 1 ? w[1..].ToLower() : "")));
-    }
-
-    private static string FindRepoRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null)
-        {
-            if (File.Exists(Path.Combine(dir, "TranscribeCppSharp.slnx")))
-                return dir;
-            dir = Directory.GetParent(dir)?.FullName;
-        }
-        throw new InvalidOperationException("Could not find repo root");
     }
 }

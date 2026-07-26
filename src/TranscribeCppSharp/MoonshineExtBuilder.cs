@@ -14,7 +14,9 @@ public sealed class MoonshineExtBuilder : IDisposable
     private IntPtr _handle;
     private MoonshineStreamingStreamExt _params;
     private bool _disposed;
-    internal bool _ownershipTransferred;
+    private bool _ownershipTransferred;
+
+    internal void TransferOwnership() => _ownershipTransferred = true;
 
     public MoonshineExtBuilder()
     {

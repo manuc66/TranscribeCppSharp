@@ -12,30 +12,16 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// </summary>
 public class GoldenFileTest
 {
-    private static string RepoRoot { get; } = FindRepoRoot();
-
     [Fact]
     public void GeneratedOutput_MatchesCommittedSnapshot()
     {
-        var rustPath = Path.Combine(RepoRoot, "rust", "transcribe_sys.rs");
-        var goldenPath = Path.Combine(RepoRoot, "generated", "TranscribeCppSharp.Interop", "NativeMethods.cs");
+        var rustPath = Path.Combine(TestConfig.RepoRoot, "rust", "transcribe_sys.rs");
+        var goldenPath = Path.Combine(TestConfig.RepoRoot, "generated", "TranscribeCppSharp.Interop", "NativeMethods.cs");
 
         var parser = RustFfiParser.FromFile(rustPath);
         var generated = new CSharpGenerator().Generate(parser);
         var committed = File.ReadAllText(goldenPath);
 
         Assert.Equal(committed, generated);
-    }
-
-    private static string FindRepoRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null)
-        {
-            if (File.Exists(Path.Combine(dir, "TranscribeCppSharp.slnx")))
-                return dir;
-            dir = Directory.GetParent(dir)?.FullName;
-        }
-        throw new InvalidOperationException("Could not find repo root (TranscribeCppSharp.slnx)");
     }
 }

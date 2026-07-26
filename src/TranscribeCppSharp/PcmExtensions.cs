@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Text;
 
 namespace TranscribeCppSharp;
 
@@ -18,9 +19,9 @@ public static class PcmExtensions
         using var fs = File.OpenRead(wavPath);
         using var br = new BinaryReader(fs);
 
-        var riff = new string(br.ReadChars(4));
+        var riff = Encoding.ASCII.GetString(br.ReadBytes(4));
         var fileSize = br.ReadInt32();
-        var wave = new string(br.ReadChars(4));
+        var wave = Encoding.ASCII.GetString(br.ReadBytes(4));
         if (riff != "RIFF" || wave != "WAVE")
             throw new InvalidDataException("Not a WAV file");
 
@@ -30,7 +31,7 @@ public static class PcmExtensions
 
         while (fs.Position < fs.Length)
         {
-            var chunkId = new string(br.ReadChars(4));
+            var chunkId = Encoding.ASCII.GetString(br.ReadBytes(4));
             var chunkSize = br.ReadInt32();
 
             if (chunkId == "fmt ")
