@@ -88,9 +88,9 @@ public sealed class Session : IDisposable
     public Transcript Run(IntPtr pcmPtr, int nSamples, RunParamsBuilder runParams)
     {
         ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(runParams);
         try
         {
+            ArgumentNullException.ThrowIfNull(runParams);
             var status = NativeMethods.Run(_handle, pcmPtr, nSamples, runParams.Build());
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(Run));
@@ -99,7 +99,7 @@ public sealed class Session : IDisposable
         }
         finally
         {
-            runParams.Dispose();
+            runParams?.Dispose();
         }
     }
 

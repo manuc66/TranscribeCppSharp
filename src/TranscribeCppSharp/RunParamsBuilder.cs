@@ -101,7 +101,6 @@ public sealed class RunParamsBuilder : IDisposable
     {
         _whisperExt?.Dispose();
         _whisperExt = ext;
-        ext.TransferOwnership();
         _params.family = ext.Build();
         return this;
     }

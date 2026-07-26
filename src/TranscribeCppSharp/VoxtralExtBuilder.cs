@@ -14,9 +14,6 @@ public sealed class VoxtralExtBuilder : IDisposable
     private IntPtr _handle;
     private VoxtralRealtimeStreamExt _params;
     private bool _disposed;
-    private bool _ownershipTransferred;
-
-    internal void TransferOwnership() => _ownershipTransferred = true;
 
     public VoxtralExtBuilder()
     {
@@ -42,16 +39,18 @@ public sealed class VoxtralExtBuilder : IDisposable
 
     internal IntPtr Build()
     {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(VoxtralExtBuilder));
         Marshal.StructureToPtr(_params, _handle, false);
         return _handle;
     }
 
     public void Dispose()
     {
-        if (!_disposed && !_ownershipTransferred)
+        if (!_disposed)
         {
             Marshal.FreeHGlobal(_handle);
+            _disposed = true;
         }
-        _disposed = true;
     }
 }

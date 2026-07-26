@@ -14,9 +14,6 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
     private IntPtr _handle;
     private ParakeetBufferedStreamExt _params;
     private bool _disposed;
-    private bool _ownershipTransferred;
-
-    internal void TransferOwnership() => _ownershipTransferred = true;
 
     public ParakeetBufferedStreamExtBuilder()
     {
@@ -49,16 +46,18 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
 
     internal IntPtr Build()
     {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(ParakeetBufferedStreamExtBuilder));
         Marshal.StructureToPtr(_params, _handle, false);
         return _handle;
     }
 
     public void Dispose()
     {
-        if (!_disposed && !_ownershipTransferred)
+        if (!_disposed)
         {
             Marshal.FreeHGlobal(_handle);
+            _disposed = true;
         }
-        _disposed = true;
     }
 }

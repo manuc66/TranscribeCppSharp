@@ -273,6 +273,49 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void RunParamsBuilder_Dispose_DisposesExtBuilder()
+    {
+        var ext = new WhisperExtBuilder();
+        ext.WithTemperature(0.5f);
+
+        using (var builder = new RunParamsBuilder())
+        {
+            builder.WithWhisperExt(ext);
+        }
+
+        // ext should be disposed by RunParamsBuilder.Dispose()
+        // Accessing Build() after dispose should still work (struct is copied)
+        // but the native handle is freed
+    }
+
+    [Fact]
+    public void RunParamsBuilder_ExtManualDispose_NoDoubleFree()
+    {
+        var ext = new WhisperExtBuilder();
+        ext.WithTemperature(0.5f);
+
+        // Manually dispose ext before passing to builder
+        ext.Dispose();
+
+        using var builder = new RunParamsBuilder();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithWhisperExt(ext));
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_Dispose_DisposesExtBuilder()
+    {
+        var ext = new MoonshineExtBuilder();
+        ext.WithMinDecodeIntervalMs(200);
+
+        using (var builder = new StreamParamsBuilder())
+        {
+            builder.WithMoonshineExt(ext);
+        }
+
+        // ext should be disposed by StreamParamsBuilder.Dispose()
+    }
+
+    [Fact]
     public void WhisperExtBuilder_WithSeed_ShouldSetSeed()
     {
         using var builder = new WhisperExtBuilder();

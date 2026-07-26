@@ -14,9 +14,6 @@ public sealed class MoonshineExtBuilder : IDisposable
     private IntPtr _handle;
     private MoonshineStreamingStreamExt _params;
     private bool _disposed;
-    private bool _ownershipTransferred;
-
-    internal void TransferOwnership() => _ownershipTransferred = true;
 
     public MoonshineExtBuilder()
     {
@@ -35,16 +32,18 @@ public sealed class MoonshineExtBuilder : IDisposable
 
     internal IntPtr Build()
     {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(MoonshineExtBuilder));
         Marshal.StructureToPtr(_params, _handle, false);
         return _handle;
     }
 
     public void Dispose()
     {
-        if (!_disposed && !_ownershipTransferred)
+        if (!_disposed)
         {
             Marshal.FreeHGlobal(_handle);
+            _disposed = true;
         }
-        _disposed = true;
     }
 }
