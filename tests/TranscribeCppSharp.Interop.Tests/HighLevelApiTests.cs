@@ -58,7 +58,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new ModelLoadParamsBuilder();
         builder.WithBackend(BackendRequest.BackendCpu);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<ModelLoadParams>(builder.Build());
+        Assert.Equal(BackendRequest.BackendCpu, p.backend);
     }
 
     [Fact]
@@ -67,7 +68,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new ModelLoadParamsBuilder();
         builder.WithGpuDevice(0);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<ModelLoadParams>(builder.Build());
+        Assert.Equal(0, p.gpuDevice);
     }
 
     [Fact]
@@ -76,7 +78,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new SessionParamsBuilder();
         builder.WithThreads(4);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<SessionParams>(builder.Build());
+        Assert.Equal(4, p.nThreads);
     }
 
     [Fact]
@@ -85,7 +88,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new SessionParamsBuilder();
         builder.WithKvType(KvType.KvTypeF16);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<SessionParams>(builder.Build());
+        Assert.Equal(KvType.KvTypeF16, p.kvType);
     }
 
     [Fact]
@@ -94,7 +98,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new SessionParamsBuilder();
         builder.WithContextSize(1024);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<SessionParams>(builder.Build());
+        Assert.Equal(1024, p.nCtx);
     }
 
     [Fact]
@@ -103,7 +108,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithLanguage("en");
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal("en", Marshal.PtrToStringUTF8(p.language));
     }
 
     [Fact]
@@ -112,7 +118,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithTargetLanguage("fr");
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal("fr", Marshal.PtrToStringUTF8(p.targetLanguage));
     }
 
     [Fact]
@@ -121,7 +128,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithTask(TranscribeCppSharp.Interop.Task.TaskTranscribe);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal(TranscribeCppSharp.Interop.Task.TaskTranscribe, p.task);
     }
 
     [Fact]
@@ -130,7 +138,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithTimestamps(TimestampKind.TimestampsWord);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal(TimestampKind.TimestampsWord, p.timestamps);
     }
 
     [Fact]
@@ -139,7 +148,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithPnc(PncMode.PncModeOn);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal(PncMode.PncModeOn, p.pnc);
     }
 
     [Fact]
@@ -148,7 +158,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithItn(ItnMode.ItnModeOn);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal(ItnMode.ItnModeOn, p.itn);
     }
 
     [Fact]
@@ -157,7 +168,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithKeepSpecialTags(true);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.True(p.keepSpecialTags);
     }
 
     [Fact]
@@ -166,7 +178,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithSpecKDrafts(5);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal(5, p.specKDrafts);
     }
 
     [Fact]
@@ -179,7 +192,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new RunParamsBuilder();
         builder.WithWhisperExt(extBuilder);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.family);
     }
 
     [Fact]
@@ -188,7 +202,9 @@ public class HighLevelApiTests : IDisposable
         using var builder = new WhisperExtBuilder();
         builder.WithInitialPrompt("This is a test prompt");
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.initialPrompt);
+        Assert.Equal("This is a test prompt", Marshal.PtrToStringUTF8(p.initialPrompt));
     }
 
     [Fact]
@@ -197,7 +213,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new WhisperExtBuilder();
         builder.WithTemperature(0.5f);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(0.5f, p.temperature);
     }
 
     [Fact]
@@ -206,7 +223,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new WhisperExtBuilder();
         builder.WithSeed(42);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(42u, p.seed);
     }
 
     [Fact]
@@ -215,7 +233,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new StreamParamsBuilder();
         builder.WithCommitPolicy(StreamCommitPolicy.StreamCommitAuto);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        Assert.Equal(StreamCommitPolicy.StreamCommitAuto, p.commitPolicy);
     }
 
     [Fact]
@@ -224,7 +243,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new StreamParamsBuilder();
         builder.WithStablePrefixAgreement(3);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        Assert.Equal(3u, p.stablePrefixAgreementN);
     }
 
     [Fact]
@@ -233,7 +253,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new MoonshineExtBuilder();
         builder.WithMinDecodeIntervalMs(200);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<MoonshineStreamingStreamExt>(builder.Build());
+        Assert.Equal(200, p.minDecodeIntervalMs);
     }
 
     [Fact]
@@ -245,7 +266,10 @@ public class HighLevelApiTests : IDisposable
         using var builder = new StreamParamsBuilder();
         builder.WithMoonshineExt(ext);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.family);
+        var extStruct = Marshal.PtrToStructure<MoonshineStreamingStreamExt>(p.family);
+        Assert.Equal(200, extStruct.minDecodeIntervalMs);
     }
 
     [Fact]
@@ -254,7 +278,8 @@ public class HighLevelApiTests : IDisposable
         using var builder = new ParakeetStreamExtBuilder();
         builder.WithAttContextRight(5);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<ParakeetStreamExt>(builder.Build());
+        Assert.Equal(5, p.attContextRight);
     }
 
     [Fact]
@@ -266,7 +291,10 @@ public class HighLevelApiTests : IDisposable
         using var builder = new StreamParamsBuilder();
         builder.WithParakeetStreamExt(ext);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.family);
+        var extStruct = Marshal.PtrToStructure<ParakeetStreamExt>(p.family);
+        Assert.Equal(5, extStruct.attContextRight);
     }
 
     [Fact]
@@ -277,7 +305,10 @@ public class HighLevelApiTests : IDisposable
                .WithChunkMs(1000)
                .WithRightMs(200);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<ParakeetBufferedStreamExt>(builder.Build());
+        Assert.Equal(500, p.leftMs);
+        Assert.Equal(1000, p.chunkMs);
+        Assert.Equal(200, p.rightMs);
     }
 
     [Fact]
@@ -289,7 +320,12 @@ public class HighLevelApiTests : IDisposable
         using var builder = new StreamParamsBuilder();
         builder.WithParakeetBufferedStreamExt(ext);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.family);
+        var extStruct = Marshal.PtrToStructure<ParakeetBufferedStreamExt>(p.family);
+        Assert.Equal(500, extStruct.leftMs);
+        Assert.Equal(1000, extStruct.chunkMs);
+        Assert.Equal(200, extStruct.rightMs);
     }
 
     [Fact]
@@ -299,7 +335,9 @@ public class HighLevelApiTests : IDisposable
         builder.WithNumDelayTokens(10)
                .WithMinDecodeIntervalMs(300);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<VoxtralRealtimeStreamExt>(builder.Build());
+        Assert.Equal(10, p.numDelayTokens);
+        Assert.Equal(300, p.minDecodeIntervalMs);
     }
 
     [Fact]
@@ -311,7 +349,29 @@ public class HighLevelApiTests : IDisposable
         using var builder = new StreamParamsBuilder();
         builder.WithVoxtralExt(ext);
 
-        Assert.NotNull(builder);
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.family);
+        var extStruct = Marshal.PtrToStructure<VoxtralRealtimeStreamExt>(p.family);
+        Assert.Equal(10, extStruct.numDelayTokens);
+        Assert.Equal(300, extStruct.minDecodeIntervalMs);
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_WithExt_ReplacesPreviousExt()
+    {
+        using var moonshine = new MoonshineExtBuilder();
+        moonshine.WithMinDecodeIntervalMs(100);
+        using var voxtral = new VoxtralExtBuilder();
+        voxtral.WithNumDelayTokens(5).WithMinDecodeIntervalMs(200);
+
+        using var builder = new StreamParamsBuilder();
+        builder.WithMoonshineExt(moonshine);
+        builder.WithVoxtralExt(voxtral);
+
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        var extStruct = Marshal.PtrToStructure<VoxtralRealtimeStreamExt>(p.family);
+        Assert.Equal(5, extStruct.numDelayTokens);
+        Assert.Equal(200, extStruct.minDecodeIntervalMs);
     }
 
     [Fact]
