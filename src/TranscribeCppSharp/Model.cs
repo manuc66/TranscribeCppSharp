@@ -8,7 +8,7 @@ namespace TranscribeCppSharp;
 
 /// <summary>
 /// A loaded transcription model. Disposing this frees the native model.
-/// Thread-safe: SafeHandle ensures the native handle is released correctly.
+/// Thread-safe: safe to create multiple sessions from different threads.
 /// </summary>
 public sealed class Model : IDisposable
 {

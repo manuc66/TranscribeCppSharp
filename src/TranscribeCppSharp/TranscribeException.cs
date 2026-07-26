@@ -39,8 +39,7 @@ public sealed class TranscribeException : Exception
 
     private static string BuildMessage(Status status, string? failedMethod)
     {
-        var nativeMessage = NativeMethods.StatusString((int)status);
         var method = failedMethod != null ? $" in {failedMethod}" : "";
-        return $"transcribe native error{method}: {status} (code {nativeMessage})";
+        return $"transcribe native error{method}: {status} ({(int)status})";
     }
 }

@@ -11,7 +11,7 @@ namespace TranscribeCppSharp;
 
 /// <summary>
 /// A transcription session bound to a model. Disposing this frees the native session.
-/// Thread-safe: SafeHandle ensures the native handle is released correctly.
+/// Not thread-safe: use multiple sessions or synchronize access for concurrency.
 /// </summary>
 public sealed class Session : IDisposable
 {
