@@ -42,8 +42,11 @@ foreach (var (rid, archive) in toFetch)
 {
     var target = Path.Combine(dest, rid, "runtimes", rid, "native");
     var doneFile = Path.Combine(target, ".done");
+    var libFile = Path.Combine(target, OperatingSystem.IsWindows() ? "transcribe.dll"
+        : OperatingSystem.IsMacOS() ? "libtranscribe.dylib"
+        : "libtranscribe.so");
 
-    if (File.Exists(doneFile))
+    if (File.Exists(doneFile) && File.Exists(libFile))
     {
         Console.WriteLine($"Already have {rid}");
         continue;
