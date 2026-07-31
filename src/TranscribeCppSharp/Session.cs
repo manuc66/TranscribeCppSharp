@@ -71,6 +71,8 @@ public sealed class Session : IDisposable
     /// </summary>
     public Transcript Run(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure = null, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (ct.CanBeCanceled)
         {
             var previousCallback = _abortCallback;
@@ -78,6 +80,10 @@ public sealed class Session : IDisposable
             try
             {
                 RunNative(pcm, configure);
+            }
+            catch (TranscribeException ex) when (ex.StatusCode == Status.ErrAborted)
+            {
+                throw new OperationCanceledException(ct);
             }
             finally
             {

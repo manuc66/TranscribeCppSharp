@@ -19,8 +19,8 @@ public class GoldenFileTest
         var goldenPath = Path.Combine(TestConfig.RepoRoot, "generated", "TranscribeCppSharp.Interop", "NativeMethods.cs");
 
         var parser = RustFfiParser.FromFile(rustPath);
-        var generated = new CSharpGenerator().Generate(parser);
-        var committed = File.ReadAllText(goldenPath);
+        var generated = new CSharpGenerator().Generate(parser).Replace("\r\n", "\n");
+        var committed = File.ReadAllText(goldenPath).Replace("\r\n", "\n");
 
         Assert.Equal(committed, generated);
     }

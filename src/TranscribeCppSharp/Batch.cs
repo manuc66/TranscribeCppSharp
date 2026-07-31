@@ -53,6 +53,9 @@ public static class Batch
             throw new ArgumentNullException(nameof(session));
         if (pcmBuffers == null)
             throw new ArgumentNullException(nameof(pcmBuffers));
+
+        ct.ThrowIfCancellationRequested();
+
         if (pcmBuffers.Length == 0)
             return [];
 
@@ -95,6 +98,10 @@ public static class Batch
                     var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams.Build());
                     if (status != Status.Ok)
                         throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
+                }
+                catch (TranscribeException ex) when (ex.StatusCode == Status.ErrAborted)
+                {
+                    throw new OperationCanceledException(ct);
                 }
                 finally
                 {

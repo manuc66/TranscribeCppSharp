@@ -49,7 +49,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: native-packages
-          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh', 'TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
         uses: actions/cache@v4
@@ -60,7 +60,7 @@ jobs:
           key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
 
       - name: Fetch native libraries
-        run: chmod +x fetch-native.sh && ./fetch-native.sh
+        run: dotnet run --project tools/FetchNative
 
       - name: Run tests (including integration)
         run: chmod +x run-integration-tests.sh && ./run-integration-tests.sh
@@ -101,7 +101,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: native-packages
-          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh', 'TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
         uses: actions/cache@v4
@@ -111,7 +111,7 @@ jobs:
             test-audio
           key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
 
-      - run: chmod +x fetch-native.sh && ./fetch-native.sh
+      - run: dotnet run --project tools/FetchNative
 
       - name: Run smoke test
         run: |
@@ -138,9 +138,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: native-packages
-          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh', 'TRANSCRIBE_VERSION') }}
 
-      - run: chmod +x fetch-native.sh && ./fetch-native.sh
+      - run: dotnet run --project tools/FetchNative -- --all
 
       - name: Pack native NuGets
         run: |

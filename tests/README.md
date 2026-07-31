@@ -2,12 +2,19 @@
 
 This project contains unit tests and integration tests to validate the C# wrapper for transcribe.cpp.
 
+## Prerequisites
+
+All tests require the native transcribe.cpp library. It is auto-fetched during build if missing.
+To fetch manually:
+
+```bash
+./fetch-native.sh
+```
+
 ## Unit Tests
 
-Unit tests do not require the native library or GGUF model. They validate:
-- Code generation
-- Enum parity
-- Type structure
+Unit tests validate code generation, enum parity, and type structure.
+Builder tests require the native library (auto-fetched at build time).
 
 Run:
 ```bash
@@ -16,16 +23,11 @@ dotnet test
 
 ## Integration Tests
 
-Integration tests require:
-1. The native transcribe.cpp library
-2. A Whisper GGUF model
+Integration tests additionally require a GGUF model and test audio.
 
 ### Setup
 
-1. Download the native library:
-```bash
-./fetch-native.sh
-```
+1. The native library (auto-fetched, or manually via `./fetch-native.sh`).
 
 2. Download a GGUF model (e.g., tiny model):
 ```bash
@@ -33,11 +35,10 @@ mkdir -p test-models
 curl -L -o test-models/ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
 ```
 
-3. Create a test audio file:
+3. Download test audio:
 ```bash
 mkdir -p test-audio
-# Use ffmpeg or another tool to create a 16kHz mono WAV file
-ffmpeg -f lavfi -i "sine=frequency=440:duration=1" -ar 16000 -ac 1 test-audio/test.wav
+curl -L -o test-audio/jfk.wav https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav
 ```
 
 ### Running
@@ -58,9 +59,3 @@ dotnet test --filter "FullyQualifiedName~HighLevelApiTests"
 - `EnumParityTest.cs`: Verifies enum parity between Rust and C#
 - `GoldenFileTest.cs`: Verifies generated code matches reference file
 - `HighLevelApiTests.cs`: High-level API integration tests
-
-## Notes
-
-- Tests requiring the native library are marked with `Skip = "Requires native library"`
-- Tests requiring a GGUF model are marked with `Skip = "Requires integration test environment"`
-- Tests are automatically skipped if dependencies are not present
