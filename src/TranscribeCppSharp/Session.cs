@@ -12,13 +12,22 @@ namespace TranscribeCppSharp;
 /// A transcription session bound to a model. Disposing this frees the native session.
 /// Not thread-safe: use multiple sessions or synchronize access for concurrency.
 /// </summary>
+/// <remarks>
+/// The session keeps its parent <see cref="Model"/> alive for the session's lifetime.
+/// Do not dispose the model before all sessions created from it.
+/// </remarks>
 public sealed class Session : IDisposable
 {
     private SessionHandle _handle;
+    private readonly Model _model;
 
-    private Session(SessionHandle handle) => _handle = handle;
+    private Session(SessionHandle handle, Model model)
+    {
+        _handle = handle;
+        _model = model;
+    }
 
-    internal static Session Create(ModelHandle model, Action<SessionParamsBuilder>? configure = null)
+    internal static Session Create(ModelHandle modelHandle, Model model, Action<SessionParamsBuilder>? configure = null)
     {
         using var sessionParams = new SessionParamsBuilder();
         configure?.Invoke(sessionParams);
@@ -26,12 +35,12 @@ public sealed class Session : IDisposable
         var outSession = Marshal.AllocHGlobal(IntPtr.Size);
         try
         {
-            var status = NativeMethods.SessionInit(model, sessionParams.Build(), outSession);
+            var status = NativeMethods.SessionInit(modelHandle, sessionParams.Build(), outSession);
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(NativeMethods.SessionInit));
 
             var handle = new SessionHandle(Marshal.ReadIntPtr(outSession));
-            return new Session(handle);
+            return new Session(handle, model);
         }
         finally
         {
@@ -41,9 +50,11 @@ public sealed class Session : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_handle.IsInvalid)
+        if (_disposed)
             throw new ObjectDisposedException(nameof(Session));
     }
+
+    private bool _disposed;
 
     /// <summary>Create a streaming session bound to this session handle.</summary>
     public StreamSession CreateStream()
@@ -63,7 +74,7 @@ public sealed class Session : IDisposable
         if (ct.CanBeCanceled)
         {
             var previousCallback = _abortCallback;
-            SetAbortCallback(_ => ct.IsCancellationRequested);
+            SetAbortCallback(() => ct.IsCancellationRequested);
             try
             {
                 RunNative(pcm, configure);
@@ -81,28 +92,6 @@ public sealed class Session : IDisposable
         return ReadResults();
     }
 
-    /// <summary>
-    /// Transcribe a PCM buffer with pre-allocated params (no closure allocation).
-    /// Takes ownership of the RunParamsBuilder — it will be disposed after the call.
-    /// </summary>
-    public Transcript Run(IntPtr pcmPtr, int nSamples, RunParamsBuilder runParams)
-    {
-        ThrowIfDisposed();
-        try
-        {
-            ArgumentNullException.ThrowIfNull(runParams);
-            var status = NativeMethods.Run(_handle, pcmPtr, nSamples, runParams.Build());
-            if (status != Status.Ok)
-                throw new TranscribeException(status, nameof(Run));
-
-            return ReadResults();
-        }
-        finally
-        {
-            runParams?.Dispose();
-        }
-    }
-
     /// <summary>Get the full transcription text after a run.</summary>
     public string FullText
     {
@@ -110,7 +99,9 @@ public sealed class Session : IDisposable
         {
             ThrowIfDisposed();
             var ptr = NativeMethods.FullText(_handle);
-            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            var result = ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            GC.KeepAlive(this);
+            return result;
         }
     }
 
@@ -120,7 +111,9 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.NSegments(_handle);
+            var count = NativeMethods.NSegments(_handle);
+            GC.KeepAlive(this);
+            return count;
         }
     }
 
@@ -130,7 +123,9 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.NWords(_handle);
+            var count = NativeMethods.NWords(_handle);
+            GC.KeepAlive(this);
+            return count;
         }
     }
 
@@ -140,7 +135,9 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.NTokens(_handle);
+            var count = NativeMethods.NTokens(_handle);
+            GC.KeepAlive(this);
+            return count;
         }
     }
 
@@ -150,7 +147,9 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.WasAborted(_handle);
+            var result = NativeMethods.WasAborted(_handle);
+            GC.KeepAlive(this);
+            return result;
         }
     }
 
@@ -160,7 +159,9 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.WasTruncated(_handle);
+            var result = NativeMethods.WasTruncated(_handle);
+            GC.KeepAlive(this);
+            return result;
         }
     }
 
@@ -170,12 +171,17 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.ReturnedTimestampKind(_handle);
+            var result = NativeMethods.ReturnedTimestampKind(_handle);
+            GC.KeepAlive(this);
+            return result;
         }
     }
 
+    /// <summary>Resource limits for this session.</summary>
+    public record SessionLimitsInfo(int EffectiveNCtx, long EffectiveMaxAudioMs, long MaxKvBytes);
+
     /// <summary>Get resource limits for this session.</summary>
-    public SessionLimits GetLimits()
+    public SessionLimitsInfo GetLimits()
     {
         ThrowIfDisposed();
         var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSessionLimits);
@@ -187,7 +193,11 @@ public sealed class Session : IDisposable
             if (status != Status.Ok)
                 throw new TranscribeException(status, nameof(NativeMethods.SessionGetLimits));
 
-            return Marshal.PtrToStructure<SessionLimits>(ptr);
+            var limits = Marshal.PtrToStructure<Interop.SessionLimits>(ptr);
+            return new SessionLimitsInfo(
+                EffectiveNCtx: limits.effectiveNCtx,
+                EffectiveMaxAudioMs: limits.effectiveMaxAudioMs,
+                MaxKvBytes: limits.maxKvBytes);
         }
         finally
         {
@@ -320,11 +330,12 @@ public sealed class Session : IDisposable
     /// Set a cancellation callback. Return true from the callback to abort transcription.
     /// The callback is invoked periodically during long-running operations.
     /// </summary>
-    public void SetAbortCallback(Interop.AbortCallback callback)
+    public void SetAbortCallback(Func<bool> abortCallback)
     {
         ThrowIfDisposed();
-        _abortCallback = callback;
-        NativeMethods.SetAbortCallback(_handle, callback, IntPtr.Zero);
+        _abortCallback = abortCallback ?? throw new ArgumentNullException(nameof(abortCallback));
+        _interopAbortCallback = _ => _abortCallback();
+        NativeMethods.SetAbortCallback(_handle, _interopAbortCallback, IntPtr.Zero);
     }
 
     /// <summary>
@@ -335,20 +346,22 @@ public sealed class Session : IDisposable
         ThrowIfDisposed();
         // Set a no-op callback to disable abort checks while keeping
         // the delegate rooted to prevent GC.
-        _abortCallback = _ => false;
-        NativeMethods.SetAbortCallback(_handle, _abortCallback, IntPtr.Zero);
+        _abortCallback = null;
+        _interopAbortCallback = _ => false;
+        NativeMethods.SetAbortCallback(_handle, _interopAbortCallback, IntPtr.Zero);
     }
 
     /// <summary>
     /// Get the current abort callback, if any.
     /// </summary>
-    internal Interop.AbortCallback? GetAbortCallback()
+    internal Func<bool>? GetAbortCallback()
     {
         return _abortCallback;
     }
 
 
-    private Interop.AbortCallback? _abortCallback;
+    private Func<bool>? _abortCallback;
+    private Interop.AbortCallback? _interopAbortCallback;
 
     /// <summary>
     /// Internal method for batch transcription with proper thread-safety.
@@ -550,6 +563,10 @@ public sealed class Session : IDisposable
 
     public void Dispose()
     {
-        _handle.Dispose();
+        if (!_disposed)
+        {
+            _handle.Dispose();
+            _disposed = true;
+        }
     }
 }

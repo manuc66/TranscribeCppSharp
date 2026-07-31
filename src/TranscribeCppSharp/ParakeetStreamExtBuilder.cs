@@ -21,6 +21,10 @@ public sealed class ParakeetStreamExtBuilder : IDisposable
         _handle = Marshal.AllocHGlobal(size);
         NativeMethods.ParakeetStreamExtInit(_handle);
         _params = Marshal.PtrToStructure<ParakeetStreamExt>(_handle);
+        if (_params.ext.size != (ulong)size)
+            throw new InvalidOperationException(
+                $"ABI struct size mismatch for ParakeetStreamExt: C# expects {size} bytes, native reports {_params.ext.size} bytes. " +
+                $"Regenerate bindings or update the struct definition.");
     }
 
     /// <summary>Attention context right size.</summary>

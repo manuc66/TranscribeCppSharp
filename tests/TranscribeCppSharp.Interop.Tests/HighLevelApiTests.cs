@@ -164,10 +164,10 @@ public class HighLevelApiTests : IDisposable
     public void RunParamsBuilder_WithTask_ShouldSetTask()
     {
         using var builder = new RunParamsBuilder();
-        builder.WithTask(TranscribeCppSharp.Interop.Task.TaskTranscribe);
+        builder.WithTask(TranscriptionTask.Transcribe);
 
         var p = Marshal.PtrToStructure<RunParams>(builder.Build());
-        Assert.Equal(TranscribeCppSharp.Interop.Task.TaskTranscribe, p.task);
+        Assert.Equal(Interop.Task.TaskTranscribe, p.task);
     }
 
     [Fact]
@@ -663,7 +663,7 @@ public class HighLevelApiTests : IDisposable
         using var session = model.CreateSession();
 
         bool callbackInvoked = false;
-        session.SetAbortCallback((_) =>
+        session.SetAbortCallback(() =>
         {
             callbackInvoked = true;
             return false;
@@ -703,7 +703,7 @@ public class HighLevelApiTests : IDisposable
         Assert.NotEmpty(model.Backend);
         
         var caps = model.GetCapabilities();
-        Assert.True(caps.nativeSampleRate > 0);
+        Assert.True(caps.NativeSampleRate > 0);
     }
 
     [Fact]

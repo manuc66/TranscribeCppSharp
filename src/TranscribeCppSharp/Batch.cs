@@ -51,6 +51,8 @@ public static class Batch
     {
         if (session == null)
             throw new ArgumentNullException(nameof(session));
+        if (pcmBuffers == null)
+            throw new ArgumentNullException(nameof(pcmBuffers));
         if (pcmBuffers.Length == 0)
             return [];
 
@@ -81,11 +83,11 @@ public static class Batch
                 using var runParams = new RunParamsBuilder();
                 configure?.Invoke(runParams);
 
-                Interop.AbortCallback? previousCallback = null;
+                Func<bool>? previousCallback = null;
                 if (ct.CanBeCanceled)
                 {
                     previousCallback = session.GetAbortCallback();
-                    session.SetAbortCallback(_ => ct.IsCancellationRequested);
+                    session.SetAbortCallback(() => ct.IsCancellationRequested);
                 }
 
                 try

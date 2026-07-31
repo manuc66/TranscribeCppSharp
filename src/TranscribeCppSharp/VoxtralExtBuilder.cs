@@ -21,6 +21,10 @@ public sealed class VoxtralExtBuilder : IDisposable
         _handle = Marshal.AllocHGlobal(size);
         NativeMethods.VoxtralRealtimeStreamExtInit(_handle);
         _params = Marshal.PtrToStructure<VoxtralRealtimeStreamExt>(_handle);
+        if (_params.ext.size != (ulong)size)
+            throw new InvalidOperationException(
+                $"ABI struct size mismatch for VoxtralRealtimeStreamExt: C# expects {size} bytes, native reports {_params.ext.size} bytes. " +
+                $"Regenerate bindings or update the struct definition.");
     }
 
     /// <summary>Number of delay tokens.</summary>

@@ -47,7 +47,7 @@ public sealed class StreamSession : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_disposed || _session.IsInvalid)
+        if (_disposed || _session.IsClosed)
             throw new ObjectDisposedException(nameof(StreamSession));
     }
 
@@ -192,7 +192,9 @@ public sealed class StreamSession : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.StreamGetState(_session);
+            var result = NativeMethods.StreamGetState(_session);
+            GC.KeepAlive(this);
+            return result;
         }
     }
 
@@ -202,7 +204,9 @@ public sealed class StreamSession : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.StreamNCommittedSegments(_session);
+            var count = NativeMethods.StreamNCommittedSegments(_session);
+            GC.KeepAlive(this);
+            return count;
         }
     }
 
@@ -212,7 +216,9 @@ public sealed class StreamSession : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.StreamNCommittedWords(_session);
+            var count = NativeMethods.StreamNCommittedWords(_session);
+            GC.KeepAlive(this);
+            return count;
         }
     }
 
@@ -222,7 +228,9 @@ public sealed class StreamSession : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.StreamNCommittedTokens(_session);
+            var count = NativeMethods.StreamNCommittedTokens(_session);
+            GC.KeepAlive(this);
+            return count;
         }
     }
 
@@ -232,7 +240,9 @@ public sealed class StreamSession : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.StreamLastStatus(_session);
+            var result = NativeMethods.StreamLastStatus(_session);
+            GC.KeepAlive(this);
+            return result;
         }
     }
 
@@ -242,7 +252,9 @@ public sealed class StreamSession : IDisposable
         get
         {
             ThrowIfDisposed();
-            return NativeMethods.StreamRevision(_session);
+            var rev = NativeMethods.StreamRevision(_session);
+            GC.KeepAlive(this);
+            return rev;
         }
     }
 
@@ -254,7 +266,7 @@ public sealed class StreamSession : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (!_disposed && !_session.IsInvalid)
+        if (!_disposed && !_session.IsClosed)
             NativeMethods.StreamReset(_session);
         _disposed = true;
     }

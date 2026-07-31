@@ -51,6 +51,8 @@ public sealed class SessionParamsBuilder : IDisposable
 
     internal IntPtr Build()
     {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(SessionParamsBuilder));
         Marshal.StructureToPtr(_params, _handle, false);
         return _handle;
     }

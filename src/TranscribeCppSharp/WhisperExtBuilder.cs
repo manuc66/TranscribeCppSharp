@@ -23,6 +23,10 @@ public sealed class WhisperExtBuilder : IDisposable
         _handle = Marshal.AllocHGlobal(size);
         NativeMethods.WhisperRunExtInit(_handle);
         _params = Marshal.PtrToStructure<WhisperRunExt>(_handle);
+        if (_params.ext.size != (ulong)size)
+            throw new InvalidOperationException(
+                $"ABI struct size mismatch for WhisperRunExt: C# expects {size} bytes, native reports {_params.ext.size} bytes. " +
+                $"Regenerate bindings or update the struct definition.");
     }
 
     /// <summary>Initial prompt to guide transcription (e.g. "Bonjour, comment allez-vous?").</summary>

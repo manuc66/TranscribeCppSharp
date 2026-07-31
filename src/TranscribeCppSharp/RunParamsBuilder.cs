@@ -6,6 +6,15 @@ using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
 
+/// <summary>Task for the transcription engine.</summary>
+public enum TranscriptionTask
+{
+    /// <summary>Transcribe audio in the source language.</summary>
+    Transcribe = 0,
+    /// <summary>Translate audio to English.</summary>
+    Translate = 1
+}
+
 /// <summary>
 /// Fluent builder for transcription run parameters.
 /// </summary>
@@ -32,9 +41,14 @@ public sealed class RunParamsBuilder : IDisposable
     }
 
     /// <summary>Task: transcribe or translate to English.</summary>
-    public RunParamsBuilder WithTask(TranscribeCppSharp.Interop.Task task)
+    public RunParamsBuilder WithTask(TranscriptionTask task)
     {
-        _params.task = task;
+        _params.task = task switch
+        {
+            TranscriptionTask.Transcribe => Interop.Task.TaskTranscribe,
+            TranscriptionTask.Translate => Interop.Task.TaskTranslate,
+            _ => throw new ArgumentOutOfRangeException(nameof(task))
+        };
         return this;
     }
 
@@ -99,6 +113,7 @@ public sealed class RunParamsBuilder : IDisposable
     /// </summary>
     public RunParamsBuilder WithWhisperExt(WhisperExtBuilder ext)
     {
+        ArgumentNullException.ThrowIfNull(ext);
         _whisperExt?.Dispose();
         _whisperExt = ext;
         _params.family = ext.Build();
@@ -107,6 +122,8 @@ public sealed class RunParamsBuilder : IDisposable
 
     internal IntPtr Build()
     {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(RunParamsBuilder));
         Marshal.StructureToPtr(_params, _handle, false);
         return _handle;
     }

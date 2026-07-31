@@ -48,6 +48,7 @@ public sealed class StreamParamsBuilder : IDisposable
     /// <summary>Moonshine streaming extension parameters.</summary>
     public StreamParamsBuilder WithMoonshineExt(MoonshineExtBuilder ext)
     {
+        ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
         _moonshineExt = ext;
         _params.family = ext.Build();
@@ -57,6 +58,7 @@ public sealed class StreamParamsBuilder : IDisposable
     /// <summary>Parakeet streaming extension parameters.</summary>
     public StreamParamsBuilder WithParakeetStreamExt(ParakeetStreamExtBuilder ext)
     {
+        ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
         _parakeetStreamExt = ext;
         _params.family = ext.Build();
@@ -66,6 +68,7 @@ public sealed class StreamParamsBuilder : IDisposable
     /// <summary>Parakeet buffered streaming extension parameters.</summary>
     public StreamParamsBuilder WithParakeetBufferedStreamExt(ParakeetBufferedStreamExtBuilder ext)
     {
+        ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
         _parakeetBufferedExt = ext;
         _params.family = ext.Build();
@@ -75,6 +78,7 @@ public sealed class StreamParamsBuilder : IDisposable
     /// <summary>Voxtral realtime streaming extension parameters.</summary>
     public StreamParamsBuilder WithVoxtralExt(VoxtralExtBuilder ext)
     {
+        ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
         _voxtralExt = ext;
         _params.family = ext.Build();
@@ -96,6 +100,8 @@ public sealed class StreamParamsBuilder : IDisposable
 
     internal IntPtr Build()
     {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(StreamParamsBuilder));
         Marshal.StructureToPtr(_params, _handle, false);
         return _handle;
     }

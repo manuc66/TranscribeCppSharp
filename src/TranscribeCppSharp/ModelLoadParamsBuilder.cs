@@ -48,6 +48,8 @@ public sealed class ModelLoadParamsBuilder : IDisposable
 
     internal IntPtr Build()
     {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(ModelLoadParamsBuilder));
         Marshal.StructureToPtr(_params, _handle, false);
         return _handle;
     }
