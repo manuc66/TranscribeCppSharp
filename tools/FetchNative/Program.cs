@@ -72,8 +72,32 @@ foreach (var (rid, archive) in toFetch)
             await gzip.CopyToAsync(tarOut);
         }
 
-        // Extract tar
-        TarFile.ExtractToDirectory(tmpTar, target, overwriteFiles: true);
+        // Extract tar (strip top-level directory like tar --strip-components=1)
+        var tmpExtract = Path.Combine(Path.GetTempPath(), "fetchnative-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmpExtract);
+        try
+        {
+            TarFile.ExtractToDirectory(tmpTar, tmpExtract, overwriteFiles: true);
+            // Move contents from the single top-level dir to target
+            var entries = Directory.GetFileSystemEntries(tmpExtract);
+            if (entries.Length == 1 && Directory.Exists(entries[0]))
+            {
+                foreach (var srcEntry in Directory.GetFileSystemEntries(entries[0], "*", SearchOption.AllDirectories))
+                {
+                    var relative = Path.GetRelativePath(entries[0], srcEntry);
+                    var destPath = Path.Combine(target, relative);
+                    if (File.Exists(srcEntry))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                        File.Copy(srcEntry, destPath, overwrite: true);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tmpExtract)) Directory.Delete(tmpExtract, recursive: true);
+        }
         File.WriteAllText(doneFile, $"fetched {DateTime.UtcNow:O}");
         Console.WriteLine($"Installed {rid}");
     }
