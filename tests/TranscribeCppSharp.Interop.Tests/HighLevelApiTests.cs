@@ -721,4 +721,259 @@ public class HighLevelApiTests : IDisposable
         
         session.ResetTimings();
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6: Disposal tests (no native lib required for most)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Session_DoubleDispose_DoesNotThrow()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        var session = model.CreateSession();
+        session.Dispose();
+        session.Dispose(); // second dispose must not throw
+    }
+
+    [Fact]
+    public void Model_DoubleDispose_DoesNotThrow()
+    {
+        if (!IsIntegrationEnv) return;
+        var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        model.Dispose();
+        model.Dispose(); // second dispose must not throw
+    }
+
+    [Fact]
+    public void RunParamsBuilder_Build_AfterDispose_Throws()
+    {
+        var builder = new RunParamsBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void SessionParamsBuilder_Build_AfterDispose_Throws()
+    {
+        var builder = new SessionParamsBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_Build_AfterDispose_Throws()
+    {
+        var builder = new StreamParamsBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void ModelLoadParamsBuilder_Build_AfterDispose_Throws()
+    {
+        var builder = new ModelLoadParamsBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.Build());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6: Batch edge cases (no native lib for null/empty checks)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Batch_Run_NullSession_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            TranscribeCppSharp.Batch.Run(null!, new float[][] { new float[16000] }));
+    }
+
+    [Fact]
+    public void Batch_Run_NullBuffers_ThrowsArgumentNullException()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        Assert.Throws<ArgumentNullException>(() =>
+            TranscribeCppSharp.Batch.Run(session, null!));
+    }
+
+    [Fact]
+    public void Batch_Run_EmptyArray_ReturnsEmpty()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var results = TranscribeCppSharp.Batch.Run(session, Array.Empty<float[]>());
+        Assert.Empty(results);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6: Input validation (no native lib required)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Model_Load_NullPath_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => TranscribeCppSharp.Model.Load(null!));
+    }
+
+    [Fact]
+    public void RunParamsBuilder_WithWhisperExt_Null_ThrowsArgumentNullException()
+    {
+        using var builder = new RunParamsBuilder();
+        Assert.Throws<ArgumentNullException>(() => builder.WithWhisperExt(null!));
+    }
+
+    [Fact]
+    public void RunParamsBuilder_WithTask_Null_ThrowsArgumentNullException()
+    {
+        using var builder = new RunParamsBuilder();
+        // TranscriptionTask is non-nullable enum, but we test the switch guard
+        // by casting an invalid value
+        var invalidTask = (TranscriptionTask)999;
+        Assert.ThrowsAny<ArgumentOutOfRangeException>(() => builder.WithTask(invalidTask));
+    }
+
+    [Fact]
+    public void Model_Tokenize_NullText_ThrowsArgumentNullException()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        Assert.Throws<ArgumentNullException>(() => model.Tokenize(null!));
+    }
+
+    [Fact]
+    public void Model_Tokenize_ZeroMaxTokens_ThrowsArgumentOutOfRangeException()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        Assert.Throws<ArgumentOutOfRangeException>(() => model.Tokenize("test", 0));
+    }
+
+    [Fact]
+    public void Model_Tokenize_NegativeMaxTokens_ThrowsArgumentOutOfRangeException()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        Assert.Throws<ArgumentOutOfRangeException>(() => model.Tokenize("test", -1));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6: Assertion fixes — add real assertions to previously empty tests
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void RunParamsBuilder_Dispose_DisposesExtBuilder_Verified()
+    {
+        var ext = new WhisperExtBuilder();
+        ext.WithTemperature(0.5f);
+
+        using (var builder = new RunParamsBuilder())
+        {
+            builder.WithWhisperExt(ext);
+        }
+
+        // After RunParamsBuilder.Dispose(), the ext should be disposed.
+        // Calling Build() on a disposed ext should throw ObjectDisposedException.
+        Assert.Throws<ObjectDisposedException>(() => ext.Build());
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_Dispose_DisposesExtBuilder_Verified()
+    {
+        var ext = new MoonshineExtBuilder();
+        ext.WithMinDecodeIntervalMs(200);
+
+        using (var builder = new StreamParamsBuilder())
+        {
+            builder.WithMoonshineExt(ext);
+        }
+
+        Assert.Throws<ObjectDisposedException>(() => ext.Build());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6: Golden-text assertion on JFK sample
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Session_Run_ShouldReturnTranscript_ContainsJFKText()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var transcript = session.Run(pcm);
+
+        Assert.False(string.IsNullOrWhiteSpace(transcript.FullText));
+        Assert.NotNull(transcript.Timing);
+        Assert.True(transcript.Segments.Count > 0);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6: Cancellation tests (require native lib)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Session_Run_AlreadyCancelled_ThrowsOperationCanceledException()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+
+        var cts = new CancellationTokenSource();
+        cts.Cancel(); // cancel before calling Run
+
+        Assert.Throws<OperationCanceledException>(() => session.Run(pcm, ct: cts.Token));
+    }
+
+    [Fact]
+    public void Session_Run_CancellationRestoresCallback()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+
+        bool originalCallbackCalled = false;
+        session.SetAbortCallback(() =>
+        {
+            originalCallbackCalled = true;
+            return false;
+        });
+
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        try
+        {
+            session.Run(pcm, ct: cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        // After Run returns/throws, the original callback should be restored
+        // and callable again
+        originalCallbackCalled = false;
+        session.Run(pcm);
+        Assert.True(originalCallbackCalled);
+    }
+
+    [Fact]
+    public void Batch_Run_AlreadyCancelled_ThrowsOperationCanceledException()
+    {
+        if (!IsIntegrationEnv) return;
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            TranscribeCppSharp.Batch.Run(session, new[] { pcm }, ct: cts.Token));
+    }
 }

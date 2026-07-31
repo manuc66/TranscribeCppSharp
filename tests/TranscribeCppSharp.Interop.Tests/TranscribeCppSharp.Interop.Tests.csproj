@@ -16,6 +16,16 @@
           ConsoleToMSBuild="true" />
   </Target>
 
+  <!-- Copy native lib to output so dotnet test finds it -->
+  <Target Name="CopyNativeLib" AfterTargets="Build">
+    <ItemGroup>
+      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/linux-x64/runtimes/linux-x64/native/libtranscribe.so" />
+      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/linux-x64/runtimes/linux-x64/native/libggml*.so" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true"
+          Condition="@(NativeLib) != ''" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
