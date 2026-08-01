@@ -6,6 +6,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
+    <IsLibrary>true</IsLibrary>
     <PackageId>TranscribeCppSharp</PackageId>
     <!-- The wrapper has its own SemVer version, decoupled from the upstream
          transcribe.cpp version used by the Native/Interop packages. -->

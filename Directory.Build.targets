@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- Pedantic analysis for libraries (wrapper, Interop, generator). This file is
+       imported AFTER the project body, so the per-project IsLibrary flag is
+       readable here (it is not in Directory.Build.props, which is imported before
+       the body). Tests, samples, and the native (content-only) packages do not set
+       IsLibrary and are therefore excluded from warn-as-error and StyleCop. -->
+
+  <PropertyGroup Condition="'$(IsLibrary)' == 'true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsLibrary)' == 'true'">
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>

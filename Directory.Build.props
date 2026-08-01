@@ -8,6 +8,15 @@
          version so consumers know which ABI they target. -->
     <Version Condition="'$(Version)' == ''">$(TranscribeVersionFile)</Version>
 
+    <!-- Pedantic analysis, applied to libraries only via Directory.Build.targets
+         (the target file is imported after the project file, so the per-project
+         IsLibrary flag is readable there). AnalysisLevel and the XML doc file are
+         global here because the SDK reads them before the project file is imported;
+         projects that opt out of doc generation (generator, tests) set
+         GenerateDocumentationFile=false themselves. -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
     <!-- Package metadata -->
     <Authors>manuc66</Authors>
     <Copyright>Copyright (c) 2026 manuc66</Copyright>
@@ -26,9 +35,6 @@
     <!-- SourceLink: source debugging for consumers -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
-
-    <!-- Documentation XML for IntelliSense -->
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <!-- Symbol packages -->
     <IncludeSymbols>true</IncludeSymbols>

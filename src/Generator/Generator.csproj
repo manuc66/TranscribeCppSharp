@@ -6,8 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>TranscribeCppSharp.Generator</RootNamespace>
+    <!-- The generator is an internal CLI tool: it is not a published library, so
+         no XML doc file is produced for it. SA0001 (XML doc analysis disabled) is
+         therefore expected and suppressed here. -->
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);SA0001</NoWarn>
     <IncludeSymbols>false</IncludeSymbols>
+    <IsLibrary>true</IsLibrary>
   </PropertyGroup>
 
 </Project>

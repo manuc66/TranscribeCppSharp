@@ -1,0 +1,91 @@
+# Root .editorconfig — shared across the repository.
+# StyleCop.Analyzers is enabled on the libraries only (see Directory.Build.props);
+# these rules make the generated Interop and the hand-written wrapper consistent.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# ── Basic layout (SA1xxx) ─────────────────────────────────────────
+dotnet_sort_system_directives_first = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+
+# ── Naming (SA13xx) ───────────────────────────────────────────────
+dotnet_naming_rule.private_members_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.private_members_should_be_camel_case.symbols = private_symbols
+dotnet_naming_rule.private_members_should_be_camel_case.style = camel_case_style
+dotnet_naming_symbols.private_symbols.applicable_kinds = field,property,method,event
+dotnet_naming_symbols.private_symbols.applicable_accessibilities = private,internal
+dotnet_naming_style.camel_case_style.capitalization = camel_case
+
+# ── StyleCop-specific (disabled for pragmatism, or enabled where cheap) ──
+# Documentation (SA16xx) is handled by the compiler's CS1591 instead of
+# StyleCop; the project requires XML docs on the hand-written wrapper and the
+# generated Interop (from the upstream header) separately.
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1601.severity = none
+dotnet_diagnostic.SA1602.severity = none
+dotnet_diagnostic.SA1611.severity = none
+dotnet_diagnostic.SA1612.severity = none
+dotnet_diagnostic.SA1613.severity = none
+dotnet_diagnostic.SA1614.severity = none
+dotnet_diagnostic.SA1615.severity = none
+dotnet_diagnostic.SA1616.severity = none
+dotnet_diagnostic.SA1617.severity = none
+dotnet_diagnostic.SA1618.severity = none
+dotnet_diagnostic.SA1619.severity = none
+dotnet_diagnostic.SA1620.severity = none
+dotnet_diagnostic.SA1621.severity = none
+dotnet_diagnostic.SA1622.severity = none
+dotnet_diagnostic.SA1623.severity = none
+dotnet_diagnostic.SA1624.severity = none
+dotnet_diagnostic.SA1625.severity = none
+dotnet_diagnostic.SA1626.severity = none
+dotnet_diagnostic.SA1627.severity = none
+dotnet_diagnostic.SA1629.severity = none
+
+# Doc-comment spacing/format (SA1005, SA1028, SA1630) are stylistic; keep the
+# compiler's CS1591/CS1587 as the gate instead.
+dotnet_diagnostic.SA1005.severity = none
+dotnet_diagnostic.SA1028.severity = none
+dotnet_diagnostic.SA1630.severity = none
+dotnet_diagnostic.SA1633.severity = none
+dotnet_diagnostic.SA1634.severity = none
+dotnet_diagnostic.SA1635.severity = none
+dotnet_diagnostic.SA1636.severity = none
+dotnet_diagnostic.SA1637.severity = none
+dotnet_diagnostic.SA1638.severity = none
+dotnet_diagnostic.SA1640.severity = none
+dotnet_diagnostic.SA1641.severity = none
+dotnet_diagnostic.SA1642.severity = none
+
+# File header / ordering rules not enforced.
+dotnet_diagnostic.SA1101.severity = suggestion
+dotnet_diagnostic.SA1200.severity = suggestion
+dotnet_diagnostic.SA1201.severity = suggestion
+dotnet_diagnostic.SA1202.severity = suggestion
+dotnet_diagnostic.SA1203.severity = suggestion
+dotnet_diagnostic.SA1204.severity = suggestion
+
+# Keep style enforcement focused on the rules that catch real bugs/formatting
+# drift; the rest is left at default (warning) and reviewed on build.

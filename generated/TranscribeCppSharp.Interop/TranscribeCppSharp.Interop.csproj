@@ -6,7 +6,16 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
+    <IsLibrary>true</IsLibrary>
     <PackageId>TranscribeCppSharp.Interop</PackageId>
+
+    <!-- CS1591 (missing XML doc) is not enforced here: NativeMethods.cs is
+         auto-generated and carries the upstream doc verbatim for every
+         declaration the C header documents, but enums values / struct fields
+         that the header documents only in bulk would require invented prose.
+         Per the project principle (no unverified claims), we omit rather than
+         fabricate. The hand-written wrapper enforces full doc coverage. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <WarningsAsErrors>
       SYSLIB1051;
