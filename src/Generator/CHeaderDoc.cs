@@ -10,9 +10,9 @@ namespace TranscribeCppSharp.Generator;
 /// </summary>
 public partial class CHeaderDoc
 {
-    private readonly string _content;
+    private readonly string content;
 
-    public CHeaderDoc(string content) => _content = content;
+    public CHeaderDoc(string content) => this.content = content;
 
     public static CHeaderDoc FromFile(string path) => new(File.ReadAllText(path));
 
@@ -25,11 +25,14 @@ public partial class CHeaderDoc
     /// </summary>
     public string? GetFunctionDoc(string rustName)
     {
-        foreach (Match m in FunctionDeclRegex().Matches(_content))
+        foreach (Match m in FunctionDeclRegex().Matches(content))
         {
             if (NameOf(m) == rustName.Trim())
+            {
                 return GetPrecedingComment(m.Index);
+            }
         }
+
         return null;
     }
 
@@ -39,11 +42,14 @@ public partial class CHeaderDoc
     /// </summary>
     public string? GetEnumDoc(string rustName)
     {
-        foreach (Match m in EnumDeclRegex().Matches(_content))
+        foreach (Match m in EnumDeclRegex().Matches(content))
         {
             if (NameOf(m) == rustName.Trim())
+            {
                 return GetPrecedingComment(m.Index);
+            }
         }
+
         return null;
     }
 
@@ -53,11 +59,14 @@ public partial class CHeaderDoc
     /// </summary>
     public string? GetStructDoc(string rustName)
     {
-        foreach (Match m in StructDeclRegex().Matches(_content))
+        foreach (Match m in StructDeclRegex().Matches(content))
         {
             if (NameOf(m) == rustName.Trim())
+            {
                 return GetPrecedingComment(m.Index);
+            }
         }
+
         return null;
     }
 
@@ -69,15 +78,20 @@ public partial class CHeaderDoc
     {
         var body = GetEnumBody(enumRustName);
         if (body == null)
+        {
             return null;
+        }
 
-        var bodyText = _content.Substring(body.Value.Start, body.Value.Length);
+        var bodyText = content.Substring(body.Value.Start, body.Value.Length);
         var baseIndex = body.Value.Start;
         foreach (Match m in EnumValueRegex().Matches(bodyText))
         {
             if (NameOf(m) == valueRustName.Trim())
+            {
                 return GetPrecedingComment(baseIndex + m.Index);
+            }
         }
+
         return null;
     }
 
@@ -89,63 +103,88 @@ public partial class CHeaderDoc
     {
         var body = GetStructBody(structRustName);
         if (body == null)
+        {
             return null;
+        }
 
-        var bodyText = _content.Substring(body.Value.Start, body.Value.Length);
+        var bodyText = content.Substring(body.Value.Start, body.Value.Length);
         var baseIndex = body.Value.Start;
         foreach (Match m in StructFieldRegex().Matches(bodyText))
         {
             if (NameOf(m) == fieldRustName.Trim())
+            {
                 return GetPrecedingComment(baseIndex + m.Index);
+            }
         }
+
         return null;
     }
 
     // ── Body extraction ────────────────────────────────────────────
-
     private (int Start, int Length)? GetEnumBody(string rustName)
     {
-        foreach (Match m in EnumDeclRegex().Matches(_content))
+        foreach (Match m in EnumDeclRegex().Matches(content))
         {
             if (NameOf(m) != rustName.Trim())
+            {
                 continue;
-            int open = _content.IndexOf('{', m.Index);
+            }
+
+            int open = content.IndexOf('{', m.Index);
             if (open < 0)
+            {
                 return null;
+            }
+
             int close = FindBlockEnd(open);
             return (open, close - open + 1);
         }
+
         return null;
     }
 
     private (int Start, int Length)? GetStructBody(string rustName)
     {
-        foreach (Match m in StructDeclRegex().Matches(_content))
+        foreach (Match m in StructDeclRegex().Matches(content))
         {
             if (NameOf(m) != rustName.Trim())
+            {
                 continue;
-            int open = _content.IndexOf('{', m.Index);
+            }
+
+            int open = content.IndexOf('{', m.Index);
             if (open < 0)
+            {
                 return null;
+            }
+
             int close = FindBlockEnd(open);
             return (open, close - open + 1);
         }
+
         return null;
     }
 
     private int FindBlockEnd(int openBraceIndex)
     {
         int depth = 0;
-        for (int i = openBraceIndex; i < _content.Length; i++)
+        for (int i = openBraceIndex; i < content.Length; i++)
         {
-            if (_content[i] == '{') depth++;
-            else if (_content[i] == '}')
+            if (content[i] == '{')
+            {
+                depth++;
+            }
+            else if (content[i] == '}')
             {
                 depth--;
-                if (depth == 0) return i;
+                if (depth == 0)
+                {
+                    return i;
+                }
             }
         }
-        return _content.Length - 1;
+
+        return content.Length - 1;
     }
 
     // ── Comment extraction ─────────────────────────────────────────
@@ -158,26 +197,37 @@ public partial class CHeaderDoc
     private string? GetPrecedingComment(int position)
     {
         int end = position;
-        while (end > 0 && char.IsWhiteSpace(_content[end - 1]))
+        while (end > 0 && char.IsWhiteSpace(content[end - 1]))
+        {
             end--;
+        }
 
-        if (end < 2 || _content[end - 2] != '*' || _content[end - 1] != '/')
+        if (end < 2 || content[end - 2] != '*' || content[end - 1] != '/')
+        {
             return null;
+        }
 
-        int start = _content.LastIndexOf("/*", end - 2, StringComparison.Ordinal);
+        int start = content.LastIndexOf("/*", end - 2, StringComparison.Ordinal);
         if (start < 0)
+        {
             return null;
+        }
 
         // Reject trailing comments ("code /* text */" on the same line): they
         // describe the field they follow, not the declaration we're looking for.
-        int lineStart = _content.LastIndexOf('\n', start) + 1;
-        if (!string.IsNullOrWhiteSpace(_content[lineStart..start]))
+        int lineStart = content.LastIndexOf('\n', start) + 1;
+        if (!string.IsNullOrWhiteSpace(content[lineStart..start]))
+        {
             return null;
+        }
 
-        var raw = _content[(start + 2)..(end - 2)];
+        var raw = content[(start + 2)..(end - 2)];
         var text = StripCommentDecoration(raw);
         if (IsSeparatorComment(text))
+        {
             return null;
+        }
+
         return string.IsNullOrWhiteSpace(text) ? null : text;
     }
 
@@ -189,15 +239,19 @@ public partial class CHeaderDoc
         {
             var trimmed = line.TrimStart();
             if (trimmed.StartsWith('*'))
+            {
                 trimmed = trimmed[1..];
+            }
+
             sb.AppendLine(trimmed.TrimEnd());
         }
+
         return sb.ToString().TrimEnd();
     }
 
     private static bool IsSeparatorComment(string text)
     {
-        var compact = text.Replace("-", "").Replace(" ", "").Replace("\n", "");
+        var compact = text.Replace("-", string.Empty).Replace(" ", string.Empty).Replace("\n", string.Empty);
         return compact.Length == 0;
     }
 
@@ -208,7 +262,6 @@ public partial class CHeaderDoc
     }
 
     // ── Regex ──────────────────────────────────────────────────────
-
     [GeneratedRegex(@"TRANSCRIBE_API[^;{]*?\b(?<name>transcribe_\w+)\s*\(", RegexOptions.Singleline)]
     private static partial Regex FunctionDeclRegex();
 
