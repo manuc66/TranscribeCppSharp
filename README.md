@@ -161,7 +161,7 @@ catch (TranscribeException ex) when (ex.StatusCode == Status.ErrGguf)
 
 The native library and this wrapper are **not** thread-safe by default. The relevant rules:
 
-- **`Model`**: **Thread-safe**. You can create multiple `Session` objects from a single `Model` instance across different threads.
+- **`Model`**: believed **thread-safe** — you can create multiple `Session` objects from a single `Model` instance across different threads. This is not covered by concurrency tests yet.
 - **`Session`**: **Not thread-safe**. A session maintains internal state (KV cache) for transcription. For concurrent processing, use multiple sessions or synchronize access.
 - **`Batch`**: **Not thread-safe**. Calls into the provided session internally. Use separate sessions for concurrent batch processing.
 - **`StreamSession`**: **Not thread-safe**. It is a view over a `Session` and shares its state.
