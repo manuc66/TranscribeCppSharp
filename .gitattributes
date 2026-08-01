@@ -1,0 +1,15 @@
+# Normalize all text files to LF. The bindings generator emits literal raw-string
+# content into generated .cs files, so CRLF in sources would leak \r into output.
+* text=auto
+
+*.cs text eol=lf
+*.csproj text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+*.slnx text eol=lf
+*.sln text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.csx text eol=lf
