@@ -137,7 +137,7 @@ The project is divided into several layers, each with a distinct responsibility:
 4.  **`Generator` (Tool)**: Ensures C# bindings stay in sync with the upstream native API by parsing Rust FFI definitions.
 
 ### Native Library Loading
-The library uses standard .NET runtime identifiers (RID) to resolve the correct native binary. The `TranscribeCppSharp.Native.*` packages place binaries in the `runtimes/<rid>/native` folder. At runtime, a `DllImportResolver` registered in the Interop layer locates and loads `libtranscribe` (plus its `libggml*` dependencies) from the resolved RID folder, without requiring `LD_LIBRARY_PATH` or manual copying.
+A `DllImportResolver` registered in the Interop layer finds `libtranscribe` in the app output directory or the NuGet global packages folder, without requiring `LD_LIBRARY_PATH`. Its `libggml*` dependencies are loaded from the same directory by the native loader.
 
 ## Error Handling
 
