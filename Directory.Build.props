@@ -7,12 +7,18 @@
 
     <!-- Package metadata -->
     <Authors>manuc66</Authors>
-    <Copyright>Copyright (c) manuc66</Copyright>
+    <Copyright>Copyright (c) 2026 manuc66</Copyright>
     <PackageTags>speech-to-text;transcription;whisper;whispercpp;stt;audio;ai</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/manuc66/TranscribeCppSharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- The native library and its components are authored upstream
+         (https://github.com/handy-computer/transcribe.cpp, MIT); this project
+         only provides bindings and packaging and claims no credit for them. -->
+    <Description>Unofficial .NET bindings and packaging for transcribe.cpp (speech-to-text). The native library is developed by the transcribe.cpp authors — this package only adds C# bindings and pre-built binaries.</Description>
 
     <!-- SourceLink: source debugging for consumers -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -28,5 +34,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.*" PrivateAssets="All" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 </Project>

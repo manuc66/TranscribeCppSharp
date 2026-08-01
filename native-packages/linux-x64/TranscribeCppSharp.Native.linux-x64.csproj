@@ -6,7 +6,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <PackageId>TranscribeCppSharp.Native.linux-x64</PackageId>
-    <Description>Native transcribe.cpp binaries for Linux x64 (CPU + Vulkan)</Description>
+    <Description>Native transcribe.cpp binaries for Linux x64 (CPU + Vulkan) Built from upstream source and owned by the transcribe.cpp authors (MIT); this package only redistributes them.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/manuc66/TranscribeCppSharp</RepositoryUrl>

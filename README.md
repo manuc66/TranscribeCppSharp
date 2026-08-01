@@ -138,7 +138,7 @@ The project is divided into several layers to balance raw performance with ease 
 4.  **`Generator` (Tool)**: Ensures C# bindings stay in sync with the upstream native API by parsing Rust FFI definitions.
 
 ### Native Library Loading
-The library uses standard .NET runtime identifiers (RID) to resolve the correct native binary. At runtime, the `TranscribeCppSharp.Native.*` packages place binaries in the `runtimes/` folder, which is automatically searched by the .NET host. For custom loading logic, the Interop layer is compatible with `NativeLibrary.SetDllImportResolver`.
+The library uses standard .NET runtime identifiers (RID) to resolve the correct native binary. The `TranscribeCppSharp.Native.*` packages place binaries in the `runtimes/<rid>/native` folder. At runtime, a `DllImportResolver` registered in the Interop layer locates and loads `libtranscribe` (plus its `libggml*` dependencies) from the resolved RID folder, without requiring `LD_LIBRARY_PATH` or manual copying.
 
 ## Error Handling
 
@@ -175,7 +175,20 @@ catch (TranscribeException ex) when (ex.StatusCode == Status.ErrGguf)
 | Large-v3 | ~4.5 GB | ~3.5 GB |
 
 ### Versioning & Compatibility
-This project follows [Semantic Versioning (SemVer)](https://semver.org/).
+This project follows [Semantic Versioning (SemVer)](https://semver.org/). The package version tracks the **upstream `transcribe.cpp` version** it wraps: `TranscribeCppSharp 0.1.3` binds against `transcribe.cpp v0.1.3`. Before 1.0, breaking changes are expected and versioned accordingly.
+
+## Attribution
+
+This project is **a packaging and binding effort only** — the underlying library is not my work:
+
+- The native library (`transcribe.cpp`) is developed and owned by the [transcribe.cpp authors](https://github.com/handy-computer/transcribe.cpp) (MIT License).
+- The bundled native components (ggml, etc.) are owned by their respective authors; their MIT license texts are distributed alongside the binaries in the `TranscribeCppSharp.Native.*` packages.
+- I did **not** author the native library and claim no credit for it. This repository only adds:
+  - A C# interop layer (auto-generated P/Invoke bindings via `LibraryImport`).
+  - A high-level C# wrapper (`IDisposable` resources, typed exceptions).
+  - Pre-built native binaries packaged for .NET consumption.
+
+The transcribe.cpp project is an independent upstream project with its own maintainers and governance; this package is **not affiliated with or endorsed by** them. Please direct bug reports about the native library itself to the upstream repository.
 
 ## Development
 
