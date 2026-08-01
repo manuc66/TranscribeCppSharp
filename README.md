@@ -107,7 +107,7 @@ var final = stream.CurrentText;
 
 ## Concurrency Model
 
-All transcription calls (`Session.Run`, `Batch.Run`, etc.) are **CPU-bound and blocking**. This is a conscious design choice: a synchronous API is simpler and avoids the pitfalls of "fake" async-over-sync wrappers.
+All transcription calls (`Session.Run`, `Batch.Run`, etc.) are **blocking**. This mirrors the native library, whose C API is fully synchronous (no async entry points); the wrapper does not add a "fake" async-over-sync layer on top.
 
 ### Recommended Patterns
 
