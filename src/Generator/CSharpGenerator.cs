@@ -135,7 +135,18 @@ public class CSharpGenerator
         sb.AppendLine("// Structs");
         sb.AppendLine("// ════════════════════════════════════════════════════════════════");
         foreach (var s in parser.ParseStructs())
+        {
+            // Skip opaque handles — they're represented as SafeHandle classes, not structs
+            if (s_opaqueHandleNames.Contains(s.Name))
+                continue;
+            // Skip empty structs (parsed from opaque types with no public fields)
+            if (s.Fields.Count == 0)
+            {
+                Console.Error.WriteLine($"Warning: skipping empty struct '{s.Name}' (no public fields)");
+                continue;
+            }
             WriteStruct(sb, s);
+        }
     }
 
     private void WriteFunctions(StringBuilder sb, RustFfiParser parser)
@@ -236,7 +247,8 @@ public class CSharpGenerator
         // Skip functions with callback pointer params (need manual delegate mapping)
         if (fn.Parameters.Any(p => IsFunctionPointer(p.Type)))
         {
-            sb.AppendLine($"    // TODO: {fn.Name} — function pointer params need manual delegate mapping");
+            Console.Error.WriteLine($"Warning: skipping '{fn.Name}' — function pointer params need manual delegate mapping");
+            sb.AppendLine($"    // Skipped: {fn.Name} — function pointer params need manual delegate mapping");
             sb.AppendLine();
             return;
         }
@@ -305,7 +317,9 @@ public class CSharpGenerator
         // All other pointer types → IntPtr
         PointerType => "IntPtr",
 
-        UnknownType(var raw) => $"/* UNKNOWN: {raw} */ object",
+        UnknownType(var raw) => throw new InvalidOperationException(
+            $"Unknown Rust type in FFI binding: '{raw}'. " +
+            $"Add a mapping in MapParamType or handle it as a known type."),
         _ => throw new NotSupportedException($"Unhandled Rust type: {rustType}"),
     };
 
