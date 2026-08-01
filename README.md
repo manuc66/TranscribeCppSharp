@@ -59,7 +59,7 @@ Console.WriteLine($"Result: {transcript.FullText}");
 
 ### Selecting Hardware Backend
 
-By default, the library detects and uses the best available backend. You can force a specific one:
+By default, the wrapper passes `BackendAuto` and the native library selects the backend it has available. You can force a specific one:
 
 ```csharp
 using var model = Model.Load("model.gguf", p => p
