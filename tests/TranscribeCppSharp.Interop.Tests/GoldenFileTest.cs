@@ -16,10 +16,12 @@ public class GoldenFileTest
     public void GeneratedOutput_MatchesCommittedSnapshot()
     {
         var rustPath = Path.Combine(TestConfig.RepoRoot, "rust", "transcribe_sys.rs");
+        var headerPath = Path.Combine(TestConfig.RepoRoot, "c", "transcribe.h");
         var goldenPath = Path.Combine(TestConfig.RepoRoot, "generated", "TranscribeCppSharp.Interop", "NativeMethods.cs");
 
         var parser = RustFfiParser.FromFile(rustPath);
-        var generated = new CSharpGenerator().Generate(parser).Replace("\r\n", "\n");
+        var headerDoc = CHeaderDoc.FromFile(headerPath);
+        var generated = new CSharpGenerator().Generate(parser, headerDoc).Replace("\r\n", "\n");
         var committed = File.ReadAllText(goldenPath).Replace("\r\n", "\n");
 
         Assert.Equal(committed, generated);

@@ -23,18 +23,149 @@ public enum Status
     ErrUnsupportedVariant = 6,
     ErrOom = 7,
     ErrBackend = 8,
+
+    /// <summary>
+    /// <para>
+    /// Reserved; not currently returned.
+    /// </para>
+    /// </summary>
     ErrSampleRate = 9,
     ErrUnsupportedLanguage = 10,
     ErrUnsupportedTask = 11,
+
+    /// <summary>
+    /// <para>
+    /// Returned by transcribe_run when the caller asks for a
+    /// timestamp granularity finer than the model can produce.
+    /// Compared against transcribe_capabilities::max_timestamp_kind,
+    /// which is set per family at load time. AUTO never trips this
+    /// code: the dispatcher passes AUTO through unconditionally and
+    /// the per-family run() handler resolves it to the model's
+    /// maximum when it assembles the result.
+    /// </para>
+    /// </summary>
     ErrUnsupportedTimestamps = 12,
+
+    /// <summary>
+    /// <para>
+    /// Returned by transcribe_run when the caller's abort callback
+    /// returns true during the run. Partial results from chunks that
+    /// completed before the abort are preserved on the session and
+    /// readable via the normal result accessors; transcribe_was_aborted
+    /// distinguishes partial-from-abort from complete.
+    /// </para>
+    /// </summary>
     ErrAborted = 13,
+
+    /// <summary>
+    /// <para>
+    /// Returned by every entry point that takes a caller-owned size-
+    /// aware struct (params, stream params, capabilities out, timings
+    /// out, family extension) when the supplied struct_size is zero or
+    /// smaller than the minimum the call path requires. Distinct from
+    /// INVALID_ARG so bindings can match on "caller forgot to call the
+    /// transcribe_*_init function" specifically.
+    /// </para>
+    /// </summary>
     ErrBadStructSize = 14,
+
+    /// <summary>
+    /// <para>
+    /// Reserved; not currently returned.
+    /// </para>
+    /// </summary>
     ErrUnsupportedPnc = 15,
+
+    /// <summary>
+    /// <para>
+    /// Reserved; not currently returned.
+    /// </para>
+    /// </summary>
     ErrUnsupportedItn = 16,
+
+    /// <summary>
+    /// <para>
+    /// Returned by transcribe_run / transcribe_run_batch when the input
+    /// audio is longer than the loaded model can process in a single
+    /// decode. Hard-context-cap families (LLM-style decoders: qwen3_asr,
+    /// canary_qwen, funasr_nano, granite, granite_nar, voxtral, cohere,
+    /// canary) reject an over-length clip UP FRONT — before the decode
+    /// (and, where the binding limit is the encoder's positional table,
+    /// before the encoder) — by comparing the audio's prefill token count
+    /// against the model's context window. The usable ceiling is published
+    /// as transcribe_capabilities::max_audio_ms, so a caller can size input
+    /// before calling rather than discovering the limit on failure.
+    /// </para>
+    /// <para>
+    /// Distinct from INVALID_ARG so a caller can tell "audio too long for
+    /// this model" from a malformed argument. This is the "couldn't start"
+    /// signal; the symmetric "started, couldn't finish" outcome is
+    /// TRANSCRIBE_ERR_OUTPUT_TRUNCATED.
+    /// </para>
+    /// <para>
+    /// Chunked / unbounded families normally report max_audio_ms == 0 and
+    /// have no practical input limit. Whisper and parakeet never return this
+    /// for length. voxtral_realtime is the exception: it still reports
+    /// unbounded because its wall is far beyond practical clips, but
+    /// transcribe_run / transcribe_run_batch return this if input crosses the
+    /// decoder's absolute position cap.
+    /// </para>
+    /// <para>
+    /// See docs/input-limits.md for the full contract.
+    /// </para>
+    /// </summary>
     ErrInputTooLong = 17,
+
+    /// <summary>
+    /// <para>
+    /// Returned by transcribe_run when the decode stopped because it hit
+    /// the model's context / generation budget BEFORE the model emitted
+    /// end-of-stream — i.e. the transcript is incomplete. This is the
+    /// "started, couldn't finish" counterpart to INPUT_TOO_LONG, and it is
+    /// a hard non-OK status by design: a truncated transcript must not be
+    /// mistaken for a complete one.
+    /// </para>
+    /// <para>
+    /// The partial transcript IS preserved and readable through the normal
+    /// result accessors (transcribe_full_text, segments, words, tokens),
+    /// exactly like TRANSCRIBE_ERR_ABORTED — a caller that wants the partial
+    /// output reads it after checking the status. transcribe_was_truncated()
+    /// remains as supplemental state (it is true whenever this status is
+    /// returned). Unlike INPUT_TOO_LONG this cannot be predicted from input
+    /// length (it depends on how long the transcript runs), so it is
+    /// reported after the fact rather than gated up front.
+    /// </para>
+    /// <para>
+    /// In transcribe_run_batch this is a PER-UTTERANCE status: the whole-
+    /// batch call still returns TRANSCRIBE_OK and the truncated utterance
+    /// carries this code in transcribe_batch_status(session, i), the same
+    /// way per-utterance INVALID_ARG / INPUT_TOO_LONG are reported.
+    /// </para>
+    /// <para>
+    /// Streaming does NOT use this code: an active stream is incremental and
+    /// has its own terminal-state machine (see transcribe_stream_*).
+    /// See docs/input-limits.md for the full contract.
+    /// </para>
+    /// </summary>
     ErrOutputTruncated = 18,
 }
 
+/// <summary>
+/// <para>
+/// The native library's sizeof/alignof for the public structs that cross the
+/// ABI. A binding (Python ctypes, Rust, Swift, ...) declares its own view of
+/// each struct, then verifies that view against these values before it
+/// constructs any real instance. This is the safe alternative the "Params"
+/// section calls for: query the size up front instead of calling a *_init()
+/// function on a buffer that might be smaller than the library expects.
+/// </para>
+/// <para>
+/// <c>which</c> selects a struct by transcribe_abi_struct. An unknown id (e.g. a
+/// newer binding asking an older library about a struct it predates) returns 0,
+/// which the binding MUST treat as "cannot verify," never as "size 0." The enum
+/// is append-only; do not renumber existing values.
+/// </para>
+/// </summary>
 public enum AbiStruct
 {
     AbiModelLoadParams = 0,
@@ -53,6 +184,17 @@ public enum AbiStruct
     AbiBackendDevice = 13,
 }
 
+/// <summary>
+/// <para>
+/// This enum is the source of truth for callers. ggml's log levels do NOT
+/// share these numeric values (its DEBUG/INFO/WARN/ERROR ordering differs),
+/// so the internal pass-through layer maps ggml levels onto this enum
+/// before any message reaches the installed callback; callers only ever
+/// see these values. CONT marks a fragment continuing the previous message
+/// (ggml emits these for progress output); hosts that want one line per
+/// message may join CONT fragments onto the preceding text.
+/// </para>
+/// </summary>
 public enum LogLevel
 {
     LogLevelNone = 0,
@@ -69,6 +211,22 @@ public enum Task
     TaskTranslate = 1,
 }
 
+/// <summary>
+/// <para>
+/// Timestamp policy: transcribe_run_params_init() requests NONE for
+/// text-first transcription. AUTO is an opt-in "richest supported"
+/// mode: it is treated as "equal to the model's max_timestamp_kind."
+/// The dispatcher never rejects AUTO, and the per-family run() handler
+/// resolves it to the finest granularity the model can actually
+/// produce when it assembles the result. A non-AUTO request is treated
+/// as a ceiling: if the request is finer than the model's max,
+/// transcribe_run returns TRANSCRIBE_ERR_UNSUPPORTED_TIMESTAMPS. If the
+/// request is coarser-or-equal, the family handler emits only that
+/// granularity and any finer per-run data is elided. The actual
+/// granularity returned by a run is reported by
+/// transcribe_returned_timestamp_kind(session).
+/// </para>
+/// </summary>
 public enum TimestampKind
 {
     TimestampsNone = 0,
@@ -78,6 +236,19 @@ public enum TimestampKind
     TimestampsToken = 4,
 }
 
+/// <summary>
+/// <para>
+/// KV cache type for the encoder's flash-attention path.
+/// </para>
+/// <para>
+/// AUTO:  f16 when model weights are quantized, f32 when weights are f32.
+/// Best default — matches the bandwidth profile of the model.
+/// F32:   full-precision KV. Maximum accuracy, highest bandwidth.
+/// F16:   half-precision KV. Halves attention bandwidth with minimal
+/// precision loss (~3 decimal digits). Best for bandwidth-bound
+/// backends (integrated GPUs, CPU).
+/// </para>
+/// </summary>
 public enum KvType
 {
     KvTypeAuto = 0,
@@ -85,6 +256,31 @@ public enum KvType
     KvTypeF16 = 2,
 }
 
+/// <summary>
+/// <para>
+/// Punctuation + capitalization (PNC) toggle on the run params.
+/// </para>
+/// <para>
+/// Each family that exposes a runtime PNC toggle reads this field; families
+/// that do not (whisper, parakeet, ...) ignore it. The dispatcher emits a
+/// WARN-level log message when a non-DEFAULT value is set against a model
+/// for which transcribe_model_supports(model, TRANSCRIBE_FEATURE_PNC)
+/// returns false, then proceeds with the model's default behavior. Use
+/// that probe to pre-check.
+/// </para>
+/// <para>
+/// DEFAULT (0): the family's shipped default. Zero-init via
+/// transcribe_run_params_init() gives this value. The family
+/// picks the value its model card published WER numbers
+/// against (canary: pnc on; others: family-specific).
+/// OFF:         explicitly disable runtime PNC. Supporting families
+/// emit lowercase, de-punctuated text. Non-supporting
+/// families ignore (with WARN).
+/// ON:          explicitly enable runtime PNC. Supporting families
+/// emit punctuated, capitalized text. Non-supporting
+/// families ignore (with WARN).
+/// </para>
+/// </summary>
 public enum PncMode
 {
     PncModeDefault = 0,
@@ -92,6 +288,32 @@ public enum PncMode
     PncModeOn = 2,
 }
 
+/// <summary>
+/// <para>
+/// Inverse text normalization (ITN) toggle on the run params.
+/// </para>
+/// <para>
+/// Symmetric semantics to transcribe_pnc_mode but for ITN — the
+/// transformation that renders numbers, dates, currencies, etc. in formal
+/// form ("twenty twenty four" → "2024", "ten dollars" → "$10"). Each
+/// family that exposes a runtime ITN toggle reads this field; families
+/// that do not ignore it. Non-DEFAULT values against a model for which
+/// transcribe_model_supports(model, TRANSCRIBE_FEATURE_ITN) returns false
+/// emit a WARN and proceed with default behavior.
+/// </para>
+/// <para>
+/// DEFAULT (0): family default. Zero-init gives this value.
+/// OFF:         explicit ITN off. Supporting families emit verbatim
+/// spoken-form text. Non-supporting families ignore (WARN).
+/// ON:          explicit ITN on. Supporting families apply ITN.
+/// Non-supporting families ignore (WARN).
+/// </para>
+/// <para>
+/// Some families bundle PNC and ITN (e.g. their ITN toggle also flips
+/// punctuation/casing as a side effect). See the family doc for the
+/// observed bundling.
+/// </para>
+/// </summary>
 public enum ItnMode
 {
     ItnModeDefault = 0,
@@ -99,12 +321,86 @@ public enum ItnMode
     ItnModeOn = 2,
 }
 
+/// <summary>
+/// <para>
+/// Extension slot — the API surface a typed family extension is pointed
+/// at. Slot acceptance is a model-and-slot concern; the dispatcher
+/// validates <c>slot</c> matches the call site before delegating to the
+/// family. A stream-only extension pointed at transcribe_run_params is
+/// INVALID_ARG, not silently-ignored. Add new slots by appending to
+/// this enum (SESSION / MODEL_LOAD / TOKENIZE would each be one new
+/// value, no new probe function); do not renumber.
+/// </para>
+/// </summary>
 public enum ExtSlot
 {
+
+    /// <summary>
+    /// <para>
+    /// transcribe_run_params::family
+    /// </para>
+    /// </summary>
     ExtSlotRun = 0,
+
+    /// <summary>
+    /// <para>
+    /// transcribe_stream_params::family
+    /// </para>
+    /// </summary>
     ExtSlotStream = 1,
 }
 
+/// <summary>
+/// <para>
+/// Backend request.
+/// </para>
+/// <para>
+/// AUTO    Pick the best available backend. Takes the first GPU device
+/// that successfully initializes, probing every discrete GPU
+/// before any integrated GPU; within a tier, devices are tried
+/// in ggml's device registry order — which is build-time
+/// prioritized (Metal on Apple, Vulkan / CUDA / SYCL on
+/// Linux, …). An integrated GPU is selected only when no
+/// discrete GPU initializes. Host-memory accelerators (BLAS,
+/// AMX, …) are additionally layered onto the scheduler when
+/// present — they run on the same memory as the CPU backend
+/// and are orthogonal to the GPU/CPU split. Always succeeds:
+/// CPU is the final fallback when no GPU initializes.
+/// </para>
+/// <para>
+/// CPU     Strict CPU only. No GPU, no IGPU, and no host-memory
+/// accelerators (BLAS/AMX). This is the right choice for
+/// numerical reference runs, cross-platform determinism, and
+/// for exercising the pure-CPU kernels under test. Always
+/// succeeds.
+/// </para>
+/// <para>
+/// CPU_ACCEL  CPU primary plus host-memory accelerators (BLAS/AMX/…
+/// whatever ggml registers as ACCEL). primary_kind stays
+/// Cpu so any CPU-keyed policy still triggers, but mat-mul-
+/// shaped graph nodes that fit the accel backend's gates
+/// (large F32 src1, ne ≥ 32) get dispatched there. Useful
+/// when GPU is unavailable or undesired but you still want
+/// production-grade CPU throughput. Requires the build to
+/// include the relevant accel backend (e.g. GGML_BLAS=ON).
+/// Falls back to plain CPU semantics if no accel device is
+/// registered. Always succeeds.
+/// </para>
+/// <para>
+/// METAL   Require the Metal backend. Returns TRANSCRIBE_ERR_BACKEND
+/// if Metal is not available in this build. Host-memory
+/// accelerators are still layered on when present.
+/// </para>
+/// <para>
+/// VULKAN  Require the Vulkan backend. Returns TRANSCRIBE_ERR_BACKEND
+/// if Vulkan is not available in this build. Host-memory
+/// accelerators are still layered on when present.
+/// </para>
+/// <para>
+/// Callers that need to know which backend they actually landed on
+/// can query transcribe_model_backend() after load.
+/// </para>
+/// </summary>
 public enum BackendRequest
 {
     BackendAuto = 0,
@@ -115,6 +411,16 @@ public enum BackendRequest
     BackendCuda = 5,
 }
 
+/// <summary>
+/// <para>
+/// Device type: ggml's vendor-agnostic classification of a device,
+/// orthogonal to <c>kind</c> below (which carries the vendor: metal/vulkan/cuda/
+/// ...). Backends report this classification themselves, so treat it as a
+/// runtime hint about CPU/GPU/IGPU/ACCEL placement rather than a portable
+/// hardware-memory taxonomy. The numeric values mirror ggml's device-type
+/// enum.
+/// </para>
+/// </summary>
 public enum DeviceType
 {
     DeviceTypeCpu = 0,
@@ -123,6 +429,57 @@ public enum DeviceType
     DeviceTypeAccel = 3,
 }
 
+/// <summary>
+/// <para>
+/// Per-feature capability probe. Pure yes/no advisories that don't
+/// gate any allied struct data live here instead of as boolean fields
+/// on transcribe_capabilities. Adding a feature is +1 enum value with
+/// no struct_size advance, which makes the surface easy to grow
+/// without ABI churn.
+/// </para>
+/// <para>
+/// Feature meanings:
+/// </para>
+/// <para>
+/// INITIAL_PROMPT       The model accepts a free-text or token
+/// prompt to bias decoding. Today: whisper
+/// only; reached via transcribe_whisper_run_ext.
+/// </para>
+/// <para>
+/// TEMPERATURE_FALLBACK The model runs a multi-tier temperature loop
+/// with metric-driven fallback. Today: whisper.
+/// </para>
+/// <para>
+/// LONG_FORM            The model exposes a long-form chunker that
+/// handles audio longer than its native window
+/// in a single transcribe_run call. Today:
+/// whisper.
+/// </para>
+/// <para>
+/// CANCELLATION         transcribe_set_abort_callback fires between
+/// chunks / decode steps and the family hook
+/// honors it.
+/// </para>
+/// <para>
+/// PNC                  The model exposes a runtime toggle for
+/// punctuation + capitalization via
+/// transcribe_run_params::pnc. False does NOT mean
+/// the model produces no PNC — only that the
+/// caller cannot control whether PNC appears.
+/// Non-DEFAULT pnc against a model where this
+/// returns false emits a WARN and proceeds.
+/// </para>
+/// <para>
+/// ITN                  The model exposes a runtime toggle for
+/// inverse text normalization via
+/// transcribe_run_params::itn. Same "can-control
+/// vs does-emit" distinction as PNC; non-DEFAULT
+/// itn against an unsupported model warns.
+/// </para>
+/// <para>
+/// Returns false on NULL model or unknown feature enum.
+/// </para>
+/// </summary>
 public enum Feature
 {
     FeatureInitialPrompt = 0,
@@ -133,6 +490,75 @@ public enum Feature
     FeatureItn = 5,
 }
 
+/// <summary>
+/// <para>
+/// Streaming is a mode on transcribe_session, not a separate handle. A
+/// session is in exactly one of four lifecycle states at any time, and
+/// the result accessors (transcribe_full_text, segments, words, tokens)
+/// return the current raw model snapshot of the active stream.
+/// </para>
+/// <para>
+/// Text semantics during an active stream:
+/// </para>
+/// <para>
+/// full_text      = raw current model hypothesis
+/// committed_text = append-only UI/input prefix
+/// tentative_text = volatile raw suffix after raw_tentative_start_bytes
+/// display_text   = committed_text + tentative_text
+/// </para>
+/// <para>
+/// The committed-count accessors (transcribe_stream_n_committed_*)
+/// remain as low-level raw row boundary hints for consumers that inspect
+/// tokens/words/segments. They are monotonic commitment high-water marks
+/// and may exceed the current raw row counts after the model revises or
+/// shrinks its latest hypothesis; clamp them to transcribe_n_* before
+/// indexing current raw rows. UI consumers should prefer
+/// transcribe_stream_get_text(), because committed_text is independent from
+/// the raw hypothesis and may not be a prefix of full_text after the model
+/// revises already-committed text.
+/// </para>
+/// <para>
+/// Streaming timestamp note: unlike transcribe_run(), an active stream
+/// may keep token rows populated (transcribe_n_tokens > 0) even when the
+/// run was started with timestamps == TRANSCRIBE_TIMESTAMPS_NONE, because
+/// the committed/tentative progress boundary is token-indexed and the
+/// incremental-commit accessors need the token rows to exist. The
+/// timestamps request is validated against the model's capabilities at
+/// transcribe_stream_begin (a request finer than the model's max is
+/// rejected there), but it is NOT an instruction to elide structural
+/// token rows from the streaming result. Whether those rows carry real
+/// per-token timestamps is a separate question answered by the family:
+/// a family with no token-level alignment (e.g. moonshine_streaming) can
+/// honestly populate token rows for the progress boundary while
+/// transcribe_returned_timestamp_kind() still reports NONE. Always use
+/// transcribe_returned_timestamp_kind() to discover the finest timestamp
+/// fields actually populated; do not infer it from transcribe_n_tokens().
+/// </para>
+/// <para>
+/// Cancellation reuses the existing session abort callback. The
+/// callback is polled at chunk boundaries and decode-step boundaries
+/// during feed/finalize; on cancellation the active call returns
+/// TRANSCRIBE_ERR_ABORTED, partial results remain readable, and the
+/// stream transitions to FAILED (transcribe_was_aborted distinguishes
+/// caller cancellation from other terminal statuses).
+/// </para>
+/// <para>
+/// Multiple concurrent streams: use the existing model/session
+/// threading model. Create multiple contexts from one loaded model,
+/// then run at most one stream per session. The model is shared and
+/// read-only; each session owns its own stream state.
+/// </para>
+/// <para>
+/// Streaming params (transcribe_stream_params) carry an optional,
+/// kind-tagged family extension pointer. Family-specific extension
+/// structs live in include/transcribe/&lt;family>.h and are reached
+/// intent-first: a caller that wants to set a parakeet streaming knob
+/// probes transcribe_model_accepts_ext_kind for the parakeet stream
+/// kind on TRANSCRIBE_EXT_SLOT_STREAM and, if accepted, points
+/// transcribe_stream_params::family at an extension struct initialized
+/// via that family's transcribe_&lt;family>_&lt;name>_ext_init() function.
+/// </para>
+/// </summary>
 public enum StreamState
 {
     StreamIdle = 0,
@@ -141,6 +567,29 @@ public enum StreamState
     StreamFailed = 3,
 }
 
+/// <summary>
+/// <para>
+/// Generic public commitment policy. Families still own model-specific
+/// streaming mechanics (chunk sizes, cache windows, decoder throttles);
+/// this enum controls when the session's UI-facing committed_text grows.
+/// </para>
+/// <para>
+/// AUTO:        Use the dispatcher-selected stable-prefix implementation
+/// for the model family. Current streaming families use a
+/// family-provided boundary; future families fall back to
+/// the generic text-agreement implementation until they are
+/// assigned an explicit default.
+/// ON_FINALIZE: During feed calls committed_text stays empty and the raw
+/// hypothesis is exposed as tentative_text. Finalize commits
+/// the final raw text because no earlier bytes were committed.
+/// STABLE_PREFIX:
+/// Commit only a raw prefix accepted by the selected stable-
+/// prefix implementation. Known families may use token-id or
+/// native commit boundaries; others use generic text
+/// agreement. committed_text is append-only and finalize
+/// never rewrites previously committed bytes.
+/// </para>
+/// </summary>
 public enum StreamCommitPolicy
 {
     StreamCommitAuto = 0,
@@ -157,6 +606,14 @@ public enum WhisperPromptCondition
 // ════════════════════════════════════════════════════════════════
 // Typed handles (opaque pointers with compile-time safety)
 // ════════════════════════════════════════════════════════════════
+/// <summary>
+/// Owns the native model instance and releases it via
+/// <see cref="NativeMethods.ModelFree"/> on finalization/Dispose.
+/// Created only through <c>transcribe_model_new</c> or
+/// <c>transcribe_model_init</c>; never instantiate directly.
+/// Not thread-safe: a handle must not be shared across threads without
+/// external synchronization.
+/// </summary>
 public sealed class ModelHandle : SafeHandle
 {
     public static readonly ModelHandle Null = new ModelHandle(IntPtr.Zero);
@@ -178,6 +635,14 @@ public sealed class ModelHandle : SafeHandle
     public override string ToString() => $"ModelHandle(0x{handle:X})";
 }
 
+/// <summary>
+/// Owns the native session instance and releases it via
+/// <see cref="NativeMethods.SessionFree"/> on finalization/Dispose.
+/// Created only through <c>transcribe_session_new</c> or
+/// <c>transcribe_session_init</c>; never instantiate directly.
+/// Not thread-safe: a handle must not be shared across threads without
+/// external synchronization.
+/// </summary>
 public sealed class SessionHandle : SafeHandle
 {
     public static readonly SessionHandle Null = new SessionHandle(IntPtr.Zero);
@@ -211,15 +676,57 @@ public sealed class SessionHandle : SafeHandle
 // → "LogCallback"). If a new callback is added to transcribe_sys.rs,
 // add a matching delegate here with the same convention.
 // ════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Receives log messages from the native library. May be invoked from any
+/// thread (including ggml worker threads); see transcribe_log_set.
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPUTF8Str)] string msg, IntPtr userdata);
 
+/// <summary>
+/// Polled by the native library between chunks and decode steps; returning
+/// true aborts the in-flight run. See transcribe_set_abort_callback.
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 [return: MarshalAs(UnmanagedType.U1)]
 public delegate bool AbortCallback(IntPtr userdata);
 // ════════════════════════════════════════════════════════════════
 // Structs
 // ════════════════════════════════════════════════════════════════
+/// <summary>
+/// <para>
+/// Generic header for every typed family extension struct. The kind tag
+/// names the family schema (one FourCC-style 32-bit value per schema,
+/// allocated in docs/extension-kinds.md); the size is the caller's
+/// sizeof of the full extension struct, captured in the caller's
+/// translation unit so a newer library only reads what fits.
+/// </para>
+/// <para>
+/// Each family declares its extension struct in
+/// include/transcribe/&lt;family>.h with <c>struct transcribe_ext ext</c> as
+/// field 0 and a transcribe_&lt;family>_&lt;name>_ext_init() function that
+/// fills <c>ext.size</c>, <c>ext.kind</c>, and per-field defaults from the
+/// caller's perspective. <c>ext.size</c> is <c>uint64_t</c> so the family
+/// extension layout is platform-invariant across 32/64-bit ABIs;
+/// transcribe_ext_check() also takes <c>uint64_t</c> for <c>min_size</c>.
+/// </para>
+/// <para>
+/// Pointer-to-first-member is well-defined: because <c>ext</c> sits at
+/// field 0, the address of the family struct equals the address of its
+/// embedded transcribe_ext, and family handlers can cast the generic
+/// pointer back to the typed family struct after a successful
+/// transcribe_ext_check.
+/// </para>
+/// <para>
+/// Include transcribe/extensions.h to pull in every family extension
+/// header shipped by this install. Binding generators should usually
+/// point at that umbrella header; direct C/C++ callers that only need
+/// the generic ABI can keep including transcribe.h. See
+/// docs/extension-kinds.md for the registered family extension headers
+/// and kind values.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Ext
 {
@@ -227,6 +734,37 @@ public struct Ext
     public uint kind;
 }
 
+/// <summary>
+/// <para>
+/// One registered compute device.
+/// </para>
+/// <para>
+/// name / description / kind / device_id are borrowed pointers into
+/// runtime-owned storage: valid for the life of the process, never freed by
+/// the caller.
+/// </para>
+/// <para>
+/// kind is the library's vendor classification, one of: "cpu", "accel" (a
+/// host-memory accelerator such as BLAS/AMX), "metal", "vulkan", "cuda",
+/// "sycl", "gpu" (an unrecognized GPU), or "unknown". device_type is the
+/// orthogonal CPU/GPU/IGPU/ACCEL axis.
+/// </para>
+/// <para>
+/// device_id is a stable hardware identifier when the backend reports one
+/// (for PCI devices the lower-case bus id "domain:bus:device.function", e.g.
+/// "0000:c1:00.0"), or NULL when unknown (e.g. Metal).
+/// </para>
+/// <para>
+/// memory_total is the device's reported capacity in bytes. memory_free is a
+/// SNAPSHOT of available bytes at the moment this struct was filled; it goes
+/// stale the instant anything allocates — re-call the accessor to refresh it,
+/// as every fill re-queries the driver live. Both numbers are backend-defined
+/// and NOT comparable across kinds: on Apple unified memory <c>total</c> is the
+/// recommended max working-set size (not system RAM) and <c>free</c> nets out only
+/// this process's allocations; on a discrete GPU they are device-global; on
+/// the CPU they are system RAM. 0 means the backend does not report it.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct BackendDevice
 {
@@ -240,6 +778,45 @@ public struct BackendDevice
     public DeviceType deviceType;
 }
 
+/// <summary>
+/// <para>
+/// Model load params.
+/// </para>
+/// <para>
+/// backend:    which backend to request. See transcribe_backend_request
+/// for the semantics of each value. Default is AUTO.
+/// </para>
+/// <para>
+/// gpu_device: Multi-GPU selector. 0 (the default) means "auto / the first
+/// device of the chosen kind": AUTO picks the first GPU that
+/// initializes, and explicit METAL/VULKAN/CUDA requests pick the
+/// first matching device — in both cases probing every discrete
+/// GPU before any integrated GPU, in ggml's registry order
+/// within each tier.
+/// </para>
+/// <para>
+/// A value > 0 selects the GPU/IGPU device at that global ggml
+/// registry index — the same index space transcribe_get_backend_device()
+/// enumerates, so enumerate first to choose one. The selected
+/// device becomes the model's primary backend, validated against
+/// <c>backend</c>: it must be a GPU/IGPU, and for an explicit
+/// METAL/VULKAN/CUDA request it must be that vendor. The index is
+/// order-dependent — ggml's registry order can shift across driver
+/// updates or hosts, so treat it as a runtime selection, not a
+/// stable identifier; correlate via the enumerated device's name /
+/// device_id when you need stability.
+/// </para>
+/// <para>
+/// gpu_device is rejected with TRANSCRIBE_ERR_INVALID_ARG when it
+/// is negative, out of range, names a non-GPU device, names a
+/// device whose vendor doesn't match an explicit GPU request, or
+/// is non-zero alongside a CPU / CPU_ACCEL request (there is no
+/// GPU to select). Note there is no way to explicitly select the
+/// device at registry index 0 — 0 is the auto sentinel. An
+/// integrated GPU sitting at index 0 is therefore reachable only
+/// via the probe order, when no discrete GPU initializes.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct ModelLoadParams
 {
@@ -248,6 +825,43 @@ public struct ModelLoadParams
     public int gpuDevice;
 }
 
+/// <summary>
+/// <para>
+/// Session init params.
+/// </para>
+/// <para>
+/// n_threads: number of CPU threads for ops that run on CPU. 0 means
+/// "library picks a sensible default".
+/// </para>
+/// <para>
+/// kv_type:   data type for K/V activations in flash attention.
+/// AUTO (default) uses f16 for quantized models, f32 for f32.
+/// </para>
+/// <para>
+/// n_ctx:     optional cap on the decoder context window, in tokens, for
+/// families with a decoder KV cache. It is a memory knob, not an
+/// accuracy knob.
+/// 0 (default): use the model's true maximum, read from GGUF
+/// metadata. This is the right value for almost
+/// every caller.
+/// > 0:         lower the ceiling to bound KV-cache memory. A
+/// value above the model maximum is clamped DOWN
+/// to it — the knob can only narrow, never extend
+/// past what the model was trained to support.
+/// For decoder-context-bound families (audio-tokens + prompt +
+/// generation share one window), lowering n_ctx lowers the
+/// effective input limit. That effective limit is a per-session
+/// value: read it via transcribe_session_get_limits()
+/// (effective_max_audio_ms), NOT transcribe_capabilities::
+/// max_audio_ms, which is model-level and reflects only the
+/// default context. For encoder-bound families, n_ctx may lower
+/// decoder KV memory / output budget without lowering the input-
+/// audio bound. Ignored by chunked / unbounded families (whisper,
+/// parakeet, voxtral_realtime) — they have no lowerable ceiling, so
+/// a non-zero n_ctx is a no-op there. A negative value returns
+/// TRANSCRIBE_ERR_INVALID_ARG.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct SessionParams
 {
@@ -257,6 +871,81 @@ public struct SessionParams
     public int nCtx;
 }
 
+/// <summary>
+/// <para>
+/// Per-run params.
+/// </para>
+/// <para>
+/// v1 accepts only 16 kHz mono float32 PCM. There is no caller-supplied
+/// sample rate; the library does not link a resampler; the caller is
+/// responsible for resampling external audio (e.g. with sox or ffmpeg)
+/// before calling transcribe_run. A future revision will introduce a
+/// caller-declared input rate, at which point TRANSCRIBE_ERR_SAMPLE_RATE
+/// (currently reserved) will become observable.
+/// </para>
+/// <para>
+/// task:        TRANSCRIBE or TRANSLATE. The model must declare support
+/// for translate via its capabilities; otherwise the run
+/// returns TRANSCRIBE_ERR_UNSUPPORTED_TASK.
+/// </para>
+/// <para>
+/// timestamps:  requested granularity. Default params request NONE.
+/// Use AUTO to get the finest granularity the model
+/// supports.
+/// </para>
+/// <para>
+/// pnc:         punctuation+capitalization runtime toggle. See
+/// transcribe_pnc_mode. DEFAULT is always safe. Non-DEFAULT
+/// values against models for which
+/// transcribe_model_supports(model, TRANSCRIBE_FEATURE_PNC) is
+/// false emit a WARN and proceed with the model's default
+/// behavior.
+/// </para>
+/// <para>
+/// itn:         inverse text normalization runtime toggle. See
+/// transcribe_itn_mode. DEFAULT is always safe. Non-DEFAULT
+/// values against models for which
+/// transcribe_model_supports(model, TRANSCRIBE_FEATURE_ITN) is
+/// false emit a WARN and proceed with the model's default
+/// behavior.
+/// </para>
+/// <para>
+/// language:        source language hint as a BCP-47-ish short code, or
+/// NULL to autodetect (only if the model supports it).
+/// </para>
+/// <para>
+/// target_language: target language for translation tasks, or NULL.
+/// </para>
+/// <para>
+/// String-pointer lifetime (language / target_language): caller-owned, and
+/// the library copies what it needs before the API call returns. This holds
+/// for transcribe_run / transcribe_run_batch (synchronous) AND for
+/// transcribe_stream_begin: the dispatcher copies these strings into
+/// session-owned storage at begin, so the caller may free its params —
+/// including the strings — the moment begin returns, even though the stream
+/// keeps running. Bindings rely on this: ctypes/FFI-managed string buffers
+/// die when the begin wrapper returns.
+/// </para>
+/// <para>
+/// keep_special_tags: keep special vocabulary tags (e.g. &lt;|...|>) in the
+/// returned text fields. Default (false) strips them
+/// for clean transcripts; set true to keep the raw
+/// tags. Token-level accessors always expose the raw
+/// token text regardless of this flag.
+/// </para>
+/// <para>
+/// family:      optional family-specific extension. NULL selects family
+/// defaults. The pointed-to object is caller-owned; the
+/// library copies any values it needs out of it before
+/// transcribe_run returns, so the caller may free the
+/// extension storage immediately after the call. Each
+/// family declares its typed extension struct in
+/// include/transcribe/&lt;family>.h with `struct transcribe_ext
+/// ext` as field 0. Use transcribe_model_accepts_ext_kind
+/// to probe whether the loaded model accepts a given kind
+/// before pointing <c>family</c> at it.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct RunParams
 {
@@ -270,9 +959,65 @@ public struct RunParams
     [MarshalAs(UnmanagedType.I1)]
     public bool keepSpecialTags;
     public IntPtr /* transcribe_ext */ family;
+
+    /// <summary>
+    /// <para>
+    /// spec_k_drafts: n-gram-lookup speculative-decode draft length for the
+    /// offline autoregressive decode step. Family-portable strategy knob;
+    /// the family decides how K maps to its internal verify graph.
+    /// </para>
+    /// <para>
+    /// Convention:
+    /// -1: family default (each family picks its tuned K).
+    /// 0: spec decoding explicitly disabled — standard 1-token-per-step
+    /// autoregression. Use this for byte-equal reproduction of
+    /// pre-spec behavior or when measuring baseline performance.
+    /// >0: draft K tokens per verify pass. Practical range is 1..8;
+    /// optimal K is hardware-dependent (compute-bound hardware
+    /// prefers small K, bandwidth-bound prefers larger K — see
+    /// docs/models/&lt;family>.md for per-family guidance).
+    /// </para>
+    /// <para>
+    /// Families gate this via transcribe_capabilities::supports_spec_decode.
+    /// Setting spec_k_drafts != -1 on a family with
+    /// supports_spec_decode == false is silently ignored (the run proceeds
+    /// as ordinary autoregression). Probe the capability bit if you want
+    /// to know whether the field will take effect.
+    /// </para>
+    /// </summary>
     public int specKDrafts;
 }
 
+/// <summary>
+/// <para>
+/// Capabilities are split by character, not by size:
+/// </para>
+/// <list type="bullet">
+/// <item>
+/// <description>
+/// Values and bools-that-gate-allied-data live on
+/// <c>transcribe_capabilities</c>. The struct holds data (sample rate,
+/// language list, max timestamp kind, streaming hints) plus the
+/// three "gate" bools whose meaning is inseparable from neighboring
+/// fields (supports_streaming gates the streaming hint trio;
+/// supports_translate gates the task enum and target_language
+/// semantics on transcribe_run_params; supports_language_detect gates
+/// the languages array and autodetect mode).
+/// </description>
+/// </item>
+/// </list>
+/// <list type="bullet">
+/// <item>
+/// <description>
+/// Unallied behavioral toggles (initial prompt, temperature
+/// fallback, long-form chunking, cancellation, PNC, ITN, and
+/// anything similar in the future) live behind the
+/// transcribe_model_supports() probe, keyed by transcribe_feature.
+/// A new feature is +1 enum value with no struct_size churn.
+/// </description>
+/// </item>
+/// </list>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Capabilities
 {
@@ -281,19 +1026,168 @@ public struct Capabilities
     public int nLanguages;
     public IntPtr languages;
     public TimestampKind maxTimestampKind;
+
+    /// <summary>
+    /// <para>
+    /// Gate bools with allied struct data. Kept here so reading the
+    /// struct gives a coherent picture of "what tasks does this model
+    /// support and what data does it expose for them."
+    /// </para>
+    /// <para>
+    /// supports_language_detect: gates the languages[] array's role.
+    /// False means the autodetect path is unavailable; the listed
+    /// languages (if any) are still the model's supported set when
+    /// the caller passes a hint via transcribe_run_params::language.
+    /// </para>
+    /// <para>
+    /// supports_translate: gates TRANSCRIBE_TASK_TRANSLATE on
+    /// transcribe_run_params, plus the meaning of
+    /// transcribe_run_params::target_language. Hard-error gate; the
+    /// dispatcher rejects TRANSLATE against models with
+    /// supports_translate == false.
+    /// </para>
+    /// <para>
+    /// supports_streaming: gates the streaming entry points
+    /// (transcribe_stream_*). Hard-error gate at
+    /// transcribe_stream_begin. Streaming configuration and any
+    /// latency hints are family-specific and live on the family
+    /// stream extension, not on this struct.
+    /// </para>
+    /// </summary>
     [MarshalAs(UnmanagedType.I1)]
     public bool supportsLanguageDetect;
     [MarshalAs(UnmanagedType.I1)]
     public bool supportsTranslate;
     [MarshalAs(UnmanagedType.I1)]
     public bool supportsStreaming;
+
+    /// <summary>
+    /// <para>
+    /// supports_spec_decode: gates transcribe_run_params::spec_k_drafts.
+    /// True means the family's offline (transcribe_run / transcribe_run_batch)
+    /// path implements n-gram-lookup speculative decoding. A non-zero
+    /// spec_k_drafts on a model with supports_spec_decode == false is
+    /// silently ignored — the run proceeds as ordinary autoregression. This
+    /// is a soft gate (no error) because spec is purely a performance
+    /// strategy; callers can probe this bit if they want to know whether
+    /// passing K will actually do anything.
+    /// </para>
+    /// </summary>
     [MarshalAs(UnmanagedType.I1)]
     public bool supportsSpecDecode;
+
+    /// <summary>
+    /// <para>
+    /// max_audio_ms: the longest audio this model can process in one
+    /// transcribe_run, in milliseconds of 16 kHz mono input. This is the
+    /// single number a caller checks to size input before calling.
+    /// </para>
+    /// <para>
+    /// 0  = no practical limit. The family chunks long audio internally
+    /// (whisper), is otherwise unbounded by sequence length
+    /// (parakeet), or has only an impractically large absolute safety
+    /// cap (voxtral_realtime). A family-specific absolute cap may still
+    /// reject input past the model's true wall; see docs/input-limits.md.
+    /// >0 = a usable ceiling. Its meaning depends on the family's limit
+    /// kind, but the number is honest in both cases:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// hard-context-cap families: the bound the library ENFORCES
+    /// up front. It is derived from the decoder context window
+    /// minus the fixed prompt and a minimum generation reserve.
+    /// A longer clip returns TRANSCRIBE_ERR_INPUT_TOO_LONG before
+    /// the decode. This is a MODEL-level value reported at the
+    /// model's default context (transcribe_session_params::n_ctx
+    /// == 0); a session that lowers n_ctx lowers the effective
+    /// limit below this number, but this field is not re-derived
+    /// per session.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// soft-window families (gigaam, sensevoice, medasr): the
+    /// advisory window the model was trained on. Longer input is
+    /// accepted but emits a WARN and may be less accurate; it is
+    /// not rejected.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// <para>
+    /// Zero-init via transcribe_capabilities_init() yields 0; a family that
+    /// does not set it is therefore reported as unbounded. See
+    /// docs/input-limits.md for the full contract.
+    /// </para>
+    /// </summary>
     public long maxAudioMs;
+
+    /// <summary>
+    /// <para>
+    /// translate_target_languages / n_translate_target_languages: the set
+    /// of target language codes accepted for TRANSCRIBE_TASK_TRANSLATE —
+    /// the target-side twin of <c>languages</c> (which is the valid set for the
+    /// transcribe-side <c>language</c> hint). supports_translate gates whether
+    /// translation runs at all; this list narrows WHICH targets are valid.
+    /// A TRANSLATE run whose run_params::target_language is non-NULL and
+    /// absent from a non-empty list is rejected with
+    /// TRANSCRIBE_ERR_UNSUPPORTED_LANGUAGE before any decode.
+    /// </para>
+    /// <para>
+    /// n == 0 / NULL is "not advertised" — an information gap, not a claim
+    /// of zero targets — exactly the convention an empty <c>languages</c> uses.
+    /// GGUFs predating stt.translation.target_languages report 0 here even
+    /// when supports_translate is true; the gate is then inert and any
+    /// family-level target/pair checks (e.g. canary's pivot pairs) still
+    /// apply on top.
+    /// </para>
+    /// </summary>
     public int nTranslateTargetLanguages;
     public IntPtr translateTargetLanguages;
 }
 
+/// <summary>
+/// <para>
+/// Effective limits for a specific session. This is the session-level companion
+/// to the model-level transcribe_capabilities::max_audio_ms: for families whose
+/// audio consumes decoder context, it accounts for the session's
+/// transcribe_session_params::n_ctx cap. For encoder-bound families, n_ctx may
+/// lower decoder KV memory without lowering the input-audio bound.
+/// </para>
+/// <para>
+/// effective_n_ctx:        the decoder context cap, in tokens, in force for
+/// this session: model_max_ctx when n_ctx == 0,
+/// else min(n_ctx, model_max_ctx). 0 means the
+/// family has no context cap (chunked / unbounded).
+/// </para>
+/// <para>
+/// effective_max_audio_ms: the longest audio this session accepts before
+/// TRANSCRIBE_ERR_INPUT_TOO_LONG, in milliseconds
+/// of 16 kHz mono input. For decoder-context-bound
+/// families this is derived from effective_n_ctx; for
+/// encoder-bound families it remains the encoder
+/// input bound even when n_ctx lowers decoder memory.
+/// 0 means no practical limit. Advisory /
+/// representative in the same way as
+/// transcribe_capabilities::max_audio_ms (it assumes
+/// a representative prompt; the exact per-call bound
+/// shifts slightly with the prompt).
+/// </para>
+/// <para>
+/// max_kv_bytes:           the worst-case decoder KV-cache bytes for ONE
+/// utterance at effective_n_ctx, for memory
+/// budgeting. It is exact for the session's kv_type
+/// (the families resolve AUTO and F16 to f16 KV and
+/// use f32 only for an explicit F32 request, so this
+/// reflects 2 or 4 bytes/element accordingly). It is
+/// the ceiling, not the amount allocated for any
+/// single run (the cache grows to fit each input).
+/// One scaling caveat the caller applies itself: it
+/// is per-utterance, so transcribe_run_batch
+/// allocates roughly batch_size x this. 0 if the
+/// family has no decoder KV cache.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct SessionLimits
 {
@@ -303,6 +1197,46 @@ public struct SessionLimits
     public long maxKvBytes;
 }
 
+/// <summary>
+/// <para>
+/// Streaming run params.
+/// </para>
+/// <para>
+/// struct_size:                   sizeof(*this) captured by the caller.
+/// Initialized via transcribe_stream_params_init().
+/// </para>
+/// <para>
+/// family:                        Optional family-specific extension. NULL
+/// selects family defaults. The pointed-to
+/// object is caller-owned and the library
+/// copies any values it needs out of it
+/// before transcribe_stream_begin returns;
+/// the caller may free the extension storage
+/// immediately after begin. Each family
+/// declares its typed extension struct in
+/// include/transcribe/&lt;family>.h with
+/// <c>struct transcribe_ext ext</c> as field 0.
+/// Use transcribe_model_accepts_ext_kind to
+/// probe whether the loaded model accepts a
+/// given kind before pointing <c>family</c> at it.
+/// </para>
+/// <para>
+/// commit_policy:                 Generic UI-facing commitment policy.
+/// Zero-init/default is AUTO.
+/// </para>
+/// <para>
+/// stable_prefix_agreement_n:      For STABLE_PREFIX and AUTO implementations
+/// based on repeated hypotheses, number of
+/// consecutive text or token-id hypotheses that
+/// must agree on a prefix before it is appended
+/// to committed_text. Families with native
+/// irreversible commit boundaries may ignore
+/// this field. 0 selects the library default
+/// (currently 3): a prefix must reproduce
+/// across three consecutive hypotheses before
+/// it is committed.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct StreamParams
 {
@@ -312,6 +1246,67 @@ public struct StreamParams
     public uint stablePrefixAgreementN;
 }
 
+/// <summary>
+/// <para>
+/// Optional per-call change metadata returned by feed/finalize.
+/// </para>
+/// <para>
+/// struct_size        Caller's sizeof(*this). Initialized via
+/// transcribe_stream_update_init() (zero-fill).
+/// result_changed     True when any observable property of the
+/// snapshot changed on this call: the text vectors
+/// (tokens / words / segments / full_text), the
+/// committed/tentative text views, committed raw
+/// row boundary hints, or a lifecycle transition
+/// that semantically closes the stream.
+/// Inspect the accessors after the call to read
+/// the new snapshot. Treat result_changed as a
+/// strict subset of <c>revision changed</c>: if
+/// <c>revision</c> advanced you can assume
+/// <c>result_changed</c> is also true.
+/// is_final           True only on the finalize call's update. Set
+/// by the dispatcher after the family hook
+/// returns; family hooks cannot override.
+/// revision           Monotonic snapshot counter. Advances whenever
+/// any observable property of the result changes
+/// under the rules described for <c>result_changed</c>,
+/// including finalize cases where text is unchanged
+/// but the committed/tentative stream view or
+/// lifecycle moved. Mirrors
+/// transcribe_stream_revision(session) after the
+/// call returns. UI consumers should diff against
+/// the previous value rather than treating each
+/// bump as "text changed."
+/// input_received_ms  Total audio received by the stream since begin.
+/// audio_committed_ms Family-reported audio progress / drain hint.
+/// It is not a byte boundary into committed_text.
+/// ON_FINALIZE reports 0 during feed calls because
+/// committed_text is empty until finalize.
+/// buffered_ms        Audio still buffered inside the family's
+/// streaming state (frontend carry +
+/// lookahead/right-context requirement). Caller
+/// may use this as a "drain" hint.
+/// committed_changed True when committed_text changed on this call.
+/// committed_text is append-only for the life of
+/// the stream; a true value means bytes were appended
+/// or, for ON_FINALIZE with no prior committed bytes,
+/// the final raw text was installed.
+/// tentative_changed True when tentative_text changed on this call.
+/// </para>
+/// <para>
+/// update is nullable. Passing NULL means the caller will inspect the
+/// session directly (revision + committed-count accessors). Audio
+/// cursor fields are only available via this struct.
+/// </para>
+/// <para>
+/// Zero-means-absent contract: every field on this struct is designed
+/// so the zero value encodes "absent / unknown / false / none." This
+/// is what makes the transcribe_stream_update_init() zero-fill safe for
+/// forward ABI: a new caller paired with an older library reads tail
+/// fields the older library never wrote, and those bytes must remain
+/// zero.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct StreamUpdate
 {
@@ -330,6 +1325,53 @@ public struct StreamUpdate
     public bool tentativeChanged;
 }
 
+/// <summary>
+/// <para>
+/// UI-facing stream text snapshot.
+/// </para>
+/// <para>
+/// full_text is the raw current model hypothesis, matching
+/// transcribe_full_text(session). During ACTIVE it may rewrite anywhere.
+/// </para>
+/// <para>
+/// committed_text is the API-stable display/input prefix. Once bytes are
+/// exposed through committed_text they are never rewritten by later feed or
+/// finalize calls on this stream. They remain until begin/reset/free.
+/// </para>
+/// <para>
+/// tentative_text is the volatile raw suffix after raw_tentative_start_bytes.
+/// It may be replaced on every feed. UI consumers that want no committed
+/// flicker render committed_text + tentative_text; consumers that want the
+/// model's current truth render full_text.
+/// </para>
+/// <para>
+/// committed_text is best-effort, not a correctness guarantee. For models
+/// that re-attend over a growing audio context (e.g. moonshine_streaming),
+/// the raw hypothesis can revise a byte that was already committed. Because
+/// committed_text is append-only it is NOT rolled back: when full_text
+/// diverges before the committed boundary, committed_text + tentative_text
+/// no longer reconstruct full_text, so the committed/tentative seam is
+/// transiently incoherent mid-stream. full_text is the authoritative raw
+/// hypothesis at all times; committed_text trades that authority for a
+/// flicker-free, append-only prefix. Consumers needing exact truth should
+/// render full_text. Raising stable_prefix_agreement_n makes a wrong commit
+/// less likely at the cost of committing later.
+/// </para>
+/// <para>
+/// On successful stream_finalize, tentative_text is empty. For ON_FINALIZE,
+/// committed_text becomes final full_text. For policies that committed bytes
+/// before finalize, finalize only appends compatible remaining suffix bytes;
+/// if final full_text disagrees with already committed_text, committed_text
+/// is not silently rewritten and full_text remains the authoritative raw
+/// final transcript.
+/// </para>
+/// <para>
+/// All pointers are borrowed session-owned storage. They remain valid until
+/// the next transcribe_stream_feed / transcribe_stream_finalize /
+/// transcribe_stream_begin / transcribe_stream_reset / transcribe_run /
+/// transcribe_session_free on the same session.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct StreamText
 {
@@ -343,6 +1385,31 @@ public struct StreamText
     public ulong rawTentativeStartBytes;
 }
 
+/// <summary>
+/// <para>
+/// Per-call timings collected by the most recent transcribe_run on a
+/// session, plus the wall-clock load time of the model the session is
+/// bound to. All values are in milliseconds.
+/// </para>
+/// <para>
+/// load_ms    one-time wall-clock cost of transcribe_model_load_file,
+/// captured on the model and surfaced via every session
+/// derived from it. Not affected by transcribe_reset_timings
+/// (it's a model-scoped fact).
+/// mel_ms     time to compute the mel front-end on the most recent
+/// transcribe_run. Reset to 0 by transcribe_reset_timings.
+/// encode_ms  time to run the encoder forward pass on the most recent
+/// transcribe_run.
+/// decode_ms  time to run the decoder (predictor + joint + token
+/// search) on the most recent transcribe_run.
+/// </para>
+/// <para>
+/// Output struct: caller initializes via transcribe_timings_init() (zero-
+/// fill); the library writes only the fields that fit within
+/// struct_size. Every field is a numeric value where zero encodes
+/// "unknown / not measured."
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Timings
 {
@@ -353,6 +1420,50 @@ public struct Timings
     public float decodeMs;
 }
 
+/// <summary>
+/// <para>
+/// Per-item results are exposed as caller-owned copy-out structs. Three
+/// accessors (transcribe_get_segment / _word / _token) take a row index
+/// and a pointer to an init-function-initialized struct; the library
+/// writes the row's fields into the caller's buffer.
+/// </para>
+/// <para>
+/// <c>text</c> pointers in these structs are session-owned. The full lifetime
+/// contract is in the "Result text-pointer lifetime" block at the top of
+/// this header; in short:
+/// </para>
+/// <list type="bullet">
+/// <item>
+/// <description>
+/// One-shot path: valid until the next transcribe_run() /
+/// transcribe_stream_begin() / transcribe_stream_reset() /
+/// transcribe_session_free() call on the same session.
+/// </description>
+/// </item>
+/// <item>
+/// <description>
+/// Streaming path: row <c>text</c> aliases the raw model snapshot and may
+/// be invalidated by every transcribe_stream_feed() /
+/// transcribe_stream_finalize() call. Copy it before the next feed if
+/// you need to hold it. Use transcribe_stream_get_text() for
+/// API-stable committed/provisional display text.
+/// </description>
+/// </item>
+/// </list>
+/// <para>
+/// Out-of-range index (i &lt; 0 or i >= the corresponding transcribe_n_*())
+/// returns TRANSCRIBE_OK with the caller's struct left as zero-init:
+/// <c>text == NULL</c>, every scalar 0, and (for tokens) <c>p == 0.0f</c>. There
+/// is no empty-string sentinel — bindings distinguish "row not present"
+/// from "row present with empty text" by null-checking <c>text</c>.
+/// </para>
+/// <para>
+/// Forward-ABI: struct_size in each row struct is captured at the
+/// caller's TU; the library writes only the fields that fit and never
+/// touches tail bytes beyond the caller's struct_size. New fields are
+/// appended at the end.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Segment
 {
@@ -378,6 +1489,20 @@ public struct Word
     public IntPtr text;
 }
 
+/// <summary>
+/// <para>
+/// transcribe_token::p is the per-token probability when the
+/// architecture produces one, or NaN when it does not. The semantic of
+/// "token probability" varies by family (joint softmax for transducer,
+/// per-step softmax for autoregressive, per-frame argmax probability
+/// for CTC) and callers should treat it as a confidence hint, not a
+/// calibrated probability.
+/// </para>
+/// <para>
+/// On out-of-range index <c>p</c> follows the zero-init rule (0.0f, not
+/// NaN); inspect <c>text != NULL</c> to distinguish a present row.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Token
 {
@@ -498,50 +1623,279 @@ internal static partial class NativeMethods
     private const string LibName = "transcribe";
 
     // ── Misc ──
+    /// <summary>
+    /// <para>
+    /// Returns a statically allocated, NUL-terminated description of a status
+    /// code. The returned pointer must not be freed and is valid for the
+    /// lifetime of the process.
+    /// </para>
+    /// <para>
+    /// The parameter is <c>int</c> (not <c>transcribe_status</c>) for two reasons:
+    /// 1. It matches the convention of <c>strerror(int)</c> and lets callers pass
+    /// an arbitrary integer without forming a bogus enum value.
+    /// 2. Casting an out-of-range integer to a C++ enum without a fixed
+    /// underlying type is undefined behavior. Taking an int means the
+    /// "out of range returns 'unknown status'" contract can be exercised
+    /// portably without tripping UBSan.
+    /// </para>
+    /// <para>
+    /// Any value of transcribe_status converts implicitly to int at the call
+    /// site, so existing C and C++ callers continue to compile unchanged.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_status_string", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr StatusString(int status);
 
+    /// <summary>
+    /// <para>
+    /// "MAJOR.MINOR.PATCH", e.g. "0.1.0". Equals the TRANSCRIBE_VERSION macro the
+    /// caller compiled against; a mismatch means the header and the linked library
+    /// disagree.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_version", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr Version();
 
+    /// <summary>
+    /// <para>
+    /// Short git commit the library was built from, or "unknown" when the build
+    /// tree carried no git metadata (e.g. an unpacked source tarball).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_version_commit", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr VersionCommit();
 
+    /// <summary>
+    /// <para>
+    /// sizeof / alignof of the selected public struct, or 0 for an unknown id.
+    /// For every struct that carries a struct_size field, the size returned here
+    /// equals the value its transcribe_*_init() stamps into struct_size.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_abi_struct_size", StringMarshalling = StringMarshalling.Utf8)]
     public static partial nuint AbiStructSize(AbiStruct which);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_abi_struct_align", StringMarshalling = StringMarshalling.Utf8)]
     public static partial nuint AbiStructAlign(AbiStruct which);
 
+    /// <summary>
+    /// <para>
+    /// Global log sink. Three states:
+    /// </para>
+    /// <para>
+    /// never called          library messages that warrant surfacing go to
+    /// stderr (the dev/CLI default); ggml's internal
+    /// logging keeps its own stderr default.
+    /// cb != NULL            every library message AND ggml's internal
+    /// diagnostics (mapped onto transcribe_log_level)
+    /// route to the callback. Caveat: ggml compiles
+    /// its per-module load-failure chatter OUT of
+    /// release builds, so the reliable "why am I not
+    /// on the GPU?" signals are the one-line device
+    /// summary transcribe_init_backends() emits
+    /// through this sink after each fresh scan, and
+    /// the transcribe_backend_* device accessors.
+    /// cb == NULL            logging explicitly disabled: library and ggml
+    /// messages are dropped, nothing goes to stderr.
+    /// </para>
+    /// <para>
+    /// The callback must not throw. If it does anyway, the exception is contained
+    /// at the emission site, the message is dropped, and a note is written to
+    /// stderr.
+    /// </para>
+    /// <para>
+    /// Call once at process startup (see the threading contract above).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_log_set", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void LogSet(LogCallback cb, IntPtr userdata);
 
+    /// <summary>
+    /// <para>
+    /// Validate the universal shape of an extension before the family casts
+    /// its pointer to the typed struct.
+    /// </para>
+    /// <para>
+    /// ext == NULL                    -> TRANSCRIBE_OK (family decides
+    /// what NULL means; usually "defaults").
+    /// ext->size &lt; sizeof(transcribe_ext)
+    /// -> TRANSCRIBE_ERR_BAD_STRUCT_SIZE.
+    /// ext->kind != expected_kind     -> TRANSCRIBE_ERR_INVALID_ARG.
+    /// ext->size &lt; min_size           -> TRANSCRIBE_ERR_BAD_STRUCT_SIZE.
+    /// otherwise                       -> TRANSCRIBE_OK.
+    /// </para>
+    /// <para>
+    /// The family handler owns <c>expected_kind</c> (its own TRANSCRIBE_EXT_KIND_*
+    /// constant) and <c>min_size</c> (typically sizeof of the kind's minimum
+    /// supported layout). The helper exists so every family rejects malformed
+    /// input identically.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_ext_check", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status ExtCheck(IntPtr /* transcribe_ext */ ext, uint expectedKind, ulong minSize);
 
+    /// <summary>
+    /// <para>
+    /// Returns true when the loaded model variant accepts the named
+    /// extension kind in the given slot. The probe is per-loaded-model-
+    /// variant AND per-slot — a family may ship multiple extension kinds
+    /// that apply to different variants (e.g. parakeet streaming has
+    /// cache-aware and chunked-attention variants whose stream knobs are
+    /// different kinds), and the same kind may only be legal on one slot
+    /// (a streaming extension on the RUN slot is not "ignored"; it is
+    /// rejected by transcribe_run with INVALID_ARG).
+    /// </para>
+    /// <para>
+    /// Returns false if model is NULL, if the model's family has no
+    /// extension surface for the requested slot at all, or if the kind is
+    /// unknown for that slot. The dispatcher's call-site validation always
+    /// routes through this probe with the correct slot for the entry point.
+    /// </para>
+    /// <para>
+    /// Callers should write intent-first probes ("does this model accept
+    /// the parakeet stream kind on the STREAM slot?"), not discovery loops
+    /// over every known kind. See docs/extension-kinds.md for the registered
+    /// kinds and their slots.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_model_accepts_ext_kind", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool ModelAcceptsExtKind(IntPtr model, ExtSlot slot, uint kind);
 
+    /// <summary>
+    /// <para>
+    /// In dynamic-backend builds (GGML_BACKEND_DL, selected by the
+    /// TRANSCRIBE_GGML_BACKEND_DL build option), compute backends (CPU, Vulkan,
+    /// CUDA, ...) are separate loadable modules shipped next to the library in a
+    /// provider artifact directory, not compiled into it. A host (a Python
+    /// wheel, a Rust crate, an app bundle) loads them ONCE, before the first
+    /// model load, by pointing the library at that directory. In static builds
+    /// the compiled-in backends are already registered, and this call is a
+    /// harmless no-op for a directory containing no modules.
+    /// </para>
+    /// <para>
+    /// The search is strictly package-local: only artifact_dir is scanned —
+    /// never the executable directory, the working directory, or any system
+    /// path. (ggml additionally honors the GGML_BACKEND_PATH environment
+    /// variable as an explicit user override naming one out-of-tree backend
+    /// module; an unset environment means a fully package-local load.)
+    /// </para>
+    /// <para>
+    /// A module whose system dependencies are missing — e.g. the Vulkan module
+    /// on a machine with no Vulkan loader, or with a loader but no driver —
+    /// fails to load quietly and is skipped; the remaining backends keep
+    /// working. That degradation is the designed behavior: ship Vulkan by
+    /// default, fall back to CPU on machines that cannot run it. Use the device
+    /// accessors below to see what actually registered, and
+    /// transcribe_backend_available() to probe one kind.
+    /// </para>
+    /// <para>
+    /// Idempotent per directory: repeat calls with an already-scanned directory
+    /// return the SAME status as the first scan without re-loading — including
+    /// the TRANSCRIBE_ERR_BACKEND case, which is therefore NOT retryable in
+    /// this process (e.g. installing a driver after the first call requires a
+    /// new process to pick up). Concurrent calls to this function are
+    /// serialized against each other; "thread-safe" extends no further — the
+    /// load mutates the global device registry, so it must complete before any
+    /// thread calls the device accessors below or loads a model. That ordering
+    /// is automatic under the supported usage (call once, before the first
+    /// model load).
+    /// </para>
+    /// <para>
+    /// artifact_dir is UTF-8, like every path crossing this API; on Windows
+    /// it is converted to a wide path internally.
+    /// </para>
+    /// <para>
+    /// Returns:
+    /// TRANSCRIBE_ERR_INVALID_ARG     artifact_dir is NULL or empty.
+    /// TRANSCRIBE_ERR_FILE_NOT_FOUND  artifact_dir is not an existing directory.
+    /// TRANSCRIBE_ERR_BACKEND         after loading, the process has zero
+    /// registered compute devices (a dynamic
+    /// build pointed at a directory with no
+    /// usable modules: nothing could run).
+    /// TRANSCRIBE_OK                  otherwise.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status InitBackends(string artifactDir);
 
+    /// <summary>
+    /// <para>
+    /// Package-local default for dynamic-backend builds.
+    /// </para>
+    /// <para>
+    /// In a dynamic-backend build, resolves the directory containing the loaded
+    /// libtranscribe itself and delegates to transcribe_init_backends(dir). This
+    /// keeps the search package-local: it does NOT scan the executable directory,
+    /// current working directory, or system paths. Ship backend modules next to
+    /// libtranscribe for this helper to find them.
+    /// </para>
+    /// <para>
+    /// In non-dynamic builds the compute backends are compiled in, so this is a
+    /// no-op returning TRANSCRIBE_OK.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends_default", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status InitBackendsDefault();
 
+    /// <summary>
+    /// <para>
+    /// Number of compute devices currently registered with the runtime
+    /// (compiled-in backends plus any modules loaded by
+    /// transcribe_init_backends). A device is something a model can be placed
+    /// on: the CPU, an Apple GPU via Metal, a Vulkan GPU, ...
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_backend_device_count", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int BackendDeviceCount();
 
     [LibraryImport(LibName, EntryPoint = "transcribe_backend_device_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void BackendDeviceInit(IntPtr /* transcribe_backend_device */ p);
 
+    /// <summary>
+    /// <para>
+    /// Fill *out (initialized via transcribe_backend_device_init) with device
+    /// <c>index</c> in [0, transcribe_backend_device_count()).
+    /// </para>
+    /// <para>
+    /// memory_free is live as of this call; re-invoke to refresh it (e.g. to
+    /// poll a device's available memory over time). The device handles are
+    /// stable for the life of the process, so the same index always names the
+    /// same device.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_get_backend_device", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status GetBackendDevice(int index, IntPtr /* transcribe_backend_device */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Whether a backend request can be satisfied by some registered device:
+    /// AUTO whenever any device exists; CPU and CPU_ACCEL when a CPU device
+    /// exists; METAL / VULKAN / CUDA when a device of that kind exists. Unknown
+    /// or invalid request values answer false (never an error). This is the
+    /// probe a binding uses to turn <c>backend="vulkan"</c> on a machine without
+    /// Vulkan into a clear exception instead of a failed model load.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_backend_available", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool BackendAvailable(BackendRequest kind);
 
+    /// <summary>
+    /// <para>
+    /// Fill *out (initialized via transcribe_backend_device_init) with the
+    /// compute device this loaded model is running on — the device that owns its
+    /// weights and runs most of its graph. Same struct and same live-snapshot
+    /// semantics as transcribe_get_backend_device: memory_free is current as of
+    /// the call, so re-invoke to ask "how much memory is left on the device my
+    /// model landed on" at any time after load.
+    /// </para>
+    /// <para>
+    /// Returns TRANSCRIBE_ERR_INVALID_ARG if model or out is NULL (or out fails
+    /// the struct-size check), or TRANSCRIBE_ERR_BACKEND if the model has no
+    /// resolved compute device.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_model_get_device", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status ModelGetDevice(IntPtr model, IntPtr /* transcribe_backend_device */ @out);
 
@@ -557,6 +1911,25 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_capabilities_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void CapabilitiesInit(IntPtr /* transcribe_capabilities */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Read model capabilities into caller-owned storage. The caller
+    /// initializes *out_caps via transcribe_capabilities_init() (zero-fill);
+    /// the library writes only the fields that fit and leaves tail bytes
+    /// beyond the caller's struct_size untouched.
+    /// </para>
+    /// <para>
+    /// Returns:
+    /// TRANSCRIBE_ERR_INVALID_ARG     model or out_caps is NULL.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE out_caps->struct_size is 0 or
+    /// smaller than the library's minimum.
+    /// </para>
+    /// <para>
+    /// Pointer fields written by the library (e.g. <c>languages</c>) point at
+    /// model-owned storage and remain valid until transcribe_model_free().
+    /// The output struct itself is caller-owned.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_model_get_capabilities", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status ModelGetCapabilities(IntPtr model, IntPtr /* transcribe_capabilities */ outCaps);
 
@@ -564,6 +1937,47 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool ModelSupports(IntPtr model, Feature feature);
 
+    /// <summary>
+    /// <para>
+    /// Stable identifier strings read from GGUF and runtime state.
+    /// </para>
+    /// <para>
+    /// transcribe_model_arch_string(): the general.architecture key,
+    /// e.g. "parakeet". Immutable for the lifetime of the model.
+    /// </para>
+    /// <para>
+    /// transcribe_model_variant_string(): the stt.variant key, e.g.
+    /// "tdt-0.6b-v2". Immutable for the lifetime of the model. May be
+    /// an empty string if the underlying GGUF did not carry a variant
+    /// and the architecture handler had no default to substitute.
+    /// </para>
+    /// <para>
+    /// transcribe_model_backend(): the runtime backend currently bound
+    /// to this model, e.g. "cpu", "metal", "vulkan", "cuda". This is
+    /// the mechanism for detecting CPU fallback when GPU was requested.
+    /// </para>
+    /// <para>
+    /// Returns an empty string when no runtime backend is currently
+    /// bound to the model. This covers both (a) model == NULL, the
+    /// safe-sentinel pattern used throughout this header, and (b) a
+    /// model that has been loaded but is not yet bound to a runtime
+    /// backend - for example, a model whose on-disk metadata and
+    /// vocabulary have been parsed but whose compute graph has not
+    /// been materialized on any backend yet. Callers can distinguish
+    /// the two by null-checking the model pointer.
+    /// </para>
+    /// <para>
+    /// Backend is a runtime fact, reported separately from the
+    /// model's semantic capabilities (see
+    /// transcribe_model_get_capabilities), which never change based on
+    /// backend state.
+    /// </para>
+    /// <para>
+    /// All three return statically allocated or model-owned strings; the
+    /// caller must not free them and they remain valid until the model is
+    /// freed.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_model_arch_string", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr ModelArchString(IntPtr model);
 
@@ -573,43 +1987,337 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_model_backend", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr ModelBackend(IntPtr model);
 
+    /// <summary>
+    /// <para>
+    /// Generic GGUF string-metadata getter, modeled on llama_model_meta_val_str.
+    /// Looks up a scalar-string metadata key written by the converter and returns
+    /// its value; this is how human-facing identity is read rather than a typed
+    /// accessor per field. Common keys:
+    /// </para>
+    /// <para>
+    /// "general.name"         friendly label, e.g. "Whisper Large v3"
+    /// "general.license"      SPDX expression, e.g. "apache-2.0" (or "other")
+    /// "general.license.name" human-friendly license name
+    /// "general.license.link" URL to the license text
+    /// "general.author", "general.organization", "general.repo_url", ...
+    /// </para>
+    /// <para>
+    /// Returns a model-owned string (valid until the model is freed; do not free
+    /// it) or an empty string "" when model is NULL, key is NULL, or the key is
+    /// absent. Only scalar-string KVs are exposed (numeric hyperparameters and
+    /// arrays such as the token list are not). There is no fallback to the variant
+    /// slug — for that, use transcribe_model_variant_string().
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_model_meta_val_str", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr ModelMetaValStr(IntPtr model, string key);
 
+    /// <summary>
+    /// <para>
+    /// Load a GGUF model from disk.
+    /// </para>
+    /// <para>
+    /// path is UTF-8, like every path crossing this API; on Windows it is
+    /// converted to a wide path internally, so non-ASCII paths load
+    /// correctly regardless of the process ANSI code page.
+    /// </para>
+    /// <para>
+    /// params may be NULL for all library defaults. To customize, initialize
+    /// a struct with transcribe_model_load_params_init() and set fields. A
+    /// struct with struct_size == 0 (including <c>{0}</c>) is rejected with
+    /// BAD_STRUCT_SIZE — defaults come from NULL, never from an uninitialized
+    /// struct. See the "Params" section at the top of this header.
+    /// </para>
+    /// <para>
+    /// On success, *out_model is set and the caller owns it. On failure,
+    /// *out_model is set to NULL and a non-OK status is returned.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_model_load_file", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status ModelLoadFile(string path, IntPtr /* transcribe_model_load_params */ @params, IntPtr outModel);
 
+    /// <summary>
+    /// <para>
+    /// Free a model. Only valid after every session derived from this model
+    /// has been freed and no thread is still using the model. Passing NULL
+    /// is a no-op.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_model_free", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ModelFree(IntPtr model);
 
+    /// <summary>
+    /// <para>
+    /// Initialize a transcription session bound to a loaded model. Multiple
+    /// sessions may be created from the same model in parallel; each session
+    /// is single-threaded. The model must outlive every session derived from
+    /// it (the session borrows, but does not own, the model).
+    /// </para>
+    /// <para>
+    /// params may be NULL for library defaults, or initialize a struct with
+    /// transcribe_session_params_init(). See transcribe_model_load_file.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_session_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status SessionInit(IntPtr model, IntPtr /* transcribe_session_params */ @params, IntPtr outSession);
 
+    /// <summary>
+    /// <para>
+    /// Free a session.
+    /// </para>
+    /// <para>
+    /// If the session was created via transcribe_open it owns the model it
+    /// loaded; transcribe_session_free destroys the session and then frees
+    /// the model in the same call. Sessions created via the two-step
+    /// transcribe_session_init path borrow their model; this function leaves
+    /// that model alone.
+    /// </para>
+    /// <para>
+    /// The caller does not need to know which path created the session — both
+    /// are handled correctly. Passing NULL is a no-op.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_session_free", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SessionFree(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Convenience: load a model and open a session against it in one call,
+    /// for the common "I just want to transcribe one stream" case. Bundles
+    /// transcribe_model_load_file + transcribe_session_init.
+    /// </para>
+    /// <para>
+    /// The returned session OWNS the model it loaded; transcribe_session_free
+    /// (or its alias transcribe_close) frees both. To share one model across
+    /// multiple sessions (e.g. one per thread), use the two-step
+    /// transcribe_model_load_file + transcribe_session_init API instead —
+    /// that is the only reason to reach past this function.
+    /// </para>
+    /// <para>
+    /// load_params and session_params may each be NULL for library defaults.
+    /// </para>
+    /// <para>
+    /// On success *out_session is set and the caller owns it. On failure
+    /// *out_session is set to NULL and a non-OK status is returned (the same
+    /// status transcribe_model_load_file / transcribe_session_init would
+    /// return; no partial state leaks).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_open", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status Open(string path, IntPtr /* transcribe_model_load_params */ loadParams, IntPtr /* transcribe_session_params */ sessionParams, IntPtr outSession);
 
+    /// <summary>
+    /// <para>
+    /// Deprecated alias for transcribe_session_free. Both honor owns_model and
+    /// free the owned model when present, so a caller may use either with any
+    /// session. New code should call transcribe_session_free directly. Passing
+    /// NULL is a no-op.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_close", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void Close(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Borrow the model bound to a session. The returned pointer is owned by
+    /// the library — do not free it — and remains valid for the session's
+    /// lifetime. This lets convenience-path (transcribe_open) callers reach
+    /// model introspection such as transcribe_model_backend() and the
+    /// capabilities query without holding a separate model handle. Returns
+    /// NULL if session is NULL.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_get_model", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr GetModel(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Run one batch transcription.
+    /// </para>
+    /// <para>
+    /// pcm:        mono float32 PCM samples in [-1.0, 1.0] at 16 kHz.
+    /// n_samples:  number of samples in pcm. Must be strictly positive;
+    /// a non-positive count returns TRANSCRIBE_ERR_INVALID_ARG
+    /// (same rule as transcribe_stream_feed).
+    /// params:     run params, or NULL for defaults.
+    /// </para>
+    /// <para>
+    /// v1 supports only 16 kHz mono float32 PCM and does not link a
+    /// resampler; the caller is responsible for resampling external audio
+    /// before calling this function.
+    /// </para>
+    /// <para>
+    /// On success, results are populated on the session and may be read via
+    /// the accessors below. Calling transcribe_run() again replaces the
+    /// previous result on the same session.
+    /// </para>
+    /// <para>
+    /// TRANSCRIBE_ERR_BACKEND from this function (and batch/streaming run calls)
+    /// is recoverable in-process: free the session and model, reload with
+    /// transcribe_model_load_params::backend = TRANSCRIBE_BACKEND_CPU, and retry.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_run", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status Run(IntPtr session, IntPtr pcm, int nSamples, IntPtr /* transcribe_run_params */ @params);
 
+    /// <summary>
+    /// <para>
+    /// Run N offline transcriptions in one call.
+    /// </para>
+    /// <para>
+    /// This is a throughput entry point: families with a batched compute path
+    /// (today: see the per-family docs) process all N utterances in a single
+    /// device dispatch, which can roughly double throughput on a GPU that a
+    /// single utterance underutilizes. Families without a batched path still
+    /// work — the library falls back to running each utterance in turn — so
+    /// every model accepts this call; only the speedup is family-dependent.
+    /// </para>
+    /// <para>
+    /// This is the offline counterpart to transcribe_run; it is NOT a streaming
+    /// primitive. For a well-formed single utterance it is equivalent to
+    /// transcribe_run with n == 1, but the two are NOT exactly equivalent for
+    /// malformed input: transcribe_run(NULL pcm / n_samples &lt;= 0) fails top-level
+    /// with TRANSCRIBE_ERR_INVALID_ARG and leaves the previous result untouched,
+    /// whereas a malformed single utterance inside a batch (with valid top-level
+    /// args) is a per-utterance failure — the call returns TRANSCRIBE_OK,
+    /// transcribe_batch_status(session, 0) carries the INVALID_ARG, and the
+    /// previous result has already been replaced by the (failed) batch.
+    /// </para>
+    /// <para>
+    /// session:    a session in a non-ACTIVE-stream state. As with
+    /// transcribe_run, a session is single-threaded: do not call
+    /// this concurrently with any other call on the same session.
+    /// pcm:        array of n pointers, each to mono float32 PCM in [-1, 1]
+    /// at 16 kHz. pcm[i] is the i-th utterance.
+    /// n_samples:  array of n sample counts; n_samples[i] is the length of
+    /// pcm[i].
+    /// n:          number of utterances. Must be strictly positive.
+    /// params:     run params shared by every utterance in the batch, or
+    /// NULL for defaults. v1 applies one params (task, language
+    /// hint, timestamps, ...) to the whole batch; per-utterance
+    /// params is a future extension.
+    /// </para>
+    /// <para>
+    /// Variable-length utterances are handled by the library: a batched family
+    /// pads the batch to its longest utterance internally and masks the padding.
+    /// Grouping utterances of similar length per call ("bucketing") minimizes
+    /// wasted compute but is not required.
+    /// </para>
+    /// <para>
+    /// Result model: results are read back with the transcribe_batch_* accessors
+    /// below, indexed by utterance. transcribe_batch_n_results() returns the
+    /// count. The legacy single-result accessors (transcribe_full_text, etc.)
+    /// alias utterance 0 after a batch run. A subsequent transcribe_run clears
+    /// the batch results.
+    /// </para>
+    /// <para>
+    /// Return value is the WHOLE-BATCH status:
+    /// TRANSCRIBE_OK                  the dispatch ran. Per-utterance success
+    /// or failure is read via
+    /// transcribe_batch_status(session, i); a
+    /// malformed single utterance (pcm[i] NULL
+    /// or n_samples[i] &lt;= 0) fails only that
+    /// utterance and is reported there.
+    /// TRANSCRIBE_ERR_INVALID_ARG     session / pcm / n_samples NULL, n &lt;= 0,
+    /// or the session is in an ACTIVE stream.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE params->struct_size below the minimum.
+    /// TRANSCRIBE_ERR_NOT_IMPLEMENTED the model has no run path at all.
+    /// ... plus the same shared-param rejections as transcribe_run
+    /// (TRANSCRIBE_ERR_UNSUPPORTED_TASK / _TIMESTAMPS / _LANGUAGE), which
+    /// apply to the whole batch and are reported before any utterance
+    /// runs (the previous result snapshot is preserved on these).
+    /// TRANSCRIBE_ERR_ABORTED         the abort callback fired. Completed
+    /// utterances are retained with their real
+    /// status; any utterance that does NOT
+    /// complete reports TRANSCRIBE_ERR_ABORTED,
+    /// whether it was aborted mid-decode or was
+    /// never retained as a completed result by the
+    /// batch path. Dispatcher-synthesized slots
+    /// specifically mean "did not complete because
+    /// the batch was aborted" — not that the
+    /// utterance itself reached an abort
+    /// checkpoint. As on a successful return,
+    /// transcribe_batch_n_results is n (one slot
+    /// per input utterance).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_run_batch", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status RunBatch(IntPtr session, IntPtr pcm, IntPtr nSamples, int n, IntPtr /* transcribe_run_params */ @params);
 
+    /// <summary>
+    /// <para>
+    /// Install or clear the abort callback for a session. Passing cb=NULL
+    /// clears any previously installed callback. Safe to call before the
+    /// first transcribe_run. No-op if session is NULL.
+    /// </para>
+    /// <para>
+    /// Not thread-safe with respect to an in-flight transcribe_run on the
+    /// same session — the session is single-threaded-at-a-time per the
+    /// threading contract above. Callers that need to trigger abort from
+    /// another thread should do so by flipping state inside the callback's
+    /// user_data, not by swapping the callback itself.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_set_abort_callback", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SetAbortCallback(IntPtr session, AbortCallback cb, IntPtr userData);
 
+    /// <summary>
+    /// <para>
+    /// True if the most recent transcribe_run was aborted by the installed
+    /// callback returning true. Reset to false at the top of each
+    /// transcribe_run. Returns false if session is NULL.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_was_aborted", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool WasAborted(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Supplemental flag for output truncation. True if the most recent decode
+    /// stopped at the model's context / generation cap before end-of-stream,
+    /// leaving the transcript incomplete. The partial transcript is preserved
+    /// and readable through the normal result accessors. Reset to false at the
+    /// start of each new decode — transcribe_run, transcribe_run_batch, and
+    /// transcribe_stream_begin (the same lifecycle as transcribe_was_aborted).
+    /// Returns false if session is NULL.
+    /// </para>
+    /// <para>
+    /// Two paths set it, and they differ in whether a status also reports it:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// Offline (transcribe_run / transcribe_run_batch): the flag is true
+    /// exactly when the run returned TRANSCRIBE_ERR_OUTPUT_TRUNCATED (or, in
+    /// a batch, when a per-utterance status is OUTPUT_TRUNCATED), so the run
+    /// status is the authoritative signal and this accessor is a convenience
+    /// for a caller that has lost it.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// Streaming (transcribe_stream_*): OUTPUT_TRUNCATED is NOT used. An
+    /// active stream has its own terminal-state machine, and stream_feed /
+    /// stream_finalize return the status of that step, not a verdict on the
+    /// whole transcript — so they return TRANSCRIBE_OK even when the stream
+    /// reached its absolute position cap (forcing the stream to FAILED would
+    /// discard the committed text the caller has been consuming). There, this
+    /// flag is the ONLY signal of truncation: a streaming caller must check
+    /// it after finalize.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// <para>
+    /// Distinct from the "couldn't start" rejection: input that cannot fit at
+    /// all is rejected before the decode with TRANSCRIBE_ERR_INPUT_TOO_LONG;
+    /// output truncation cannot be predicted from input length (it depends on
+    /// how long the transcript runs), so it is reported after the fact. A WARN
+    /// is also logged. See docs/input-limits.md.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_was_truncated", StringMarshalling = StringMarshalling.Utf8)]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool WasTruncated(IntPtr session);
@@ -617,6 +2325,21 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_session_limits_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SessionLimitsInit(IntPtr /* transcribe_session_limits */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Read the effective limits for a session into caller-owned storage. The
+    /// caller initializes *out via transcribe_session_limits_init(); the library
+    /// writes only the prefix that fits in both the caller's struct_size and the
+    /// library's view.
+    /// </para>
+    /// <para>
+    /// Returns:
+    /// TRANSCRIBE_ERR_INVALID_ARG     session or out is NULL.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE out->struct_size is 0 or below the
+    /// library minimum.
+    /// TRANSCRIBE_OK                  otherwise.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_session_get_limits", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status SessionGetLimits(IntPtr session, IntPtr /* transcribe_session_limits */ @out);
 
@@ -632,24 +2355,220 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_get_text", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status StreamGetText(IntPtr session, IntPtr /* transcribe_stream_text */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Begin a streaming run on session.
+    /// </para>
+    /// <para>
+    /// run_params and stream_params may be NULL for library defaults
+    /// (transcribe task, no timestamps, no family extension). To customize,
+    /// initialize via transcribe_run_params_init() / transcribe_stream_params_init()
+    /// and set fields. The "session==NULL is INVALID_ARG, struct_size==0 is
+    /// BAD_STRUCT_SIZE" rules from the top-of-header "Params" block apply.
+    /// </para>
+    /// <para>
+    /// On success the session transitions IDLE/FINISHED/FAILED -> ACTIVE
+    /// and every result-visible field is cleared: text, segments, words,
+    /// tokens, detected language, stream revision, committed counts,
+    /// audio cursors, timings, was_aborted, and last stream status. The
+    /// installed abort callback, the loaded model, and any reusable
+    /// stream buffers held by the family are preserved.
+    /// </para>
+    /// <para>
+    /// Returns:
+    /// TRANSCRIBE_ERR_INVALID_ARG       session NULL, session in ACTIVE
+    /// state, out-of-range enum in
+    /// run_params, or an extension whose
+    /// kind is unknown to / not accepted
+    /// by the loaded model on the
+    /// TRANSCRIBE_EXT_SLOT_STREAM slot.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE   non-null run_params or stream_params
+    /// has a struct_size below what this
+    /// entry point requires (including
+    /// struct_size == 0), or
+    /// stream_params->family is too small
+    /// to contain a transcribe_ext header,
+    /// or (for a family that implements the
+    /// preflight, see below) a family
+    /// extension whose size is below its
+    /// kind's minimum. All of these are
+    /// reported before the previous result
+    /// snapshot is cleared.
+    /// Use the init functions to avoid.
+    /// TRANSCRIBE_ERR_NOT_IMPLEMENTED   Model has no streaming hooks or
+    /// capabilities advertise
+    /// supports_streaming == false.
+    /// All three of stream_begin /
+    /// stream_feed / stream_finalize must
+    /// be wired for begin to succeed;
+    /// stream_reset is optional.
+    /// TRANSCRIBE_ERR_UNSUPPORTED_TASK  TRANSCRIBE_TASK_TRANSLATE; v1
+    /// streaming is transcribe-only.
+    /// TRANSCRIBE_ERR_UNSUPPORTED_TIMESTAMPS
+    /// Requested granularity finer than
+    /// the model's max_timestamp_kind.
+    /// TRANSCRIBE_ERR_UNSUPPORTED_LANGUAGE
+    /// run_params->language not in the
+    /// model's declared language list.
+    /// </para>
+    /// <para>
+    /// Failure semantics — three checkpoints, split by whether the previous
+    /// result snapshot survives:
+    /// </para>
+    /// <para>
+    /// 1. Dispatcher preflight. Top-level argument checks run first:
+    /// NULL session, ACTIVE-state rejection, struct_size failures,
+    /// out-of-range run_params enums, unknown / unaccepted extension
+    /// kind for the STREAM slot, TRANSLATE, granularity finer than the
+    /// model's max, and unsupported language. On failure the call
+    /// returns without entering ACTIVE and WITHOUT clearing the
+    /// previous result snapshot. Lifecycle state is untouched.
+    /// </para>
+    /// <para>
+    /// 2. Family preflight (optional, via the family's stream_validate
+    /// hook). For families that implement it, family-specific value
+    /// checks — e.g. a streaming extension field outside the model's
+    /// trained menu, or below its kind's minimum size — run here, still
+    /// BEFORE the snapshot is cleared and BEFORE the lifecycle moves.
+    /// A non-OK return is delivered to the caller with the previous
+    /// result snapshot fully preserved and no FAILED transition, so a
+    /// caller-side config typo cannot destroy the prior utterance's
+    /// transcript. A family that does not implement stream_validate
+    /// performs these checks in stream_begin.
+    /// </para>
+    /// <para>
+    /// 3. Post-clear stream_begin. Once the preflight checks pass, the dispatcher
+    /// clears the result snapshot, enters ACTIVE, and calls the
+    /// family's stream_begin hook. Any non-OK status from this point
+    /// (config a non-preflighting family only catches here, allocation
+    /// failure, etc.) transitions the stream to FAILED and preserves
+    /// the status in transcribe_stream_last_status. The result snapshot
+    /// in this case is whatever the hook wrote before failing —
+    /// typically empty.
+    /// </para>
+    /// <para>
+    /// Params lifetime: everything the caller passes is copied out before this
+    /// function returns. run_params strings (language / target_language) are
+    /// copied into session-owned storage, and family extensions follow their
+    /// documented copy-out contract — so the caller may free both params
+    /// structs and every pointer inside them the moment begin returns, while
+    /// the stream stays ACTIVE. Nothing handed to begin needs to outlive it.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_begin", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status StreamBegin(IntPtr session, IntPtr /* transcribe_run_params */ runParams, IntPtr /* transcribe_stream_params */ streamParams);
 
+    /// <summary>
+    /// <para>
+    /// Feed PCM into the active stream. 16 kHz mono float32, same as
+    /// transcribe_run.
+    /// </para>
+    /// <para>
+    /// pcm must be non-null and n_samples must be strictly greater than
+    /// zero. Polling the stream without supplying audio is unsupported —
+    /// use the stream accessors (transcribe_stream_revision,
+    /// transcribe_stream_get_text, transcribe_stream_n_committed_*,
+    /// transcribe_stream_last_status, transcribe_stream_get_state) to inspect
+    /// state without progressing the stream.
+    /// </para>
+    /// <para>
+    /// update is nullable; when non-null the dispatcher zero-initializes
+    /// it before calling the family hook, so callers may rely on a clean
+    /// struct even on early-return error paths.
+    /// </para>
+    /// <para>
+    /// Returns TRANSCRIBE_ERR_INVALID_ARG when session is NULL, when state
+    /// is not ACTIVE, or on malformed input. A terminal non-OK status
+    /// from the family hook transitions the stream to FAILED and is
+    /// preserved in transcribe_stream_last_status. TRANSCRIBE_ERR_ABORTED
+    /// is a terminal status; transcribe_was_aborted distinguishes it from
+    /// other failures.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_feed", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status StreamFeed(IntPtr session, IntPtr pcm, int nSamples, IntPtr /* transcribe_stream_update */ update);
 
+    /// <summary>
+    /// <para>
+    /// Signal end of input. Flushes buffered audio, satisfies right-
+    /// context / lookahead requirements, and emits remaining text.
+    /// </para>
+    /// <para>
+    /// On success the session transitions ACTIVE -> FINISHED. On a
+    /// terminal non-OK status the session transitions to FAILED and the
+    /// status is preserved in transcribe_stream_last_status.
+    /// </para>
+    /// <para>
+    /// Returns TRANSCRIBE_ERR_INVALID_ARG when session is NULL or state is
+    /// not ACTIVE.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_finalize", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status StreamFinalize(IntPtr session, IntPtr /* transcribe_stream_update */ update);
 
+    /// <summary>
+    /// <para>
+    /// Abandon the current stream without finalizing.
+    /// </para>
+    /// <para>
+    /// Always returns the session to IDLE and clears every result-visible
+    /// field, every stream-snapshot counter, last_status, and the family's
+    /// per-utterance streaming state. Allocated stream buffers held by the
+    /// family are preserved for reuse — full memory release is
+    /// transcribe_session_free.
+    /// </para>
+    /// <para>
+    /// Reset from IDLE clears any stale result/snapshot from a previous
+    /// stream or run. Reset from FINISHED or FAILED clears the surviving
+    /// result text and snapshot counters as well.
+    /// </para>
+    /// <para>
+    /// No-op if session is NULL.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_reset", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void StreamReset(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Current stream lifecycle state. Returns TRANSCRIBE_STREAM_IDLE if
+    /// session is NULL.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_get_state", StringMarshalling = StringMarshalling.Utf8)]
     public static partial StreamState StreamGetState(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Monotonic snapshot revision counter. Advances whenever any observable
+    /// property of the streaming result changes: text vectors (tokens /
+    /// words / segments / full_text), committed-prefix counts, or a
+    /// lifecycle transition that promotes the snapshot (finalize moves
+    /// tentative output to committed even when the text is unchanged).
+    /// Reset to 0 by begin / reset / run. Returns 0 if session is NULL.
+    /// </para>
+    /// <para>
+    /// Diff against the previous value when redrawing — a bump does not
+    /// by itself mean the visible text changed; it means "something about
+    /// the snapshot moved, re-read the accessors."
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_revision", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int StreamRevision(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Low-level raw row boundary hints. In older streaming APIs these were
+    /// the primary committed-prefix interface. They remain useful for callers
+    /// that inspect raw token/word/segment rows, but the strong API-stable
+    /// display contract is now transcribe_stream_get_text(). A committed text
+    /// prefix may be independent from the current raw rows after the model
+    /// revises already-committed bytes.
+    /// </para>
+    /// <para>
+    /// Return 0 if session is NULL.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_n_committed_segments", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int StreamNCommittedSegments(IntPtr session);
 
@@ -659,21 +2578,110 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_n_committed_tokens", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int StreamNCommittedTokens(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Last terminal status of the stream. Preserves the failing status
+    /// after a feed/finalize call transitioned the stream to FAILED, so
+    /// the caller can inspect it after the fact. Reset to TRANSCRIBE_OK
+    /// by begin / reset / run.
+    /// </para>
+    /// <para>
+    /// Returns TRANSCRIBE_OK if session is NULL or no terminal status has
+    /// been recorded on the current stream.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_last_status", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status StreamLastStatus(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Tokenize plain UTF-8 text into the model's vocabulary, with
+    /// add_special_tokens=False semantics (no BOS/EOS, no &lt;|...|> markers).
+    /// Special tokens present in the input are not recognized and will be
+    /// BPE-encoded piece-by-piece, which is almost never what the caller
+    /// wants — render special tokens via direct id paths and pass only the
+    /// plain-text fragments through this function.
+    /// </para>
+    /// <para>
+    /// Buffer contract (mirrors whisper.cpp's n_max convention):
+    /// </para>
+    /// <para>
+    /// >= 0             Number of tokens written to <c>tokens[0..return-1]</c>.
+    /// negative of N    Buffer too small; N tokens were needed. Caller
+    /// reallocates and retries. <c>tokens</c> content is
+    /// unspecified in this case (may be partially
+    /// written).
+    /// INT_MIN          Hard error: model or text is NULL, the model's
+    /// tokenizer does not support encode for this
+    /// vocabulary (e.g. a SentencePiece family without
+    /// encode wired), or the vocab file is malformed.
+    /// </para>
+    /// <para>
+    /// Plumbed per family:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// Whisper      (GPT-2 byte-level BPE)
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// Qwen3-ASR    (Qwen2 byte-level BPE)
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// Parakeet     (SentencePiece; currently returns INT_MIN)
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// Cohere ASR   (SentencePiece; currently returns INT_MIN)
+    /// </description>
+    /// </item>
+    /// </list>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_tokenize", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int Tokenize(IntPtr model, string text, IntPtr tokens, nuint nMax);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_timings_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void TimingsInit(IntPtr /* transcribe_timings */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Read the current timings from a session into caller-owned storage.
+    /// Safe to call before any transcribe_run; mel_ms / encode_ms /
+    /// decode_ms will be 0. load_ms is non-zero as soon as the underlying
+    /// model is loaded.
+    /// </para>
+    /// <para>
+    /// Returns:
+    /// TRANSCRIBE_ERR_INVALID_ARG     session or out_timings is NULL.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE out_timings->struct_size is 0 or
+    /// smaller than the library's minimum.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_get_timings", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status GetTimings(IntPtr session, IntPtr /* transcribe_timings */ outTimings);
 
+    /// <summary>
+    /// <para>
+    /// Pretty-print the current timings to the registered log callback at
+    /// INFO level (or stderr if no callback is installed). No-op if session
+    /// is NULL.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_print_timings", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void PrintTimings(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Reset the per-run timing accumulators (mel_ms, encode_ms,
+    /// decode_ms) to 0. Does NOT touch load_ms — that's a model-scoped
+    /// fact. No-op if session is NULL.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_reset_timings", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ResetTimings(IntPtr session);
 
@@ -692,6 +2700,45 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_n_tokens", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int NTokens(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// The language the model itself predicted on the most recent run, as a
+    /// short ISO code ("en", "zh", "yue", "ja", "ko", ...). Returns an empty
+    /// string when:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// no successful run has happened on this session yet, or
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// the caller passed an explicit <c>params->language</c> hint (the
+    /// library does not echo hints back through this field; callers
+    /// already know what they asked for), or
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// the model does not support language detection (English-only
+    /// Whispers, families without an LID head), or
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// the family's LID head produced a non-language sentinel for this
+    /// audio (e.g. SenseVoice's &lt;|nospeech|>).
+    /// </description>
+    /// </item>
+    /// </list>
+    /// <para>
+    /// Returned pointer is owned by the session. See "Result text-pointer
+    /// lifetime" at the top of this header for invalidation rules; in
+    /// streaming mode every transcribe_stream_feed / _finalize call may
+    /// invalidate it.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_detected_language", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr DetectedLanguage(IntPtr session);
 
@@ -704,6 +2751,23 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_token_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void TokenInit(IntPtr /* transcribe_token */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Read one segment / word / token row into caller-owned storage.
+    /// </para>
+    /// <para>
+    /// Returns:
+    /// TRANSCRIBE_ERR_INVALID_ARG     out is NULL.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE out->struct_size is 0 or smaller
+    /// than the library's minimum.
+    /// TRANSCRIBE_OK                  otherwise. The caller's struct is
+    /// written when session is non-NULL, the
+    /// session has a result, and i is in
+    /// range; otherwise it stays as
+    /// zero-initialized by INIT (text NULL,
+    /// scalars 0).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_get_segment", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status GetSegment(IntPtr session, int i, IntPtr /* transcribe_segment */ @out);
 
@@ -713,9 +2777,31 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_get_token", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status GetToken(IntPtr session, int i, IntPtr /* transcribe_token */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Number of per-utterance results available. 0 before any run, or if
+    /// session is NULL. 1 after a successful transcribe_run. n after a
+    /// transcribe_run_batch with n utterances that returns OK or
+    /// TRANSCRIBE_ERR_ABORTED — one slot per input utterance, including
+    /// utterances that failed individually (non-OK transcribe_batch_status,
+    /// empty rows) and, after an abort, utterances not retained as completed
+    /// results (present as TRANSCRIBE_ERR_ABORTED slots). After a whole-batch
+    /// fault other than abort (OOM, backend error) the count is unspecified;
+    /// the non-OK top-level return is the signal in that case.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_results", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int BatchNResults(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Per-utterance terminal status. TRANSCRIBE_OK when utterance i produced a
+    /// result; otherwise the status that failed that utterance (e.g.
+    /// TRANSCRIBE_ERR_INVALID_ARG for a malformed input, or a backend error).
+    /// Returns TRANSCRIBE_ERR_INVALID_ARG if session is NULL or i is out of
+    /// range.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_status", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchStatus(IntPtr session, int i);
 
@@ -737,6 +2823,13 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_tokens", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int BatchNTokens(IntPtr session, int i);
 
+    /// <summary>
+    /// <para>
+    /// Copy out row <c>j</c> of utterance <c>i</c>. The struct is initialized exactly as
+    /// for transcribe_get_segment / _word / _token (caller calls the matching
+    /// _init first); the only difference is the utterance index <c>i</c>.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_segment", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchGetSegment(IntPtr session, int i, int j, IntPtr /* transcribe_segment */ @out);
 
@@ -746,6 +2839,22 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_token", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchGetToken(IntPtr session, int i, int j, IntPtr /* transcribe_token */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Per-utterance timings for a batched run. Mirrors transcribe_get_timings but
+    /// indexed by utterance. load_ms is the model-scoped load time (same for every
+    /// utterance). mel_ms / encode_ms / decode_ms are this utterance's stage times;
+    /// for a batched encoder the encode_ms is the shared batch encode time
+    /// amortized across the batch (so the sum over utterances equals the real batch
+    /// encode time), while decode_ms is the genuine per-utterance host-decode cost.
+    /// This is what lets a caller see how run time splits between the GPU encoder
+    /// and the host decoder as batch size grows.
+    /// </para>
+    /// <para>
+    /// Returns TRANSCRIBE_ERR_INVALID_ARG on NULL args or out-of-range i,
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE on an uninitialized out struct.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_timings", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchGetTimings(IntPtr session, int i, IntPtr /* transcribe_timings */ @out);
 

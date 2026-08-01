@@ -56,16 +56,16 @@ public class CSharpGenerator
 
     // ── Public API ─────────────────────────────────────────────────
 
-    public string Generate(RustFfiParser parser)
+    public string Generate(RustFfiParser parser, CHeaderDoc? headerDoc = null)
     {
         var sb = new StringBuilder();
         WriteHeader(sb);
-        WriteEnums(sb, parser);
+        WriteEnums(sb, parser, headerDoc);
         WriteHandles(sb);
-        WriteCallbacks(sb);
-        WriteStructs(sb, parser);
+        WriteCallbacks(sb, headerDoc);
+        WriteStructs(sb, parser, headerDoc);
         WriteAbiLayout(sb, parser);
-        WriteFunctions(sb, parser);
+        WriteFunctions(sb, parser, headerDoc);
         return sb.ToString();
     }
 
@@ -88,13 +88,13 @@ public class CSharpGenerator
             """);
     }
 
-    private void WriteEnums(StringBuilder sb, RustFfiParser parser)
+    private void WriteEnums(StringBuilder sb, RustFfiParser parser, CHeaderDoc? headerDoc)
     {
         sb.AppendLine("// ════════════════════════════════════════════════════════════════");
         sb.AppendLine("// Enums");
         sb.AppendLine("// ════════════════════════════════════════════════════════════════");
         foreach (var e in parser.ParseEnums())
-            WriteEnum(sb, e);
+            WriteEnum(sb, e, headerDoc);
     }
 
     private void WriteHandles(StringBuilder sb)
@@ -106,7 +106,7 @@ public class CSharpGenerator
         WriteHandle(sb, "SessionHandle");
     }
 
-    private void WriteCallbacks(StringBuilder sb)
+    private void WriteCallbacks(StringBuilder sb, CHeaderDoc? headerDoc)
     {
         sb.AppendLine("""
             // ════════════════════════════════════════════════════════════════
@@ -121,16 +121,25 @@ public class CSharpGenerator
             // → "LogCallback"). If a new callback is added to transcribe_sys.rs,
             // add a matching delegate here with the same convention.
             // ════════════════════════════════════════════════════════════════
+
+            /// <summary>
+            /// Receives log messages from the native library. May be invoked from any
+            /// thread (including ggml worker threads); see transcribe_log_set.
+            /// </summary>
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             public delegate void LogCallback(LogLevel level, [MarshalAs(UnmanagedType.LPUTF8Str)] string msg, IntPtr userdata);
 
+            /// <summary>
+            /// Polled by the native library between chunks and decode steps; returning
+            /// true aborts the in-flight run. See transcribe_set_abort_callback.
+            /// </summary>
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             [return: MarshalAs(UnmanagedType.U1)]
             public delegate bool AbortCallback(IntPtr userdata);
             """);
     }
 
-    private void WriteStructs(StringBuilder sb, RustFfiParser parser)
+    private void WriteStructs(StringBuilder sb, RustFfiParser parser, CHeaderDoc? headerDoc)
     {
         sb.AppendLine("// ════════════════════════════════════════════════════════════════");
         sb.AppendLine("// Structs");
@@ -146,11 +155,11 @@ public class CSharpGenerator
                 Console.Error.WriteLine($"Warning: skipping empty struct '{s.Name}' (no public fields)");
                 continue;
             }
-            WriteStruct(sb, s);
+            WriteStruct(sb, s, headerDoc);
         }
     }
 
-    private void WriteFunctions(StringBuilder sb, RustFfiParser parser)
+    private void WriteFunctions(StringBuilder sb, RustFfiParser parser, CHeaderDoc? headerDoc)
     {
         sb.AppendLine("// ════════════════════════════════════════════════════════════════");
         sb.AppendLine("// Native functions");
@@ -166,7 +175,7 @@ public class CSharpGenerator
         {
             sb.AppendLine($"    // ── {group.Key} ──");
             foreach (var fn in group)
-                WriteFunction(sb, fn);
+                WriteFunction(sb, fn, headerDoc);
             sb.AppendLine();
         }
 
@@ -205,13 +214,24 @@ public class CSharpGenerator
 
     // ── Write individual elements ──────────────────────────────────
 
-    private void WriteEnum(StringBuilder sb, RustEnum e)
+    private void WriteEnum(StringBuilder sb, RustEnum e, CHeaderDoc? headerDoc)
     {
         var csName = ToPascalCase(e.TypeName);
+        var doc = headerDoc?.GetEnumDoc(e.TypeName);
+        if (!string.IsNullOrEmpty(doc))
+            WriteXmlDoc(sb, doc, "");
         sb.AppendLine($"public enum {csName}");
         sb.AppendLine("{");
         foreach (var v in e.Values)
+        {
+            var valueDoc = headerDoc?.GetEnumValueDoc(e.TypeName, v.Name);
+            if (!string.IsNullOrEmpty(valueDoc))
+            {
+                sb.AppendLine();
+                WriteXmlDoc(sb, valueDoc, "    ");
+            }
             sb.AppendLine($"    {ToPascalCase(v.Name)} = {v.Value},");
+        }
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -225,7 +245,17 @@ public class CSharpGenerator
             _ => throw new InvalidOperationException($"Unknown handle type: {csName}")
         };
 
+        var owner = csName == "ModelHandle" ? "model" : "session";
+
         sb.AppendLine($$"""
+            /// <summary>
+            /// Owns the native {{owner}} instance and releases it via
+            /// <see cref="NativeMethods.{{freeMethod}}"/> on finalization/Dispose.
+            /// Created only through <c>transcribe_{{owner}}_new</c> or
+            /// <c>transcribe_{{owner}}_init</c>; never instantiate directly.
+            /// Not thread-safe: a handle must not be shared across threads without
+            /// external synchronization.
+            /// </summary>
             public sealed class {{csName}} : SafeHandle
             {
                 public static readonly {{csName}} Null = new {{csName}}(IntPtr.Zero);
@@ -250,15 +280,25 @@ public class CSharpGenerator
         sb.AppendLine();
     }
 
-    private void WriteStruct(StringBuilder sb, RustStruct s)
+    private void WriteStruct(StringBuilder sb, RustStruct s, CHeaderDoc? headerDoc)
     {
         var csName = ToPascalCase(s.Name);
+        var doc = headerDoc?.GetStructDoc(s.Name);
+        if (!string.IsNullOrEmpty(doc))
+            WriteXmlDoc(sb, doc, "");
         sb.AppendLine("[StructLayout(LayoutKind.Sequential, Pack = 8)]");
         sb.AppendLine($"public struct {csName}");
         sb.AppendLine("{");
         foreach (var f in s.Fields)
         {
             var csField = ToCamelCase(f.Name);
+
+            var fieldDoc = headerDoc?.GetStructFieldDoc(s.Name, f.Name);
+            if (!string.IsNullOrEmpty(fieldDoc))
+            {
+                sb.AppendLine();
+                WriteXmlDoc(sb, fieldDoc, "    ");
+            }
 
             // Bool fields: MUST be 1 byte (Rust repr(C) bool = 1 byte)
             if (f.Type is BoolType)
@@ -271,7 +311,7 @@ public class CSharpGenerator
         sb.AppendLine();
     }
 
-    private void WriteFunction(StringBuilder sb, RustFunction fn)
+    private void WriteFunction(StringBuilder sb, RustFunction fn, CHeaderDoc? headerDoc)
     {
         var csName = ToPascalCase(fn.Name);
 
@@ -283,6 +323,10 @@ public class CSharpGenerator
             sb.AppendLine();
             return;
         }
+
+        var doc = headerDoc?.GetFunctionDoc(fn.Name);
+        if (!string.IsNullOrEmpty(doc))
+            WriteXmlDoc(sb, doc, "    ");
 
         // Determine return type — borrowed string pointers return IntPtr
         var isBorrowedStringReturn = fn.ReturnType is PointerType(_, PrimitiveType("c_char"));
@@ -376,6 +420,99 @@ public class CSharpGenerator
     };
 
     // ── Helpers ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Emits a doc comment from the upstream C header as XML documentation,
+    /// wrapped in &lt;summary&gt; with &lt;para&gt; paragraph breaks and
+    /// &lt;list type="bullet"&gt; for bullet blocks ("- " lines), so IDEs render
+    /// it properly (multi-paragraph C docs would otherwise collapse into one
+    /// blob). Strips /* */ markers, un-indents, and escapes XML-significant
+    /// characters.
+    /// </summary>
+    private static void WriteXmlDoc(StringBuilder sb, string doc, string indent)
+    {
+        sb.AppendLine($"{indent}/// <summary>");
+        var lines = doc.Split('\n');
+        var inParagraph = false;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var trimmed = lines[i].Trim();
+            if (trimmed.Length == 0)
+            {
+                if (inParagraph)
+                {
+                    sb.AppendLine($"{indent}/// </para>");
+                    inParagraph = false;
+                }
+                continue;
+            }
+
+            if (trimmed.StartsWith("- ", StringComparison.Ordinal))
+            {
+                // Close any open paragraph before starting list markup.
+                if (inParagraph)
+                {
+                    sb.AppendLine($"{indent}/// </para>");
+                    inParagraph = false;
+                }
+                sb.AppendLine($"{indent}/// <list type=\"bullet\">");
+
+                while (i < lines.Length)
+                {
+                    var bullet = lines[i].Trim();
+                    if (bullet.Length == 0)
+                        break;
+                    if (!bullet.StartsWith("- ", StringComparison.Ordinal))
+                        break;
+
+                    sb.AppendLine($"{indent}/// <item>");
+                    sb.AppendLine($"{indent}/// <description>");
+                    sb.AppendLine($"{indent}/// {EscapeXml(bullet[2..])}");
+                    i++;
+                    while (i < lines.Length && lines[i].Trim().Length > 0 &&
+                           !lines[i].Trim().StartsWith("- ", StringComparison.Ordinal))
+                    {
+                        sb.AppendLine($"{indent}/// {EscapeXml(lines[i].Trim())}");
+                        i++;
+                    }
+                    sb.AppendLine($"{indent}/// </description>");
+                    sb.AppendLine($"{indent}/// </item>");
+                }
+
+                sb.AppendLine($"{indent}/// </list>");
+                continue;
+            }
+
+            if (!inParagraph)
+            {
+                sb.AppendLine($"{indent}/// <para>");
+                inParagraph = true;
+            }
+            sb.AppendLine($"{indent}/// {EscapeXml(trimmed)}");
+        }
+
+        if (inParagraph)
+            sb.AppendLine($"{indent}/// </para>");
+        sb.AppendLine($"{indent}/// </summary>");
+    }
+
+    private static readonly Regex s_backtickRegex = new("`([^`]+)`", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Escapes the two XML-significant characters that are mandatory in element
+    /// text (&lt; and &amp;; a bare &gt; is valid XML text), then converts
+    /// Markdown-style backtick spans (as used by the upstream C header) into the
+    /// XML doc inline-code element &lt;c&gt;. Without this, `` `code` `` renders
+    /// as literal backticks in IDE tooltips instead of code formatting.
+    /// </summary>
+    private static string EscapeXml(string s)
+    {
+        var escaped = s
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;");
+        return s_backtickRegex.Replace(escaped, m => $"<c>{m.Groups[1].Value}</c>");
+    }
 
     private static string ClassifyFunction(string name)
     {

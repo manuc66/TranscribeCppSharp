@@ -1,12 +1,13 @@
 using TranscribeCppSharp.Generator;
 
 var ffiPath = args.Length > 0 ? args[0] : "rust/transcribe_sys.rs";
-var outputDir = args.Length > 1 ? args[1] : "generated/TranscribeCppSharp.Interop";
+var headerPath = args.Length > 1 ? args[1] : "c/transcribe.h";
+var outputDir = args.Length > 2 ? args[2] : "generated/TranscribeCppSharp.Interop";
 
 if (!File.Exists(ffiPath))
 {
     Console.Error.WriteLine($"Rust FFI file not found: {ffiPath}");
-    Console.Error.WriteLine("Usage: Generator <path/to/transcribe_sys.rs> [output-dir]");
+    Console.Error.WriteLine("Usage: Generator <path/to/transcribe_sys.rs> [path/to/transcribe.h] [output-dir]");
     return 1;
 }
 
@@ -21,8 +22,19 @@ Console.WriteLine($"  {enums.Count} enums ({enums.Sum(e => e.Values.Count)} valu
 Console.WriteLine($"  {functions.Count} functions");
 Console.WriteLine($"  {structs.Count} structs");
 
+CHeaderDoc? headerDoc = null;
+if (File.Exists(headerPath))
+{
+    headerDoc = CHeaderDoc.FromFile(headerPath);
+    Console.WriteLine($"Docs from: {headerPath}");
+}
+else
+{
+    Console.WriteLine($"Warning: C header not found at {headerPath}; generating without doc comments.");
+}
+
 var generator = new CSharpGenerator();
-var code = generator.Generate(parser);
+var code = generator.Generate(parser, headerDoc);
 
 Directory.CreateDirectory(outputDir);
 var outputPath = Path.Combine(outputDir, "NativeMethods.cs");
