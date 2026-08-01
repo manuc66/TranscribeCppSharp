@@ -9,19 +9,6 @@ using TranscribeCppSharp.Interop;
 namespace TranscribeCppSharp;
 
 /// <summary>
-/// Result of a single item in a batch transcription.
-/// </summary>
-public record BatchResult(
-    int Index,
-    string FullText,
-    string DetectedLanguage,
-    Status Status,
-    IReadOnlyList<SegmentResult> Segments,
-    IReadOnlyList<WordResult> Words,
-    IReadOnlyList<TokenResult> Tokens,
-    TimingsResult? Timing);
-
-/// <summary>
 /// Batch transcription API. Process multiple audio clips in a single call.
 /// </summary>
 public static class Batch
@@ -44,21 +31,22 @@ public static class Batch
         return RunInternal(session, pcmBuffers, configure, ct);
     }
 
-    private static IReadOnlyList<BatchResult> RunInternal(
+    private static List<BatchResult> RunInternal(
         Session session,
         float[][] pcmBuffers,
         Action<RunParamsBuilder>? configure,
         CancellationToken ct)
     {
-        if (session == null)
-            throw new ArgumentNullException(nameof(session));
-        if (pcmBuffers == null)
-            throw new ArgumentNullException(nameof(pcmBuffers));
+        ArgumentNullException.ThrowIfNull(session);
+
+        ArgumentNullException.ThrowIfNull(pcmBuffers);
 
         ct.ThrowIfCancellationRequested();
 
         if (pcmBuffers.Length == 0)
+        {
             return [];
+        }
 
         var n = pcmBuffers.Length;
         var pcmPtrs = new IntPtr[n];
@@ -98,7 +86,9 @@ public static class Batch
                 {
                     var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams.Build());
                     if (status != Status.Ok)
+                    {
                         throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
+                    }
                 }
                 catch (TranscribeException ex) when (ex.StatusCode == Status.ErrAborted)
                 {
@@ -108,8 +98,14 @@ public static class Batch
                 {
                     if (ct.CanBeCanceled)
                     {
-                        if (previousCallback != null) session.SetAbortCallback(previousCallback);
-                        else session.ClearAbortCallback();
+                        if (previousCallback != null)
+                        {
+                            session.SetAbortCallback(previousCallback);
+                        }
+                        else
+                        {
+                            session.ClearAbortCallback();
+                        }
                     }
                 }
 
@@ -151,7 +147,9 @@ public static class Batch
             for (int i = 0; i < n; i++)
             {
                 if (handles[i].IsAllocated)
+                {
                     handles[i].Free();
+                }
             }
         }
     }

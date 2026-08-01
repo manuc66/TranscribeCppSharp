@@ -23,17 +23,20 @@ internal static class AbiValidation
     /// This keeps the guard on the hot path (every builder construction) to a
     /// cheap dictionary lookup after the first call.
     /// </summary>
-    private static readonly ConcurrentDictionary<(AbiStruct Abi, Type Type), bool> s_checked = new();
+    private static readonly ConcurrentDictionary<(AbiStruct Abi, Type Type), bool> SChecked = new();
 
     /// <summary>
     /// Throw if the managed <typeparamref name="T"/> size does not match the size
     /// reported by the native library for <paramref name="abi"/>.
     /// </summary>
-    public static void ValidateSize<T>(AbiStruct abi, string typeName) where T : struct
+    public static void ValidateSize<T>(AbiStruct abi, string typeName)
+        where T : struct
     {
         var key = (abi, typeof(T));
-        if (s_checked.ContainsKey(key))
+        if (SChecked.ContainsKey(key))
+        {
             return;
+        }
 
         var nativeSize = NativeMethods.AbiStructSize(abi);
         var csSize = (nuint)Marshal.SizeOf<T>();
@@ -44,6 +47,6 @@ internal static class AbiValidation
                 "Regenerate bindings or update the struct definition.");
         }
 
-        s_checked.TryAdd(key, true);
+        SChecked.TryAdd(key, true);
     }
 }

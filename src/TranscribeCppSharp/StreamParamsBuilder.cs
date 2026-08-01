@@ -11,33 +11,34 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class StreamParamsBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private StreamParams _params;
-    private MoonshineExtBuilder? _moonshineExt;
-    private ParakeetStreamExtBuilder? _parakeetStreamExt;
-    private ParakeetBufferedStreamExtBuilder? _parakeetBufferedExt;
-    private VoxtralExtBuilder? _voxtralExt;
-    private bool _disposed;
+    private IntPtr handle;
+    private StreamParams @params;
+    private MoonshineExtBuilder? moonshineExt;
+    private ParakeetStreamExtBuilder? parakeetStreamExt;
+    private ParakeetBufferedStreamExtBuilder? parakeetBufferedExt;
+    private VoxtralExtBuilder? voxtralExt;
+    private bool disposed;
 
+    /// <inheritdoc/>
     public StreamParamsBuilder()
     {
         AbiValidation.ValidateSize<StreamParams>(AbiStruct.AbiStreamParams, nameof(StreamParams));
-        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<StreamParams>());
-        NativeMethods.StreamParamsInit(_handle);
-        _params = Marshal.PtrToStructure<StreamParams>(_handle);
+        handle = Marshal.AllocHGlobal(Marshal.SizeOf<StreamParams>());
+        NativeMethods.StreamParamsInit(handle);
+        @params = Marshal.PtrToStructure<StreamParams>(handle);
     }
 
     /// <summary>When to commit results to the output.</summary>
     public StreamParamsBuilder WithCommitPolicy(StreamCommitPolicy policy)
     {
-        _params.commitPolicy = policy;
+        @params.commitPolicy = policy;
         return this;
     }
 
     /// <summary>Number of stable prefix agreements before auto-commit.</summary>
     public StreamParamsBuilder WithStablePrefixAgreement(uint n)
     {
-        _params.stablePrefixAgreementN = n;
+        @params.stablePrefixAgreementN = n;
         return this;
     }
 
@@ -46,8 +47,8 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
-        _moonshineExt = ext;
-        _params.family = ext.Build();
+        moonshineExt = ext;
+        @params.family = ext.Build();
         return this;
     }
 
@@ -56,8 +57,8 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
-        _parakeetStreamExt = ext;
-        _params.family = ext.Build();
+        parakeetStreamExt = ext;
+        @params.family = ext.Build();
         return this;
     }
 
@@ -66,8 +67,8 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
-        _parakeetBufferedExt = ext;
-        _params.family = ext.Build();
+        parakeetBufferedExt = ext;
+        @params.family = ext.Build();
         return this;
     }
 
@@ -76,39 +77,40 @@ public sealed class StreamParamsBuilder : IDisposable
     {
         ArgumentNullException.ThrowIfNull(ext);
         ClearFamily();
-        _voxtralExt = ext;
-        _params.family = ext.Build();
+        voxtralExt = ext;
+        @params.family = ext.Build();
         return this;
     }
 
     private void ClearFamily()
     {
-        _moonshineExt?.Dispose();
-        _moonshineExt = null;
-        _parakeetStreamExt?.Dispose();
-        _parakeetStreamExt = null;
-        _parakeetBufferedExt?.Dispose();
-        _parakeetBufferedExt = null;
-        _voxtralExt?.Dispose();
-        _voxtralExt = null;
-        _params.family = IntPtr.Zero;
+        moonshineExt?.Dispose();
+        moonshineExt = null;
+        parakeetStreamExt?.Dispose();
+        parakeetStreamExt = null;
+        parakeetBufferedExt?.Dispose();
+        parakeetBufferedExt = null;
+        voxtralExt?.Dispose();
+        voxtralExt = null;
+        @params.family = IntPtr.Zero;
     }
 
     internal IntPtr Build()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(StreamParamsBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
+        ObjectDisposedException.ThrowIf(disposed, this);
+
+        Marshal.StructureToPtr(@params, handle, false);
+        return handle;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!disposed)
         {
             ClearFamily();
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
+            Marshal.FreeHGlobal(handle);
+            disposed = true;
         }
     }
 }

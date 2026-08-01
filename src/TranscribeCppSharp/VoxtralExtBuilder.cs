@@ -10,11 +10,12 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class VoxtralExtBuilder : IDisposable
 {
-    private readonly ExtBuffer<VoxtralRealtimeStreamExt> _buffer;
+    private readonly ExtBuffer<VoxtralRealtimeStreamExt> buffer;
 
+    /// <inheritdoc/>
     public VoxtralExtBuilder()
     {
-        _buffer = new ExtBuffer<VoxtralRealtimeStreamExt>(
+        buffer = new ExtBuffer<VoxtralRealtimeStreamExt>(
             NativeMethods.VoxtralRealtimeStreamExtInit,
             static p => p.ext.size,
             nameof(VoxtralExtBuilder));
@@ -23,18 +24,19 @@ public sealed class VoxtralExtBuilder : IDisposable
     /// <summary>Number of delay tokens.</summary>
     public VoxtralExtBuilder WithNumDelayTokens(int numDelayTokens)
     {
-        _buffer.Params.numDelayTokens = numDelayTokens;
+        buffer.Params.numDelayTokens = numDelayTokens;
         return this;
     }
 
     /// <summary>Minimum decode interval in milliseconds.</summary>
     public VoxtralExtBuilder WithMinDecodeIntervalMs(int ms)
     {
-        _buffer.Params.minDecodeIntervalMs = ms;
+        buffer.Params.minDecodeIntervalMs = ms;
         return this;
     }
 
-    internal IntPtr Build() => _buffer.Build();
+    internal IntPtr Build() => buffer.Build();
 
-    public void Dispose() => _buffer.Dispose();
+    /// <inheritdoc/>
+    public void Dispose() => buffer.Dispose();
 }

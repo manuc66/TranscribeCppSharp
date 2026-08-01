@@ -28,7 +28,9 @@ internal static class StackAllocHelper
     {
         ArgumentNullException.ThrowIfNull(use);
         if (size < 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(size), size, "Buffer size must be non-negative.");
+        }
 
         if (size > MaxStackSize)
         {
@@ -41,12 +43,15 @@ internal static class StackAllocHelper
             {
                 Marshal.FreeHGlobal(ptr);
             }
+
             return;
         }
 
         Span<byte> buffer = stackalloc byte[size];
         fixed (byte* pBuffer = buffer)
+        {
             use((IntPtr)pBuffer);
+        }
     }
 
     /// <summary>
@@ -58,7 +63,9 @@ internal static class StackAllocHelper
     {
         ArgumentNullException.ThrowIfNull(use);
         if (size < 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(size), size, "Buffer size must be non-negative.");
+        }
 
         if (size > MaxStackSize)
         {
@@ -75,6 +82,8 @@ internal static class StackAllocHelper
 
         Span<byte> buffer = stackalloc byte[size];
         fixed (byte* pBuffer = buffer)
+        {
             return use((IntPtr)pBuffer);
+        }
     }
 }

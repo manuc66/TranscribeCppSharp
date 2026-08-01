@@ -15,10 +15,10 @@ namespace TranscribeCppSharp;
 internal sealed class ExtBuffer<T> : IDisposable
     where T : struct
 {
-    private readonly IntPtr _handle;
-    private readonly string _typeName;
-    private T _params;
-    private bool _disposed;
+    private readonly IntPtr handle;
+    private readonly string typeName;
+    private T @params;
+    private bool disposed;
 
     /// <summary>
     /// Allocate an unmanaged buffer, ask the native library to initialize it,
@@ -28,12 +28,12 @@ internal sealed class ExtBuffer<T> : IDisposable
     public ExtBuffer(Action<IntPtr> init, Func<T, ulong> nativeSize, string typeName)
     {
         var size = Marshal.SizeOf<T>();
-        _handle = Marshal.AllocHGlobal(size);
-        init(_handle);
-        _params = Marshal.PtrToStructure<T>(_handle)!;
-        _typeName = typeName;
+        handle = Marshal.AllocHGlobal(size);
+        init(handle);
+        @params = Marshal.PtrToStructure<T>(handle)!;
+        this.typeName = typeName;
 
-        var reportedSize = nativeSize(_params);
+        var reportedSize = nativeSize(@params);
         if (reportedSize != (ulong)size)
         {
             throw new InvalidOperationException(
@@ -43,23 +43,28 @@ internal sealed class ExtBuffer<T> : IDisposable
     }
 
     /// <summary>Mutable snapshot of the native struct; mutated by the fluent builders.</summary>
-    public ref T Params => ref _params;
+    public ref T Params => ref @params;
 
     /// <summary>Write the snapshot back to unmanaged memory and return the buffer.</summary>
     public IntPtr Build()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(_typeName);
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
+#pragma warning disable CA1513 // Keep the builder-specific typeName: ObjectDisposedException.ThrowIf would report "ExtBuffer`1" instead of e.g. "WhisperExtBuilder"
+        if (disposed)
+        {
+            throw new ObjectDisposedException(typeName);
+        }
+#pragma warning restore CA1513
+
+        Marshal.StructureToPtr(@params, handle, false);
+        return handle;
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!disposed)
         {
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
+            Marshal.FreeHGlobal(handle);
+            disposed = true;
         }
     }
 }

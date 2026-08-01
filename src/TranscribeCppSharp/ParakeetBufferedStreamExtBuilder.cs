@@ -10,11 +10,12 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
 {
-    private readonly ExtBuffer<ParakeetBufferedStreamExt> _buffer;
+    private readonly ExtBuffer<ParakeetBufferedStreamExt> buffer;
 
+    /// <inheritdoc/>
     public ParakeetBufferedStreamExtBuilder()
     {
-        _buffer = new ExtBuffer<ParakeetBufferedStreamExt>(
+        buffer = new ExtBuffer<ParakeetBufferedStreamExt>(
             NativeMethods.ParakeetBufferedStreamExtInit,
             static p => p.ext.size,
             nameof(ParakeetBufferedStreamExtBuilder));
@@ -23,25 +24,26 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
     /// <summary>Left context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithLeftMs(int leftMs)
     {
-        _buffer.Params.leftMs = leftMs;
+        buffer.Params.leftMs = leftMs;
         return this;
     }
 
     /// <summary>Chunk size in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithChunkMs(int chunkMs)
     {
-        _buffer.Params.chunkMs = chunkMs;
+        buffer.Params.chunkMs = chunkMs;
         return this;
     }
 
     /// <summary>Right context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithRightMs(int rightMs)
     {
-        _buffer.Params.rightMs = rightMs;
+        buffer.Params.rightMs = rightMs;
         return this;
     }
 
-    internal IntPtr Build() => _buffer.Build();
+    internal IntPtr Build() => buffer.Build();
 
-    public void Dispose() => _buffer.Dispose();
+    /// <inheritdoc/>
+    public void Dispose() => buffer.Dispose();
 }

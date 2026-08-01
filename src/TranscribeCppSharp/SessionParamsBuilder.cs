@@ -11,53 +11,55 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class SessionParamsBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private SessionParams _params;
-    private bool _disposed;
+    private IntPtr handle;
+    private SessionParams @params;
+    private bool disposed;
 
+    /// <inheritdoc/>
     public SessionParamsBuilder()
     {
         AbiValidation.ValidateSize<SessionParams>(AbiStruct.AbiSessionParams, nameof(SessionParams));
-        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<SessionParams>());
-        NativeMethods.SessionParamsInit(_handle);
-        _params = Marshal.PtrToStructure<SessionParams>(_handle);
+        handle = Marshal.AllocHGlobal(Marshal.SizeOf<SessionParams>());
+        NativeMethods.SessionParamsInit(handle);
+        @params = Marshal.PtrToStructure<SessionParams>(handle);
     }
 
     /// <summary>Number of CPU threads. 0 = library default.</summary>
     public SessionParamsBuilder WithThreads(int nThreads)
     {
-        _params.nThreads = nThreads;
+        @params.nThreads = nThreads;
         return this;
     }
 
     /// <summary>KV cache data type for flash attention.</summary>
     public SessionParamsBuilder WithKvType(KvType kvType)
     {
-        _params.kvType = kvType;
+        @params.kvType = kvType;
         return this;
     }
 
     /// <summary>Decoder context window cap (tokens). 0 = model max.</summary>
     public SessionParamsBuilder WithContextSize(int nCtx)
     {
-        _params.nCtx = nCtx;
+        @params.nCtx = nCtx;
         return this;
     }
 
     internal IntPtr Build()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(SessionParamsBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
+        ObjectDisposedException.ThrowIf(disposed, this);
+
+        Marshal.StructureToPtr(@params, handle, false);
+        return handle;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!disposed)
         {
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
+            Marshal.FreeHGlobal(handle);
+            disposed = true;
         }
     }
 }

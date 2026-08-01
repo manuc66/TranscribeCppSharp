@@ -1,21 +1,8 @@
 #nullable enable
 
-using System;
 using System.Collections.Generic;
 
 namespace TranscribeCppSharp;
-
-/// <summary>A transcribed text segment with timestamps.</summary>
-public record SegmentResult(TimeSpan Start, TimeSpan End, string Text);
-
-/// <summary>A transcribed word with timestamps.</summary>
-public record WordResult(TimeSpan Start, TimeSpan End, string Text);
-
-/// <summary>A transcription token with timing and probability.</summary>
-public record TokenResult(int Id, float Probability, TimeSpan Start, TimeSpan End, string Text);
-
-/// <summary>Performance timings for a transcription run.</summary>
-public record TimingsResult(float LoadMs, float MelMs, float EncodeMs, float DecodeMs);
 
 /// <summary>
 /// Complete transcription result.
@@ -23,12 +10,27 @@ public record TimingsResult(float LoadMs, float MelMs, float EncodeMs, float Dec
 /// </summary>
 public sealed class Transcript
 {
-    public string FullText { get; init; } = "";
-    public string DetectedLanguage { get; init; } = "";
+    /// <summary>Complete transcribed text of the run. Corresponds to native transcribe_full_text(session).</summary>
+    public string FullText { get; init; } = string.Empty;
+
+    /// <summary>Detected language code (e.g. "en"). Corresponds to native transcribe_detected_language(session).</summary>
+    public string DetectedLanguage { get; init; } = string.Empty;
+
+    /// <summary>True when the run was cancelled mid-flight. Corresponds to native transcribe_was_aborted(session).</summary>
     public bool WasAborted { get; init; }
+
+    /// <summary>True when the run was cut short by its token limit. Corresponds to native transcribe_was_truncated(session).</summary>
     public bool WasTruncated { get; init; }
+
+    /// <summary>Segments, read via native transcribe_n_segments / transcribe_get_segment.</summary>
     public IReadOnlyList<SegmentResult> Segments { get; init; } = [];
+
+    /// <summary>Words, read via native transcribe_n_words / transcribe_get_word.</summary>
     public IReadOnlyList<WordResult> Words { get; init; } = [];
+
+    /// <summary>Tokens, read via native transcribe_n_tokens / transcribe_get_token.</summary>
     public IReadOnlyList<TokenResult> Tokens { get; init; } = [];
+
+    /// <summary>Timings of the run, via native transcribe_get_timings. Null when the run produced no timings.</summary>
     public TimingsResult? Timing { get; init; }
 }

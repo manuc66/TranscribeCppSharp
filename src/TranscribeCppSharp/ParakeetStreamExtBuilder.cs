@@ -10,11 +10,12 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class ParakeetStreamExtBuilder : IDisposable
 {
-    private readonly ExtBuffer<ParakeetStreamExt> _buffer;
+    private readonly ExtBuffer<ParakeetStreamExt> buffer;
 
+    /// <inheritdoc/>
     public ParakeetStreamExtBuilder()
     {
-        _buffer = new ExtBuffer<ParakeetStreamExt>(
+        buffer = new ExtBuffer<ParakeetStreamExt>(
             NativeMethods.ParakeetStreamExtInit,
             static p => p.ext.size,
             nameof(ParakeetStreamExtBuilder));
@@ -23,11 +24,12 @@ public sealed class ParakeetStreamExtBuilder : IDisposable
     /// <summary>Attention context right size.</summary>
     public ParakeetStreamExtBuilder WithAttContextRight(int contextRight)
     {
-        _buffer.Params.attContextRight = contextRight;
+        buffer.Params.attContextRight = contextRight;
         return this;
     }
 
-    internal IntPtr Build() => _buffer.Build();
+    internal IntPtr Build() => buffer.Build();
 
-    public void Dispose() => _buffer.Dispose();
+    /// <inheritdoc/>
+    public void Dispose() => buffer.Dispose();
 }

@@ -11,8 +11,9 @@ public enum TranscriptionTask
 {
     /// <summary>Transcribe audio in the source language.</summary>
     Transcribe = 0,
+
     /// <summary>Translate audio to English.</summary>
-    Translate = 1
+    Translate = 1,
 }
 
 /// <summary>
@@ -20,29 +21,30 @@ public enum TranscriptionTask
 /// </summary>
 public sealed class RunParamsBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private RunParams _params;
-    private IntPtr _languagePtr;
-    private IntPtr _targetLanguagePtr;
-    private WhisperExtBuilder? _whisperExt;
-    private bool _disposed;
+    private IntPtr handle;
+    private RunParams @params;
+    private IntPtr languagePtr;
+    private IntPtr targetLanguagePtr;
+    private WhisperExtBuilder? whisperExt;
+    private bool disposed;
 
+    /// <inheritdoc/>
     public RunParamsBuilder()
     {
         AbiValidation.ValidateSize<RunParams>(AbiStruct.AbiRunParams, nameof(RunParams));
-        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<RunParams>());
-        NativeMethods.RunParamsInit(_handle);
-        _params = Marshal.PtrToStructure<RunParams>(_handle);
+        handle = Marshal.AllocHGlobal(Marshal.SizeOf<RunParams>());
+        NativeMethods.RunParamsInit(handle);
+        @params = Marshal.PtrToStructure<RunParams>(handle);
     }
 
     /// <summary>Task: transcribe or translate to English.</summary>
     public RunParamsBuilder WithTask(TranscriptionTask task)
     {
-        _params.task = task switch
+        @params.task = task switch
         {
             TranscriptionTask.Transcribe => Interop.Task.TaskTranscribe,
             TranscriptionTask.Translate => Interop.Task.TaskTranslate,
-            _ => throw new ArgumentOutOfRangeException(nameof(task))
+            _ => throw new ArgumentOutOfRangeException(nameof(task)),
         };
         return this;
     }
@@ -50,53 +52,53 @@ public sealed class RunParamsBuilder : IDisposable
     /// <summary>Timestamp granularity.</summary>
     public RunParamsBuilder WithTimestamps(TimestampKind timestamps)
     {
-        _params.timestamps = timestamps;
+        @params.timestamps = timestamps;
         return this;
     }
 
     /// <summary>Punctuation and capitalization mode.</summary>
     public RunParamsBuilder WithPnc(PncMode pnc)
     {
-        _params.pnc = pnc;
+        @params.pnc = pnc;
         return this;
     }
 
     /// <summary>Inverse text normalization mode.</summary>
     public RunParamsBuilder WithItn(ItnMode itn)
     {
-        _params.itn = itn;
+        @params.itn = itn;
         return this;
     }
 
     /// <summary>Source language of the audio (e.g. "fr", "en", "auto").</summary>
     public RunParamsBuilder WithLanguage(string language)
     {
-        FreePtr(ref _languagePtr);
-        _languagePtr = Marshal.StringToCoTaskMemUTF8(language);
-        _params.language = _languagePtr;
+        FreePtr(ref languagePtr);
+        languagePtr = Marshal.StringToCoTaskMemUTF8(language);
+        @params.language = languagePtr;
         return this;
     }
 
     /// <summary>Target language for translation.</summary>
     public RunParamsBuilder WithTargetLanguage(string language)
     {
-        FreePtr(ref _targetLanguagePtr);
-        _targetLanguagePtr = Marshal.StringToCoTaskMemUTF8(language);
-        _params.targetLanguage = _targetLanguagePtr;
+        FreePtr(ref targetLanguagePtr);
+        targetLanguagePtr = Marshal.StringToCoTaskMemUTF8(language);
+        @params.targetLanguage = targetLanguagePtr;
         return this;
     }
 
     /// <summary>Whether to keep special tags (e.g. &lt;|notimestamps|&gt;) in the output.</summary>
     public RunParamsBuilder WithKeepSpecialTags(bool keep)
     {
-        _params.keepSpecialTags = keep;
+        @params.keepSpecialTags = keep;
         return this;
     }
 
     /// <summary>Number of speculative decoding drafts (0 to disable).</summary>
     public RunParamsBuilder WithSpecKDrafts(int drafts)
     {
-        _params.specKDrafts = drafts;
+        @params.specKDrafts = drafts;
         return this;
     }
 
@@ -109,30 +111,31 @@ public sealed class RunParamsBuilder : IDisposable
     public RunParamsBuilder WithWhisperExt(WhisperExtBuilder ext)
     {
         ArgumentNullException.ThrowIfNull(ext);
-        _whisperExt?.Dispose();
-        _whisperExt = ext;
-        _params.family = ext.Build();
+        whisperExt?.Dispose();
+        whisperExt = ext;
+        @params.family = ext.Build();
         return this;
     }
 
     internal IntPtr Build()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(RunParamsBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
+        ObjectDisposedException.ThrowIf(disposed, this);
+
+        Marshal.StructureToPtr(@params, handle, false);
+        return handle;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!disposed)
         {
-            FreePtr(ref _languagePtr);
-            FreePtr(ref _targetLanguagePtr);
-            _whisperExt?.Dispose();
-            _whisperExt = null;
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
+            FreePtr(ref languagePtr);
+            FreePtr(ref targetLanguagePtr);
+            whisperExt?.Dispose();
+            whisperExt = null;
+            Marshal.FreeHGlobal(handle);
+            disposed = true;
         }
     }
 

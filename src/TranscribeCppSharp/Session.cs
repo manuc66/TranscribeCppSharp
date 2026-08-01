@@ -18,13 +18,13 @@ namespace TranscribeCppSharp;
 /// </remarks>
 public sealed class Session : IDisposable
 {
-    private SessionHandle _handle;
-    private readonly Model _model;
+    private readonly Model model;
+    private SessionHandle handle;
 
     private Session(SessionHandle handle, Model model)
     {
-        _handle = handle;
-        _model = model;
+        this.handle = handle;
+        this.model = model;
     }
 
     internal static Session Create(ModelHandle modelHandle, Model model, Action<SessionParamsBuilder>? configure = null)
@@ -37,7 +37,9 @@ public sealed class Session : IDisposable
         {
             var status = NativeMethods.SessionInit(modelHandle, sessionParams.Build(), outSession);
             if (status != Status.Ok)
+            {
                 throw new TranscribeException(status, nameof(NativeMethods.SessionInit));
+            }
 
             var handle = new SessionHandle(Marshal.ReadIntPtr(outSession));
             return new Session(handle, model);
@@ -50,17 +52,16 @@ public sealed class Session : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(Session));
+        ObjectDisposedException.ThrowIf(disposed, this);
     }
 
-    private bool _disposed;
+    private bool disposed;
 
     /// <summary>Create a streaming session bound to this session handle.</summary>
     public StreamSession CreateStream()
     {
         ThrowIfDisposed();
-        return new StreamSession(_handle);
+        return new StreamSession(handle);
     }
 
     /// <summary>
@@ -75,7 +76,7 @@ public sealed class Session : IDisposable
 
         if (ct.CanBeCanceled)
         {
-            var previousCallback = _abortCallback;
+            var previousCallback = abortCallback;
             SetAbortCallback(() => ct.IsCancellationRequested);
             try
             {
@@ -87,14 +88,21 @@ public sealed class Session : IDisposable
             }
             finally
             {
-                if (previousCallback != null) SetAbortCallback(previousCallback);
-                else ClearAbortCallback();
+                if (previousCallback != null)
+                {
+                    SetAbortCallback(previousCallback);
+                }
+                else
+                {
+                    ClearAbortCallback();
+                }
             }
         }
         else
         {
             RunNative(pcm, configure);
         }
+
         return ReadResults();
     }
 
@@ -104,8 +112,8 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            var ptr = NativeMethods.FullText(_handle);
-            var result = ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            var ptr = NativeMethods.FullText(handle);
+            var result = ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
             GC.KeepAlive(this);
             return result;
         }
@@ -117,7 +125,7 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            var count = NativeMethods.NSegments(_handle);
+            var count = NativeMethods.NSegments(handle);
             GC.KeepAlive(this);
             return count;
         }
@@ -129,7 +137,7 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            var count = NativeMethods.NWords(_handle);
+            var count = NativeMethods.NWords(handle);
             GC.KeepAlive(this);
             return count;
         }
@@ -141,7 +149,7 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            var count = NativeMethods.NTokens(_handle);
+            var count = NativeMethods.NTokens(handle);
             GC.KeepAlive(this);
             return count;
         }
@@ -153,7 +161,7 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            var result = NativeMethods.WasAborted(_handle);
+            var result = NativeMethods.WasAborted(handle);
             GC.KeepAlive(this);
             return result;
         }
@@ -165,7 +173,7 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            var result = NativeMethods.WasTruncated(_handle);
+            var result = NativeMethods.WasTruncated(handle);
             GC.KeepAlive(this);
             return result;
         }
@@ -177,7 +185,7 @@ public sealed class Session : IDisposable
         get
         {
             ThrowIfDisposed();
-            var result = NativeMethods.ReturnedTimestampKind(_handle);
+            var result = NativeMethods.ReturnedTimestampKind(handle);
             GC.KeepAlive(this);
             return result;
         }
@@ -195,9 +203,11 @@ public sealed class Session : IDisposable
         try
         {
             NativeMethods.SessionLimitsInit(ptr);
-            var status = NativeMethods.SessionGetLimits(_handle, ptr);
+            var status = NativeMethods.SessionGetLimits(handle, ptr);
             if (status != Status.Ok)
+            {
                 throw new TranscribeException(status, nameof(NativeMethods.SessionGetLimits));
+            }
 
             var limits = Marshal.PtrToStructure<Interop.SessionLimits>(ptr);
             return new SessionLimitsInfo(
@@ -215,7 +225,7 @@ public sealed class Session : IDisposable
     public void ResetTimings()
     {
         ThrowIfDisposed();
-        NativeMethods.ResetTimings(_handle);
+        NativeMethods.ResetTimings(handle);
     }
 
     /// <summary>Read segments from the last run result.</summary>
@@ -223,15 +233,15 @@ public sealed class Session : IDisposable
     {
         ThrowIfDisposed();
         return ReadItems<Interop.Segment, SegmentResult>(
-            count: NativeMethods.NSegments(_handle),
+            count: NativeMethods.NSegments(handle),
             abi: AbiStruct.AbiSegment,
             init: NativeMethods.SegmentInit,
-            get: (i, ptr) => NativeMethods.GetSegment(_handle, i, ptr),
+            get: (i, ptr) => NativeMethods.GetSegment(handle, i, ptr),
             getMethodName: nameof(NativeMethods.GetSegment),
             map: static seg => new SegmentResult(
                 Start: TimeSpan.FromMilliseconds(seg.t0Ms),
                 End: TimeSpan.FromMilliseconds(seg.t1Ms),
-                Text: Marshal.PtrToStringUTF8(seg.text) ?? ""));
+                Text: Marshal.PtrToStringUTF8(seg.text) ?? string.Empty));
     }
 
     /// <summary>Read words from the last run result.</summary>
@@ -239,15 +249,15 @@ public sealed class Session : IDisposable
     {
         ThrowIfDisposed();
         return ReadItems<Interop.Word, WordResult>(
-            count: NativeMethods.NWords(_handle),
+            count: NativeMethods.NWords(handle),
             abi: AbiStruct.AbiWord,
             init: NativeMethods.WordInit,
-            get: (i, ptr) => NativeMethods.GetWord(_handle, i, ptr),
+            get: (i, ptr) => NativeMethods.GetWord(handle, i, ptr),
             getMethodName: nameof(NativeMethods.GetWord),
             map: static w => new WordResult(
                 Start: TimeSpan.FromMilliseconds(w.t0Ms),
                 End: TimeSpan.FromMilliseconds(w.t1Ms),
-                Text: Marshal.PtrToStringUTF8(w.text) ?? ""));
+                Text: Marshal.PtrToStringUTF8(w.text) ?? string.Empty));
     }
 
     /// <summary>Read tokens from the last run result.</summary>
@@ -255,24 +265,24 @@ public sealed class Session : IDisposable
     {
         ThrowIfDisposed();
         return ReadItems<Interop.Token, TokenResult>(
-            count: NativeMethods.NTokens(_handle),
+            count: NativeMethods.NTokens(handle),
             abi: AbiStruct.AbiToken,
             init: NativeMethods.TokenInit,
-            get: (i, ptr) => NativeMethods.GetToken(_handle, i, ptr),
+            get: (i, ptr) => NativeMethods.GetToken(handle, i, ptr),
             getMethodName: nameof(NativeMethods.GetToken),
             map: static t => new TokenResult(
                 Id: t.id,
                 Probability: t.p,
                 Start: TimeSpan.FromMilliseconds(t.t0Ms),
                 End: TimeSpan.FromMilliseconds(t.t1Ms),
-                Text: Marshal.PtrToStringUTF8(t.text) ?? ""));
+                Text: Marshal.PtrToStringUTF8(t.text) ?? string.Empty));
     }
 
     /// <summary>Print timing information to the log.</summary>
     public void PrintTimings()
     {
         ThrowIfDisposed();
-        NativeMethods.PrintTimings(_handle);
+        NativeMethods.PrintTimings(handle);
     }
 
     /// <summary>
@@ -282,9 +292,9 @@ public sealed class Session : IDisposable
     public void SetAbortCallback(Func<bool> abortCallback)
     {
         ThrowIfDisposed();
-        _abortCallback = abortCallback ?? throw new ArgumentNullException(nameof(abortCallback));
-        _interopAbortCallback = _ => _abortCallback();
-        NativeMethods.SetAbortCallback(_handle, _interopAbortCallback, IntPtr.Zero);
+        this.abortCallback = abortCallback ?? throw new ArgumentNullException(nameof(abortCallback));
+        interopAbortCallback = _ => this.abortCallback();
+        NativeMethods.SetAbortCallback(handle, interopAbortCallback, IntPtr.Zero);
     }
 
     /// <summary>
@@ -293,11 +303,12 @@ public sealed class Session : IDisposable
     public void ClearAbortCallback()
     {
         ThrowIfDisposed();
+
         // Set a no-op callback to disable abort checks while keeping
         // the delegate rooted to prevent GC.
-        _abortCallback = null;
-        _interopAbortCallback = _ => false;
-        NativeMethods.SetAbortCallback(_handle, _interopAbortCallback, IntPtr.Zero);
+        abortCallback = null;
+        interopAbortCallback = _ => false;
+        NativeMethods.SetAbortCallback(handle, interopAbortCallback, IntPtr.Zero);
     }
 
     /// <summary>
@@ -305,12 +316,11 @@ public sealed class Session : IDisposable
     /// </summary>
     internal Func<bool>? GetAbortCallback()
     {
-        return _abortCallback;
+        return abortCallback;
     }
 
-
-    private Func<bool>? _abortCallback;
-    private Interop.AbortCallback? _interopAbortCallback;
+    private Func<bool>? abortCallback;
+    private Interop.AbortCallback? interopAbortCallback;
 
     /// <summary>
     /// Internal method for batch transcription with proper thread-safety.
@@ -318,7 +328,7 @@ public sealed class Session : IDisposable
     internal unsafe Status RunBatchInternal(IntPtr pcmPtrArray, IntPtr sampleCountArray, int n, IntPtr runParams)
     {
         ThrowIfDisposed();
-        return NativeMethods.RunBatch(_handle, pcmPtrArray, sampleCountArray, n, runParams);
+        return NativeMethods.RunBatch(handle, pcmPtrArray, sampleCountArray, n, runParams);
     }
 
     /// <summary>
@@ -327,7 +337,7 @@ public sealed class Session : IDisposable
     internal int GetBatchResultCount()
     {
         ThrowIfDisposed();
-        return NativeMethods.BatchNResults(_handle);
+        return NativeMethods.BatchNResults(handle);
     }
 
     /// <summary>
@@ -336,7 +346,7 @@ public sealed class Session : IDisposable
     internal Status GetBatchResultStatus(int index)
     {
         ThrowIfDisposed();
-        return NativeMethods.BatchStatus(_handle, index);
+        return NativeMethods.BatchStatus(handle, index);
     }
 
     /// <summary>
@@ -345,8 +355,8 @@ public sealed class Session : IDisposable
     internal string GetBatchResultFullText(int index)
     {
         ThrowIfDisposed();
-        var ptr = NativeMethods.BatchFullText(_handle, index);
-        return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        var ptr = NativeMethods.BatchFullText(handle, index);
+        return ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
     }
 
     /// <summary>
@@ -355,58 +365,58 @@ public sealed class Session : IDisposable
     internal string GetBatchResultDetectedLanguage(int index)
     {
         ThrowIfDisposed();
-        var ptr = NativeMethods.BatchDetectedLanguage(_handle, index);
-        return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        var ptr = NativeMethods.BatchDetectedLanguage(handle, index);
+        return ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
     }
 
     internal IReadOnlyList<SegmentResult> GetBatchSegments(int batchIndex)
     {
         ThrowIfDisposed();
         return ReadItems<Interop.Segment, SegmentResult>(
-            count: NativeMethods.BatchNSegments(_handle, batchIndex),
+            count: NativeMethods.BatchNSegments(handle, batchIndex),
             abi: AbiStruct.AbiSegment,
             init: NativeMethods.SegmentInit,
-            get: (j, ptr) => NativeMethods.BatchGetSegment(_handle, batchIndex, j, ptr),
+            get: (j, ptr) => NativeMethods.BatchGetSegment(handle, batchIndex, j, ptr),
             getMethodName: nameof(NativeMethods.BatchGetSegment),
             map: static seg => new SegmentResult(
                 Start: TimeSpan.FromMilliseconds(seg.t0Ms),
                 End: TimeSpan.FromMilliseconds(seg.t1Ms),
-                Text: Marshal.PtrToStringUTF8(seg.text) ?? ""));
+                Text: Marshal.PtrToStringUTF8(seg.text) ?? string.Empty));
     }
 
     internal IReadOnlyList<WordResult> GetBatchWords(int batchIndex)
     {
         ThrowIfDisposed();
         return ReadItems<Interop.Word, WordResult>(
-            count: NativeMethods.BatchNWords(_handle, batchIndex),
+            count: NativeMethods.BatchNWords(handle, batchIndex),
             abi: AbiStruct.AbiWord,
             init: NativeMethods.WordInit,
-            get: (j, ptr) => NativeMethods.BatchGetWord(_handle, batchIndex, j, ptr),
+            get: (j, ptr) => NativeMethods.BatchGetWord(handle, batchIndex, j, ptr),
             getMethodName: nameof(NativeMethods.BatchGetWord),
             map: static w => new WordResult(
                 Start: TimeSpan.FromMilliseconds(w.t0Ms),
                 End: TimeSpan.FromMilliseconds(w.t1Ms),
-                Text: Marshal.PtrToStringUTF8(w.text) ?? ""));
+                Text: Marshal.PtrToStringUTF8(w.text) ?? string.Empty));
     }
 
     internal IReadOnlyList<TokenResult> GetBatchTokens(int batchIndex)
     {
         ThrowIfDisposed();
         return ReadItems<Interop.Token, TokenResult>(
-            count: NativeMethods.BatchNTokens(_handle, batchIndex),
+            count: NativeMethods.BatchNTokens(handle, batchIndex),
             abi: AbiStruct.AbiToken,
             init: NativeMethods.TokenInit,
-            get: (j, ptr) => NativeMethods.BatchGetToken(_handle, batchIndex, j, ptr),
+            get: (j, ptr) => NativeMethods.BatchGetToken(handle, batchIndex, j, ptr),
             getMethodName: nameof(NativeMethods.BatchGetToken),
             map: static t => new TokenResult(
                 Id: t.id,
                 Probability: t.p,
                 Start: TimeSpan.FromMilliseconds(t.t0Ms),
                 End: TimeSpan.FromMilliseconds(t.t1Ms),
-                Text: Marshal.PtrToStringUTF8(t.text) ?? ""));
+                Text: Marshal.PtrToStringUTF8(t.text) ?? string.Empty));
     }
 
-    internal SessionHandle Handle => _handle;
+    internal SessionHandle Handle => handle;
 
     internal TimingsResult? GetBatchTimings(int batchIndex)
     {
@@ -416,7 +426,7 @@ public sealed class Session : IDisposable
         StackAllocHelper.RunWithBuffer(timingsSize, timingsPtr =>
         {
             NativeMethods.TimingsInit(timingsPtr);
-            if (NativeMethods.BatchGetTimings(_handle, batchIndex, timingsPtr) == Status.Ok)
+            if (NativeMethods.BatchGetTimings(handle, batchIndex, timingsPtr) == Status.Ok)
             {
                 var t = Marshal.PtrToStructure<Interop.Timings>(timingsPtr);
                 result = new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
@@ -434,21 +444,23 @@ public sealed class Session : IDisposable
 
         fixed (float* pPcm = pcm)
         {
-            var status = NativeMethods.Run(_handle, (IntPtr)pPcm, pcm.Length, runParams.Build());
+            var status = NativeMethods.Run(handle, (IntPtr)pPcm, pcm.Length, runParams.Build());
             if (status != Status.Ok)
+            {
                 throw new TranscribeException(status, nameof(Run));
+            }
         }
     }
 
     private Transcript ReadResults()
     {
         var timings = ReadTimings();
-        var langPtr = NativeMethods.DetectedLanguage(_handle);
-        var lang = langPtr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(langPtr) ?? "";
+        var langPtr = NativeMethods.DetectedLanguage(handle);
+        var lang = langPtr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(langPtr) ?? string.Empty;
 
         var segments = ReadSegments();
         var words = WordCount > 0 ? ReadWords() : Array.Empty<WordResult>();
-        var tokens = NativeMethods.NTokens(_handle) > 0 ? ReadTokens() : Array.Empty<TokenResult>();
+        var tokens = NativeMethods.NTokens(handle) > 0 ? ReadTokens() : Array.Empty<TokenResult>();
 
         return new Transcript
         {
@@ -470,7 +482,7 @@ public sealed class Session : IDisposable
         StackAllocHelper.RunWithBuffer(timingsSize, timingsPtr =>
         {
             NativeMethods.TimingsInit(timingsPtr);
-            if (NativeMethods.GetTimings(_handle, timingsPtr) == Status.Ok)
+            if (NativeMethods.GetTimings(handle, timingsPtr) == Status.Ok)
             {
                 var t = Marshal.PtrToStructure<Interop.Timings>(timingsPtr);
                 result = new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
@@ -495,7 +507,10 @@ public sealed class Session : IDisposable
         where TNative : struct
     {
         var results = new List<TResult>(count);
-        if (count == 0) return results;
+        if (count == 0)
+        {
+            return results;
+        }
 
         var size = (int)NativeMethods.AbiStructSize(abi);
         StackAllocHelper.RunWithBuffer(size, ptr =>
@@ -505,7 +520,9 @@ public sealed class Session : IDisposable
                 init(ptr);
                 var status = get(i, ptr);
                 if (status != Status.Ok)
+                {
                     throw new TranscribeException(status, getMethodName);
+                }
 
                 results.Add(map(Marshal.PtrToStructure<TNative>(ptr)!));
             }
@@ -513,12 +530,13 @@ public sealed class Session : IDisposable
         return results;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!disposed)
         {
-            _handle.Dispose();
-            _disposed = true;
+            handle.Dispose();
+            disposed = true;
         }
     }
 }

@@ -10,11 +10,12 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class MoonshineExtBuilder : IDisposable
 {
-    private readonly ExtBuffer<MoonshineStreamingStreamExt> _buffer;
+    private readonly ExtBuffer<MoonshineStreamingStreamExt> buffer;
 
+    /// <inheritdoc/>
     public MoonshineExtBuilder()
     {
-        _buffer = new ExtBuffer<MoonshineStreamingStreamExt>(
+        buffer = new ExtBuffer<MoonshineStreamingStreamExt>(
             NativeMethods.MoonshineStreamingStreamExtInit,
             static p => p.ext.size,
             nameof(MoonshineExtBuilder));
@@ -23,11 +24,12 @@ public sealed class MoonshineExtBuilder : IDisposable
     /// <summary>Minimum decode interval in milliseconds.</summary>
     public MoonshineExtBuilder WithMinDecodeIntervalMs(int ms)
     {
-        _buffer.Params.minDecodeIntervalMs = ms;
+        buffer.Params.minDecodeIntervalMs = ms;
         return this;
     }
 
-    internal IntPtr Build() => _buffer.Build();
+    internal IntPtr Build() => buffer.Build();
 
-    public void Dispose() => _buffer.Dispose();
+    /// <inheritdoc/>
+    public void Dispose() => buffer.Dispose();
 }

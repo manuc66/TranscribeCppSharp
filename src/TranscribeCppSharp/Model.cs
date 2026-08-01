@@ -12,18 +12,17 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class Model : IDisposable
 {
-    private ModelHandle _handle;
-    private bool _disposed;
+    private ModelHandle handle;
+    private bool disposed;
 
-    private Model(ModelHandle handle) => _handle = handle;
+    private Model(ModelHandle handle) => this.handle = handle;
 
     /// <summary>
     /// Load a model from a GGUF file.
     /// </summary>
     public static Model Load(string modelPath, Action<ModelLoadParamsBuilder>? configure = null)
     {
-        if (modelPath == null)
-            throw new ArgumentNullException(nameof(modelPath));
+        ArgumentNullException.ThrowIfNull(modelPath);
 
         using var buildParams = new ModelLoadParamsBuilder();
         configure?.Invoke(buildParams);
@@ -33,7 +32,9 @@ public sealed class Model : IDisposable
         {
             var status = NativeMethods.ModelLoadFile(modelPath, buildParams.Build(), outModel);
             if (status != Status.Ok)
+            {
                 throw new TranscribeException(status, nameof(NativeMethods.ModelLoadFile));
+            }
 
             var handle = new ModelHandle(Marshal.ReadIntPtr(outModel));
             return new Model(handle);
@@ -46,15 +47,14 @@ public sealed class Model : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(Model));
+        ObjectDisposedException.ThrowIf(disposed, this);
     }
 
     /// <summary>Create a new transcription session from this model.</summary>
     public Session CreateSession(Action<SessionParamsBuilder>? configure = null)
     {
         ThrowIfDisposed();
-        return Session.Create(_handle, this, configure);
+        return Session.Create(handle, this, configure);
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public sealed class Model : IDisposable
     public string? GetMetaValue(string key)
     {
         ThrowIfDisposed();
-        var ptr = NativeMethods.ModelMetaValStr(_handle, key);
+        var ptr = NativeMethods.ModelMetaValStr(handle, key);
         return ptr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(ptr);
     }
 
@@ -78,8 +78,8 @@ public sealed class Model : IDisposable
         get
         {
             ThrowIfDisposed();
-            var ptr = NativeMethods.ModelArchString(_handle);
-            var result = ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            var ptr = NativeMethods.ModelArchString(handle);
+            var result = ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
             GC.KeepAlive(this);
             return result;
         }
@@ -94,8 +94,8 @@ public sealed class Model : IDisposable
         get
         {
             ThrowIfDisposed();
-            var ptr = NativeMethods.ModelVariantString(_handle);
-            var result = ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            var ptr = NativeMethods.ModelVariantString(handle);
+            var result = ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
             GC.KeepAlive(this);
             return result;
         }
@@ -110,8 +110,8 @@ public sealed class Model : IDisposable
         get
         {
             ThrowIfDisposed();
-            var ptr = NativeMethods.ModelBackend(_handle);
-            var result = ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            var ptr = NativeMethods.ModelBackend(handle);
+            var result = ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
             GC.KeepAlive(this);
             return result;
         }
@@ -138,9 +138,11 @@ public sealed class Model : IDisposable
         try
         {
             NativeMethods.CapabilitiesInit(ptr);
-            var status = NativeMethods.ModelGetCapabilities(_handle, ptr);
+            var status = NativeMethods.ModelGetCapabilities(handle, ptr);
             if (status != Status.Ok)
+            {
                 throw new TranscribeException(status, nameof(NativeMethods.ModelGetCapabilities));
+            }
 
             var caps = Marshal.PtrToStructure<Interop.Capabilities>(ptr);
 
@@ -148,14 +150,14 @@ public sealed class Model : IDisposable
             for (int i = 0; i < caps.nLanguages; i++)
             {
                 var strPtr = Marshal.ReadIntPtr(caps.languages, i * IntPtr.Size);
-                languages[i] = strPtr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(strPtr) ?? "";
+                languages[i] = strPtr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(strPtr) ?? string.Empty;
             }
 
             var targetLanguages = new string[caps.nTranslateTargetLanguages];
             for (int i = 0; i < caps.nTranslateTargetLanguages; i++)
             {
                 var strPtr = Marshal.ReadIntPtr(caps.translateTargetLanguages, i * IntPtr.Size);
-                targetLanguages[i] = strPtr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(strPtr) ?? "";
+                targetLanguages[i] = strPtr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(strPtr) ?? string.Empty;
             }
 
             return new ModelCapabilities(
@@ -179,7 +181,7 @@ public sealed class Model : IDisposable
     public bool Supports(Feature feature)
     {
         ThrowIfDisposed();
-        return NativeMethods.ModelSupports(_handle, feature);
+        return NativeMethods.ModelSupports(handle, feature);
     }
 
     /// <summary>
@@ -191,19 +193,26 @@ public sealed class Model : IDisposable
     public int[] Tokenize(string text, int maxTokens = 1024)
     {
         ThrowIfDisposed();
-        if (text == null)
-            throw new ArgumentNullException(nameof(text));
+        ArgumentNullException.ThrowIfNull(text);
+
         if (maxTokens <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(maxTokens), maxTokens, "Must be greater than zero.");
+        }
 
         var tokensPtr = Marshal.AllocHGlobal(maxTokens * sizeof(int));
         try
         {
-            var count = NativeMethods.Tokenize(_handle, text, tokensPtr, (nuint)maxTokens);
+            var count = NativeMethods.Tokenize(handle, text, tokensPtr, (nuint)maxTokens);
             if (count < 0)
+            {
                 throw new TranscribeException(Status.ErrInvalidArg, nameof(NativeMethods.Tokenize));
+            }
+
             if (count > maxTokens)
+            {
                 count = maxTokens;
+            }
 
             var tokens = new int[count];
             Marshal.Copy(tokensPtr, tokens, 0, count);
@@ -215,14 +224,15 @@ public sealed class Model : IDisposable
         }
     }
 
-    internal ModelHandle Handle => _handle;
+    internal ModelHandle Handle => handle;
 
+    /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!disposed)
         {
-            _handle.Dispose();
-            _disposed = true;
+            handle.Dispose();
+            disposed = true;
         }
     }
 }

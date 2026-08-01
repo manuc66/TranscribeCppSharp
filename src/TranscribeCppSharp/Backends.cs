@@ -8,18 +8,6 @@ using TranscribeCppSharp.Interop;
 namespace TranscribeCppSharp;
 
 /// <summary>
-/// A compute backend device (CPU, GPU, iGPU).
-/// </summary>
-public record BackendDevice(
-    string Name,
-    string Description,
-    string Kind,
-    string DeviceId,
-    ulong MemoryTotal,
-    ulong MemoryFree,
-    DeviceType DeviceType);
-
-/// <summary>
 /// Static API for backend initialization, device enumeration, and version info.
 /// </summary>
 public static class Backends
@@ -30,7 +18,7 @@ public static class Backends
         get
         {
             var ptr = NativeMethods.Version();
-            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            return ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
         }
     }
 
@@ -40,7 +28,7 @@ public static class Backends
         get
         {
             var ptr = NativeMethods.VersionCommit();
-            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+            return ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
         }
     }
 
@@ -52,7 +40,9 @@ public static class Backends
     {
         var status = NativeMethods.InitBackendsDefault();
         if (status != Status.Ok)
+        {
             throw new TranscribeException(status, nameof(NativeMethods.InitBackendsDefault));
+        }
     }
 
     /// <summary>
@@ -62,7 +52,9 @@ public static class Backends
     {
         var status = NativeMethods.InitBackends(artifactDir);
         if (status != Status.Ok)
+        {
             throw new TranscribeException(status, nameof(NativeMethods.InitBackends));
+        }
     }
 
     /// <summary>
@@ -71,7 +63,10 @@ public static class Backends
     public static IReadOnlyList<BackendDevice> EnumerateDevices()
     {
         var count = NativeMethods.BackendDeviceCount();
-        if (count <= 0) return [];
+        if (count <= 0)
+        {
+            return [];
+        }
 
         var devices = new List<BackendDevice>(count);
         var deviceSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiBackendDevice);
@@ -82,13 +77,15 @@ public static class Backends
                 NativeMethods.BackendDeviceInit(devicePtr);
                 var status = NativeMethods.GetBackendDevice(i, devicePtr);
                 if (status != Status.Ok)
+                {
                     throw new TranscribeException(status, nameof(NativeMethods.GetBackendDevice));
+                }
 
                 var d = Marshal.PtrToStructure<Interop.BackendDevice>(devicePtr);
-                var name = d.name != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.name) ?? "" : "";
-                var description = d.description != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.description) ?? "" : "";
-                var kind = d.kind != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.kind) ?? "" : "";
-                var deviceId = d.deviceId != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.deviceId) ?? "" : "";
+                var name = d.name != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.name) ?? string.Empty : string.Empty;
+                var description = d.description != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.description) ?? string.Empty : string.Empty;
+                var kind = d.kind != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.kind) ?? string.Empty : string.Empty;
+                var deviceId = d.deviceId != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.deviceId) ?? string.Empty : string.Empty;
 
                 devices.Add(new BackendDevice(
                     Name: name,

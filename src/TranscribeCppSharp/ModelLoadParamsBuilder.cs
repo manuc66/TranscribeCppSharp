@@ -11,22 +11,23 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class ModelLoadParamsBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private ModelLoadParams _params;
-    private bool _disposed;
+    private IntPtr handle;
+    private ModelLoadParams @params;
+    private bool disposed;
 
+    /// <inheritdoc/>
     public ModelLoadParamsBuilder()
     {
         AbiValidation.ValidateSize<ModelLoadParams>(AbiStruct.AbiModelLoadParams, nameof(ModelLoadParams));
-        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<ModelLoadParams>());
-        NativeMethods.ModelLoadParamsInit(_handle);
-        _params = Marshal.PtrToStructure<ModelLoadParams>(_handle);
+        handle = Marshal.AllocHGlobal(Marshal.SizeOf<ModelLoadParams>());
+        NativeMethods.ModelLoadParamsInit(handle);
+        @params = Marshal.PtrToStructure<ModelLoadParams>(handle);
     }
 
     /// <summary>Select the compute backend.</summary>
     public ModelLoadParamsBuilder WithBackend(BackendRequest backend)
     {
-        _params.backend = backend;
+        @params.backend = backend;
         return this;
     }
 
@@ -37,24 +38,25 @@ public sealed class ModelLoadParamsBuilder : IDisposable
     /// </summary>
     public ModelLoadParamsBuilder WithGpuDevice(int device)
     {
-        _params.gpuDevice = device;
+        @params.gpuDevice = device;
         return this;
     }
 
     internal IntPtr Build()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(ModelLoadParamsBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
+        ObjectDisposedException.ThrowIf(disposed, this);
+
+        Marshal.StructureToPtr(@params, handle, false);
+        return handle;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
-        if (!_disposed)
+        if (!disposed)
         {
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
+            Marshal.FreeHGlobal(handle);
+            disposed = true;
         }
     }
 }

@@ -31,6 +31,11 @@ public sealed class TranscribeException : Exception
     /// <summary>The native method that failed, if known.</summary>
     public string? FailedMethod { get; }
 
+    /// <summary>
+    /// Create an exception for a failed native call.
+    /// </summary>
+    /// <param name="status">The native status code returned by the library.</param>
+    /// <param name="failedMethod">The native method name that failed, if known.</param>
     public TranscribeException(Status status, string? failedMethod = null)
         : base(BuildMessage(status, failedMethod))
     {
@@ -41,7 +46,7 @@ public sealed class TranscribeException : Exception
 
     private static string BuildMessage(Status status, string? failedMethod)
     {
-        var method = failedMethod != null ? $" in {failedMethod}" : "";
+        var method = failedMethod != null ? $" in {failedMethod}" : string.Empty;
         var nativeMsg = GetNativeStatusMessage((int)status);
         return $"transcribe native error{method}: {status} ({(int)status}){nativeMsg}";
     }
@@ -51,14 +56,16 @@ public sealed class TranscribeException : Exception
     /// exception path hits P/Invoke at most once per code — and never crashes
     /// (e.g. when the native library cannot be loaded).
     /// </summary>
-    private static readonly ConcurrentDictionary<int, string> s_statusMessages = new();
+    private static readonly ConcurrentDictionary<int, string> SStatusMessages = new();
 
     private static string GetNativeStatusMessage(int status)
     {
-        if (s_statusMessages.TryGetValue(status, out var cached))
+        if (SStatusMessages.TryGetValue(status, out var cached))
+        {
             return cached;
+        }
 
-        var msg = "";
+        var msg = string.Empty;
         try
         {
             var ptr = NativeMethods.StatusString(status);
@@ -66,14 +73,17 @@ public sealed class TranscribeException : Exception
             {
                 var str = Marshal.PtrToStringUTF8(ptr);
                 if (!string.IsNullOrWhiteSpace(str))
+                {
                     msg = $" — {str}";
+                }
             }
         }
         catch
         {
             // StatusString is best-effort; don't crash the exception constructor
         }
-        s_statusMessages[status] = msg;
+
+        SStatusMessages[status] = msg;
         return msg;
     }
 }
