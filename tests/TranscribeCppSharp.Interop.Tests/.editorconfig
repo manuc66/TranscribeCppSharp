@@ -1,0 +1,6 @@
+# Test project overrides. xunit naming convention uses underscores
+# (Method_Scenario_Expected); CA1707 flags these as warnings but the
+# convention is intentional here, so suppress it for tests only.
+
+[*.cs]
+dotnet_diagnostic.CA1707.severity = none

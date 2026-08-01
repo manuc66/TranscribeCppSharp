@@ -18,7 +18,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       wrapper-version: ${{ steps.version.outputs.wrapper-version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: version
         run: |
           UPSTREAM=$(cat TRANSCRIBE_VERSION | xargs)
@@ -39,9 +39,9 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
           cache: true
@@ -52,7 +52,7 @@ jobs:
       - run: dotnet build --no-restore
       
       - name: Cache native libraries
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -60,7 +60,7 @@ jobs:
           key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             test-models
@@ -76,9 +76,9 @@ jobs:
   check-bindings-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
 
@@ -97,16 +97,16 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
 
       - run: dotnet build samples/SmokeTest -c Release
 
       - name: Cache native libraries
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -114,7 +114,7 @@ jobs:
           key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             test-models
@@ -138,14 +138,14 @@ jobs:
     needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
 
       - name: Cache native libraries
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -160,7 +160,7 @@ jobs:
             dotnet pack "$dir" -c Release -o nupkgs /p:Version=${{ needs.get-version.outputs.version }}
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: native-nupkg
           path: nupkgs/*.nupkg
@@ -169,14 +169,14 @@ jobs:
     needs: [build-and-test, get-version, pack-native]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
 
       - name: Download native NuGets (local feed for restore)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: native-nupkg
           path: local-feed
@@ -188,7 +188,7 @@ jobs:
             /p:PackNativeRuntimes=true \
             "/p:RestoreAdditionalProjectSources=$(pwd)/local-feed"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: interop-nupkg
           path: nupkgs/*.nupkg
@@ -197,9 +197,9 @@ jobs:
     needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
 
@@ -209,7 +209,7 @@ jobs:
             /p:Version=${{ needs.get-version.outputs.version }} \
             /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wrapper-nupkg
           path: nupkgs/*.nupkg
@@ -219,7 +219,7 @@ jobs:
     needs: [pack-native, pack-interop, pack-wrapper]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: nupkgs
           pattern: '*-nupkg'
@@ -235,14 +235,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: nupkgs
           pattern: '*-nupkg'
           merge-multiple: true
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: nupkgs/*.nupkg
           generate_release_notes: true
