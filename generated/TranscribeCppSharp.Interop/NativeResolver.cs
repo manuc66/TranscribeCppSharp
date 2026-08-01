@@ -23,12 +23,16 @@ internal static partial class NativeMethods
     private static IntPtr ResolveNativeLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
     {
         if (libraryName != "transcribe")
+        {
             return IntPtr.Zero;
+        }
 
         foreach (string candidate in EnumerateCandidates())
         {
             if (TryLoadNativeLibrary(candidate, out IntPtr handle))
+            {
                 return handle;
+            }
         }
 
         // Delegate to the default .NET resolution rules.
@@ -49,16 +53,22 @@ internal static partial class NativeMethods
         {
             string? home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             if (!string.IsNullOrEmpty(home))
+            {
                 packagesFolder = Path.Combine(home, ".nuget", "packages");
+            }
         }
 
         string rid = RuntimeInformation.RuntimeIdentifier;
         if (string.IsNullOrEmpty(packagesFolder) || string.IsNullOrEmpty(rid))
+        {
             yield break;
+        }
 
         string packageRoot = Path.Combine(packagesFolder, $"transcribecppsharp.native.{rid.ToLowerInvariant()}");
         if (!Directory.Exists(packageRoot))
+        {
             yield break;
+        }
 
         foreach (string versionDir in GetVersionDirs(packageRoot))
         {
@@ -72,7 +82,10 @@ internal static partial class NativeMethods
         {
             string name = Path.GetFileName(dir);
             if (name.StartsWith('.') || name.StartsWith('_'))
+            {
                 continue;
+            }
+
             yield return dir;
         }
     }
@@ -80,25 +93,34 @@ internal static partial class NativeMethods
     private static string GetNativeFileName()
     {
         if (OperatingSystem.IsWindows())
+        {
             return "transcribe.dll";
+        }
+
         if (OperatingSystem.IsMacOS())
+        {
             return "libtranscribe.dylib";
+        }
+
         return "libtranscribe.so";
     }
 
     private static bool TryLoadNativeLibrary(string candidate, out IntPtr handle)
     {
-        if (File.Exists(candidate))
+        if (!File.Exists(candidate))
         {
-            try
-            {
-                handle = NativeLibrary.Load(candidate);
-                return true;
-            }
-            catch (Exception)
-            {
-                // Try the next candidate.
-            }
+            handle = IntPtr.Zero;
+            return false;
+        }
+
+        try
+        {
+            handle = NativeLibrary.Load(candidate);
+            return true;
+        }
+        catch (Exception)
+        {
+            // Try the next candidate.
         }
 
         handle = IntPtr.Zero;
