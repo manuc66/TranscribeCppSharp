@@ -14,7 +14,7 @@
 - **Flexible APIs**:
   - **High-Level Wrapper**: Intuitive C# API for rapid development.
   - **Low-Level Interop**: Direct access to the native C API when needed.
-  - **Streaming & Batch**: Support for real-time transcription and batch processing.
+  - **Streaming & Batch**: Support for incremental streaming transcription and batch processing.
 - **Cross-Platform**: Pre-compiled native runtimes for Windows, Linux, and macOS (x64 and ARM64).
 
 ## Installation
