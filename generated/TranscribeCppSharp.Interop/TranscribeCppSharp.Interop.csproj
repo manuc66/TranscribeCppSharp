@@ -22,4 +22,16 @@
     <InternalsVisibleTo Include="TranscribeCppSharp" />
   </ItemGroup>
 
+  <!-- Native runtime packages are only referenced when packing (PackNativeRuntimes=true),
+       fed from a local folder via RestoreAdditionalProjectSources, because they are not
+       published to nuget.org yet. At build time the DllImportResolver (NativeResolver.cs)
+       locates the binaries instead, so ordinary builds need no native package. -->
+  <ItemGroup Condition="'$(PackNativeRuntimes)' == 'true'">
+    <PackageReference Include="TranscribeCppSharp.Native.win-x64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.linux-x64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.linux-arm64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.osx-arm64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.osx-x64" Version="$(Version)" />
+  </ItemGroup>
+
 </Project>

@@ -7,6 +7,15 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
     <PackageId>TranscribeCppSharp</PackageId>
+    <!-- The wrapper has its own SemVer version, decoupled from the upstream
+         transcribe.cpp version used by the Native/Interop packages. -->
+    <Version>$(WrapperVersionFile)</Version>
+    <AssemblyVersion>$(WrapperVersionFile)</AssemblyVersion>
+    <FileVersion>$(WrapperVersionFile)</FileVersion>
+    <!-- Injected by the CI pack job (WrapperPackageVersion=<wrapper prerelease>);
+         not a global MSBuild property, so it does not leak into the referenced
+         Interop project's package version. -->
+    <PackageVersion Condition="'$(WrapperPackageVersion)' != ''">$(WrapperPackageVersion)</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>

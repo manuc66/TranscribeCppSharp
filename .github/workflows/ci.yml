@@ -16,19 +16,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      wrapper-version: ${{ steps.version.outputs.wrapper-version }}
     steps:
       - uses: actions/checkout@v4
       - id: version
         run: |
-          VERSION=$(cat TRANSCRIBE_VERSION | xargs)
+          UPSTREAM=$(cat TRANSCRIBE_VERSION | xargs)
+          WRAPPER=$(cat WRAPPER_VERSION | xargs)
           if [[ $GITHUB_REF == refs/tags/v* ]]; then
-            FINAL_VERSION=${GITHUB_REF#refs/tags/v}
+            UPSTREAM_VERSION=$UPSTREAM
+            WRAPPER_VERSION=${GITHUB_REF#refs/tags/v}
           elif [[ $GITHUB_REF == refs/heads/main ]]; then
-            FINAL_VERSION="${VERSION}-preview.${GITHUB_RUN_NUMBER}"
+            UPSTREAM_VERSION="${UPSTREAM}-preview.${GITHUB_RUN_NUMBER}"
+            WRAPPER_VERSION="${WRAPPER}-preview.${GITHUB_RUN_NUMBER}"
           else
-            FINAL_VERSION="${VERSION}-dev.${GITHUB_RUN_NUMBER}"
+            UPSTREAM_VERSION="${UPSTREAM}-dev.${GITHUB_RUN_NUMBER}"
+            WRAPPER_VERSION="${WRAPPER}-dev.${GITHUB_RUN_NUMBER}"
           fi
-          echo "version=${FINAL_VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${UPSTREAM_VERSION}" >> $GITHUB_OUTPUT
+          echo "wrapper-version=${WRAPPER_VERSION}" >> $GITHUB_OUTPUT
 
   build-and-test:
     runs-on: ubuntu-latest
@@ -160,7 +166,7 @@ jobs:
           path: nupkgs/*.nupkg
 
   pack-interop:
-    needs: [build-and-test, get-version]
+    needs: [build-and-test, get-version, pack-native]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -169,8 +175,18 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      - name: Download native NuGets (local feed for restore)
+        uses: actions/download-artifact@v4
+        with:
+          name: native-nupkg
+          path: local-feed
+
       - name: Pack Interop NuGet
-        run: dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs /p:Version=${{ needs.get-version.outputs.version }}
+        run: |
+          dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs \
+            /p:Version=${{ needs.get-version.outputs.version }} \
+            /p:PackNativeRuntimes=true \
+            "/p:RestoreAdditionalProjectSources=$(pwd)/local-feed"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -188,7 +204,10 @@ jobs:
           dotnet-version: '10.x'
 
       - name: Pack Wrapper NuGet
-        run: dotnet pack src/TranscribeCppSharp -c Release -o nupkgs /p:Version=${{ needs.get-version.outputs.version }}
+        run: |
+          dotnet pack src/TranscribeCppSharp -c Release -o nupkgs \
+            /p:Version=${{ needs.get-version.outputs.version }} \
+            /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }}
 
       - uses: actions/upload-artifact@v4
         with:

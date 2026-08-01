@@ -4,17 +4,17 @@
 [![NuGet Version](https://img.shields.io/nuget/v/TranscribeCppSharp.svg)](https://www.nuget.org/packages/TranscribeCppSharp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-.NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), providing high-performance, cross-platform audio transcription and speech-to-text capabilities.
+.NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), providing cross-platform audio transcription and speech-to-text capabilities.
 
 ## Features
 
 - **Multi-Model Architecture**: Seamless support for Whisper, Moonshine, Parakeet, and Voxtral.
 - **Hardware Acceleration**: Built-in support for CPU, CUDA, Vulkan, and Metal backends.
-- **Modern .NET Core**: Leverages `LibraryImport` for high-performance interop and `SafeHandle` for reliable memory management.
+- **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for reliable memory management.
 - **Flexible APIs**:
   - **High-Level Wrapper**: Intuitive C# API for rapid development.
   - **Low-Level Interop**: Direct access to the native C API when needed.
-  - **Streaming & Batch**: Support for real-time transcription and efficient batch processing.
+  - **Streaming & Batch**: Support for real-time transcription and batch processing.
 - **Cross-Platform**: Pre-compiled native runtimes for Windows, Linux, and macOS (x64 and ARM64).
 
 ## Installation
@@ -69,7 +69,7 @@ using var model = Model.Load("model.gguf", p => p
 
 ### Batch Processing
 
-Transcribe multiple audio buffers efficiently in parallel:
+Transcribe multiple audio buffers in parallel:
 
 ```csharp
 var audios = new float[][] { audio1, audio2, audio3 };
@@ -107,7 +107,7 @@ var final = stream.CurrentText;
 
 ## Concurrency Model
 
-All transcription calls (`Session.Run`, `Batch.Run`, etc.) are **CPU-bound and blocking**. This is a conscious design choice to avoid the overhead of "fake" async-over-sync wrappers.
+All transcription calls (`Session.Run`, `Batch.Run`, etc.) are **CPU-bound and blocking**. This is a conscious design choice: a synchronous API is simpler and avoids the pitfalls of "fake" async-over-sync wrappers.
 
 ### Recommended Patterns
 
@@ -130,10 +130,10 @@ public async Task<string> TranscribeAsync(float[] pcm)
 
 ## Architecture
 
-The project is divided into several layers to balance raw performance with ease of use:
+The project is divided into several layers, each with a distinct responsibility:
 
 1.  **`TranscribeCppSharp.Native.*` (Runtimes)**: Platform-specific packages containing the pre-compiled native `libtranscribe` binaries.
-2.  **`TranscribeCppSharp.Interop` (Low-level)**: Auto-generated P/Invoke declarations using `LibraryImport` for minimal overhead.
+2.  **`TranscribeCppSharp.Interop` (Low-level)**: Auto-generated P/Invoke declarations using `LibraryImport`.
 3.  **`TranscribeCppSharp` (High-level)**: Idiomatic C# abstraction layer providing `IDisposable` resources and typed exceptions.
 4.  **`Generator` (Tool)**: Ensures C# bindings stay in sync with the upstream native API by parsing Rust FFI definitions.
 
@@ -157,25 +157,27 @@ catch (TranscribeException ex) when (ex.StatusCode == Status.ErrGguf)
 
 *Note: See the `Status` enum in the `TranscribeCppSharp.Interop` namespace for the full list of error codes.*
 
-## Enterprise Readiness
+## Thread Safety
 
-### Thread-Safety
+The native library and this wrapper are **not** thread-safe by default. The relevant rules:
+
 - **`Model`**: **Thread-safe**. You can create multiple `Session` objects from a single `Model` instance across different threads.
 - **`Session`**: **Not thread-safe**. A session maintains internal state (KV cache) for transcription. For concurrent processing, use multiple sessions or synchronize access.
 - **`Batch`**: **Not thread-safe**. Calls into the provided session internally. Use separate sessions for concurrent batch processing.
 - **`StreamSession`**: **Not thread-safe**. It is a view over a `Session` and shares its state.
 
-### Hardware Requirements
-| Model Size | RAM (Quantized) | VRAM (Quantized) |
-|---|---|---|
-| Tiny | ~150 MB | ~100 MB |
-| Base | ~250 MB | ~200 MB |
-| Small | ~700 MB | ~600 MB |
-| Medium | ~2.0 GB | ~1.5 GB |
-| Large-v3 | ~4.5 GB | ~3.5 GB |
+> Memory and disk usage depend on the model file, quantization, and backend you use.
+> These are not documented here; refer to the model documentation and
+> [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) for accurate numbers.
 
 ### Versioning & Compatibility
-This project follows [Semantic Versioning (SemVer)](https://semver.org/). The package version tracks the **upstream `transcribe.cpp` version** it wraps: `TranscribeCppSharp 0.1.3` binds against `transcribe.cpp v0.1.3`. Before 1.0, breaking changes are expected and versioned accordingly.
+
+Two version numbers are in play, decoupled on purpose:
+
+- **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper.
+- **`TranscribeCppSharp.Interop`** and **`TranscribeCppSharp.Native.*`** are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.1.3` = transcribe.cpp v0.1.3). They track the ABI, not the wrapper's API.
+
+So `TranscribeCppSharp 0.1.0` depends on `TranscribeCppSharp.Interop 0.1.3`; a later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Attribution
 
