@@ -73,7 +73,6 @@ Transcribe multiple audio buffers in parallel:
 
 ```csharp
 var audios = new float[][] { audio1, audio2, audio3 };
-// Thread-safe if the session is not used elsewhere simultaneously
 var results = Batch.Run(session, audios);
 
 foreach (var result in results)
