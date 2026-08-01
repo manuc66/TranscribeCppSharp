@@ -4,5 +4,29 @@
     <TranscribeVersionFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)TRANSCRIBE_VERSION).Trim())</TranscribeVersionFile>
     <!-- Use the version from TRANSCRIBE_VERSION by default, but allow override from CLI -->
     <Version Condition="'$(Version)' == ''">$(TranscribeVersionFile)</Version>
+
+    <!-- Package metadata -->
+    <Authors>manuc66</Authors>
+    <Copyright>Copyright (c) manuc66</Copyright>
+    <PackageTags>speech-to-text;transcription;whisper;whispercpp;stt;audio;ai</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/manuc66/TranscribeCppSharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <!-- SourceLink: source debugging for consumers -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Documentation XML for IntelliSense -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Symbol packages -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.*" PrivateAssets="All" />
+  </ItemGroup>
 </Project>

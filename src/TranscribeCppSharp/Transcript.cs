@@ -25,6 +25,8 @@ public sealed class Transcript
 {
     public string FullText { get; init; } = "";
     public string DetectedLanguage { get; init; } = "";
+    public bool WasAborted { get; init; }
+    public bool WasTruncated { get; init; }
     public IReadOnlyList<SegmentResult> Segments { get; init; } = [];
     public IReadOnlyList<WordResult> Words { get; init; } = [];
     public IReadOnlyList<TokenResult> Tokens { get; init; } = [];

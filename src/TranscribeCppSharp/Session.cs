@@ -516,6 +516,25 @@ public sealed class Session : IDisposable
 
     internal SessionHandle Handle => _handle;
 
+    internal unsafe TimingsResult? GetBatchTimings(int batchIndex)
+    {
+        ThrowIfDisposed();
+        var timingsSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiTimings);
+        StackAllocHelper.ThrowIfTooLarge(timingsSize, nameof(Timings));
+        Span<byte> timingsBuffer = stackalloc byte[timingsSize];
+        fixed (byte* pTimingsBuffer = timingsBuffer)
+        {
+            var timingsPtr = (IntPtr)pTimingsBuffer;
+            NativeMethods.TimingsInit(timingsPtr);
+            if (NativeMethods.BatchGetTimings(_handle, batchIndex, timingsPtr) == Status.Ok)
+            {
+                var t = Marshal.PtrToStructure<Interop.Timings>(timingsPtr);
+                return new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
+            }
+        }
+        return null;
+    }
+
     private unsafe void RunNative(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure)
     {
         ThrowIfDisposed();
@@ -545,6 +564,8 @@ public sealed class Session : IDisposable
         {
             FullText = FullText,
             DetectedLanguage = lang,
+            WasAborted = WasAborted,
+            WasTruncated = WasTruncated,
             Timing = timings,
             Segments = segments,
             Words = words,

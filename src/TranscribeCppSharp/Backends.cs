@@ -20,10 +20,30 @@ public record BackendDevice(
     DeviceType DeviceType);
 
 /// <summary>
-/// Static API for backend initialization and device enumeration.
+/// Static API for backend initialization, device enumeration, and version info.
 /// </summary>
 public static class Backends
 {
+    /// <summary>Native library version string (e.g. "0.1.3").</summary>
+    public static string Version
+    {
+        get
+        {
+            var ptr = NativeMethods.Version();
+            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        }
+    }
+
+    /// <summary>Native library git commit hash.</summary>
+    public static string VersionCommit
+    {
+        get
+        {
+            var ptr = NativeMethods.VersionCommit();
+            return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
+        }
+    }
+
     /// <summary>
     /// Initialize all available backends with default settings.
     /// Call once at application startup.
