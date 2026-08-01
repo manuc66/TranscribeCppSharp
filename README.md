@@ -8,14 +8,14 @@
 
 ## Features
 
-- **Multi-Model Architecture**: Seamless support for Whisper, Moonshine, Parakeet, and Voxtral.
+- **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Voxtral, and others).
 - **Hardware Acceleration**: Built-in support for CPU, CUDA, Vulkan, and Metal backends.
-- **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for reliable memory management.
+- **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for native resource lifetime.
 - **Flexible APIs**:
   - **High-Level Wrapper**: Intuitive C# API for rapid development.
   - **Low-Level Interop**: Direct access to the native C API when needed.
   - **Streaming & Batch**: Support for incremental streaming transcription and batch processing.
-- **Cross-Platform**: Pre-compiled native runtimes for Windows, Linux, and macOS (x64 and ARM64).
+- **Cross-Platform**: Pre-compiled native runtimes are packaged for Windows, Linux, and macOS (x64 and ARM64). Only linux-x64 is exercised by CI.
 
 ## Installation
 
@@ -42,7 +42,7 @@ To include the native binaries for your platform, add the corresponding runtime 
 ```csharp
 using TranscribeCppSharp;
 
-// Load the model (supports .gguf and .bin formats)
+// Load the model (GGUF format)
 using var model = Model.Load("whisper-tiny.gguf");
 
 // Create a transcription session
