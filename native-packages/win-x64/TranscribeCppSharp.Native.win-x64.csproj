@@ -11,6 +11,10 @@
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/manuc66/TranscribeCppSharp</RepositoryUrl>
     <IsPackable>true</IsPackable>
+    <!-- The global Directory.Build.props enables symbol packages (snupkg);
+         a content-only package with no assemblies has nothing to symbolize,
+         so NU5017 would fail the pack. -->
+    <IncludeSymbols>false</IncludeSymbols>
   </PropertyGroup>
 
   <ItemGroup>
