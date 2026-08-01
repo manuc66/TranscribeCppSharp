@@ -11,22 +11,16 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class WhisperExtBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private WhisperRunExt _params;
+    private readonly ExtBuffer<WhisperRunExt> _buffer;
     private IntPtr _initialPromptPtr;
     private IntPtr _promptTokensPtr;
-    private bool _disposed;
 
     public WhisperExtBuilder()
     {
-        var size = Marshal.SizeOf<WhisperRunExt>();
-        _handle = Marshal.AllocHGlobal(size);
-        NativeMethods.WhisperRunExtInit(_handle);
-        _params = Marshal.PtrToStructure<WhisperRunExt>(_handle);
-        if (_params.ext.size != (ulong)size)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for WhisperRunExt: C# expects {size} bytes, native reports {_params.ext.size} bytes. " +
-                $"Regenerate bindings or update the struct definition.");
+        _buffer = new ExtBuffer<WhisperRunExt>(
+            NativeMethods.WhisperRunExtInit,
+            static p => p.ext.size,
+            nameof(WhisperExtBuilder));
     }
 
     /// <summary>Initial prompt to guide transcription (e.g. "Bonjour, comment allez-vous?").</summary>
@@ -35,7 +29,7 @@ public sealed class WhisperExtBuilder : IDisposable
         if (_initialPromptPtr != IntPtr.Zero)
             Marshal.FreeCoTaskMem(_initialPromptPtr);
         _initialPromptPtr = Marshal.StringToCoTaskMemUTF8(prompt);
-        _params.initialPrompt = _initialPromptPtr;
+        _buffer.Params.initialPrompt = _initialPromptPtr;
         return this;
     }
 
@@ -46,99 +40,95 @@ public sealed class WhisperExtBuilder : IDisposable
             Marshal.FreeHGlobal(_promptTokensPtr);
         _promptTokensPtr = Marshal.AllocHGlobal(tokens.Length * sizeof(int));
         Marshal.Copy(tokens, 0, _promptTokensPtr, tokens.Length);
-        _params.promptTokens = _promptTokensPtr;
-        _params.nPromptTokens = (nuint)tokens.Length;
+        _buffer.Params.promptTokens = _promptTokensPtr;
+        _buffer.Params.nPromptTokens = (nuint)tokens.Length;
         return this;
     }
 
     /// <summary>How to condition on the prompt.</summary>
     public WhisperExtBuilder WithPromptCondition(WhisperPromptCondition condition)
     {
-        _params.promptCondition = condition;
+        _buffer.Params.promptCondition = condition;
         return this;
     }
 
     /// <summary>Whether to condition on previous tokens for context.</summary>
     public WhisperExtBuilder WithConditionOnPrevTokens(bool condition)
     {
-        _params.conditionOnPrevTokens = condition;
+        _buffer.Params.conditionOnPrevTokens = condition;
         return this;
     }
 
     /// <summary>Maximum number of previous context tokens to use.</summary>
     public WhisperExtBuilder WithMaxPrevContextTokens(int maxTokens)
     {
-        _params.maxPrevContextTokens = maxTokens;
+        _buffer.Params.maxPrevContextTokens = maxTokens;
         return this;
     }
 
     /// <summary>Sampling temperature (0.0 = greedy, higher = more random).</summary>
     public WhisperExtBuilder WithTemperature(float temperature)
     {
-        _params.temperature = temperature;
+        _buffer.Params.temperature = temperature;
         return this;
     }
 
     /// <summary>Temperature increment for fallback decoding.</summary>
     public WhisperExtBuilder WithTemperatureInc(float temperatureInc)
     {
-        _params.temperatureInc = temperatureInc;
+        _buffer.Params.temperatureInc = temperatureInc;
         return this;
     }
 
     /// <summary>Compression ratio threshold for fallback detection.</summary>
     public WhisperExtBuilder WithCompressionRatioThold(float thold)
     {
-        _params.compressionRatioThold = thold;
+        _buffer.Params.compressionRatioThold = thold;
         return this;
     }
 
     /// <summary>Log probability threshold for fallback detection.</summary>
     public WhisperExtBuilder WithLogprobThold(float thold)
     {
-        _params.logprobThold = thold;
+        _buffer.Params.logprobThold = thold;
         return this;
     }
 
     /// <summary>No-speech probability threshold.</summary>
     public WhisperExtBuilder WithNoSpeechThold(float thold)
     {
-        _params.noSpeechThold = thold;
+        _buffer.Params.noSpeechThold = thold;
         return this;
     }
 
     /// <summary>Random seed for reproducibility.</summary>
     public WhisperExtBuilder WithSeed(uint seed)
     {
-        _params.seed = seed;
+        _buffer.Params.seed = seed;
         return this;
     }
 
     /// <summary>Maximum initial timestamp in seconds.</summary>
     public WhisperExtBuilder WithMaxInitialTimestamp(float seconds)
     {
-        _params.maxInitialTimestamp = seconds;
+        _buffer.Params.maxInitialTimestamp = seconds;
         return this;
     }
 
-    internal IntPtr Build()
-    {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(WhisperExtBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
-    }
+    internal IntPtr Build() => _buffer.Build();
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (_initialPromptPtr != IntPtr.Zero)
         {
-            if (_initialPromptPtr != IntPtr.Zero)
-                Marshal.FreeCoTaskMem(_initialPromptPtr);
-            if (_promptTokensPtr != IntPtr.Zero)
-                Marshal.FreeHGlobal(_promptTokensPtr);
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
+            Marshal.FreeCoTaskMem(_initialPromptPtr);
+            _initialPromptPtr = IntPtr.Zero;
         }
+        if (_promptTokensPtr != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(_promptTokensPtr);
+            _promptTokensPtr = IntPtr.Zero;
+        }
+        _buffer.Dispose();
     }
 }

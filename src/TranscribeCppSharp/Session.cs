@@ -222,98 +222,50 @@ public sealed class Session : IDisposable
     public IReadOnlyList<SegmentResult> ReadSegments()
     {
         ThrowIfDisposed();
-
-        var segments = new List<SegmentResult>();
-        var segCount = NativeMethods.NSegments(_handle);
-        if (segCount == 0) return segments;
-
-        var segSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSegment);
-        StackAllocHelper.RunWithBuffer(segSize, segPtr =>
-        {
-            for (int i = 0; i < segCount; i++)
-            {
-                NativeMethods.SegmentInit(segPtr);
-                var status = NativeMethods.GetSegment(_handle, i, segPtr);
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.GetSegment));
-
-                var seg = Marshal.PtrToStructure<Interop.Segment>(segPtr);
-                var text = Marshal.PtrToStringUTF8(seg.text) ?? "";
-                segments.Add(new SegmentResult(
-                    Start: TimeSpan.FromMilliseconds(seg.t0Ms),
-                    End: TimeSpan.FromMilliseconds(seg.t1Ms),
-                    Text: text
-                ));
-            }
-        });
-
-        return segments;
+        return ReadItems<Interop.Segment, SegmentResult>(
+            count: NativeMethods.NSegments(_handle),
+            abi: AbiStruct.AbiSegment,
+            init: NativeMethods.SegmentInit,
+            get: (i, ptr) => NativeMethods.GetSegment(_handle, i, ptr),
+            getMethodName: nameof(NativeMethods.GetSegment),
+            map: static seg => new SegmentResult(
+                Start: TimeSpan.FromMilliseconds(seg.t0Ms),
+                End: TimeSpan.FromMilliseconds(seg.t1Ms),
+                Text: Marshal.PtrToStringUTF8(seg.text) ?? ""));
     }
 
     /// <summary>Read words from the last run result.</summary>
     public IReadOnlyList<WordResult> ReadWords()
     {
         ThrowIfDisposed();
-
-        var words = new List<WordResult>();
-        var wordCount = NativeMethods.NWords(_handle);
-        if (wordCount == 0) return words;
-
-        var wordSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiWord);
-        StackAllocHelper.RunWithBuffer(wordSize, wordPtr =>
-        {
-            for (int i = 0; i < wordCount; i++)
-            {
-                NativeMethods.WordInit(wordPtr);
-                var status = NativeMethods.GetWord(_handle, i, wordPtr);
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.GetWord));
-
-                var w = Marshal.PtrToStructure<Interop.Word>(wordPtr);
-                var text = Marshal.PtrToStringUTF8(w.text) ?? "";
-                words.Add(new WordResult(
-                    Start: TimeSpan.FromMilliseconds(w.t0Ms),
-                    End: TimeSpan.FromMilliseconds(w.t1Ms),
-                    Text: text
-                ));
-            }
-        });
-
-        return words;
+        return ReadItems<Interop.Word, WordResult>(
+            count: NativeMethods.NWords(_handle),
+            abi: AbiStruct.AbiWord,
+            init: NativeMethods.WordInit,
+            get: (i, ptr) => NativeMethods.GetWord(_handle, i, ptr),
+            getMethodName: nameof(NativeMethods.GetWord),
+            map: static w => new WordResult(
+                Start: TimeSpan.FromMilliseconds(w.t0Ms),
+                End: TimeSpan.FromMilliseconds(w.t1Ms),
+                Text: Marshal.PtrToStringUTF8(w.text) ?? ""));
     }
 
     /// <summary>Read tokens from the last run result.</summary>
     public IReadOnlyList<TokenResult> ReadTokens()
     {
         ThrowIfDisposed();
-
-        var tokens = new List<TokenResult>();
-        var tokenCount = NativeMethods.NTokens(_handle);
-        if (tokenCount == 0) return tokens;
-
-        var tokenSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiToken);
-        StackAllocHelper.RunWithBuffer(tokenSize, tokenPtr =>
-        {
-            for (int i = 0; i < tokenCount; i++)
-            {
-                NativeMethods.TokenInit(tokenPtr);
-                var status = NativeMethods.GetToken(_handle, i, tokenPtr);
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.GetToken));
-
-                var t = Marshal.PtrToStructure<Interop.Token>(tokenPtr);
-                var text = Marshal.PtrToStringUTF8(t.text) ?? "";
-                tokens.Add(new TokenResult(
-                    Id: t.id,
-                    Probability: t.p,
-                    Start: TimeSpan.FromMilliseconds(t.t0Ms),
-                    End: TimeSpan.FromMilliseconds(t.t1Ms),
-                    Text: text
-                ));
-            }
-        });
-
-        return tokens;
+        return ReadItems<Interop.Token, TokenResult>(
+            count: NativeMethods.NTokens(_handle),
+            abi: AbiStruct.AbiToken,
+            init: NativeMethods.TokenInit,
+            get: (i, ptr) => NativeMethods.GetToken(_handle, i, ptr),
+            getMethodName: nameof(NativeMethods.GetToken),
+            map: static t => new TokenResult(
+                Id: t.id,
+                Probability: t.p,
+                Start: TimeSpan.FromMilliseconds(t.t0Ms),
+                End: TimeSpan.FromMilliseconds(t.t1Ms),
+                Text: Marshal.PtrToStringUTF8(t.text) ?? ""));
     }
 
     /// <summary>Print timing information to the log.</summary>
@@ -410,90 +362,48 @@ public sealed class Session : IDisposable
     internal IReadOnlyList<SegmentResult> GetBatchSegments(int batchIndex)
     {
         ThrowIfDisposed();
-        var segments = new List<SegmentResult>();
-        var segCount = NativeMethods.BatchNSegments(_handle, batchIndex);
-        if (segCount == 0) return segments;
-
-        var segSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSegment);
-        StackAllocHelper.RunWithBuffer(segSize, segPtr =>
-        {
-            for (int j = 0; j < segCount; j++)
-            {
-                NativeMethods.SegmentInit(segPtr);
-                var status = NativeMethods.BatchGetSegment(_handle, batchIndex, j, segPtr);
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.BatchGetSegment));
-
-                var seg = Marshal.PtrToStructure<Interop.Segment>(segPtr);
-                var text = Marshal.PtrToStringUTF8(seg.text) ?? "";
-                segments.Add(new SegmentResult(
-                    Start: TimeSpan.FromMilliseconds(seg.t0Ms),
-                    End: TimeSpan.FromMilliseconds(seg.t1Ms),
-                    Text: text
-                ));
-            }
-        });
-        return segments;
+        return ReadItems<Interop.Segment, SegmentResult>(
+            count: NativeMethods.BatchNSegments(_handle, batchIndex),
+            abi: AbiStruct.AbiSegment,
+            init: NativeMethods.SegmentInit,
+            get: (j, ptr) => NativeMethods.BatchGetSegment(_handle, batchIndex, j, ptr),
+            getMethodName: nameof(NativeMethods.BatchGetSegment),
+            map: static seg => new SegmentResult(
+                Start: TimeSpan.FromMilliseconds(seg.t0Ms),
+                End: TimeSpan.FromMilliseconds(seg.t1Ms),
+                Text: Marshal.PtrToStringUTF8(seg.text) ?? ""));
     }
 
     internal IReadOnlyList<WordResult> GetBatchWords(int batchIndex)
     {
         ThrowIfDisposed();
-        var words = new List<WordResult>();
-        var wordCount = NativeMethods.BatchNWords(_handle, batchIndex);
-        if (wordCount == 0) return words;
-
-        var wordSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiWord);
-        StackAllocHelper.RunWithBuffer(wordSize, wordPtr =>
-        {
-            for (int j = 0; j < wordCount; j++)
-            {
-                NativeMethods.WordInit(wordPtr);
-                var status = NativeMethods.BatchGetWord(_handle, batchIndex, j, wordPtr);
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.BatchGetWord));
-
-                var w = Marshal.PtrToStructure<Interop.Word>(wordPtr);
-                var text = Marshal.PtrToStringUTF8(w.text) ?? "";
-                words.Add(new WordResult(
-                    Start: TimeSpan.FromMilliseconds(w.t0Ms),
-                    End: TimeSpan.FromMilliseconds(w.t1Ms),
-                    Text: text
-                ));
-            }
-        });
-        return words;
+        return ReadItems<Interop.Word, WordResult>(
+            count: NativeMethods.BatchNWords(_handle, batchIndex),
+            abi: AbiStruct.AbiWord,
+            init: NativeMethods.WordInit,
+            get: (j, ptr) => NativeMethods.BatchGetWord(_handle, batchIndex, j, ptr),
+            getMethodName: nameof(NativeMethods.BatchGetWord),
+            map: static w => new WordResult(
+                Start: TimeSpan.FromMilliseconds(w.t0Ms),
+                End: TimeSpan.FromMilliseconds(w.t1Ms),
+                Text: Marshal.PtrToStringUTF8(w.text) ?? ""));
     }
 
     internal IReadOnlyList<TokenResult> GetBatchTokens(int batchIndex)
     {
         ThrowIfDisposed();
-        var tokens = new List<TokenResult>();
-        var tokenCount = NativeMethods.BatchNTokens(_handle, batchIndex);
-        if (tokenCount == 0) return tokens;
-
-        var tokenSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiToken);
-        StackAllocHelper.RunWithBuffer(tokenSize, tokenPtr =>
-        {
-            for (int j = 0; j < tokenCount; j++)
-            {
-                NativeMethods.TokenInit(tokenPtr);
-                var status = NativeMethods.BatchGetToken(_handle, batchIndex, j, tokenPtr);
-                if (status != Status.Ok)
-                    throw new TranscribeException(status, nameof(NativeMethods.BatchGetToken));
-
-                var t = Marshal.PtrToStructure<Interop.Token>(tokenPtr);
-                var text = Marshal.PtrToStringUTF8(t.text) ?? "";
-                tokens.Add(new TokenResult(
-                    Id: t.id,
-                    Probability: t.p,
-                    Start: TimeSpan.FromMilliseconds(t.t0Ms),
-                    End: TimeSpan.FromMilliseconds(t.t1Ms),
-                    Text: text
-                ));
-            }
-        });
-        return tokens;
+        return ReadItems<Interop.Token, TokenResult>(
+            count: NativeMethods.BatchNTokens(_handle, batchIndex),
+            abi: AbiStruct.AbiToken,
+            init: NativeMethods.TokenInit,
+            get: (j, ptr) => NativeMethods.BatchGetToken(_handle, batchIndex, j, ptr),
+            getMethodName: nameof(NativeMethods.BatchGetToken),
+            map: static t => new TokenResult(
+                Id: t.id,
+                Probability: t.p,
+                Start: TimeSpan.FromMilliseconds(t.t0Ms),
+                End: TimeSpan.FromMilliseconds(t.t1Ms),
+                Text: Marshal.PtrToStringUTF8(t.text) ?? ""));
     }
 
     internal SessionHandle Handle => _handle;
@@ -567,6 +477,40 @@ public sealed class Session : IDisposable
             }
         });
         return result;
+    }
+
+    /// <summary>
+    /// Fetch <paramref name="count"/> items of native type <typeparamref name="TNative"/>
+    /// into a fresh buffer (one init + fetch per index) and map each to the managed
+    /// result type <typeparamref name="TResult"/>. Shared by the session and batch
+    /// readers to avoid six copies of the same loop.
+    /// </summary>
+    private static List<TResult> ReadItems<TNative, TResult>(
+        int count,
+        AbiStruct abi,
+        Action<IntPtr> init,
+        Func<int, IntPtr, Status> get,
+        string getMethodName,
+        Func<TNative, TResult> map)
+        where TNative : struct
+    {
+        var results = new List<TResult>(count);
+        if (count == 0) return results;
+
+        var size = (int)NativeMethods.AbiStructSize(abi);
+        StackAllocHelper.RunWithBuffer(size, ptr =>
+        {
+            for (int i = 0; i < count; i++)
+            {
+                init(ptr);
+                var status = get(i, ptr);
+                if (status != Status.Ok)
+                    throw new TranscribeException(status, getMethodName);
+
+                results.Add(map(Marshal.PtrToStructure<TNative>(ptr)!));
+            }
+        });
+        return results;
     }
 
     public void Dispose()

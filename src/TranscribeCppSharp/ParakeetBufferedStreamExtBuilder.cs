@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
@@ -11,57 +10,38 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private ParakeetBufferedStreamExt _params;
-    private bool _disposed;
+    private readonly ExtBuffer<ParakeetBufferedStreamExt> _buffer;
 
     public ParakeetBufferedStreamExtBuilder()
     {
-        var size = Marshal.SizeOf<ParakeetBufferedStreamExt>();
-        _handle = Marshal.AllocHGlobal(size);
-        NativeMethods.ParakeetBufferedStreamExtInit(_handle);
-        _params = Marshal.PtrToStructure<ParakeetBufferedStreamExt>(_handle);
-        if (_params.ext.size != (ulong)size)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for ParakeetBufferedStreamExt: C# expects {size} bytes, native reports {_params.ext.size} bytes. " +
-                $"Regenerate bindings or update the struct definition.");
+        _buffer = new ExtBuffer<ParakeetBufferedStreamExt>(
+            NativeMethods.ParakeetBufferedStreamExtInit,
+            static p => p.ext.size,
+            nameof(ParakeetBufferedStreamExtBuilder));
     }
 
     /// <summary>Left context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithLeftMs(int leftMs)
     {
-        _params.leftMs = leftMs;
+        _buffer.Params.leftMs = leftMs;
         return this;
     }
 
     /// <summary>Chunk size in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithChunkMs(int chunkMs)
     {
-        _params.chunkMs = chunkMs;
+        _buffer.Params.chunkMs = chunkMs;
         return this;
     }
 
     /// <summary>Right context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithRightMs(int rightMs)
     {
-        _params.rightMs = rightMs;
+        _buffer.Params.rightMs = rightMs;
         return this;
     }
 
-    internal IntPtr Build()
-    {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(ParakeetBufferedStreamExtBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
-    }
+    internal IntPtr Build() => _buffer.Build();
 
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
-        }
-    }
+    public void Dispose() => _buffer.Dispose();
 }

@@ -48,7 +48,9 @@ jobs:
       - name: Cache native libraries
         uses: actions/cache@v4
         with:
-          path: native-packages
+          # Cache only the downloaded binaries, not the .csproj files, so a
+          # stale cache never overwrites project changes from the checkout.
+          path: native-packages/*/runtimes
           key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
@@ -100,8 +102,10 @@ jobs:
       - name: Cache native libraries
         uses: actions/cache@v4
         with:
-          path: native-packages
-          key: native-libs-${{ runner.os }}-${{ hashFiles('fetch-native.sh', 'TRANSCRIBE_VERSION') }}
+          # Cache only the downloaded binaries, not the .csproj files, so a
+          # stale cache never overwrites project changes from the checkout.
+          path: native-packages/*/runtimes
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
         uses: actions/cache@v4
@@ -137,7 +141,9 @@ jobs:
       - name: Cache native libraries
         uses: actions/cache@v4
         with:
-          path: native-packages
+          # Cache only the downloaded binaries, not the .csproj files, so a
+          # stale cache never overwrites project changes from the checkout.
+          path: native-packages/*/runtimes
           key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
 
       - run: dotnet run --project tools/FetchNative -- --all

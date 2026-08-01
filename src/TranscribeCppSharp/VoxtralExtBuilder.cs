@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
@@ -11,50 +10,31 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class VoxtralExtBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private VoxtralRealtimeStreamExt _params;
-    private bool _disposed;
+    private readonly ExtBuffer<VoxtralRealtimeStreamExt> _buffer;
 
     public VoxtralExtBuilder()
     {
-        var size = Marshal.SizeOf<VoxtralRealtimeStreamExt>();
-        _handle = Marshal.AllocHGlobal(size);
-        NativeMethods.VoxtralRealtimeStreamExtInit(_handle);
-        _params = Marshal.PtrToStructure<VoxtralRealtimeStreamExt>(_handle);
-        if (_params.ext.size != (ulong)size)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for VoxtralRealtimeStreamExt: C# expects {size} bytes, native reports {_params.ext.size} bytes. " +
-                $"Regenerate bindings or update the struct definition.");
+        _buffer = new ExtBuffer<VoxtralRealtimeStreamExt>(
+            NativeMethods.VoxtralRealtimeStreamExtInit,
+            static p => p.ext.size,
+            nameof(VoxtralExtBuilder));
     }
 
     /// <summary>Number of delay tokens.</summary>
     public VoxtralExtBuilder WithNumDelayTokens(int numDelayTokens)
     {
-        _params.numDelayTokens = numDelayTokens;
+        _buffer.Params.numDelayTokens = numDelayTokens;
         return this;
     }
 
     /// <summary>Minimum decode interval in milliseconds.</summary>
     public VoxtralExtBuilder WithMinDecodeIntervalMs(int ms)
     {
-        _params.minDecodeIntervalMs = ms;
+        _buffer.Params.minDecodeIntervalMs = ms;
         return this;
     }
 
-    internal IntPtr Build()
-    {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(VoxtralExtBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
-    }
+    internal IntPtr Build() => _buffer.Build();
 
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
-        }
-    }
+    public void Dispose() => _buffer.Dispose();
 }

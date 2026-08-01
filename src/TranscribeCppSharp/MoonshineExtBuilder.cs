@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
@@ -11,43 +10,24 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class MoonshineExtBuilder : IDisposable
 {
-    private IntPtr _handle;
-    private MoonshineStreamingStreamExt _params;
-    private bool _disposed;
+    private readonly ExtBuffer<MoonshineStreamingStreamExt> _buffer;
 
     public MoonshineExtBuilder()
     {
-        var size = Marshal.SizeOf<MoonshineStreamingStreamExt>();
-        _handle = Marshal.AllocHGlobal(size);
-        NativeMethods.MoonshineStreamingStreamExtInit(_handle);
-        _params = Marshal.PtrToStructure<MoonshineStreamingStreamExt>(_handle);
-        if (_params.ext.size != (ulong)size)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for MoonshineStreamingStreamExt: C# expects {size} bytes, native reports {_params.ext.size} bytes. " +
-                $"Regenerate bindings or update the struct definition.");
+        _buffer = new ExtBuffer<MoonshineStreamingStreamExt>(
+            NativeMethods.MoonshineStreamingStreamExtInit,
+            static p => p.ext.size,
+            nameof(MoonshineExtBuilder));
     }
 
     /// <summary>Minimum decode interval in milliseconds.</summary>
     public MoonshineExtBuilder WithMinDecodeIntervalMs(int ms)
     {
-        _params.minDecodeIntervalMs = ms;
+        _buffer.Params.minDecodeIntervalMs = ms;
         return this;
     }
 
-    internal IntPtr Build()
-    {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(MoonshineExtBuilder));
-        Marshal.StructureToPtr(_params, _handle, false);
-        return _handle;
-    }
+    internal IntPtr Build() => _buffer.Build();
 
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            Marshal.FreeHGlobal(_handle);
-            _disposed = true;
-        }
-    }
+    public void Dispose() => _buffer.Dispose();
 }
