@@ -219,7 +219,7 @@ public sealed class Session : IDisposable
     }
 
     /// <summary>Read segments from the last run result.</summary>
-    public unsafe IReadOnlyList<SegmentResult> ReadSegments()
+    public IReadOnlyList<SegmentResult> ReadSegments()
     {
         ThrowIfDisposed();
 
@@ -228,11 +228,8 @@ public sealed class Session : IDisposable
         if (segCount == 0) return segments;
 
         var segSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSegment);
-        StackAllocHelper.ThrowIfTooLarge(segSize, nameof(Segment));
-        Span<byte> segBuffer = stackalloc byte[segSize];
-        fixed (byte* pSegBuffer = segBuffer)
+        StackAllocHelper.RunWithBuffer(segSize, segPtr =>
         {
-            var segPtr = (IntPtr)pSegBuffer;
             for (int i = 0; i < segCount; i++)
             {
                 NativeMethods.SegmentInit(segPtr);
@@ -248,13 +245,13 @@ public sealed class Session : IDisposable
                     Text: text
                 ));
             }
-        }
+        });
 
         return segments;
     }
 
     /// <summary>Read words from the last run result.</summary>
-    public unsafe IReadOnlyList<WordResult> ReadWords()
+    public IReadOnlyList<WordResult> ReadWords()
     {
         ThrowIfDisposed();
 
@@ -263,11 +260,8 @@ public sealed class Session : IDisposable
         if (wordCount == 0) return words;
 
         var wordSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiWord);
-        StackAllocHelper.ThrowIfTooLarge(wordSize, nameof(Word));
-        Span<byte> wordBuffer = stackalloc byte[wordSize];
-        fixed (byte* pWordBuffer = wordBuffer)
+        StackAllocHelper.RunWithBuffer(wordSize, wordPtr =>
         {
-            var wordPtr = (IntPtr)pWordBuffer;
             for (int i = 0; i < wordCount; i++)
             {
                 NativeMethods.WordInit(wordPtr);
@@ -283,13 +277,13 @@ public sealed class Session : IDisposable
                     Text: text
                 ));
             }
-        }
+        });
 
         return words;
     }
 
     /// <summary>Read tokens from the last run result.</summary>
-    public unsafe IReadOnlyList<TokenResult> ReadTokens()
+    public IReadOnlyList<TokenResult> ReadTokens()
     {
         ThrowIfDisposed();
 
@@ -298,11 +292,8 @@ public sealed class Session : IDisposable
         if (tokenCount == 0) return tokens;
 
         var tokenSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiToken);
-        StackAllocHelper.ThrowIfTooLarge(tokenSize, nameof(Token));
-        Span<byte> tokenBuffer = stackalloc byte[tokenSize];
-        fixed (byte* pTokenBuffer = tokenBuffer)
+        StackAllocHelper.RunWithBuffer(tokenSize, tokenPtr =>
         {
-            var tokenPtr = (IntPtr)pTokenBuffer;
             for (int i = 0; i < tokenCount; i++)
             {
                 NativeMethods.TokenInit(tokenPtr);
@@ -320,7 +311,7 @@ public sealed class Session : IDisposable
                     Text: text
                 ));
             }
-        }
+        });
 
         return tokens;
     }
@@ -416,7 +407,7 @@ public sealed class Session : IDisposable
         return ptr == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(ptr) ?? "";
     }
 
-    internal unsafe IReadOnlyList<SegmentResult> GetBatchSegments(int batchIndex)
+    internal IReadOnlyList<SegmentResult> GetBatchSegments(int batchIndex)
     {
         ThrowIfDisposed();
         var segments = new List<SegmentResult>();
@@ -424,11 +415,8 @@ public sealed class Session : IDisposable
         if (segCount == 0) return segments;
 
         var segSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSegment);
-        StackAllocHelper.ThrowIfTooLarge(segSize, nameof(Segment));
-        Span<byte> segBuffer = stackalloc byte[segSize];
-        fixed (byte* pSegBuffer = segBuffer)
+        StackAllocHelper.RunWithBuffer(segSize, segPtr =>
         {
-            var segPtr = (IntPtr)pSegBuffer;
             for (int j = 0; j < segCount; j++)
             {
                 NativeMethods.SegmentInit(segPtr);
@@ -444,11 +432,11 @@ public sealed class Session : IDisposable
                     Text: text
                 ));
             }
-        }
+        });
         return segments;
     }
 
-    internal unsafe IReadOnlyList<WordResult> GetBatchWords(int batchIndex)
+    internal IReadOnlyList<WordResult> GetBatchWords(int batchIndex)
     {
         ThrowIfDisposed();
         var words = new List<WordResult>();
@@ -456,11 +444,8 @@ public sealed class Session : IDisposable
         if (wordCount == 0) return words;
 
         var wordSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiWord);
-        StackAllocHelper.ThrowIfTooLarge(wordSize, nameof(Word));
-        Span<byte> wordBuffer = stackalloc byte[wordSize];
-        fixed (byte* pWordBuffer = wordBuffer)
+        StackAllocHelper.RunWithBuffer(wordSize, wordPtr =>
         {
-            var wordPtr = (IntPtr)pWordBuffer;
             for (int j = 0; j < wordCount; j++)
             {
                 NativeMethods.WordInit(wordPtr);
@@ -476,11 +461,11 @@ public sealed class Session : IDisposable
                     Text: text
                 ));
             }
-        }
+        });
         return words;
     }
 
-    internal unsafe IReadOnlyList<TokenResult> GetBatchTokens(int batchIndex)
+    internal IReadOnlyList<TokenResult> GetBatchTokens(int batchIndex)
     {
         ThrowIfDisposed();
         var tokens = new List<TokenResult>();
@@ -488,11 +473,8 @@ public sealed class Session : IDisposable
         if (tokenCount == 0) return tokens;
 
         var tokenSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiToken);
-        StackAllocHelper.ThrowIfTooLarge(tokenSize, nameof(Token));
-        Span<byte> tokenBuffer = stackalloc byte[tokenSize];
-        fixed (byte* pTokenBuffer = tokenBuffer)
+        StackAllocHelper.RunWithBuffer(tokenSize, tokenPtr =>
         {
-            var tokenPtr = (IntPtr)pTokenBuffer;
             for (int j = 0; j < tokenCount; j++)
             {
                 NativeMethods.TokenInit(tokenPtr);
@@ -510,29 +492,27 @@ public sealed class Session : IDisposable
                     Text: text
                 ));
             }
-        }
+        });
         return tokens;
     }
 
     internal SessionHandle Handle => _handle;
 
-    internal unsafe TimingsResult? GetBatchTimings(int batchIndex)
+    internal TimingsResult? GetBatchTimings(int batchIndex)
     {
         ThrowIfDisposed();
         var timingsSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiTimings);
-        StackAllocHelper.ThrowIfTooLarge(timingsSize, nameof(Timings));
-        Span<byte> timingsBuffer = stackalloc byte[timingsSize];
-        fixed (byte* pTimingsBuffer = timingsBuffer)
+        TimingsResult? result = null;
+        StackAllocHelper.RunWithBuffer(timingsSize, timingsPtr =>
         {
-            var timingsPtr = (IntPtr)pTimingsBuffer;
             NativeMethods.TimingsInit(timingsPtr);
             if (NativeMethods.BatchGetTimings(_handle, batchIndex, timingsPtr) == Status.Ok)
             {
                 var t = Marshal.PtrToStructure<Interop.Timings>(timingsPtr);
-                return new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
+                result = new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
             }
-        }
-        return null;
+        });
+        return result;
     }
 
     private unsafe void RunNative(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure)
@@ -573,22 +553,20 @@ public sealed class Session : IDisposable
         };
     }
 
-    private unsafe TimingsResult? ReadTimings()
+    private TimingsResult? ReadTimings()
     {
         var timingsSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiTimings);
-        StackAllocHelper.ThrowIfTooLarge(timingsSize, nameof(Timings));
-        Span<byte> timingsBuffer = stackalloc byte[timingsSize];
-        fixed (byte* pTimingsBuffer = timingsBuffer)
+        TimingsResult? result = null;
+        StackAllocHelper.RunWithBuffer(timingsSize, timingsPtr =>
         {
-            var timingsPtr = (IntPtr)pTimingsBuffer;
             NativeMethods.TimingsInit(timingsPtr);
             if (NativeMethods.GetTimings(_handle, timingsPtr) == Status.Ok)
             {
                 var t = Marshal.PtrToStructure<Interop.Timings>(timingsPtr);
-                return new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
+                result = new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
             }
-        }
-        return null;
+        });
+        return result;
     }
 
     public void Dispose()

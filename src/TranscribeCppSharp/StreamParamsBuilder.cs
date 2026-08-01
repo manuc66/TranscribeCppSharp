@@ -21,12 +21,8 @@ public sealed class StreamParamsBuilder : IDisposable
 
     public StreamParamsBuilder()
     {
-        var abiSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamParams);
-        var csSize = Marshal.SizeOf<StreamParams>();
-        if (csSize != abiSize)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for StreamParams: C# expects {csSize} bytes, native reports {abiSize} bytes.");
-        _handle = Marshal.AllocHGlobal(abiSize);
+        AbiValidation.ValidateSize<StreamParams>(AbiStruct.AbiStreamParams, nameof(StreamParams));
+        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<StreamParams>());
         NativeMethods.StreamParamsInit(_handle);
         _params = Marshal.PtrToStructure<StreamParams>(_handle);
     }

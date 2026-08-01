@@ -29,13 +29,8 @@ public sealed class RunParamsBuilder : IDisposable
 
     public RunParamsBuilder()
     {
-        var abiSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiRunParams);
-        var csSize = Marshal.SizeOf<RunParams>();
-        if (csSize != abiSize)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for RunParams: C# expects {csSize} bytes, native reports {abiSize} bytes. " +
-                $"Regenerate bindings or update the struct definition.");
-        _handle = Marshal.AllocHGlobal(abiSize);
+        AbiValidation.ValidateSize<RunParams>(AbiStruct.AbiRunParams, nameof(RunParams));
+        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<RunParams>());
         NativeMethods.RunParamsInit(_handle);
         _params = Marshal.PtrToStructure<RunParams>(_handle);
     }

@@ -35,7 +35,7 @@ public static class Batch
     /// <param name="configure">Optional configuration for run parameters.</param>
     /// <param name="ct">Optional cancellation token.</param>
     /// <returns>Array of results, one per input buffer.</returns>
-    public static unsafe IReadOnlyList<BatchResult> Run(
+    public static IReadOnlyList<BatchResult> Run(
         Session session,
         float[][] pcmBuffers,
         Action<RunParamsBuilder>? configure = null,
@@ -44,7 +44,7 @@ public static class Batch
         return RunInternal(session, pcmBuffers, configure, ct);
     }
 
-    private static unsafe IReadOnlyList<BatchResult> RunInternal(
+    private static IReadOnlyList<BatchResult> RunInternal(
         Session session,
         float[][] pcmBuffers,
         Action<RunParamsBuilder>? configure,

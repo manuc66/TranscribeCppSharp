@@ -80,6 +80,38 @@ public partial class RustFfiParser
         return results;
     }
 
+    /// <summary>
+    /// Parse the compile-time layout checks bindgen embeds in transcribe_sys.rs
+    /// (const _: () = { ["Size of X"][size_of::&lt;X&gt;() - N]; ... }). These constants are
+    /// verified by the Rust compiler against the real repr(C) layout, so they are the
+    /// ground truth for the C# struct declarations (total size, alignment, field offsets).
+    /// </summary>
+    public List<RustStructLayout> ParseAbiLayouts()
+    {
+        var results = new List<RustStructLayout>();
+        foreach (Match m in AbiLayoutBlockRegex().Matches(_content))
+        {
+            var body = m.Groups["body"].Value;
+
+            var sizeMatch = AbiLayoutSizeRegex().Match(body);
+            if (!sizeMatch.Success)
+                continue; // not a layout block
+
+            var name = sizeMatch.Groups["name"].Value;
+            var size = ulong.Parse(sizeMatch.Groups["value"].Value);
+
+            var alignMatch = AbiLayoutAlignRegex().Match(body);
+            var align = alignMatch.Success ? ulong.Parse(alignMatch.Groups["value"].Value) : 0UL;
+
+            var fields = new List<RustStructLayoutField>();
+            foreach (Match f in AbiLayoutOffsetRegex().Matches(body))
+                fields.Add(new(f.Groups["field"].Value, ulong.Parse(f.Groups["value"].Value)));
+
+            results.Add(new RustStructLayout(name, size, align, fields));
+        }
+        return results;
+    }
+
     // ── Type parser ────────────────────────────────────────────────
 
     public static RustType ParseRustType(string raw)
@@ -182,6 +214,18 @@ public partial class RustFfiParser
 
     [GeneratedRegex(@"pub\s+(?<name>\w+)\s*:\s*(?<type>[^,]+),?")]
     private static partial Regex StructFieldRegex();
+
+    [GeneratedRegex(@"const _: \(\) = \{(?<body>[^}]*)\};", RegexOptions.Singleline)]
+    private static partial Regex AbiLayoutBlockRegex();
+
+    [GeneratedRegex(@"\[""Size of (?<name>\w+)""\]\s*\[[^\]]*\s*-\s*(?<value>\d+)usize\]")]
+    private static partial Regex AbiLayoutSizeRegex();
+
+    [GeneratedRegex(@"\[""Alignment of (?<name>\w+)""\]\s*\[[^\]]*\s*-\s*(?<value>\d+)usize\]")]
+    private static partial Regex AbiLayoutAlignRegex();
+
+    [GeneratedRegex(@"\[""Offset of field: \w+::(?<field>\w+)""\]\s*\[[^\]]*\s*-\s*(?<value>\d+)usize\]")]
+    private static partial Regex AbiLayoutOffsetRegex();
 }
 
 // ── Data records ───────────────────────────────────────────────────
@@ -192,3 +236,5 @@ public record RustFunction(string Name, RustType ReturnType, List<RustParam> Par
 public record RustStruct(string Name, List<RustStructField> Fields);
 public record RustStructField(RustType Type, string Name);
 public record RustParam(RustType Type, string Name);
+public record RustStructLayout(string Name, ulong Size, ulong Align, List<RustStructLayoutField> Fields);
+public record RustStructLayoutField(string Field, ulong Offset);

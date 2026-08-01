@@ -28,10 +28,10 @@ public class HighLevelApiTests : IDisposable
 
     private static bool IsIntegrationEnv => TestConfig.IsIntegrationTestEnvironment();
 
-    [Fact]
+    [SkippableFact]
     public void PcmExtensions_ReadWavToPcm_ShouldLoadTestWav()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
 
         Assert.NotNull(pcm);
@@ -514,18 +514,18 @@ public class HighLevelApiTests : IDisposable
         Assert.ThrowsAny<Exception>(() => TranscribeCppSharp.Model.Load(nonExistentPath));
     }
 
-    [Fact]
+    [SkippableFact]
     public void ModelLoad_ValidModel_ShouldSucceed()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.NotNull(model);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Session_Run_ShouldReturnTranscript()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -535,10 +535,10 @@ public class HighLevelApiTests : IDisposable
         Assert.NotEmpty(transcript.FullText);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Session_ReadSegments_ShouldReturnSegments()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -549,10 +549,10 @@ public class HighLevelApiTests : IDisposable
         Assert.NotEmpty(segments);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Session_ReadWords_ShouldReturnWords()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -568,10 +568,10 @@ public class HighLevelApiTests : IDisposable
         }
     }
 
-    [Fact]
+    [SkippableFact]
     public void Session_ReadTokens_ShouldReturnTokens()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -587,10 +587,10 @@ public class HighLevelApiTests : IDisposable
         }
     }
 
-    [Fact]
+    [SkippableFact]
     public void StreamSession_Feed_ShouldStreamAudio()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         using var stream = session.CreateStream();
@@ -621,10 +621,10 @@ public class HighLevelApiTests : IDisposable
         }
     }
 
-    [Fact]
+    [SkippableFact]
     public void Batch_Run_ShouldProcessMultipleBuffers()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
 
@@ -642,10 +642,10 @@ public class HighLevelApiTests : IDisposable
         Assert.NotNull(results[0].Timing);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_Tokenize_ShouldReturnTokens()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var tokens = model.Tokenize("Hello world");
 
@@ -653,10 +653,10 @@ public class HighLevelApiTests : IDisposable
         Assert.True(tokens.Length > 0);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Session_SetAbortCallback_ShouldAllowCancellation()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
 
@@ -673,28 +673,28 @@ public class HighLevelApiTests : IDisposable
         Assert.True(callbackInvoked);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_GetMetaValue_ShouldReturnMetadata()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var value = model.GetMetaValue("general.architecture");
         Assert.NotNull(value);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_Supports_ShouldCheckFeature()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var supportsPnc = model.Supports(Feature.FeaturePnc);
         Assert.IsType<bool>(supportsPnc);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_Metadata_ShouldReturnInfo()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.NotEmpty(model.Architecture);
         Assert.NotEmpty(model.Variant);
@@ -704,10 +704,10 @@ public class HighLevelApiTests : IDisposable
         Assert.True(caps.NativeSampleRate > 0);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Session_Metadata_ShouldReturnInfo()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         
@@ -724,20 +724,20 @@ public class HighLevelApiTests : IDisposable
     // §6: Disposal tests (no native lib required for most)
     // ═══════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [SkippableFact]
     public void Session_DoubleDispose_DoesNotThrow()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var session = model.CreateSession();
         session.Dispose();
         session.Dispose(); // second dispose must not throw
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_DoubleDispose_DoesNotThrow()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         model.Dispose();
         model.Dispose(); // second dispose must not throw
@@ -786,20 +786,20 @@ public class HighLevelApiTests : IDisposable
             TranscribeCppSharp.Batch.Run(null!, new float[][] { new float[16000] }));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Batch_Run_NullBuffers_ThrowsArgumentNullException()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         Assert.Throws<ArgumentNullException>(() =>
             TranscribeCppSharp.Batch.Run(session, null!));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Batch_Run_EmptyArray_ReturnsEmpty()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var results = TranscribeCppSharp.Batch.Run(session, Array.Empty<float[]>());
@@ -833,26 +833,26 @@ public class HighLevelApiTests : IDisposable
         Assert.ThrowsAny<ArgumentOutOfRangeException>(() => builder.WithTask(invalidTask));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_Tokenize_NullText_ThrowsArgumentNullException()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.Throws<ArgumentNullException>(() => model.Tokenize(null!));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_Tokenize_ZeroMaxTokens_ThrowsArgumentOutOfRangeException()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Tokenize("test", 0));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Model_Tokenize_NegativeMaxTokens_ThrowsArgumentOutOfRangeException()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Tokenize("test", -1));
     }
@@ -895,10 +895,10 @@ public class HighLevelApiTests : IDisposable
     // §6: Golden-text assertion on JFK sample
     // ═══════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [SkippableFact]
     public void Session_Run_ShouldReturnTranscript_ContainsJFKText()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -915,10 +915,10 @@ public class HighLevelApiTests : IDisposable
     // §6: Cancellation tests (require native lib)
     // ═══════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [SkippableFact]
     public void Session_Run_AlreadyCancelled_ThrowsOperationCanceledException()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
@@ -929,10 +929,10 @@ public class HighLevelApiTests : IDisposable
         Assert.Throws<OperationCanceledException>(() => session.Run(pcm, ct: cts.Token));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Session_Run_CancellationRestoresCallback()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
 
@@ -962,10 +962,10 @@ public class HighLevelApiTests : IDisposable
         Assert.True(originalCallbackCalled);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Batch_Run_AlreadyCancelled_ThrowsOperationCanceledException()
     {
-        if (!IsIntegrationEnv) return;
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);

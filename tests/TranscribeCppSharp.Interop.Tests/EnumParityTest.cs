@@ -37,7 +37,7 @@ public class EnumParityTest
         }
     }
 
-    [Theory]
+    [SkippableTheory]
     [InlineData(AbiStruct.AbiModelLoadParams)]
     [InlineData(AbiStruct.AbiSessionParams)]
     [InlineData(AbiStruct.AbiRunParams)]
@@ -58,13 +58,12 @@ public class EnumParityTest
         try
         {
             size = (nuint)NativeMethods.AbiStructSize(which);
+            Assert.True(size > 0, $"ABI struct {which} reported size {size}");
         }
         catch (DllNotFoundException)
         {
-            // Native library not available in test environment — skip
-            return;
+            Skip.If(true, "Native library not available in test environment.");
         }
-        Assert.True(size > 0, $"ABI struct {which} reported size {size}");
     }
 
     private static string ToPascalCase(string s)

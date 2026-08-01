@@ -221,16 +221,6 @@ public delegate bool AbortCallback(IntPtr userdata);
 // Structs
 // ════════════════════════════════════════════════════════════════
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
-public struct Model
-{
-}
-
-[StructLayout(LayoutKind.Sequential, Pack = 8)]
-public struct Session
-{
-}
-
-[StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct Ext
 {
     public ulong size;
@@ -465,6 +455,39 @@ public struct WhisperChunkTrace
     [MarshalAs(UnmanagedType.I1)]
     public bool noSpeechTriggered;
     public int nFallbacks;
+}
+
+// ════════════════════════════════════════════════════════════════
+// ABI layout contracts (native ground truth)
+// Sizes/alignments/offsets come from the compile-time checks emitted
+// by bindgen in transcribe_sys.rs (size_of!/align_of!/offset_of!).
+// AbiLayoutTest cross-checks Marshal.SizeOf/OffsetOf against these.
+// ════════════════════════════════════════════════════════════════
+internal static class AbiLayout
+{
+    public static readonly (string TypeName, ulong Size, ulong Align, (string Field, nuint Offset)[] Offsets)[] All =
+    [
+        ("Ext", 16, 8, [("size", 0), ("kind", 8)]),
+        ("BackendDevice", 64, 8, [("structSize", 0), ("name", 8), ("description", 16), ("kind", 24), ("deviceId", 32), ("memoryTotal", 40), ("memoryFree", 48), ("deviceType", 56)]),
+        ("ModelLoadParams", 16, 8, [("structSize", 0), ("backend", 8), ("gpuDevice", 12)]),
+        ("SessionParams", 24, 8, [("structSize", 0), ("nThreads", 8), ("kvType", 12), ("nCtx", 16)]),
+        ("RunParams", 64, 8, [("structSize", 0), ("task", 8), ("timestamps", 12), ("pnc", 16), ("itn", 20), ("language", 24), ("targetLanguage", 32), ("keepSpecialTags", 40), ("family", 48), ("specKDrafts", 56)]),
+        ("Capabilities", 56, 8, [("structSize", 0), ("nativeSampleRate", 8), ("nLanguages", 12), ("languages", 16), ("maxTimestampKind", 24), ("supportsLanguageDetect", 28), ("supportsTranslate", 29), ("supportsStreaming", 30), ("supportsSpecDecode", 31), ("maxAudioMs", 32), ("nTranslateTargetLanguages", 40), ("translateTargetLanguages", 48)]),
+        ("SessionLimits", 32, 8, [("structSize", 0), ("effectiveNCtx", 8), ("effectiveMaxAudioMs", 16), ("maxKvBytes", 24)]),
+        ("StreamParams", 24, 8, [("structSize", 0), ("family", 8), ("commitPolicy", 16), ("stablePrefixAgreementN", 20)]),
+        ("StreamUpdate", 48, 8, [("structSize", 0), ("resultChanged", 8), ("isFinal", 9), ("revision", 12), ("inputReceivedMs", 16), ("audioCommittedMs", 24), ("bufferedMs", 32), ("committedChanged", 40), ("tentativeChanged", 41)]),
+        ("StreamText", 64, 8, [("structSize", 0), ("fullText", 8), ("fullTextBytes", 16), ("committedText", 24), ("committedTextBytes", 32), ("tentativeText", 40), ("tentativeTextBytes", 48), ("rawTentativeStartBytes", 56)]),
+        ("Timings", 24, 8, [("structSize", 0), ("loadMs", 8), ("melMs", 12), ("encodeMs", 16), ("decodeMs", 20)]),
+        ("Segment", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("firstWord", 24), ("nWords", 28), ("firstToken", 32), ("nTokens", 36), ("text", 40)]),
+        ("Word", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("segIndex", 24), ("firstToken", 28), ("nTokens", 32), ("text", 40)]),
+        ("Token", 48, 8, [("structSize", 0), ("id", 8), ("p", 12), ("t0Ms", 16), ("t1Ms", 24), ("segIndex", 32), ("wordIndex", 36), ("text", 40)]),
+        ("MoonshineStreamingStreamExt", 24, 8, [("ext", 0), ("minDecodeIntervalMs", 16)]),
+        ("ParakeetStreamExt", 24, 8, [("ext", 0), ("attContextRight", 16)]),
+        ("ParakeetBufferedStreamExt", 32, 8, [("ext", 0), ("leftMs", 16), ("chunkMs", 20), ("rightMs", 24)]),
+        ("VoxtralRealtimeStreamExt", 24, 8, [("ext", 0), ("numDelayTokens", 16), ("minDecodeIntervalMs", 20)]),
+        ("WhisperRunExt", 80, 8, [("ext", 0), ("initialPrompt", 16), ("promptTokens", 24), ("nPromptTokens", 32), ("promptCondition", 40), ("conditionOnPrevTokens", 44), ("maxPrevContextTokens", 48), ("temperature", 52), ("temperatureInc", 56), ("compressionRatioThold", 60), ("logprobThold", 64), ("noSpeechThold", 68), ("seed", 72), ("maxInitialTimestamp", 76)]),
+        ("WhisperChunkTrace", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("temperatureUsed", 24), ("compressionRatio", 28), ("avgLogprob", 32), ("noSpeechProb", 36), ("noSpeechTriggered", 40), ("nFallbacks", 44)]),
+    ];
 }
 
 // ════════════════════════════════════════════════════════════════

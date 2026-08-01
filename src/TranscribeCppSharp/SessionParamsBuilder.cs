@@ -17,13 +17,8 @@ public sealed class SessionParamsBuilder : IDisposable
 
     public SessionParamsBuilder()
     {
-        var abiSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSessionParams);
-        var csSize = Marshal.SizeOf<SessionParams>();
-        if (csSize != abiSize)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for SessionParams: C# expects {csSize} bytes, native reports {abiSize} bytes. " +
-                $"Regenerate bindings or update the struct definition.");
-        _handle = Marshal.AllocHGlobal(abiSize);
+        AbiValidation.ValidateSize<SessionParams>(AbiStruct.AbiSessionParams, nameof(SessionParams));
+        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<SessionParams>());
         NativeMethods.SessionParamsInit(_handle);
         _params = Marshal.PtrToStructure<SessionParams>(_handle);
     }

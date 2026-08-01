@@ -17,13 +17,8 @@ public sealed class ModelLoadParamsBuilder : IDisposable
 
     public ModelLoadParamsBuilder()
     {
-        var abiSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiModelLoadParams);
-        var csSize = Marshal.SizeOf<ModelLoadParams>();
-        if (csSize != abiSize)
-            throw new InvalidOperationException(
-                $"ABI struct size mismatch for ModelLoadParams: C# expects {csSize} bytes, native reports {abiSize} bytes. " +
-                $"Regenerate bindings or update the struct definition.");
-        _handle = Marshal.AllocHGlobal(abiSize);
+        AbiValidation.ValidateSize<ModelLoadParams>(AbiStruct.AbiModelLoadParams, nameof(ModelLoadParams));
+        _handle = Marshal.AllocHGlobal(Marshal.SizeOf<ModelLoadParams>());
         NativeMethods.ModelLoadParamsInit(_handle);
         _params = Marshal.PtrToStructure<ModelLoadParams>(_handle);
     }

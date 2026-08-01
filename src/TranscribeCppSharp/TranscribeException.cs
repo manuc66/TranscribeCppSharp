@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 
@@ -41,21 +42,38 @@ public sealed class TranscribeException : Exception
     private static string BuildMessage(Status status, string? failedMethod)
     {
         var method = failedMethod != null ? $" in {failedMethod}" : "";
-        var nativeMsg = "";
+        var nativeMsg = GetNativeStatusMessage((int)status);
+        return $"transcribe native error{method}: {status} ({(int)status}){nativeMsg}";
+    }
+
+    /// <summary>
+    /// Best-effort native status description, memoized per status code so the
+    /// exception path hits P/Invoke at most once per code — and never crashes
+    /// (e.g. when the native library cannot be loaded).
+    /// </summary>
+    private static readonly ConcurrentDictionary<int, string> s_statusMessages = new();
+
+    private static string GetNativeStatusMessage(int status)
+    {
+        if (s_statusMessages.TryGetValue(status, out var cached))
+            return cached;
+
+        var msg = "";
         try
         {
-            var ptr = NativeMethods.StatusString((int)status);
+            var ptr = NativeMethods.StatusString(status);
             if (ptr != IntPtr.Zero)
             {
                 var str = Marshal.PtrToStringUTF8(ptr);
                 if (!string.IsNullOrWhiteSpace(str))
-                    nativeMsg = $" — {str}";
+                    msg = $" — {str}";
             }
         }
         catch
         {
             // StatusString is best-effort; don't crash the exception constructor
         }
-        return $"transcribe native error{method}: {status} ({(int)status}){nativeMsg}";
+        s_statusMessages[status] = msg;
+        return msg;
     }
 }

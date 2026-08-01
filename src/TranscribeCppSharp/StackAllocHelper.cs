@@ -6,39 +6,75 @@ using System.Runtime.InteropServices;
 namespace TranscribeCppSharp;
 
 /// <summary>
-/// Helper for safe stack allocation with size bounds checking.
+/// Helper for safe native buffer allocation: uses the stack for small structs
+/// (fast path) and falls back to unmanaged heap memory above a size threshold,
+/// so oversized structs never crash the process with a stack overflow.
 /// </summary>
 internal static class StackAllocHelper
 {
     /// <summary>
-    /// Maximum safe size for stack allocation (1 KB).
-    /// Beyond this, heap allocation should be used to avoid stack overflow.
+    /// Maximum safe size for stack allocation (1 KB). Beyond this, heap
+    /// allocation is used to avoid stack overflow.
     /// </summary>
-    public const int MaxStackSize = 1024;
+    internal const int MaxStackSize = 1024;
 
     /// <summary>
-    /// Check if the given size is safe for stack allocation.
+    /// Provide a native buffer of <paramref name="size"/> bytes (stack-allocated
+    /// when small, heap-allocated otherwise) and invoke <paramref name="use"/>
+    /// with a pointer to it. The buffer is valid only for the duration of the
+    /// callback. The heap variant is freed automatically.
     /// </summary>
-    /// <param name="size">The size to check.</param>
-    /// <returns>True if safe for stackalloc, false if heap allocation should be used.</returns>
-    public static bool IsSafeForStack(int size)
+    internal static unsafe void RunWithBuffer(int size, Action<IntPtr> use)
     {
-        return size <= MaxStackSize;
+        ArgumentNullException.ThrowIfNull(use);
+        if (size < 0)
+            throw new ArgumentOutOfRangeException(nameof(size), size, "Buffer size must be non-negative.");
+
+        if (size > MaxStackSize)
+        {
+            var ptr = Marshal.AllocHGlobal(size);
+            try
+            {
+                use(ptr);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+            return;
+        }
+
+        Span<byte> buffer = stackalloc byte[size];
+        fixed (byte* pBuffer = buffer)
+            use((IntPtr)pBuffer);
     }
 
     /// <summary>
-    /// Throw if the size exceeds the safe stack limit.
+    /// Same as <see cref="RunWithBuffer(int, Action{IntPtr})"/> but returns
+    /// the value produced by <paramref name="use"/>. The buffer is valid only for
+    /// the duration of the callback.
     /// </summary>
-    /// <param name="size">The size to check.</param>
-    /// <param name="structName">Name of the struct for error message.</param>
-    public static void ThrowIfTooLarge(int size, string structName)
+    internal static unsafe T RunWithBuffer<T>(int size, Func<IntPtr, T> use)
     {
+        ArgumentNullException.ThrowIfNull(use);
+        if (size < 0)
+            throw new ArgumentOutOfRangeException(nameof(size), size, "Buffer size must be non-negative.");
+
         if (size > MaxStackSize)
         {
-            throw new InvalidOperationException(
-                $"Native struct '{structName}' is too large ({size} bytes) for stack allocation. " +
-                $"Maximum safe size is {MaxStackSize} bytes. " +
-                $"This may indicate an ABI mismatch or a very large struct that should use heap allocation.");
+            var ptr = Marshal.AllocHGlobal(size);
+            try
+            {
+                return use(ptr);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
         }
+
+        Span<byte> buffer = stackalloc byte[size];
+        fixed (byte* pBuffer = buffer)
+            return use((IntPtr)pBuffer);
     }
 }

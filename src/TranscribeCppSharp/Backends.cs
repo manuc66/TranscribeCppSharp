@@ -68,29 +68,21 @@ public static class Backends
     /// <summary>
     /// Enumerate all available compute devices.
     /// </summary>
-    public static unsafe IReadOnlyList<BackendDevice> EnumerateDevices()
+    public static IReadOnlyList<BackendDevice> EnumerateDevices()
     {
         var count = NativeMethods.BackendDeviceCount();
         if (count <= 0) return [];
 
         var devices = new List<BackendDevice>(count);
         var deviceSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiBackendDevice);
-        StackAllocHelper.ThrowIfTooLarge(deviceSize, nameof(BackendDevice));
-        Span<byte> buffer = stackalloc byte[deviceSize];
-
-        fixed (byte* pBuffer = buffer)
+        StackAllocHelper.RunWithBuffer(deviceSize, devicePtr =>
         {
-            var devicePtr = (IntPtr)pBuffer;
-
             for (int i = 0; i < count; i++)
             {
                 NativeMethods.BackendDeviceInit(devicePtr);
                 var status = NativeMethods.GetBackendDevice(i, devicePtr);
                 if (status != Status.Ok)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Failed to enumerate backend device {i}: {status}");
-                    continue;
-                }
+                    throw new TranscribeException(status, nameof(NativeMethods.GetBackendDevice));
 
                 var d = Marshal.PtrToStructure<Interop.BackendDevice>(devicePtr);
                 var name = d.name != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.name) ?? "" : "";
@@ -107,7 +99,7 @@ public static class Backends
                     MemoryFree: d.memoryFree,
                     DeviceType: d.deviceType));
             }
-        }
+        });
 
         return devices;
     }

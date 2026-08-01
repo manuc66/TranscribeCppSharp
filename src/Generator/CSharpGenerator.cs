@@ -64,6 +64,7 @@ public class CSharpGenerator
         WriteHandles(sb);
         WriteCallbacks(sb);
         WriteStructs(sb, parser);
+        WriteAbiLayout(sb, parser);
         WriteFunctions(sb, parser);
         return sb.ToString();
     }
@@ -170,6 +171,36 @@ public class CSharpGenerator
         }
 
         sb.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emit the ABI layout contract: total size, alignment and per-field offsets for every
+    /// struct, extracted from the compile-time checks in transcribe_sys.rs (size_of!,
+    /// align_of!, offset_of!). These are verified by the Rust compiler against the real
+    /// repr(C) layout, so they lock the C# struct declarations to the native ground truth
+    /// (64-bit platforms — the only ones this library ships).
+    /// </summary>
+    private void WriteAbiLayout(StringBuilder sb, RustFfiParser parser)
+    {
+        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine("// ABI layout contracts (native ground truth)");
+        sb.AppendLine("// Sizes/alignments/offsets come from the compile-time checks emitted");
+        sb.AppendLine("// by bindgen in transcribe_sys.rs (size_of!/align_of!/offset_of!).");
+        sb.AppendLine("// AbiLayoutTest cross-checks Marshal.SizeOf/OffsetOf against these.");
+        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine("internal static class AbiLayout");
+        sb.AppendLine("{");
+        sb.AppendLine("    public static readonly (string TypeName, ulong Size, ulong Align, (string Field, nuint Offset)[] Offsets)[] All =");
+        sb.AppendLine("    [");
+        foreach (var layout in parser.ParseAbiLayouts())
+        {
+            var csName = ToPascalCase(layout.Name);
+            var fields = string.Join(", ", layout.Fields.Select(f => $"(\"{ToCamelCase(f.Field)}\", {f.Offset})"));
+            sb.AppendLine($"        (\"{csName}\", {layout.Size}, {layout.Align}, [{fields}]),");
+        }
+        sb.AppendLine("    ];");
+        sb.AppendLine("}");
+        sb.AppendLine();
     }
 
     // ── Write individual elements ──────────────────────────────────
