@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp;
@@ -40,6 +41,21 @@ public sealed class TranscribeException : Exception
     private static string BuildMessage(Status status, string? failedMethod)
     {
         var method = failedMethod != null ? $" in {failedMethod}" : "";
-        return $"transcribe native error{method}: {status} ({(int)status})";
+        var nativeMsg = "";
+        try
+        {
+            var ptr = NativeMethods.StatusString((int)status);
+            if (ptr != IntPtr.Zero)
+            {
+                var str = Marshal.PtrToStringUTF8(ptr);
+                if (!string.IsNullOrWhiteSpace(str))
+                    nativeMsg = $" — {str}";
+            }
+        }
+        catch
+        {
+            // StatusString is best-effort; don't crash the exception constructor
+        }
+        return $"transcribe native error{method}: {status} ({(int)status}){nativeMsg}";
     }
 }

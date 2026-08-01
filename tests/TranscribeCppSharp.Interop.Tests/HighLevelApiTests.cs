@@ -612,7 +612,7 @@ public class HighLevelApiTests : IDisposable
                 Assert.NotNull(update);
             }
 
-            var finalUpdate = stream.Finalize();
+            var finalUpdate = stream.Complete();
             Assert.True(finalUpdate.IsFinal);
 
             var text = stream.CurrentText;

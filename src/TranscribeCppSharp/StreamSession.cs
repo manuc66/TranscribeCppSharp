@@ -7,7 +7,7 @@ using TranscribeCppSharp.Interop;
 namespace TranscribeCppSharp;
 
 /// <summary>
-/// Result of a StreamFeed or StreamFinalize call.
+/// Result of a StreamFeed or StreamComplete call.
 /// </summary>
 public record StreamUpdateResult(
     bool ResultChanged,
@@ -32,7 +32,7 @@ public record StreamTextResult(
 /// Feed PCM audio chunks incrementally and read partial/final results.
 /// </summary>
 /// <remarks>
-/// <b>Lifecycle:</b> <c>Begin()</c> -> <c>Feed()*</c> -> <c>Finalize()</c>.
+/// <b>Lifecycle:</b> <c>Begin()</c> -> <c>Feed()*</c> -> <c>Complete()</c>.
 /// <br/>
 /// This class is a view over a <see cref="Session"/> and shares its state. 
 /// It is <b>not thread-safe</b> for concurrent access, but the underlying 
@@ -107,13 +107,13 @@ public sealed class StreamSession : IDisposable
     }
 
     /// <summary>
-    /// Finalize the stream. No more audio can be fed after this.
+    /// Complete the stream. No more audio can be fed after this.
     /// This should be called before <see cref="Dispose"/> to ensure all 
     /// buffered audio is processed and final results are generated.
     /// </summary>
     /// <returns>Result indicating if the final transcription changed or is final.</returns>
     /// <exception cref="ObjectDisposedException">Thrown if called after Dispose.</exception>
-    public unsafe StreamUpdateResult Finalize()
+    public unsafe StreamUpdateResult Complete()
     {
         ThrowIfDisposed();
 
@@ -261,7 +261,7 @@ public sealed class StreamSession : IDisposable
     /// <summary>
     /// Disposes the streaming view. 
     /// If streaming was started via <see cref="Begin"/>, resets the native
-    /// stream state. It is recommended to call <see cref="Finalize"/> before
+    /// stream state. It is recommended to call <see cref="Complete"/> before
     /// Disposing to get the last transcription results.
     /// </summary>
     public void Dispose()

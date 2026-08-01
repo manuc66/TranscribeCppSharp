@@ -84,7 +84,7 @@ if (args.Length > 0)
                 var chunk = pcm.AsSpan(0, Math.Min(pcm.Length, 16000));
                 var update = stream.Feed(chunk);
                 Console.WriteLine($"Stream update: ResultChanged={update.ResultChanged}, IsFinal={update.IsFinal}");
-                stream.Finalize();
+                stream.Complete();
                 Console.WriteLine("Stream finalized");
             }
             catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
