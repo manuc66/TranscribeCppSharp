@@ -473,20 +473,17 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
-    public void Backends_InitDefault_ShouldNotThrow()
+    public void Backends_Version_ShouldReturnNonEmpty()
     {
-        TranscribeCppSharp.Backends.InitDefault();
+        var version = TranscribeCppSharp.Backends.Version;
+        Assert.False(string.IsNullOrWhiteSpace(version));
     }
 
     [Fact]
-    public void Backends_EnumerateDevices_ShouldReturnList()
+    public void Backends_VersionCommit_ShouldReturnNonEmpty()
     {
-        TranscribeCppSharp.Backends.InitDefault();
-
-        var devices = TranscribeCppSharp.Backends.EnumerateDevices();
-
-        Assert.NotNull(devices);
-        Assert.True(devices.Count >= 0);
+        var commit = TranscribeCppSharp.Backends.VersionCommit;
+        Assert.False(string.IsNullOrWhiteSpace(commit));
     }
 
     [Fact]
@@ -642,6 +639,7 @@ public class HighLevelApiTests : IDisposable
         Assert.NotNull(results[0].Segments);
         Assert.NotNull(results[0].Words);
         Assert.NotNull(results[0].Tokens);
+        Assert.NotNull(results[0].Timing);
     }
 
     [Fact]
@@ -909,6 +907,8 @@ public class HighLevelApiTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(transcript.FullText));
         Assert.NotNull(transcript.Timing);
         Assert.True(transcript.Segments.Count > 0);
+        Assert.False(transcript.WasAborted);
+        Assert.False(transcript.WasTruncated);
     }
 
     // ═══════════════════════════════════════════════════════════════════
