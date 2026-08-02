@@ -6,6 +6,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=manuc66-github_transcribecppsharp&metric=alert_status)](https://sonarcloud.io/dashboard?id=manuc66-github_transcribecppsharp)
 [![NuGet Version](https://img.shields.io/nuget/v/TranscribeCppSharp.svg)](https://www.nuget.org/packages/TranscribeCppSharp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmanuc66%2FTranscribeCppSharp.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmanuc66%2FTranscribeCppSharp?ref=badge_shield)
 
 .NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), providing cross-platform audio transcription and speech-to-text capabilities.
 
@@ -233,3 +234,6 @@ To report a security vulnerability, please use the [GitHub Security Advisory](ht
 
 ### License
 This project is licensed under the **MIT License** (matching `transcribe.cpp`).
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmanuc66%2FTranscribeCppSharp.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmanuc66%2FTranscribeCppSharp?ref=badge_large)
