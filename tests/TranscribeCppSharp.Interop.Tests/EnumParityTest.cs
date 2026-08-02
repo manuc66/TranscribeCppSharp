@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using TranscribeCppSharp.Generator;
 using Xunit;
@@ -30,7 +31,7 @@ public class EnumParityTest
             {
                 var csValueName = ToPascalCase(v.Name);
                 var csValue = (int)Enum.Parse(csType, csValueName, ignoreCase: false);
-                var rustValue = int.Parse(v.Value);
+                var rustValue = int.Parse(v.Value, CultureInfo.InvariantCulture);
 
                 Assert.Equal(rustValue, csValue);
             }
@@ -71,6 +72,6 @@ public class EnumParityTest
         s = System.Text.RegularExpressions.Regex.Replace(s, @"^transcribe_", "",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         return string.Join("", s.Split('_', StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => char.ToUpper(w[0]) + (w.Length > 1 ? w[1..].ToLower() : "")));
+            .Select(w => char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..].ToLowerInvariant() : "")));
     }
 }

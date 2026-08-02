@@ -24,6 +24,7 @@ public class HighLevelApiTests : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
     }
 
     private static bool IsIntegrationEnv => TestConfig.IsIntegrationTestEnvironment();
