@@ -143,12 +143,12 @@ jobs:
 
       - name: Run tests with OpenCover coverage (for SonarCloud)
         run: |
-          mkdir -p test-results
+          mkdir -p "$(pwd)/test-results"
           dotnet test tests/TranscribeCppSharp.Interop.Tests \
             --no-restore \
             /p:CollectCoverage=true \
             /p:CoverletOutputFormat=opencover \
-            /p:CoverletOutput=test-results/coverage.opencover.xml
+            "/p:CoverletOutput=$(pwd)/test-results/coverage.opencover.xml"
 
       - name: SonarCloud Scan
         env:

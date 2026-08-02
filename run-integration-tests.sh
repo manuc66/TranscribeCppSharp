@@ -85,12 +85,14 @@ echo ""
 # Run tests with the model path. Coverlet collects line coverage and enforces a
 # 70% total-line threshold (measured ~76% across Generator + wrapper + Interop;
 # the threshold applies to the mean, not per module — the generated Interop
-# P/Invoke surface sits lower by design).
-mkdir -p test-results
+# P/Invoke surface sits lower by design). Coverlet resolves the output path
+# relative to the test project directory, so use an absolute path to land it in
+# ./test-results at the repo root (the CI upload expects it there).
+mkdir -p "$(pwd)/test-results"
 dotnet test --logger "console;verbosity=detailed" \
   /p:CollectCoverage=true \
   /p:CoverletOutputFormat=cobertura \
-  /p:CoverletOutput=test-results/coverage.cobertura.xml \
+  "/p:CoverletOutput=$(pwd)/test-results/coverage.cobertura.xml" \
   /p:Threshold=70 \
   /p:ThresholdType=line \
   /p:ThresholdStat=total
