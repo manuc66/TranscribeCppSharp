@@ -37,3 +37,5 @@ bld/
 test-audio/
 test-models/
 native-packages/*/runtimes/
+test-results/
+coverage.json

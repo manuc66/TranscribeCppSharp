@@ -82,8 +82,18 @@ echo ""
 echo "Running integration tests (RID: ${RID})..."
 echo ""
 
-# Run tests with the model path
-dotnet test --logger "console;verbosity=detailed"
+# Run tests with the model path. Coverlet collects line coverage and enforces a
+# 70% total-line threshold (measured ~76% across Generator + wrapper + Interop;
+# the threshold applies to the mean, not per module — the generated Interop
+# P/Invoke surface sits lower by design).
+mkdir -p test-results
+dotnet test --logger "console;verbosity=detailed" \
+  /p:CollectCoverage=true \
+  /p:CoverletOutputFormat=cobertura \
+  /p:CoverletOutput=test-results/coverage.cobertura.xml \
+  /p:Threshold=70 \
+  /p:ThresholdType=line \
+  /p:ThresholdStat=total
 
 echo ""
 echo "=== Integration tests completed ==="
