@@ -141,14 +141,24 @@ jobs:
 
       - run: dotnet restore
 
+      - name: Cache native libraries
+        uses: actions/cache@v6
+        with:
+          path: native-packages/*/runtimes
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
+
+      - name: Cache test assets
+        uses: actions/cache@v6
+        with:
+          path: |
+            test-models
+            test-audio
+          key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
+
       - name: Run tests with OpenCover coverage (for SonarCloud)
         run: |
-          mkdir -p "$(pwd)/test-results"
-          dotnet test tests/TranscribeCppSharp.Interop.Tests \
-            --no-restore \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=opencover \
-            "/p:CoverletOutput=$(pwd)/test-results/coverage.opencover.xml"
+          chmod +x run-integration-tests.sh
+          COVERLET_FORMAT=opencover COVERLET_THRESHOLD= ./run-integration-tests.sh
 
       - name: SonarCloud Scan
         env:

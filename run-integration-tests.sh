@@ -83,19 +83,28 @@ echo "Running integration tests (RID: ${RID})..."
 echo ""
 
 # Run tests with the model path. Coverlet collects line coverage and enforces a
-# 70% total-line threshold (measured ~76% across Generator + wrapper + Interop;
-# the threshold applies to the mean, not per module — the generated Interop
-# P/Invoke surface sits lower by design). Coverlet resolves the output path
-# relative to the test project directory, so use an absolute path to land it in
-# ./test-results at the repo root (the CI upload expects it there).
+# 70% total-line threshold by default (measured ~76% across Generator + wrapper
+# + Interop; the threshold applies to the mean, not per module — the generated
+# Interop P/Invoke surface sits lower by design). Coverlet resolves the output
+# path relative to the test project directory, so use an absolute path to land
+# it in ./test-results at the repo root (the CI upload expects it there).
+#
+# The format and threshold are overridable for consumers that need a different
+# report (e.g. SonarCloud uses OpenCover and no threshold):
+#   COVERLET_FORMAT=cobertura (default) | opencover | ...
+#   COVERLET_THRESHOLD=70 (default; empty disables the gate)
+COVERLET_FORMAT="${COVERLET_FORMAT:-cobertura}"
+COVERLET_THRESHOLD="${COVERLET_THRESHOLD:-70}"
 mkdir -p "$(pwd)/test-results"
+THRESHOLD_ARGS=()
+if [ -n "$COVERLET_THRESHOLD" ]; then
+  THRESHOLD_ARGS=(/p:Threshold="$COVERLET_THRESHOLD" /p:ThresholdType=line /p:ThresholdStat=total)
+fi
 dotnet test --logger "console;verbosity=detailed" \
   /p:CollectCoverage=true \
-  /p:CoverletOutputFormat=cobertura \
-  "/p:CoverletOutput=$(pwd)/test-results/coverage.cobertura.xml" \
-  /p:Threshold=70 \
-  /p:ThresholdType=line \
-  /p:ThresholdStat=total
+  "/p:CoverletOutputFormat=$COVERLET_FORMAT" \
+  "/p:CoverletOutput=$(pwd)/test-results/coverage.$COVERLET_FORMAT.xml" \
+  "${THRESHOLD_ARGS[@]}"
 
 echo ""
 echo "=== Integration tests completed ==="
