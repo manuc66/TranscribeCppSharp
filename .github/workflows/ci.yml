@@ -120,9 +120,8 @@ jobs:
           format: spdx-json
 
   sonarqube:
-    # SonarQube Cloud scan. Requires the project to be set up on SonarQube
-    # Cloud and a SONAR_TOKEN secret; the job is skipped when it is absent.
-    if: ${{ secrets.SONAR_TOKEN != '' }}
+    # Requires the project to be set up on SonarQube Cloud and a SONAR_TOKEN
+    # secret. The scan step is skipped when the secret is absent.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -151,6 +150,7 @@ jobs:
             /p:CoverletOutput=test-results/coverage.opencover.xml
 
       - name: SonarCloud Scan
+        if: ${{ secrets.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
