@@ -1,0 +1,8 @@
+name: test
+on: push
+jobs:
+  x:
+    if: ${{ secrets.SONAR_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
