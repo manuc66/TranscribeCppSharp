@@ -112,10 +112,11 @@ var final = stream.CurrentText;
 ## Using CUDA
 
 The NuGet packages do **not** bundle a CUDA runtime (the bundled binaries are
-CPU + Vulkan on Windows/Linux and Metal on macOS). To use an NVIDIA GPU, you
-provide your own CUDA build of transcribe.cpp and place it next to your app —
-the wrapper prefers native binaries in the app output directory over the
-packaged ones.
+CPU + Vulkan on Windows/Linux and Metal on macOS). The upstream releases do
+include CUDA archives, but shipping and supporting CUDA builds is out of scope
+for this packaging layer — so to use an NVIDIA GPU you provide your own CUDA
+build of transcribe.cpp and place it next to your app; the wrapper prefers
+native binaries in the app output directory over the packaged ones.
 
 1. **Download** the upstream CUDA archive for your platform (this project is
    bound to transcribe.cpp v0.1.3):
@@ -251,7 +252,9 @@ dotnet run --project samples/SmokeTest -- model.gguf audio.wav
 
 ### Building from source
 
-While we provide pre-compiled binaries for major platforms, you may need to build from source if:
+The `Native.*` packages redistribute exactly what upstream transcribe.cpp publishes in its releases — nothing more. This project is a packaging/binding layer, not a binary provider: it does not compile musl, CUDA, or other variant builds. If a variant you need is not in the upstream release, building it yourself is on you.
+
+You need to build from source when:
 - You are using **Alpine Linux** (which uses `musl` instead of `glibc`, making the pre-built Linux binaries incompatible). Upstream transcribe.cpp does not ship musl builds, so there is no `Native.*` package to install for this case.
 - You need to support a non-standard architecture or custom OS.
 - You want to enable specific hardware optimizations not included in the default build.
