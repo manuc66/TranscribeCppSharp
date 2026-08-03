@@ -9,18 +9,7 @@
 [![NuGet Version](https://img.shields.io/nuget/v/TranscribeCppSharp.svg)](https://www.nuget.org/packages/TranscribeCppSharp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-.NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), providing cross-platform audio transcription and speech-to-text capabilities.
-
-## Features
-
-- **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Voxtral, and others).
-- **Hardware Acceleration**: Built-in support for CPU, CUDA, Vulkan, and Metal backends.
-- **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for native resource lifetime.
-- **Flexible APIs**:
-  - **High-Level Wrapper**: Intuitive C# API for rapid development.
-  - **Low-Level Interop**: Direct access to the native C API when needed.
-  - **Streaming & Batch**: Support for incremental streaming transcription and batch processing.
-- **Cross-Platform**: Pre-compiled native runtimes are packaged for Windows, Linux, and macOS (x64 and ARM64). Only linux-x64 is exercised by CI.
+.NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp): load GGUF speech-to-text models and transcribe audio (16 kHz mono float PCM) from C#.
 
 ## Installation
 
@@ -68,7 +57,7 @@ By default, the wrapper passes `BackendAuto` and the native library selects the 
 
 ```csharp
 using var model = Model.Load("model.gguf", p => p
-    .WithBackend(BackendRequest.BackendCuda) // or BackendVulkan, BackendMetal, etc.
+    .WithBackend(BackendRequest.BackendVulkan) // or BackendCuda, BackendMetal, etc.
     .WithGpuDevice(0)); // Throws ErrBackend if device index is invalid or unavailable
 ```
 
@@ -108,6 +97,17 @@ while (isRecording)
 stream.Finalize();
 var final = stream.CurrentText;
 ```
+
+## Features
+
+- **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Voxtral, and others).
+- **Hardware Acceleration**: The bundled runtimes include CPU, Vulkan (Windows/Linux) and Metal (macOS) backends. The API exposes CUDA as a `BackendRequest` value, but the shipped binaries do not bundle a CUDA runtime; check `BackendAvailable(BackendRequest)` at runtime to see what a given build provides.
+- **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for native resource lifetime.
+- **Flexible APIs**:
+  - **High-Level Wrapper**: Intuitive C# API for rapid development.
+  - **Low-Level Interop**: Direct access to the native C API when needed.
+  - **Streaming & Batch**: Support for incremental streaming transcription and batch processing.
+- **Cross-Platform**: Pre-compiled native runtimes are packaged for Windows, Linux, and macOS (x64 and ARM64). Only linux-x64 is exercised by CI.
 
 ## Concurrency Model
 
