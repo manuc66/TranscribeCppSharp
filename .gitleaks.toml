@@ -1,0 +1,17 @@
+# Gitleaks configuration.
+#
+# The base configuration is Gitleaks' default rules; this file only extends it
+# with repository-specific allowlists for benign values that the default rules
+# flag as secrets.
+
+[extend]
+useDefault = true
+
+[allowlist]
+# SonarCloud project keys look like "<org>_<Repository>" (e.g.
+# manuc66_TranscribeCppSharp) and are public identifiers, not secrets. The
+# default generic-api-key rule flags them on the sonar.projectKey line.
+regexTarget = "match"
+regexes = [
+  '''sonar\.projectKey\s*=\s*[A-Za-z0-9_-]+_[A-Za-z0-9_-]+''',
+]
