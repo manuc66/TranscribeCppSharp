@@ -61,7 +61,7 @@ By default, the wrapper passes `BackendAuto` and the native library selects the 
 ```csharp
 using var model = Model.Load("model.gguf", p => p
     .WithBackend(BackendRequest.BackendVulkan) // or BackendCuda, BackendMetal, etc.
-    .WithGpuDevice(0)); // Throws ErrBackend if device index is invalid or unavailable
+    .WithGpuDevice(0)); // Invalid device index -> ErrInvalidArg; unavailable backend -> ErrBackend
 ```
 
 Backends must be initialized once before the first `Model.Load`, otherwise the native call fails with `ErrBackend`. Use `Backends.InitDefault()` (resolves the directory next to the loaded library) or `Backends.Init(dir)` to point at a specific artifact directory.
@@ -99,7 +99,7 @@ while (isRecording)
 
 // Finalize the stream to get the last bits of text
 // This must be called BEFORE Dispose() if you want the final results
-stream.Finalize();
+stream.Complete();
 var final = stream.CurrentText;
 ```
 

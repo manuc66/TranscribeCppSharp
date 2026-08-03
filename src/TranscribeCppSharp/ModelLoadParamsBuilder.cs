@@ -32,9 +32,12 @@ public sealed class ModelLoadParamsBuilder : IDisposable
     }
 
     /// <summary>
-    /// Select a specific GPU device index. 
-    /// If the index is invalid or the device is busy, <see cref="Model.Load"/> 
-    /// will throw a <see cref="TranscribeException"/> with <see cref="Status.ErrBackend"/>.
+    /// Select a specific GPU device index.
+    /// An invalid index (negative, out of range, non-GPU device, vendor
+    /// mismatch, or non-zero with a CPU/CPU_ACCEL request) makes
+    /// <see cref="Model.Load"/> throw a <see cref="TranscribeException"/> with
+    /// <see cref="Status.ErrInvalidArg"/>. <see cref="Status.ErrBackend"/> is
+    /// reserved for the requested backend being unavailable entirely.
     /// </summary>
     public ModelLoadParamsBuilder WithGpuDevice(int device)
     {

@@ -488,6 +488,19 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void Backends_BackendAvailable_ReportsRegisteredBackends()
+    {
+        TranscribeCppSharp.Backends.InitDefault();
+
+        // CPU is always present; AUTO whenever any device exists.
+        Assert.True(TranscribeCppSharp.Backends.BackendAvailable(BackendRequest.BackendAuto));
+        Assert.True(TranscribeCppSharp.Backends.BackendAvailable(BackendRequest.BackendCpu));
+
+        // Unknown request values answer false, never an error (per upstream doc).
+        Assert.False(TranscribeCppSharp.Backends.BackendAvailable((BackendRequest)999));
+    }
+
+    [Fact]
     public void Log_Configure_ShouldNotThrow()
     {
         Log.Configure((level, msg) => { });

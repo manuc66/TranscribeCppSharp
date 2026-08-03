@@ -46,6 +46,16 @@ public static class Backends
     }
 
     /// <summary>
+    /// Whether a backend request can be satisfied by a currently registered
+    /// device. AUTO is true whenever any device exists; CPU/CPU_ACCEL when a
+    /// CPU device exists; METAL/VULKAN/CUDA when a device of that kind exists.
+    /// Unknown or invalid request values answer false (never an error).
+    /// Corresponds to native transcribe_backend_available.
+    /// </summary>
+    public static bool BackendAvailable(BackendRequest kind)
+        => NativeMethods.BackendAvailable(kind);
+
+    /// <summary>
     /// Initialize backends with a specific artifact directory (for DLLs, shaders, etc.).
     /// </summary>
     public static void Init(string artifactDir)
