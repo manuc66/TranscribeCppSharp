@@ -120,53 +120,6 @@ jobs:
           artifact-name: sbom.spdx.json
           format: spdx-json
 
-  sonarqube:
-    # Requires the project to be set up on SonarQube Cloud and a SONAR_TOKEN
-    # secret. The scan step is skipped when the secret is absent.
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-      actions: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.x'
-          cache: true
-          cache-dependency-path: '**/packages.lock.json'
-
-      - run: dotnet restore
-
-      - name: Cache native libraries
-        uses: actions/cache@v6
-        with:
-          path: native-packages/*/runtimes
-          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
-
-      - name: Cache test assets
-        uses: actions/cache@v6
-        with:
-          path: |
-            test-models
-            test-audio
-          key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
-
-      - name: Run tests with OpenCover coverage (for SonarCloud)
-        run: |
-          chmod +x run-integration-tests.sh
-          COVERLET_FORMAT=opencover COVERLET_THRESHOLD= ./run-integration-tests.sh
-
-      - name: SonarCloud Scan
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        if: ${{ env.SONAR_TOKEN != '' }}
-        uses: SonarSource/sonarqube-scan-action@v8.2.1
-
   check-bindings-sync:
     runs-on: ubuntu-latest
     steps:
