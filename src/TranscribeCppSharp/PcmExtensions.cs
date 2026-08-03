@@ -21,7 +21,24 @@ public static class PcmExtensions
         using var fs = File.OpenRead(wavPath);
         using var br = new BinaryReader(fs);
 
-        // ── RIFF header ──
+        var fmt = ReadFmt(fs, br);
+        if (fmt is null)
+        {
+            throw new InvalidDataException("WAV file has no fmt chunk");
+        }
+
+        ValidateFormat(fmt.Value);
+        var data = FindDataChunk(fs, br);
+        if (data.DataStart == 0 || data.DataSize == 0)
+        {
+            throw new InvalidDataException("WAV file has no data chunk");
+        }
+
+        return ReadAndConvertSamples(fs, data.DataStart, data.DataSize, fmt.Value.NumChannels);
+    }
+
+    private static void ReadRiffHeader(BinaryReader br)
+    {
         var riff = Encoding.ASCII.GetString(br.ReadBytes(4));
         _ = br.ReadInt32(); // file size (ignored)
         var wave = Encoding.ASCII.GetString(br.ReadBytes(4));
@@ -29,13 +46,12 @@ public static class PcmExtensions
         {
             throw new InvalidDataException("Not a WAV file");
         }
+    }
 
-        short audioFormat = 0;
-        int sampleRate = 0, bitsPerSample = 0, numChannels = 0;
-        int dataSize = 0;
-        long dataStart = 0;
+    private static WavFormat? ReadFmt(Stream fs, BinaryReader br)
+    {
+        ReadRiffHeader(br);
 
-        // ── Chunks ──
         while (fs.Position < fs.Length)
         {
             if (fs.Length - fs.Position < 8)
@@ -45,7 +61,6 @@ public static class PcmExtensions
 
             var chunkId = Encoding.ASCII.GetString(br.ReadBytes(4));
             var chunkSize = br.ReadInt32();
-
             if (chunkSize < 0)
             {
                 throw new InvalidDataException($"Negative chunk size for '{chunkId}'");
@@ -58,64 +73,92 @@ public static class PcmExtensions
                     throw new InvalidDataException("fmt chunk too small");
                 }
 
-                audioFormat = br.ReadInt16();
-                numChannels = br.ReadInt16();
-                sampleRate = br.ReadInt32();
+                var audioFormat = br.ReadInt16();
+                var numChannels = br.ReadInt16();
+                var sampleRate = br.ReadInt32();
                 _ = br.ReadInt32(); // byte rate
                 _ = br.ReadInt16(); // block align
-                bitsPerSample = br.ReadInt16();
+                var bitsPerSample = br.ReadInt16();
                 fs.Position += chunkSize - 16;
                 if (chunkSize % 2 != 0)
                 {
                     fs.Position++; // WAV padding byte
                 }
+
+                return new WavFormat(audioFormat, numChannels, sampleRate, bitsPerSample);
             }
-            else if (chunkId == "data")
+
+            SkipChunk(fs, chunkSize);
+        }
+
+        return null;
+    }
+
+    private static (long DataStart, int DataSize) FindDataChunk(Stream fs, BinaryReader br)
+    {
+        while (fs.Position < fs.Length)
+        {
+            if (fs.Length - fs.Position < 8)
             {
-                dataSize = chunkSize;
-                dataStart = fs.Position;
-                break;
+                break; // need at least id + size
             }
-            else
+
+            var chunkId = Encoding.ASCII.GetString(br.ReadBytes(4));
+            var chunkSize = br.ReadInt32();
+            if (chunkSize < 0)
             {
-                fs.Position += chunkSize;
-                if (chunkSize % 2 != 0)
-                {
-                    fs.Position++;
-                }
+                throw new InvalidDataException($"Negative chunk size for '{chunkId}'");
             }
+
+            if (chunkId == "data")
+            {
+                return (fs.Position, chunkSize);
+            }
+
+            SkipChunk(fs, chunkSize);
         }
 
-        // ── Validate ──
-        if (audioFormat != 1)
+        return (0, 0);
+    }
+
+    private static void SkipChunk(Stream fs, int chunkSize)
+    {
+        fs.Position += chunkSize;
+        if (chunkSize % 2 != 0)
+        {
+            fs.Position++; // WAV padding byte
+        }
+    }
+
+    private static void ValidateFormat(WavFormat fmt)
+    {
+        if (fmt.AudioFormat != 1)
         {
             throw new InvalidDataException(
-                $"Unsupported audio format {audioFormat} (expected PCM = 1)");
+                $"Unsupported audio format {fmt.AudioFormat} (expected PCM = 1)");
         }
 
-        if (numChannels <= 0)
+        if (fmt.NumChannels <= 0)
         {
             throw new InvalidDataException(
-                $"Invalid channel count: {numChannels}");
+                $"Invalid channel count: {fmt.NumChannels}");
         }
 
-        if (sampleRate != 16000)
+        if (fmt.SampleRate != 16000)
         {
             throw new InvalidDataException(
-                $"Expected 16kHz, got {sampleRate}Hz");
+                $"Expected 16kHz, got {fmt.SampleRate}Hz");
         }
 
-        if (bitsPerSample != 16)
+        if (fmt.BitsPerSample != 16)
         {
             throw new InvalidDataException(
-                $"Expected 16-bit, got {bitsPerSample}-bit");
+                $"Expected 16-bit, got {fmt.BitsPerSample}-bit");
         }
+    }
 
-        if (dataStart == 0 || dataSize == 0)
-        {
-            throw new InvalidDataException("WAV file has no data chunk");
-        }
-
+    private static float[] ReadAndConvertSamples(Stream fs, long dataStart, int dataSize, int numChannels)
+    {
         // Clamp dataSize to actual bytes remaining (guard truncated files)
         var remaining = (int)(fs.Length - dataStart);
         if (dataSize > remaining)
@@ -123,7 +166,6 @@ public static class PcmExtensions
             dataSize = remaining;
         }
 
-        // ── Read & convert ──
         fs.Position = dataStart;
         var nSamples = dataSize / (2 * numChannels); // 16-bit = 2 bytes per sample per channel
         var pcm = new float[nSamples];
@@ -173,4 +215,6 @@ public static class PcmExtensions
 
         return pcm;
     }
+
+    private readonly record struct WavFormat(short AudioFormat, int NumChannels, int SampleRate, int BitsPerSample);
 }

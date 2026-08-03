@@ -469,55 +469,14 @@ public class CSharpGenerator
             var trimmed = lines[i].Trim();
             if (trimmed.Length == 0)
             {
-                if (inParagraph)
-                {
-                    sb.AppendLine(InvariantCulture, $"{indent}/// </para>");
-                    inParagraph = false;
-                }
-
+                inParagraph = CloseParagraphIfOpen(sb, indent, inParagraph);
                 continue;
             }
 
             if (trimmed.StartsWith("- ", StringComparison.Ordinal))
             {
-                // Close any open paragraph before starting list markup.
-                if (inParagraph)
-                {
-                    sb.AppendLine(InvariantCulture, $"{indent}/// </para>");
-                    inParagraph = false;
-                }
-
-                sb.AppendLine(InvariantCulture, $"{indent}/// <list type=\"bullet\">");
-
-                while (i < lines.Length)
-                {
-                    var bullet = lines[i].Trim();
-                    if (bullet.Length == 0)
-                    {
-                        break;
-                    }
-
-                    if (!bullet.StartsWith("- ", StringComparison.Ordinal))
-                    {
-                        break;
-                    }
-
-                    sb.AppendLine(InvariantCulture, $"{indent}/// <item>");
-                    sb.AppendLine(InvariantCulture, $"{indent}/// <description>");
-                    sb.AppendLine(InvariantCulture, $"{indent}/// {EscapeXml(bullet[2..])}");
-                    i++;
-                    while (i < lines.Length && lines[i].Trim().Length > 0 &&
-                           !lines[i].Trim().StartsWith("- ", StringComparison.Ordinal))
-                    {
-                        sb.AppendLine(InvariantCulture, $"{indent}/// {EscapeXml(lines[i].Trim())}");
-                        i++;
-                    }
-
-                    sb.AppendLine(InvariantCulture, $"{indent}/// </description>");
-                    sb.AppendLine(InvariantCulture, $"{indent}/// </item>");
-                }
-
-                sb.AppendLine(InvariantCulture, $"{indent}/// </list>");
+                inParagraph = CloseParagraphIfOpen(sb, indent, inParagraph);
+                WriteBulletList(sb, indent, lines, ref i);
                 continue;
             }
 
@@ -530,12 +489,53 @@ public class CSharpGenerator
             sb.AppendLine(InvariantCulture, $"{indent}/// {EscapeXml(trimmed)}");
         }
 
+        _ = CloseParagraphIfOpen(sb, indent, inParagraph);
+        sb.AppendLine(InvariantCulture, $"{indent}/// </summary>");
+    }
+
+    private static bool CloseParagraphIfOpen(StringBuilder sb, string indent, bool inParagraph)
+    {
         if (inParagraph)
         {
             sb.AppendLine(InvariantCulture, $"{indent}/// </para>");
         }
 
-        sb.AppendLine(InvariantCulture, $"{indent}/// </summary>");
+        return false;
+    }
+
+    private static void WriteBulletList(StringBuilder sb, string indent, string[] lines, ref int i)
+    {
+        sb.AppendLine(InvariantCulture, $"{indent}/// <list type=\"bullet\">");
+
+        while (i < lines.Length)
+        {
+            var bullet = lines[i].Trim();
+            if (bullet.Length == 0)
+            {
+                break;
+            }
+
+            if (!bullet.StartsWith("- ", StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            sb.AppendLine(InvariantCulture, $"{indent}/// <item>");
+            sb.AppendLine(InvariantCulture, $"{indent}/// <description>");
+            sb.AppendLine(InvariantCulture, $"{indent}/// {EscapeXml(bullet[2..])}");
+            i++;
+            while (i < lines.Length && lines[i].Trim().Length > 0 &&
+                   !lines[i].Trim().StartsWith("- ", StringComparison.Ordinal))
+            {
+                sb.AppendLine(InvariantCulture, $"{indent}/// {EscapeXml(lines[i].Trim())}");
+                i++;
+            }
+
+            sb.AppendLine(InvariantCulture, $"{indent}/// </description>");
+            sb.AppendLine(InvariantCulture, $"{indent}/// </item>");
+        }
+
+        sb.AppendLine(InvariantCulture, $"{indent}/// </list>");
     }
 
     private static readonly Regex BacktickRegex = new("`([^`]+)`", RegexOptions.Compiled | RegexOptions.NonBacktracking);

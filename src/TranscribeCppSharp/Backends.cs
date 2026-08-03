@@ -81,23 +81,31 @@ public static class Backends
                     throw new TranscribeException(status, nameof(NativeMethods.GetBackendDevice));
                 }
 
-                var d = Marshal.PtrToStructure<Interop.BackendDevice>(devicePtr);
-                var name = d.name != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.name) ?? string.Empty : string.Empty;
-                var description = d.description != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.description) ?? string.Empty : string.Empty;
-                var kind = d.kind != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.kind) ?? string.Empty : string.Empty;
-                var deviceId = d.deviceId != IntPtr.Zero ? Marshal.PtrToStringUTF8(d.deviceId) ?? string.Empty : string.Empty;
-
-                devices.Add(new BackendDevice(
-                    Name: name,
-                    Description: description,
-                    Kind: kind,
-                    DeviceId: deviceId,
-                    MemoryTotal: d.memoryTotal,
-                    MemoryFree: d.memoryFree,
-                    DeviceType: d.deviceType));
+                devices.Add(ConvertDevice(devicePtr));
             }
         });
 
         return devices;
     }
+
+    private static BackendDevice ConvertDevice(IntPtr devicePtr)
+    {
+        var d = Marshal.PtrToStructure<Interop.BackendDevice>(devicePtr);
+        var name = PtrToStringOrEmpty(d.name);
+        var description = PtrToStringOrEmpty(d.description);
+        var kind = PtrToStringOrEmpty(d.kind);
+        var deviceId = PtrToStringOrEmpty(d.deviceId);
+
+        return new BackendDevice(
+            Name: name,
+            Description: description,
+            Kind: kind,
+            DeviceId: deviceId,
+            MemoryTotal: d.memoryTotal,
+            MemoryFree: d.memoryFree,
+            DeviceType: d.deviceType);
+    }
+
+    private static string PtrToStringOrEmpty(IntPtr ptr)
+        => ptr != IntPtr.Zero ? Marshal.PtrToStringUTF8(ptr) ?? string.Empty : string.Empty;
 }
