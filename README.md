@@ -101,13 +101,46 @@ var final = stream.CurrentText;
 ## Features
 
 - **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Voxtral, and others).
-- **Hardware Acceleration**: The bundled runtimes include CPU, Vulkan (Windows/Linux) and Metal (macOS) backends. The API exposes CUDA as a `BackendRequest` value, but the shipped binaries do not bundle a CUDA runtime; check `BackendAvailable(BackendRequest)` at runtime to see what a given build provides.
+- **Hardware Acceleration**: The bundled runtimes include CPU, Vulkan (Windows/Linux) and Metal (macOS) backends. See [Using CUDA](#using-cuda) for NVIDIA GPUs.
 - **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for native resource lifetime.
 - **Flexible APIs**:
   - **High-Level Wrapper**: Intuitive C# API for rapid development.
   - **Low-Level Interop**: Direct access to the native C API when needed.
   - **Streaming & Batch**: Support for incremental streaming transcription and batch processing.
 - **Cross-Platform**: Pre-compiled native runtimes are packaged for Windows, Linux, and macOS (x64 and ARM64). Only linux-x64 is exercised by CI.
+
+## Using CUDA
+
+The NuGet packages do **not** bundle a CUDA runtime (the bundled binaries are
+CPU + Vulkan on Windows/Linux and Metal on macOS). To use an NVIDIA GPU, you
+provide your own CUDA build of transcribe.cpp and place it next to your app —
+the wrapper prefers native binaries in the app output directory over the
+packaged ones.
+
+1. **Download** the upstream CUDA archive for your platform (this project is
+   bound to transcribe.cpp v0.1.3):
+
+   - Linux x64: `transcribe-native-0.1.3-linux-x86_64-cuda.tar.gz`
+   - Windows x64: `transcribe-native-0.1.3-windows-x86_64-cuda.tar.gz`
+
+   from the [transcribe.cpp v0.1.3 release](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.1.3).
+
+2. **Extract** it and copy `libtranscribe.so` (Linux) or `transcribe.dll`
+   (Windows) — plus the sibling `libggml*.so` / `ggml*.dll` files — into your
+   app's output directory (where your `.dll`/`.exe` is produced).
+
+3. **Request the CUDA backend** at load time:
+
+   ```csharp
+   using var model = Model.Load("model.gguf", p => p
+       .WithBackend(BackendRequest.BackendCuda)
+       .WithGpuDevice(0));
+   ```
+
+   You can verify CUDA is actually available in the current build with
+   `BackendAvailable(BackendRequest.BackendCuda)`. If no CUDA build is
+   installed, that returns `false` and a `BackendCuda` request will fail with
+   `ErrBackend`.
 
 ## Concurrency Model
 
