@@ -168,9 +168,16 @@ public static class PcmExtensions
 
         fs.Position = dataStart;
         var nSamples = dataSize / (2 * numChannels); // 16-bit = 2 bytes per sample per channel
-        var pcm = new float[nSamples];
+        var byteBuf = ReadRawBytes(fs, dataSize);
 
-        // Read raw bytes into a pooled buffer, convert directly
+        // Convert 16-bit LE samples to float, downmix if stereo
+        return numChannels == 1
+            ? ConvertMono(byteBuf, nSamples)
+            : ConvertMultiChannel(byteBuf, nSamples, numChannels);
+    }
+
+    private static byte[] ReadRawBytes(Stream fs, int dataSize)
+    {
         var byteBuf = new byte[dataSize];
         int bytesRead = 0;
         while (bytesRead < dataSize)
@@ -184,33 +191,39 @@ public static class PcmExtensions
             bytesRead += read;
         }
 
-        // Convert 16-bit LE samples to float, downmix if stereo
-        if (numChannels == 1)
-        {
-            for (int i = 0; i < nSamples; i++)
-            {
-                short s = BitConverter.IsLittleEndian
-                    ? (short)(byteBuf[i * 2] | (byteBuf[(i * 2) + 1] << 8))
-                    : BinaryPrimitives.ReadInt16BigEndian(byteBuf.AsSpan(i * 2, 2));
-                pcm[i] = s / 32768f;
-            }
-        }
-        else
-        {
-            for (int i = 0; i < nSamples; i++)
-            {
-                float sum = 0;
-                for (int ch = 0; ch < numChannels; ch++)
-                {
-                    int offset = ((i * numChannels) + ch) * 2;
-                    short s = BitConverter.IsLittleEndian
-                        ? (short)(byteBuf[offset] | (byteBuf[offset + 1] << 8))
-                        : BinaryPrimitives.ReadInt16BigEndian(byteBuf.AsSpan(offset, 2));
-                    sum += s;
-                }
+        return byteBuf;
+    }
 
-                pcm[i] = sum / numChannels / 32768f;
+    private static float[] ConvertMono(byte[] byteBuf, int nSamples)
+    {
+        var pcm = new float[nSamples];
+        for (int i = 0; i < nSamples; i++)
+        {
+            short s = BitConverter.IsLittleEndian
+                ? (short)(byteBuf[i * 2] | (byteBuf[(i * 2) + 1] << 8))
+                : BinaryPrimitives.ReadInt16BigEndian(byteBuf.AsSpan(i * 2, 2));
+            pcm[i] = s / 32768f;
+        }
+
+        return pcm;
+    }
+
+    private static float[] ConvertMultiChannel(byte[] byteBuf, int nSamples, int numChannels)
+    {
+        var pcm = new float[nSamples];
+        for (int i = 0; i < nSamples; i++)
+        {
+            float sum = 0;
+            for (int ch = 0; ch < numChannels; ch++)
+            {
+                int offset = ((i * numChannels) + ch) * 2;
+                short s = BitConverter.IsLittleEndian
+                    ? (short)(byteBuf[offset] | (byteBuf[offset + 1] << 8))
+                    : BinaryPrimitives.ReadInt16BigEndian(byteBuf.AsSpan(offset, 2));
+                sum += s;
             }
+
+            pcm[i] = sum / numChannels / 32768f;
         }
 
         return pcm;

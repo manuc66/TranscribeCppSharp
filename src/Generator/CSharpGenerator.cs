@@ -412,6 +412,9 @@ public class CSharpGenerator
         PointerType(_, OpaqueHandleType("transcribe_model")) => "IntPtr",
         PointerType(_, OpaqueHandleType("transcribe_session")) => "IntPtr",
 
+        // Borrowed f32 slice → ReadOnlySpan<float> (auto-pinned by LibraryImport source generator)
+        PointerType(PointerMutability.Const, PrimitiveType("f32")) => "ReadOnlySpan<float>",
+
         // Named struct types (by pointer)
         PointerType(_, StructType(var rustName)) => $"IntPtr /* {rustName} */",
         StructType(var rustName) => ToPascalCase(rustName),
@@ -466,31 +469,36 @@ public class CSharpGenerator
 
         for (int i = 0; i < lines.Length; i++)
         {
-            var trimmed = lines[i].Trim();
-            if (trimmed.Length == 0)
-            {
-                inParagraph = CloseParagraphIfOpen(sb, indent, inParagraph);
-                continue;
-            }
-
-            if (trimmed.StartsWith("- ", StringComparison.Ordinal))
-            {
-                inParagraph = CloseParagraphIfOpen(sb, indent, inParagraph);
-                WriteBulletList(sb, indent, lines, ref i);
-                continue;
-            }
-
-            if (!inParagraph)
-            {
-                sb.AppendLine(InvariantCulture, $"{indent}/// <para>");
-                inParagraph = true;
-            }
-
-            sb.AppendLine(InvariantCulture, $"{indent}/// {EscapeXml(trimmed)}");
+            inParagraph = WriteDocLine(sb, indent, lines, ref i, inParagraph);
         }
 
         _ = CloseParagraphIfOpen(sb, indent, inParagraph);
         sb.AppendLine(InvariantCulture, $"{indent}/// </summary>");
+    }
+
+    private static bool WriteDocLine(StringBuilder sb, string indent, string[] lines, ref int i, bool inParagraph)
+    {
+        var trimmed = lines[i].Trim();
+        if (trimmed.Length == 0)
+        {
+            return CloseParagraphIfOpen(sb, indent, inParagraph);
+        }
+
+        if (trimmed.StartsWith("- ", StringComparison.Ordinal))
+        {
+            inParagraph = CloseParagraphIfOpen(sb, indent, inParagraph);
+            WriteBulletList(sb, indent, lines, ref i);
+            return inParagraph;
+        }
+
+        if (!inParagraph)
+        {
+            sb.AppendLine(InvariantCulture, $"{indent}/// <para>");
+            inParagraph = true;
+        }
+
+        sb.AppendLine(InvariantCulture, $"{indent}/// {EscapeXml(trimmed)}");
+        return inParagraph;
     }
 
     private static bool CloseParagraphIfOpen(StringBuilder sb, string indent, bool inParagraph)

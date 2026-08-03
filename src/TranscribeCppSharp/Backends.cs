@@ -74,18 +74,23 @@ public static class Backends
         {
             for (int i = 0; i < count; i++)
             {
-                NativeMethods.BackendDeviceInit(devicePtr);
-                var status = NativeMethods.GetBackendDevice(i, devicePtr);
-                if (status != Status.Ok)
-                {
-                    throw new TranscribeException(status, nameof(NativeMethods.GetBackendDevice));
-                }
-
-                devices.Add(ConvertDevice(devicePtr));
+                devices.Add(ReadDeviceAt(devicePtr, i));
             }
         });
 
         return devices;
+    }
+
+    private static BackendDevice ReadDeviceAt(IntPtr devicePtr, int index)
+    {
+        NativeMethods.BackendDeviceInit(devicePtr);
+        var status = NativeMethods.GetBackendDevice(index, devicePtr);
+        if (status != Status.Ok)
+        {
+            throw new TranscribeException(status, nameof(NativeMethods.GetBackendDevice));
+        }
+
+        return ConvertDevice(devicePtr);
     }
 
     private static BackendDevice ConvertDevice(IntPtr devicePtr)
