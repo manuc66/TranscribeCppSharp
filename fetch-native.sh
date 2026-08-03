@@ -19,7 +19,7 @@ fetch_rid() {
 
   echo "Downloading ${archive} -> ${target}"
   mkdir -p "${target}"
-  curl -fSL --retry 3 "${BASE_URL}/${archive}" | tar xz -C "${target}" --strip-components=1
+  curl -fSL --proto '=https' --proto-redir '=https' --retry 3 "${BASE_URL}/${archive}" | tar xz -C "${target}" --strip-components=1
   touch "${target}/.done"
   echo "Installed ${rid}"
 }

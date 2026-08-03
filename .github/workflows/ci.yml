@@ -170,8 +170,8 @@ jobs:
         run: |
           # The model and audio are needed for smoke test too
           mkdir -p test-models test-audio
-          [ -f test-models/ggml-tiny.bin ] || curl -fSL -o test-models/ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
-          [ -f test-audio/jfk.wav ] || curl -fSL -o test-audio/jfk.wav https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav
+          [ -f test-models/ggml-tiny.bin ] || curl -fSL --proto '=https' --proto-redir '=https' -o test-models/ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+          [ -f test-audio/jfk.wav ] || curl -fSL --proto '=https' --proto-redir '=https' -o test-audio/jfk.wav https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav
           
           LD_LIBRARY_PATH=native-packages/linux-x64/runtimes/linux-x64/native:$LD_LIBRARY_PATH \
           dotnet run --project samples/SmokeTest -c Release --no-build -- \

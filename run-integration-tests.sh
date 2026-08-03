@@ -41,7 +41,7 @@ mkdir -p "$AUDIO_DIR"
 # Download model if not exists
 if [ ! -f "$MODEL_FILE" ]; then
     echo "Downloading Whisper tiny model..."
-    curl -fSL -o "$MODEL_FILE" "$MODEL_URL"
+    curl -fSL --proto '=https' --proto-redir '=https' -o "$MODEL_FILE" "$MODEL_URL"
     echo "Model downloaded to $MODEL_FILE"
 else
     echo "Model already exists at $MODEL_FILE"
@@ -50,7 +50,7 @@ fi
 # Download audio if not exists
 if [ ! -f "$AUDIO_FILE" ]; then
     echo "Downloading test audio..."
-    curl -fSL -o "$AUDIO_FILE" "$AUDIO_URL"
+    curl -fSL --proto '=https' --proto-redir '=https' -o "$AUDIO_FILE" "$AUDIO_URL"
     echo "Audio downloaded to $AUDIO_FILE"
 else
     echo "Audio already exists at $AUDIO_FILE"
