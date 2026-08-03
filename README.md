@@ -204,8 +204,11 @@ catch (TranscribeException ex) when (ex.StatusCode == Status.ErrGguf)
 
 The native library and this wrapper are **not** thread-safe by default. The relevant rules:
 
-- **`Model`**: believed **thread-safe** — you can create multiple `Session` objects from a single `Model` instance across different threads. This is not covered by concurrency tests yet.
-- **`Session`**: **Not thread-safe**. A session maintains internal state (KV cache) for transcription. For concurrent processing, use multiple sessions or synchronize access.
+- **Concurrent compute is limited**: at most one `Session.Run`, `Batch.Run`, or active stream may be in flight across **all sessions of the same model** at a time. Sessions share the model's backend instances and some per-family state, so overlapping runs on the same model race (per the upstream library: corrupted decodes on CPU, command-buffer failures on Metal). This is a **known limitation of the upstream native library in 0.x**, documented in its [public header](https://github.com/handy-computer/transcribe.cpp/blob/v0.1.3/include/transcribe.h) (see "KNOWN 0.x LIMITATION — concurrent COMPUTE"), not something this wrapper imposes or can lift.
+  - For **parallel transcription**, load **one model per worker** (each worker gets its own `Model`, hence its own backend instances).
+  - **Serialized** use of many sessions on one model (e.g. a session pool behind a mutex) is fully supported.
+- **`Model`**: believed **thread-safe** for creating sessions — you can create multiple `Session` objects from a single `Model` instance across different threads, as long as their runs do not overlap (see the concurrent-compute limit above). Not covered by concurrency tests yet.
+- **`Session`**: **Not thread-safe**. A session maintains internal state (KV cache) for transcription. Do not run two operations on the same session concurrently; serialize them or use separate sessions.
 - **`Batch`**: **Not thread-safe**. Calls into the provided session internally. Use separate sessions for concurrent batch processing.
 - **`StreamSession`**: **Not thread-safe**. It is a view over a `Session` and shares its state.
 
