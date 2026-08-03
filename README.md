@@ -27,7 +27,7 @@ To include the native binaries for your platform, add the corresponding runtime 
 - **macOS (ARM64)**: `TranscribeCppSharp.Native.osx-arm64`
 - **macOS (x64)**: `TranscribeCppSharp.Native.osx-x64`
 
-*Note: For Linux Alpine (musl) or other platforms, please refer to the [Building from source](#building-from-source) section.*
+*Note: For Linux Alpine (musl) or other platforms, please refer to the [Building from source](#building-from-source) section. Like [Using CUDA](#using-cuda), a custom native build is picked up automatically when placed in the app output directory.*
 
 ## Quick Start
 
@@ -252,14 +252,14 @@ dotnet run --project samples/SmokeTest -- model.gguf audio.wav
 ### Building from source
 
 While we provide pre-compiled binaries for major platforms, you may need to build from source if:
-- You are using **Alpine Linux** (which uses `musl` instead of `glibc`, making standard Linux binaries incompatible).
+- You are using **Alpine Linux** (which uses `musl` instead of `glibc`, making the pre-built Linux binaries incompatible). Upstream transcribe.cpp does not ship musl builds, so there is no `Native.*` package to install for this case.
 - You need to support a non-standard architecture or custom OS.
 - You want to enable specific hardware optimizations not included in the default build.
 
 **Steps:**
 1.  Clone [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp).
-2.  Build the native library using `cmake` (ensure `BUILD_SHARED_LIBS=ON`).
-3.  Copy the resulting `libtranscribe.so` (or `.dll`/`.dylib`) to your application's output directory or set `LD_LIBRARY_PATH`.
+2.  Build the native library using `cmake` (ensure `BUILD_SHARED_LIBS=ON`). On Alpine, build inside the distro so the resulting library links against `musl`.
+3.  Copy the resulting `libtranscribe.so` (or `.dll`/`.dylib`) — **and the sibling `libggml*.so` files it loads** — into your application's output directory. As with [Using CUDA](#using-cuda), the wrapper prefers native binaries in the app output directory over the packaged ones, so no `LD_LIBRARY_PATH` is needed. The C# interop contract is unchanged: only the native binaries differ, not the P/Invoke signatures.
 
 ## Governance
 

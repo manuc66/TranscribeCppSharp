@@ -538,7 +538,7 @@ public class CSharpGenerator
         sb.AppendLine(InvariantCulture, $"{indent}/// </summary>");
     }
 
-    private static readonly Regex BacktickRegex = new("`([^`]+)`", RegexOptions.Compiled);
+    private static readonly Regex BacktickRegex = new("`([^`]+)`", RegexOptions.Compiled | RegexOptions.NonBacktracking);
 
     /// <summary>
     /// Escapes the two XML-significant characters that are mandatory in element
