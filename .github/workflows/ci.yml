@@ -277,20 +277,14 @@ jobs:
       # Trusted publishing: exchange the GitHub OIDC token for a short-lived
       # NuGet API key (no long-lived secret). Requires a trusted publishing
       # policy on nuget.org (owner manuc66, repo TranscribeCppSharp, workflow
-      # ci.yml) and the NUGET_USER secret (nuget.org profile name).
+      # ci.yml). The nuget.org profile name is public and not a secret.
       - name: NuGet login (OIDC -> temp API key)
-        env:
-          NUGET_USER: ${{ secrets.NUGET_USER }}
-        if: ${{ env.NUGET_USER != '' }}
         uses: NuGet/login@v1.2.0
         id: nuget-login
         with:
-          user: ${{ secrets.NUGET_USER }}
+          user: manuc66
 
       - name: Push all NuGets to nuget.org
-        env:
-          NUGET_USER: ${{ secrets.NUGET_USER }}
-        if: ${{ env.NUGET_USER != '' }}
         run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Push all NuGets to GitHub Packages
