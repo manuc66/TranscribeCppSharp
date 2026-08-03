@@ -61,7 +61,7 @@ public sealed class Session : IDisposable
     public StreamSession CreateStream()
     {
         ThrowIfDisposed();
-        return new StreamSession(handle);
+        return new StreamSession(handle, this);
     }
 
     /// <summary>

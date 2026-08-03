@@ -21,9 +21,14 @@ namespace TranscribeCppSharp;
 public sealed class StreamSession : IDisposable
 {
     private readonly SessionHandle session;
+    private readonly Session owner;
     private bool disposed;
 
-    internal StreamSession(SessionHandle session) => this.session = session;
+    internal StreamSession(SessionHandle session, Session owner)
+    {
+        this.session = session;
+        this.owner = owner;
+    }
 
     private void ThrowIfDisposed()
     {
