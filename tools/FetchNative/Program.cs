@@ -57,8 +57,8 @@ foreach (var (rid, archive) in toFetch)
 
     Directory.CreateDirectory(target);
 
-    var tmpGz = Path.GetTempFileName();
-    var tmpTar = Path.GetTempFileName();
+    var tmpGz = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+    var tmpTar = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
     try
     {
         var bytes = await http.GetByteArrayAsync(url);
