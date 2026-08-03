@@ -265,12 +265,33 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     needs: [pack-native, pack-interop, pack-wrapper]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - uses: actions/download-artifact@v8
         with:
           path: nupkgs
           pattern: '*-nupkg'
           merge-multiple: true
+
+      # Trusted publishing: exchange the GitHub OIDC token for a short-lived
+      # NuGet API key (no long-lived secret). Requires a trusted publishing
+      # policy on nuget.org (owner manuc66, repo TranscribeCppSharp, workflow
+      # ci.yml) and the NUGET_USER secret (nuget.org profile name).
+      - name: NuGet login (OIDC -> temp API key)
+        env:
+          NUGET_USER: ${{ secrets.NUGET_USER }}
+        if: ${{ env.NUGET_USER != '' }}
+        uses: NuGet/login@v1.2.0
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push all NuGets to nuget.org
+        env:
+          NUGET_USER: ${{ secrets.NUGET_USER }}
+        if: ${{ env.NUGET_USER != '' }}
+        run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Push all NuGets to GitHub Packages
         run: dotnet nuget push "nupkgs/*.nupkg" --source "https://nuget.pkg.github.com/manuc66/index.json" --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
