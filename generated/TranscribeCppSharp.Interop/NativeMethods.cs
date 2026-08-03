@@ -2158,7 +2158,7 @@ internal static partial class NativeMethods
     /// </para>
     /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_run", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status Run(IntPtr session, IntPtr pcm, int nSamples, IntPtr /* transcribe_run_params */ @params);
+    public static partial Status Run(IntPtr session, ReadOnlySpan<float> pcm, int nSamples, IntPtr /* transcribe_run_params */ @params);
 
     /// <summary>
     /// <para>
@@ -2486,7 +2486,7 @@ internal static partial class NativeMethods
     /// </para>
     /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_stream_feed", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status StreamFeed(IntPtr session, IntPtr pcm, int nSamples, IntPtr /* transcribe_stream_update */ update);
+    public static partial Status StreamFeed(IntPtr session, ReadOnlySpan<float> pcm, int nSamples, IntPtr /* transcribe_stream_update */ update);
 
     /// <summary>
     /// <para>

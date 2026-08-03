@@ -325,7 +325,7 @@ public sealed class Session : IDisposable
     /// <summary>
     /// Internal method for batch transcription with proper thread-safety.
     /// </summary>
-    internal unsafe Status RunBatchInternal(IntPtr pcmPtrArray, IntPtr sampleCountArray, int n, IntPtr runParams)
+    internal Status RunBatchInternal(IntPtr pcmPtrArray, IntPtr sampleCountArray, int n, IntPtr runParams)
     {
         ThrowIfDisposed();
         return NativeMethods.RunBatch(handle, pcmPtrArray, sampleCountArray, n, runParams);
@@ -435,20 +435,17 @@ public sealed class Session : IDisposable
         return result;
     }
 
-    private unsafe void RunNative(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure)
+    private void RunNative(ReadOnlySpan<float> pcm, Action<RunParamsBuilder>? configure)
     {
         ThrowIfDisposed();
 
         using var runParams = new RunParamsBuilder();
         configure?.Invoke(runParams);
 
-        fixed (float* pPcm = pcm)
+        var status = NativeMethods.Run(handle, pcm, pcm.Length, runParams.Build());
+        if (status != Status.Ok)
         {
-            var status = NativeMethods.Run(handle, (IntPtr)pPcm, pcm.Length, runParams.Build());
-            if (status != Status.Ok)
-            {
-                throw new TranscribeException(status, nameof(Run));
-            }
+            throw new TranscribeException(status, nameof(Run));
         }
     }
 

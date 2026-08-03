@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 
@@ -59,32 +60,32 @@ public sealed class StreamSession : IDisposable
         ThrowIfDisposed();
 
         var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
-        return FeedPinned(pcm, updateSize);
-    }
-
-    private unsafe StreamUpdateResult FeedPinned(ReadOnlySpan<float> pcm, int updateSize)
-    {
-        var nSamples = pcm.Length;
-        fixed (float* pPcm = pcm)
+        var buffer = ArrayPool<byte>.Shared.Rent(updateSize);
+        try
         {
-            var pcmPtr = (IntPtr)pPcm;
-            return StackAllocHelper.RunWithBuffer(
-                updateSize,
-                updatePtr => FeedCore(pcmPtr, nSamples, updatePtr));
-        }
-    }
+            var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
+            {
+                var updatePtr = handle.AddrOfPinnedObject();
+                NativeMethods.StreamUpdateInit(updatePtr);
+                var status = NativeMethods.StreamFeed(session, pcm, pcm.Length, updatePtr);
+                if (status != Status.Ok)
+                {
+                    throw new TranscribeException(status, nameof(NativeMethods.StreamFeed));
+                }
 
-    private unsafe StreamUpdateResult FeedCore(IntPtr pPcm, int nSamples, IntPtr updatePtr)
-    {
-        NativeMethods.StreamUpdateInit(updatePtr);
-        var status = NativeMethods.StreamFeed(session, pPcm, nSamples, updatePtr);
-        if (status != Status.Ok)
+                var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
+                return ToStreamUpdateResult(u);
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+        finally
         {
-            throw new TranscribeException(status, nameof(NativeMethods.StreamFeed));
+            ArrayPool<byte>.Shared.Return(buffer);
         }
-
-        var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
-        return ToStreamUpdateResult(u);
     }
 
     /// <summary>
