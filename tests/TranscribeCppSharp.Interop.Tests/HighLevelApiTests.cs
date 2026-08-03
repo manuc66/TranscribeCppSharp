@@ -843,7 +843,7 @@ public class HighLevelApiTests : IDisposable
     }
 
     [SkippableFact]
-    public void Model_Tokenize_ZeroMaxTokens_ThrowsArgumentOutOfRangeException()
+    public void Model_Tokenize_ZeroInitialCapacity_ThrowsArgumentOutOfRangeException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
@@ -851,7 +851,7 @@ public class HighLevelApiTests : IDisposable
     }
 
     [SkippableFact]
-    public void Model_Tokenize_NegativeMaxTokens_ThrowsArgumentOutOfRangeException()
+    public void Model_Tokenize_NegativeInitialCapacity_ThrowsArgumentOutOfRangeException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));

@@ -188,40 +188,55 @@ public sealed class Model : IDisposable
     /// Tokenize text using the model's tokenizer.
     /// </summary>
     /// <param name="text">The text to tokenize.</param>
-    /// <param name="maxTokens">Maximum number of tokens to output.</param>
-    /// <returns>Array of token IDs.</returns>
-    public int[] Tokenize(string text, int maxTokens = 1024)
+    /// <param name="initialCapacity">
+    /// Initial buffer size in tokens. This is not a limit: if the text needs
+    /// more tokens, the buffer is grown automatically and the full result is
+    /// returned.
+    /// </param>
+    /// <returns>Array of token IDs for the entire text.</returns>
+    public int[] Tokenize(string text, int initialCapacity = 1024)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(text);
 
-        if (maxTokens <= 0)
+        if (initialCapacity <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxTokens), maxTokens, "Must be greater than zero.");
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity), initialCapacity, "Must be greater than zero.");
         }
 
-        var tokensPtr = Marshal.AllocHGlobal(maxTokens * sizeof(int));
-        try
+        // Buffer contract (transcribe.h): a negative return is the negated
+        // required buffer size — reallocate and retry. INT_MIN is a hard error.
+        // The retry loop is bounded: a healthy native call converges in one or
+        // two attempts, so 32 is a generous safety net.
+        var capacity = initialCapacity;
+        for (int attempt = 0; attempt < 32; attempt++)
         {
-            var count = NativeMethods.Tokenize(handle, text, tokensPtr, (nuint)maxTokens);
-            if (count < 0)
+            var tokensPtr = Marshal.AllocHGlobal(capacity * sizeof(int));
+            try
             {
-                throw new TranscribeException(Status.ErrInvalidArg, nameof(NativeMethods.Tokenize));
-            }
+                var count = NativeMethods.Tokenize(handle, text, tokensPtr, (nuint)capacity);
+                if (count == int.MinValue)
+                {
+                    throw new TranscribeException(Status.ErrInvalidArg, nameof(NativeMethods.Tokenize));
+                }
 
-            if (count > maxTokens)
+                if (count >= 0)
+                {
+                    var tokens = new int[count];
+                    Marshal.Copy(tokensPtr, tokens, 0, count);
+                    return tokens;
+                }
+
+                capacity = -count;
+            }
+            finally
             {
-                count = maxTokens;
+                Marshal.FreeHGlobal(tokensPtr);
             }
+        }
 
-            var tokens = new int[count];
-            Marshal.Copy(tokensPtr, tokens, 0, count);
-            return tokens;
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(tokensPtr);
-        }
+        throw new InvalidOperationException(
+            $"Native tokenizer did not converge on a buffer size after 32 attempts (last capacity {capacity}).");
     }
 
     internal ModelHandle Handle => handle;
