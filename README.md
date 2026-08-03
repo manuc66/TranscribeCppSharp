@@ -36,6 +36,9 @@ To include the native binaries for your platform, add the corresponding runtime 
 ```csharp
 using TranscribeCppSharp;
 
+// Initialize compute backends once, before loading any model
+TranscribeCppSharp.Backends.InitDefault();
+
 // Load the model (GGUF format)
 using var model = Model.Load("whisper-tiny.gguf");
 
@@ -60,6 +63,8 @@ using var model = Model.Load("model.gguf", p => p
     .WithBackend(BackendRequest.BackendVulkan) // or BackendCuda, BackendMetal, etc.
     .WithGpuDevice(0)); // Throws ErrBackend if device index is invalid or unavailable
 ```
+
+Backends must be initialized once before the first `Model.Load`, otherwise the native call fails with `ErrBackend`. Use `Backends.InitDefault()` (resolves the directory next to the loaded library) or `Backends.Init(dir)` to point at a specific artifact directory.
 
 ### Batch Processing
 
