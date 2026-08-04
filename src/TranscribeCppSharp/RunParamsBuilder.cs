@@ -70,7 +70,12 @@ public sealed class RunParamsBuilder : IDisposable
         return this;
     }
 
-    /// <summary>Source language of the audio (e.g. "fr", "en", "auto").</summary>
+    /// <summary>
+    /// Source language of the audio as a BCP-47-ish short code (e.g. "fr",
+    /// "en"). Per the upstream API, the value must be a language code — there
+    /// is no "auto" sentinel: pass NULL (do not call this method) to
+    /// autodetect, only if the model supports language detection.
+    /// </summary>
     public RunParamsBuilder WithLanguage(string language)
     {
         FreePtr(ref languagePtr);
