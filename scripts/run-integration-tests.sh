@@ -63,14 +63,7 @@ export DYLD_LIBRARY_PATH="$PWD/${NATIVE_DIR}:$DYLD_LIBRARY_PATH"
 # Check if native library exists — fetch if missing
 if [ ! -f "${NATIVE_DIR}/libtranscribe.so" ] && [ ! -f "${NATIVE_DIR}/libtranscribe.dylib" ]; then
     echo "Native library not found in ${NATIVE_DIR}. Fetching..."
-    if [ -f "tools/FetchNative/FetchNative.csproj" ]; then
-        dotnet run --project tools/FetchNative
-    elif [ -f "scripts/fetch-native.sh" ]; then
-        bash scripts/fetch-native.sh
-    else
-        echo "Error: No fetch tool found. Place native libs in ${NATIVE_DIR}."
-        exit 1
-    fi
+    dotnet run --project tools/FetchNative
     # Re-check after fetch
     if [ ! -f "${NATIVE_DIR}/libtranscribe.so" ] && [ ! -f "${NATIVE_DIR}/libtranscribe.dylib" ]; then
         echo "Error: Fetch failed. Native library still missing in ${NATIVE_DIR}."

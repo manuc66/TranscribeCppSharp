@@ -8,7 +8,7 @@ All tests require the native transcribe.cpp library. It is auto-fetched during b
 To fetch manually:
 
 ```bash
-./scripts/fetch-native.sh
+dotnet run --project tools/FetchNative
 ```
 
 ## Unit Tests
@@ -27,7 +27,7 @@ Integration tests additionally require a GGUF model and test audio.
 
 ### Setup
 
-1. The native library (auto-fetched, or manually via `./scripts/fetch-native.sh`).
+1. The native library (auto-fetched, or manually via `dotnet run --project tools/FetchNative`).
 
 2. Download a GGUF model (e.g., tiny model):
 ```bash

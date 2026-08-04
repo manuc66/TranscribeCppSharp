@@ -251,7 +251,7 @@ The transcribe.cpp project is an independent upstream project with its own maint
 
 ```bash
 # Download native libraries for your current platform
-./scripts/fetch-native.sh
+dotnet run --project tools/FetchNative
 
 # Run unit and integration tests
 ./scripts/run-integration-tests.sh
