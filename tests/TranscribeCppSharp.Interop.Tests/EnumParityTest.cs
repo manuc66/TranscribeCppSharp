@@ -16,7 +16,7 @@ public class EnumParityTest
     [Fact]
     public void AllEnumValues_MatchRustValues()
     {
-        var rustPath = Path.Combine(TestConfig.RepoRoot, "rust", "transcribe_sys.rs");
+        var rustPath = Path.Combine(TestConfig.RepoRoot, "ffi", "rust", "transcribe_sys.rs");
         var parser = RustFfiParser.FromFile(rustPath);
 
         foreach (var rustEnum in parser.ParseEnums())

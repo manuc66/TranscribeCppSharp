@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace TranscribeCppSharp.Generator;
 
 /// <summary>
-/// Extracts documentation from the upstream C header (c/transcribe.h).
+/// Extracts documentation from the upstream C header (ffi/c/transcribe.h).
 /// Bindgen's transcribe_sys.rs strips all comments, so the C header is the
 /// only authoritative source of human-readable semantics for the native API.
 /// </summary>

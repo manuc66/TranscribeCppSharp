@@ -7,7 +7,7 @@ namespace TranscribeCppSharp.Interop.Tests;
 public class CHeaderDocTest
 {
     private static readonly CHeaderDoc Doc =
-        CHeaderDoc.FromFile(Path.Combine(TestConfig.RepoRoot, "c", "transcribe.h"));
+        CHeaderDoc.FromFile(Path.Combine(TestConfig.RepoRoot, "ffi", "c", "transcribe.h"));
 
     [Fact]
     public void FunctionDoc_IsFound()

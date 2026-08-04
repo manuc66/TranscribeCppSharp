@@ -15,8 +15,8 @@ public class GoldenFileTest
     [Fact]
     public void GeneratedOutput_MatchesCommittedSnapshot()
     {
-        var rustPath = Path.Combine(TestConfig.RepoRoot, "rust", "transcribe_sys.rs");
-        var headerPath = Path.Combine(TestConfig.RepoRoot, "c", "transcribe.h");
+        var rustPath = Path.Combine(TestConfig.RepoRoot, "ffi", "rust", "transcribe_sys.rs");
+        var headerPath = Path.Combine(TestConfig.RepoRoot, "ffi", "c", "transcribe.h");
         var goldenPath = Path.Combine(TestConfig.RepoRoot, "generated", "TranscribeCppSharp.Interop", "NativeMethods.cs");
 
         var parser = RustFfiParser.FromFile(rustPath);

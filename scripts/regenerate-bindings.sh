@@ -29,8 +29,8 @@ fi
 dotnet run --project src/Generator -- "${FFI_PATH}" "${HEADER_PATH}"
 
 mkdir -p rust
-cp "${FFI_PATH}" rust/transcribe_sys.rs
-cp "${HEADER_PATH}" c/transcribe.h
+cp "${FFI_PATH}" ffi/rust/transcribe_sys.rs
+cp "${HEADER_PATH}" ffi/c/transcribe.h
 
 rm -rf "${TMPDIR}"
 echo "Done. Bindings match ${TAG}."

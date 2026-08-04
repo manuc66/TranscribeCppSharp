@@ -1,7 +1,7 @@
 using TranscribeCppSharp.Generator;
 
-var ffiPath = args.Length > 0 ? args[0] : "rust/transcribe_sys.rs";
-var headerPath = args.Length > 1 ? args[1] : "c/transcribe.h";
+var ffiPath = args.Length > 0 ? args[0] : "ffi/rust/transcribe_sys.rs";
+var headerPath = args.Length > 1 ? args[1] : "ffi/c/transcribe.h";
 var outputDir = args.Length > 2 ? args[2] : "generated/TranscribeCppSharp.Interop";
 
 if (!File.Exists(ffiPath))
