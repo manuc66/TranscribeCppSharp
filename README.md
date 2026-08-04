@@ -212,6 +212,8 @@ The native library and this wrapper are **not** thread-safe by default. The rele
 - **`Batch`**: **Not thread-safe**. Calls into the provided session internally. Use separate sessions for concurrent batch processing.
 - **`StreamSession`**: **Not thread-safe**. It is a view over a `Session` and shares its state.
 
+> **Dispose discipline**: dispose explicitly (`using`/`Dispose()`) — do not rely on the GC finalizer for cleanup. The native contract requires the model to outlive its sessions, and while a `Session` keeps its parent `Model` alive for the session's lifetime, the **order in which finalizers run during GC-only collection is not guaranteed**. Dispose the `StreamSession`/`Session` before their `Model` (the `using var model; using var session;` declaration order does this). This is consistent with the upstream requirement that `transcribe_model_free` be called only after all derived contexts are freed.
+
 > Memory and disk usage depend on the model file, quantization, and backend you use.
 > These are not documented here; refer to the model documentation and
 > [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) for accurate numbers.
