@@ -92,6 +92,97 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void PcmExtensions_ReadWavToPcm_Mono_ConvertsSamples()
+    {
+        var path = WriteTestWav(numChannels: 1, samples: [1000, -1000, 0]);
+
+        try
+        {
+            var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path);
+            Assert.Equal(3, pcm.Length);
+            Assert.Equal(1000f / 32768f, pcm[0], 4);
+            Assert.Equal(-1000f / 32768f, pcm[1], 4);
+            Assert.Equal(0f, pcm[2], 4);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void PcmExtensions_ReadWavToPcm_Stereo_DownmixesToMono()
+    {
+        // Stereo, 2 frames, both channels identical: frame0 = 2000, frame1 = 4000.
+        // Downmix averages the channels, so the result equals the shared value.
+        var path = WriteTestWav(numChannels: 2, samples: [2000, 4000]);
+
+        try
+        {
+            var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path);
+            Assert.Equal(2, pcm.Length);
+            Assert.Equal(2000f / 32768f, pcm[0], 4);
+            Assert.Equal(4000f / 32768f, pcm[1], 4);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void PcmExtensions_ReadWavToPcm_Non16k_Throws()
+    {
+        var path = WriteTestWav(numChannels: 1, sampleRate: 44100, samples: [0]);
+
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static string WriteTestWav(int numChannels, int sampleRate = 16000, short[]? samples = null)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.wav");
+        var data = new byte[samples!.Length * 2 * numChannels];
+        for (int i = 0; i < samples.Length; i++)
+        {
+            for (int ch = 0; ch < numChannels; ch++)
+            {
+                short value = samples[i]; // all channels carry the same value
+                int offset = ((i * numChannels) + ch) * 2;
+                data[offset] = (byte)(value & 0xFF);
+                data[offset + 1] = (byte)((value >> 8) & 0xFF);
+            }
+        }
+
+        using var ms = new MemoryStream();
+        using (var bw = new BinaryWriter(ms))
+        {
+            bw.Write("RIFF".ToCharArray());
+            bw.Write(36 + data.Length);
+            bw.Write("WAVE".ToCharArray());
+            bw.Write("fmt ".ToCharArray());
+            bw.Write(16);
+            bw.Write((short)1); // PCM
+            bw.Write((short)numChannels);
+            bw.Write(sampleRate);
+            bw.Write(sampleRate * numChannels * 2); // byte rate
+            bw.Write((short)(numChannels * 2)); // block align
+            bw.Write((short)16); // bits per sample
+            bw.Write("data".ToCharArray());
+            bw.Write(data.Length);
+            bw.Write(data);
+        }
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
+    [Fact]
     public void ModelLoadParamsBuilder_WithBackend_ShouldSetBackend()
     {
         using var builder = new ModelLoadParamsBuilder();
@@ -487,9 +578,10 @@ public class HighLevelApiTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(commit));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Backends_BackendAvailable_ReportsRegisteredBackends()
     {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         TranscribeCppSharp.Backends.InitDefault();
 
         // CPU is always present; AUTO whenever any device exists.

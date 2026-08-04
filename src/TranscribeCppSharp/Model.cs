@@ -211,7 +211,14 @@ public sealed class Model : IDisposable
         var capacity = initialCapacity;
         for (int attempt = 0; attempt < 32; attempt++)
         {
-            var tokensPtr = Marshal.AllocHGlobal(capacity * sizeof(int));
+            var byteLength = capacity * (long)sizeof(int);
+            if (byteLength > int.MaxValue)
+            {
+                throw new InvalidOperationException(
+                    $"Native tokenizer requested a buffer of {capacity} tokens ({byteLength} bytes), which exceeds the supported size.");
+            }
+
+            var tokensPtr = Marshal.AllocHGlobal((int)byteLength);
             try
             {
                 var count = NativeMethods.Tokenize(handle, text, tokensPtr, (nuint)capacity);

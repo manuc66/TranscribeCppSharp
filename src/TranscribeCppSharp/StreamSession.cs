@@ -21,6 +21,10 @@ namespace TranscribeCppSharp;
 public sealed class StreamSession : IDisposable
 {
     private readonly SessionHandle session;
+
+    // Kept solely to root the owning Session (and transitively its Model) for
+    // the lifetime of this stream: the native contract requires the model to
+    // outlive every derived session/stream. Never read — do not "clean up".
     private readonly Session owner;
     private bool disposed;
 
