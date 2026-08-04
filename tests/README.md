@@ -8,7 +8,7 @@ All tests require the native transcribe.cpp library. It is auto-fetched during b
 To fetch manually:
 
 ```bash
-./fetch-native.sh
+./scripts/fetch-native.sh
 ```
 
 ## Unit Tests
@@ -27,7 +27,7 @@ Integration tests additionally require a GGUF model and test audio.
 
 ### Setup
 
-1. The native library (auto-fetched, or manually via `./fetch-native.sh`).
+1. The native library (auto-fetched, or manually via `./scripts/fetch-native.sh`).
 
 2. Download a GGUF model (e.g., tiny model):
 ```bash
@@ -45,7 +45,7 @@ curl -L -o test-audio/jfk.wav https://github.com/ggerganov/whisper.cpp/raw/maste
 
 Use the integration script:
 ```bash
-./run-integration-tests.sh
+./scripts/run-integration-tests.sh
 ```
 
 Or run tests directly:

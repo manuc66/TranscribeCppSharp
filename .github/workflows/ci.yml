@@ -61,13 +61,13 @@ jobs:
           path: |
             test-models
             test-audio
-          key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
+          key: test-assets-${{ hashFiles('scripts/run-integration-tests.sh') }}
 
       - name: Fetch native libraries
         run: dotnet run --project tools/FetchNative
 
       - name: Run tests (including integration)
-        run: chmod +x run-integration-tests.sh && ./run-integration-tests.sh
+        run: chmod +x scripts/run-integration-tests.sh && ./scripts/run-integration-tests.sh
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
@@ -127,11 +127,11 @@ jobs:
 
       - name: Regenerate bindings and check for drift
         run: |
-          chmod +x regenerate-bindings.sh
-          ./regenerate-bindings.sh
+          chmod +x scripts/regenerate-bindings.sh
+          ./scripts/regenerate-bindings.sh
           if ! git diff --quiet generated/TranscribeCppSharp.Interop/NativeMethods.cs; then
             echo "ERROR: NativeMethods.cs is out of sync with upstream transcribe.cpp"
-            echo "Run ./regenerate-bindings.sh and commit the result"
+            echo "Run ./scripts/regenerate-bindings.sh and commit the result"
             git diff generated/TranscribeCppSharp.Interop/NativeMethods.cs
             exit 1
           fi
@@ -162,7 +162,7 @@ jobs:
           path: |
             test-models
             test-audio
-          key: test-assets-${{ hashFiles('run-integration-tests.sh') }}
+          key: test-assets-${{ hashFiles('scripts/run-integration-tests.sh') }}
 
       - run: dotnet run --project tools/FetchNative
 

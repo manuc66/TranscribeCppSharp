@@ -65,8 +65,8 @@ if [ ! -f "${NATIVE_DIR}/libtranscribe.so" ] && [ ! -f "${NATIVE_DIR}/libtranscr
     echo "Native library not found in ${NATIVE_DIR}. Fetching..."
     if [ -f "tools/FetchNative/FetchNative.csproj" ]; then
         dotnet run --project tools/FetchNative
-    elif [ -f "fetch-native.sh" ]; then
-        bash fetch-native.sh
+    elif [ -f "scripts/fetch-native.sh" ]; then
+        bash scripts/fetch-native.sh
     else
         echo "Error: No fetch tool found. Place native libs in ${NATIVE_DIR}."
         exit 1

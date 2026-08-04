@@ -251,10 +251,10 @@ The transcribe.cpp project is an independent upstream project with its own maint
 
 ```bash
 # Download native libraries for your current platform
-./fetch-native.sh
+./scripts/fetch-native.sh
 
 # Run unit and integration tests
-./run-integration-tests.sh
+./scripts/run-integration-tests.sh
 
 # Run the smoke test sample
 dotnet run --project samples/SmokeTest -- model.gguf audio.wav
