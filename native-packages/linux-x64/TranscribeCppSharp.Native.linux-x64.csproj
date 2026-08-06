@@ -8,6 +8,8 @@
     <PackageId>TranscribeCppSharp.Native.linux-x64</PackageId>
     <Description>Native transcribe.cpp binaries for Linux x64 (CPU + Vulkan) Built from upstream source and owned by the transcribe.cpp authors (MIT); this package only redistributes them.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Authors>transcribe.cpp authors; ggml authors; miniz authors</Authors>
+    <Copyright>Copyright (c) The transcribe.cpp authors, The ggml authors, and miniz authors</Copyright>
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/manuc66/TranscribeCppSharp</RepositoryUrl>
     <IsPackable>true</IsPackable>
