@@ -33,7 +33,10 @@ jobs:
           echo "wrapper-version=${WRAPPER_VERSION}" >> $GITHUB_OUTPUT
 
   build-and-test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
 
@@ -53,7 +56,7 @@ jobs:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
           path: native-packages/*/runtimes
-          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
+          key: native-libs-${{ matrix.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
         uses: actions/cache@v6
@@ -61,25 +64,36 @@ jobs:
           path: |
             test-models
             test-audio
-          key: test-assets-${{ hashFiles('scripts/run-integration-tests.sh') }}
+          key: test-assets-${{ matrix.os }}-${{ hashFiles('scripts/run-integration-tests.sh') }}
 
       - name: Fetch native libraries
         run: dotnet run --project tools/FetchNative
 
       - name: Run tests (including integration)
+        # shell: bash so the same script runs on Windows (Git Bash), macOS and
+        # Linux. chmod is a no-op on Windows but harmless.
+        # The 70% coverage threshold is enforced only on Linux: it is a quality
+        # gate for the CI baseline, and the coverage numbers on macOS/Windows
+        # (different binaries, platform-specific skips) are not the metric we
+        # gate on.
+        shell: bash
+        env:
+          COVERLET_THRESHOLD: ${{ runner.os == 'Linux' && '70' || '' }}
         run: chmod +x scripts/run-integration-tests.sh && ./scripts/run-integration-tests.sh
 
+      # Upload coverage and report once per platform, suffixed so matrix
+      # artifacts never collide.
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
+          name: coverage-${{ matrix.os }}
           path: test-results/coverage.cobertura.xml
           if-no-files-found: error
 
       - name: Upload coverage to Codecov
+        if: ${{ runner.os == 'Linux' && env.CODECOV_TOKEN != '' }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        if: ${{ env.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f
         with:
           files: test-results/coverage.cobertura.xml

@@ -23,6 +23,7 @@ ARCH="$(uname -m)"
 case "$OS" in
   Linux)  RID="linux" ;;
   Darwin) RID="osx" ;;
+  MINGW*|MSYS*|CYGWIN*)  RID="win" ;;
   *)      echo "Unsupported OS: $OS"; exit 1 ;;
 esac
 
@@ -56,16 +57,31 @@ else
     echo "Audio already exists at $AUDIO_FILE"
 fi
 
-# Set library path for native library
-export LD_LIBRARY_PATH="$PWD/${NATIVE_DIR}:$LD_LIBRARY_PATH"
-export DYLD_LIBRARY_PATH="$PWD/${NATIVE_DIR}:$DYLD_LIBRARY_PATH"
+# Set library path for native library (the CopyNativeLib target also places the
+# libs in the app output dir, which the DllImportResolver checks first; these env
+# vars are a belt-and-braces fallback and are only meaningful on Unix).
+case "$OS" in
+  MINGW*|MSYS*|CYGWIN*)
+    # Windows: rely on the resolver (output dir / NuGet cache); no LD_LIBRARY_PATH.
+    ;;
+  Darwin)
+    export DYLD_LIBRARY_PATH="$PWD/${NATIVE_DIR}:$DYLD_LIBRARY_PATH"
+    ;;
+  *)
+    export LD_LIBRARY_PATH="$PWD/${NATIVE_DIR}:$LD_LIBRARY_PATH"
+    ;;
+esac
 
 # Check if native library exists — fetch if missing
-if [ ! -f "${NATIVE_DIR}/libtranscribe.so" ] && [ ! -f "${NATIVE_DIR}/libtranscribe.dylib" ]; then
+LIBFILE="${NATIVE_DIR}/libtranscribe.so"
+if [ "$OS" = "Darwin" ]; then LIBFILE="${NATIVE_DIR}/libtranscribe.dylib"; fi
+case "$OS" in MINGW*|MSYS*|CYGWIN*) LIBFILE="${NATIVE_DIR}/transcribe.dll";; esac
+
+if [ ! -f "$LIBFILE" ]; then
     echo "Native library not found in ${NATIVE_DIR}. Fetching..."
     dotnet run --project tools/FetchNative
     # Re-check after fetch
-    if [ ! -f "${NATIVE_DIR}/libtranscribe.so" ] && [ ! -f "${NATIVE_DIR}/libtranscribe.dylib" ]; then
+    if [ ! -f "$LIBFILE" ]; then
         echo "Error: Fetch failed. Native library still missing in ${NATIVE_DIR}."
         exit 1
     fi
