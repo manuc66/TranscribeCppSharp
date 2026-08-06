@@ -17,8 +17,8 @@ jobs:
       - uses: actions/checkout@v7
       - id: version
         run: |
-          UPSTREAM=$(cat TRANSCRIBE_VERSION | xargs)
-          WRAPPER=$(cat WRAPPER_VERSION | xargs)
+          UPSTREAM=$(cat build/TRANSCRIBE_VERSION | xargs)
+          WRAPPER=$(cat build/WRAPPER_VERSION | xargs)
           if [[ $GITHUB_REF == refs/tags/v* ]]; then
             UPSTREAM_VERSION=$UPSTREAM
             WRAPPER_VERSION=${GITHUB_REF#refs/tags/v}
@@ -53,7 +53,7 @@ jobs:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
           path: native-packages/*/runtimes
-          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
         uses: actions/cache@v6
@@ -154,7 +154,7 @@ jobs:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
           path: native-packages/*/runtimes
-          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
 
       - name: Cache test assets
         uses: actions/cache@v6
@@ -193,7 +193,7 @@ jobs:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
           path: native-packages/*/runtimes
-          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'TRANSCRIBE_VERSION') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
 
       - run: dotnet run --project tools/FetchNative -- --all
 

@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <TranscribeVersionFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)TRANSCRIBE_VERSION).Trim())</TranscribeVersionFile>
-    <WrapperVersionFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)WRAPPER_VERSION).Trim())</WrapperVersionFile>
+    <TranscribeVersionFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)build\TRANSCRIBE_VERSION).Trim())</TranscribeVersionFile>
+    <WrapperVersionFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)build\WRAPPER_VERSION).Trim())</WrapperVersionFile>
     <!-- The upstream version tracks transcribe.cpp; the wrapper has its own SemVer
          version (WRAPPER_VERSION). Native and Interop packages use the upstream
          version so consumers know which ABI they target. -->

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION=$(cat TRANSCRIBE_VERSION)
+VERSION=$(cat build/TRANSCRIBE_VERSION)
 TAG="v${VERSION}"
 REPO="https://github.com/handy-computer/transcribe.cpp"
 TMPDIR=$(mktemp -d)

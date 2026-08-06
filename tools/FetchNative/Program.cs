@@ -12,7 +12,7 @@ if (args.Length > 0 && args[0] is "--help" or "-h")
 
 var fetchAll = args.Contains("--all");
 var repoRoot = FindRepoRoot();
-var version = File.ReadAllText(Path.Combine(repoRoot, "TRANSCRIBE_VERSION")).Trim();
+var version = File.ReadAllText(Path.Combine(repoRoot, "build", "TRANSCRIBE_VERSION")).Trim();
 var baseUrl = $"https://github.com/handy-computer/transcribe.cpp/releases/download/v{version}";
 var dest = Path.Combine(repoRoot, "native-packages");
 
