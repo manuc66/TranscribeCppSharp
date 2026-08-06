@@ -749,6 +749,67 @@ public class HighLevelApiTests : IDisposable
     }
 
     [SkippableFact]
+    public void Model_MultipleSessions_SerializedRuns_ShouldWork()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session1 = model.CreateSession();
+        using var session2 = model.CreateSession();
+
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+
+        // Runs are serialized (never concurrent): upstream 0.x allows at most one
+        // compute in flight per model, so we alternate sequentially across sessions.
+        var t1 = session1.Run(pcm);
+        var t2 = session2.Run(pcm);
+        var t3 = session1.Run(pcm);
+
+        Assert.NotNull(t1);
+        Assert.NotNull(t2);
+        Assert.NotNull(t3);
+        Assert.NotEmpty(t1.FullText);
+        Assert.Equal(t1.FullText, t2.FullText);
+        Assert.Equal(t1.FullText, t3.FullText);
+    }
+
+    [SkippableFact]
+    public void Model_MultipleSessions_IndependentMetadata()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session1 = model.CreateSession();
+        using var session2 = model.CreateSession();
+
+        // Sessions share the model but each owns its own session state; mutating
+        // one session must not affect the other's counters.
+        Assert.Equal(session1.SegmentCount, session2.SegmentCount);
+
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        _ = session1.Run(pcm);
+
+        // session2 was never run, so it has no result yet; session1 does.
+        Assert.Equal(0, session2.SegmentCount);
+        Assert.True(session1.SegmentCount > 0);
+    }
+
+    [SkippableFact]
+    public void Model_MultipleSessions_OneDisposed_OtherStillWorks()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        var session1 = model.CreateSession();
+        using var session2 = model.CreateSession();
+
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        session1.Dispose();
+
+        // session2 must still work after session1 is disposed.
+        var t2 = session2.Run(pcm);
+        Assert.NotNull(t2);
+        Assert.NotEmpty(t2.FullText);
+    }
+
+    [SkippableFact]
     public void Model_Tokenize_ShouldReturnTokens()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
