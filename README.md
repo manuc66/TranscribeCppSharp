@@ -239,7 +239,7 @@ This project is **a packaging and binding effort only** — the underlying libra
   - A high-level C# wrapper (`IDisposable` resources, typed exceptions).
   - Pre-built native binaries packaged for .NET consumption.
 
-The transcribe.cpp project is an independent upstream project with its own maintainers and governance; this package is **not affiliated with or endorsed by** them. Please direct bug reports about the native library itself to the upstream repository.
+The transcribe.cpp project is an independent upstream project; bug reports about the native library itself should go to its [repository](https://github.com/handy-computer/transcribe.cpp).
 
 ## Development
 
