@@ -8,8 +8,8 @@
     <PackageId>TranscribeCppSharp.Native.osx-x64</PackageId>
     <Description>Native transcribe.cpp binaries for macOS x64 (CPU) Built from upstream source and owned by the transcribe.cpp authors (MIT); this package only redistributes them.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Authors>transcribe.cpp authors; ggml authors; miniz authors</Authors>
-    <Copyright>Copyright (c) The transcribe.cpp authors, The ggml authors, and miniz authors</Copyright>
+    <Authors>manuc66; TranscribeCppSharp contributors</Authors>
+    <Copyright>Copyright (c) 2026 manuc66</Copyright>
     <PackageProjectUrl>https://github.com/manuc66/TranscribeCppSharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/manuc66/TranscribeCppSharp</RepositoryUrl>
     <IsPackable>true</IsPackable>
