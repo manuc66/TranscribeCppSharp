@@ -106,7 +106,7 @@ var final = stream.CurrentText;
 
 ## Features
 
-- **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Voxtral, and others).
+- **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Canary, GigaAM, and others — 16 families upstream).
 - **Hardware Acceleration**: The bundled runtimes include CPU, Vulkan (Windows/Linux) and Metal (macOS) backends. See [Using CUDA](#using-cuda) for NVIDIA GPUs.
 - **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for native resource lifetime.
 - **Flexible APIs**:
@@ -282,3 +282,18 @@ To report a security vulnerability, please use the [GitHub Security Advisory](ht
 
 ### License
 This project is licensed under the **MIT License** (matching `transcribe.cpp`).
+
+### Model licenses
+
+The MIT license covers this wrapper and the bundled native library, **not the
+models you load with it**. GGUF models come from different ecosystems with
+different licenses — some are permissive (MIT, Apache-2.0), some are
+non-commercial (e.g. CC-BY-NC-4.0 for some Parakeet/Canary variants). This
+project does not bundle or redistribute models, and it does not verify or
+curate their licenses.
+
+Before using a model in a commercial product, check the license on the page
+you download it from (typically Hugging Face). The [upstream transcribe.cpp
+docs](https://github.com/handy-computer/transcribe.cpp/blob/v0.1.3/docs/models)
+describe each supported family and where its models come from; that is the
+source of truth, not this README.
