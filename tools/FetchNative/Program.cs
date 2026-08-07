@@ -1,20 +1,26 @@
 using System.Formats.Tar;
 using System.IO.Compression;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text.Json;
 
 if (args.Length > 0 && args[0] is "--help" or "-h")
 {
-    Console.WriteLine("Usage: FetchNative [--all]");
-    Console.WriteLine("  (no args)  Fetch native libs for the current platform only");
-    Console.WriteLine("  --all      Fetch native libs for all platforms");
+    Console.WriteLine("Usage: FetchNative [--all] [--update-hashes]");
+    Console.WriteLine("  (no args)         Fetch native libs for the current platform only");
+    Console.WriteLine("  --all             Fetch native libs for all platforms");
+    Console.WriteLine("  --update-hashes   Update build/native-sha256.json from downloaded archives");
     return 0;
 }
 
 var fetchAll = args.Contains("--all");
+var updateHashes = args.Contains("--update-hashes");
 var repoRoot = FindRepoRoot();
 var version = File.ReadAllText(Path.Combine(repoRoot, "build", "TRANSCRIBE_VERSION")).Trim();
 var baseUrl = $"https://github.com/handy-computer/transcribe.cpp/releases/download/v{version}";
 var dest = Path.Combine(repoRoot, "native-packages");
+var hashesPath = Path.Combine(repoRoot, "build", "native-sha256.json");
 
 var archives = new Dictionary<string, string>
 {
@@ -24,6 +30,8 @@ var archives = new Dictionary<string, string>
     ["osx-arm64"]  = $"transcribe-native-{version}-macos-arm64-metal.tar.gz",
     ["osx-x64"]    = $"transcribe-native-{version}-macos-x86_64-cpu.tar.gz",
 };
+
+var expectedHashes = LoadExpectedHashes(hashesPath, version);
 
 var currentRid = GetCurrentRid();
 var toFetch = fetchAll
@@ -46,7 +54,7 @@ foreach (var (rid, archive) in toFetch)
         : OperatingSystem.IsMacOS() ? "libtranscribe.dylib"
         : "libtranscribe.so");
 
-    if (File.Exists(doneFile) && File.Exists(libFile))
+    if (!updateHashes && File.Exists(doneFile) && File.Exists(libFile))
     {
         Console.WriteLine($"Already have {rid}");
         continue;
@@ -62,6 +70,32 @@ foreach (var (rid, archive) in toFetch)
     try
     {
         var bytes = await http.GetByteArrayAsync(url);
+
+        // Verify integrity before writing anything.
+        var actualHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        if (expectedHashes.TryGetValue(rid, out var expected))
+        {
+            if (!string.Equals(actualHash, expected, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"Checksum mismatch for {rid}: expected sha256:{expected}, got sha256:{actualHash}. " +
+                    "The downloaded archive does not match build/native-sha256.json. Aborting.");
+            }
+
+            Console.WriteLine($"Checksum OK for {rid} (sha256:{actualHash})");
+        }
+        else if (!updateHashes)
+        {
+            throw new InvalidDataException(
+                $"No expected checksum for {rid} in build/native-sha256.json. " +
+                "Run with --update-hashes to add it (review the value before committing).");
+        }
+
+        if (updateHashes)
+        {
+            expectedHashes[rid] = actualHash;
+        }
+
         await File.WriteAllBytesAsync(tmpGz, bytes);
 
         // Decompress gzip -> tar
@@ -109,7 +143,51 @@ foreach (var (rid, archive) in toFetch)
 }
 
 Console.WriteLine("Done.");
+
+if (updateHashes)
+{
+    SaveHashes(hashesPath, version, expectedHashes);
+    Console.WriteLine($"Updated {hashesPath}. Review the values before committing (they came from the download URL itself).");
+}
+
 return 0;
+
+static Dictionary<string, string> LoadExpectedHashes(string path, string version)
+{
+    if (!File.Exists(path))
+    {
+        return new Dictionary<string, string>();
+    }
+
+    using var doc = JsonDocument.Parse(File.ReadAllText(path));
+    if (!doc.RootElement.TryGetProperty(version, out var versionEntry))
+    {
+        return new Dictionary<string, string>();
+    }
+
+    var result = new Dictionary<string, string>();
+    foreach (var prop in versionEntry.EnumerateObject())
+    {
+        // Stored as "sha256:<hex>"; normalize to just the hex for comparison.
+        var value = prop.Value.GetString() ?? string.Empty;
+        if (value.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value.Substring("sha256:".Length);
+        }
+
+        result[prop.Name] = value;
+    }
+
+    return result;
+}
+
+static void SaveHashes(string path, string version, Dictionary<string, string> hashes)
+{
+    var sorted = hashes.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+        .ToDictionary(kv => kv.Key, kv => "sha256:" + kv.Value);
+    var root = new Dictionary<string, object> { [version] = sorted };
+    File.WriteAllText(path, JsonSerializer.Serialize(root, JsonOptions.Instance) + Environment.NewLine);
+}
 
 static string FindRepoRoot()
 {
@@ -132,4 +210,9 @@ static string GetCurrentRid()
     if (OperatingSystem.IsMacOS())
         return RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "osx-arm64" : "osx-x64";
     throw new PlatformNotSupportedException($"Unsupported OS: {RuntimeInformation.OSDescription}");
+}
+
+file static class JsonOptions
+{
+    public static readonly System.Text.Json.JsonSerializerOptions Instance = new() { WriteIndented = true };
 }
