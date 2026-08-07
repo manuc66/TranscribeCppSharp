@@ -23,6 +23,8 @@ public partial class RustFfiParser
         "c_int", "c_uint", "c_char", "c_void",
     ];
 
+    private const string ValueGroup = "value";
+
     public RustFfiParser(string content) => this.content = content;
 
     public static RustFfiParser FromFile(string path) => new(File.ReadAllText(path));
@@ -30,61 +32,40 @@ public partial class RustFfiParser
     // ── Public parse methods ───────────────────────────────────────
     public List<RustEnumDecl> ParseEnums()
     {
-        var results = new List<RustEnumDecl>();
-        foreach (Match m in EnumStructRegex().Matches(content))
-        {
-            var typeName = m.Groups["type"].Value;
-            var body = m.Groups["body"].Value;
-            var values = new List<RustEnumValue>();
-            foreach (Match v in EnumValueRegex().Matches(body))
+        return EnumStructRegex().Matches(content)
+            .Select(m => new
             {
-                values.Add(new(v.Groups["name"].Value, v.Groups["value"].Value));
-            }
-
-            if (values.Count > 0)
-            {
-                results.Add(new RustEnumDecl(typeName, values));
-            }
-        }
-
-        return results;
+                TypeName = m.Groups["type"].Value,
+                Values = EnumValueRegex().Matches(m.Groups["body"].Value)
+                    .Select(v => new RustEnumValue(v.Groups["name"].Value, v.Groups[ValueGroup].Value))
+                    .ToList(),
+            })
+            .Where(e => e.Values.Count > 0)
+            .Select(e => new RustEnumDecl(e.TypeName, e.Values))
+            .ToList();
     }
 
     public List<RustFunction> ParseFunctions()
     {
-        var results = new List<RustFunction>();
-        foreach (Match m in ExternFuncRegex().Matches(content))
-        {
-            var name = m.Groups["name"].Value;
-            var retTypeRaw = NormalizeType(m.Groups["ret"].Value.Trim());
-            var paramsRaw = m.Groups["params"].Value.Trim();
-            var retType = ParseRustType(retTypeRaw);
-            var parameters = ParseParams(paramsRaw);
-            results.Add(new RustFunction(name, retType, parameters));
-        }
-
-        return results;
+        return ExternFuncRegex().Matches(content)
+            .Select(m => new RustFunction(
+                m.Groups["name"].Value,
+                ParseRustType(NormalizeType(m.Groups["ret"].Value.Trim())),
+                ParseParams(m.Groups["params"].Value.Trim())))
+            .ToList();
     }
 
     public List<RustStruct> ParseStructs()
     {
-        var results = new List<RustStruct>();
-        foreach (Match m in NamedStructRegex().Matches(content))
-        {
-            var name = m.Groups["name"].Value;
-            var body = m.Groups["body"].Value;
-            var fields = new List<RustStructField>();
-            foreach (Match f in StructFieldRegex().Matches(body))
-            {
-                var fieldType = ParseRustType(NormalizeType(f.Groups["type"].Value.Trim()));
-                var fieldName = f.Groups["name"].Value.Trim();
-                fields.Add(new(fieldType, fieldName));
-            }
-
-            results.Add(new RustStruct(name, fields));
-        }
-
-        return results;
+        return NamedStructRegex().Matches(content)
+            .Select(m => new RustStruct(
+                m.Groups["name"].Value,
+                StructFieldRegex().Matches(m.Groups["body"].Value)
+                    .Select(f => new RustStructField(
+                        ParseRustType(NormalizeType(f.Groups["type"].Value.Trim())),
+                        f.Groups["name"].Value.Trim()))
+                    .ToList()))
+            .ToList();
     }
 
     /// <summary>
@@ -107,16 +88,16 @@ public partial class RustFfiParser
             }
 
             var name = sizeMatch.Groups["name"].Value;
-            var size = ulong.Parse(sizeMatch.Groups["value"].Value, CultureInfo.InvariantCulture);
+            var size = ulong.Parse(sizeMatch.Groups[ValueGroup].Value, CultureInfo.InvariantCulture);
 
             var alignMatch = AbiLayoutAlignRegex().Match(body);
-            var align = alignMatch.Success ? ulong.Parse(alignMatch.Groups["value"].Value, CultureInfo.InvariantCulture) : 0UL;
+            var align = alignMatch.Success ? ulong.Parse(alignMatch.Groups[ValueGroup].Value, CultureInfo.InvariantCulture) : 0UL;
 
-            var fields = new List<RustStructLayoutField>();
-            foreach (Match f in AbiLayoutOffsetRegex().Matches(body))
-            {
-                fields.Add(new(f.Groups["field"].Value, ulong.Parse(f.Groups["value"].Value, CultureInfo.InvariantCulture)));
-            }
+            var fields = AbiLayoutOffsetRegex().Matches(body)
+                .Select(f => new RustStructLayoutField(
+                    f.Groups["field"].Value,
+                    ulong.Parse(f.Groups[ValueGroup].Value, CultureInfo.InvariantCulture)))
+                .ToList();
 
             results.Add(new RustStructLayout(name, size, align, fields));
         }

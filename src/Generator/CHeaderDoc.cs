@@ -25,15 +25,9 @@ public partial class CHeaderDoc
     /// </summary>
     public string? GetFunctionDoc(string rustName)
     {
-        foreach (Match m in FunctionDeclRegex().Matches(content))
-        {
-            if (NameOf(m) == rustName.Trim())
-            {
-                return GetPrecedingComment(m.Index);
-            }
-        }
-
-        return null;
+        var name = rustName.Trim();
+        var match = FunctionDeclRegex().Matches(content).FirstOrDefault(m => NameOf(m) == name);
+        return match is null ? null : GetPrecedingComment(match.Index);
     }
 
     /// <summary>
@@ -42,15 +36,9 @@ public partial class CHeaderDoc
     /// </summary>
     public string? GetEnumDoc(string rustName)
     {
-        foreach (Match m in EnumDeclRegex().Matches(content))
-        {
-            if (NameOf(m) == rustName.Trim())
-            {
-                return GetPrecedingComment(m.Index);
-            }
-        }
-
-        return null;
+        var name = rustName.Trim();
+        var match = EnumDeclRegex().Matches(content).FirstOrDefault(m => NameOf(m) == name);
+        return match is null ? null : GetPrecedingComment(match.Index);
     }
 
     /// <summary>
@@ -59,15 +47,9 @@ public partial class CHeaderDoc
     /// </summary>
     public string? GetStructDoc(string rustName)
     {
-        foreach (Match m in StructDeclRegex().Matches(content))
-        {
-            if (NameOf(m) == rustName.Trim())
-            {
-                return GetPrecedingComment(m.Index);
-            }
-        }
-
-        return null;
+        var name = rustName.Trim();
+        var match = StructDeclRegex().Matches(content).FirstOrDefault(m => NameOf(m) == name);
+        return match is null ? null : GetPrecedingComment(match.Index);
     }
 
     /// <summary>
@@ -84,15 +66,8 @@ public partial class CHeaderDoc
 
         var bodyText = content.Substring(body.Value.Start, body.Value.Length);
         var baseIndex = body.Value.Start;
-        foreach (Match m in EnumValueRegex().Matches(bodyText))
-        {
-            if (NameOf(m) == valueRustName.Trim())
-            {
-                return GetPrecedingComment(baseIndex + m.Index);
-            }
-        }
-
-        return null;
+        var match = EnumValueRegex().Matches(bodyText).FirstOrDefault(m => NameOf(m) == valueRustName.Trim());
+        return match is null ? null : GetPrecedingComment(baseIndex + match.Index);
     }
 
     /// <summary>
@@ -109,15 +84,8 @@ public partial class CHeaderDoc
 
         var bodyText = content.Substring(body.Value.Start, body.Value.Length);
         var baseIndex = body.Value.Start;
-        foreach (Match m in StructFieldRegex().Matches(bodyText))
-        {
-            if (NameOf(m) == fieldRustName.Trim())
-            {
-                return GetPrecedingComment(baseIndex + m.Index);
-            }
-        }
-
-        return null;
+        var match = StructFieldRegex().Matches(bodyText).FirstOrDefault(m => NameOf(m) == fieldRustName.Trim());
+        return match is null ? null : GetPrecedingComment(baseIndex + match.Index);
     }
 
     // ── Body extraction ────────────────────────────────────────────

@@ -9,13 +9,20 @@ namespace TranscribeCppSharp.Generator;
 /// </summary>
 public class CSharpGenerator
 {
+    private const string CategoryModel = "Model";
+    private const string CategorySession = "Session";
+    private const string CategoryResults = "Results";
+    private const string TypeIntPtr = "IntPtr";
+    private const string CharType = "c_char";
+    private const string SeparatorBanner = "// ════════════════════════════════════════════════════════════════";
+
     private readonly string dllName = "transcribe";
 
     private static readonly (string Pattern, string Category)[] FunctionCategories =
     [
-        ("model_load_params", "Model"), ("model_free", "Model"), ("model_", "Model"),
-        ("session_init", "Session"), ("session_free", "Session"),
-        ("session_limits", "Session"), ("session_", "Session"),
+        ("model_load_params", CategoryModel), ("model_free", CategoryModel), ("model_", CategoryModel),
+        ("session_init", CategorySession), ("session_free", CategorySession),
+        ("session_limits", CategorySession), ("session_", CategorySession),
         ("stream_", "Streaming"), ("batch_", "Batch"), ("run_batch", "Batch"),
         ("run_params", "Run"), ("run", "Run"),
         ("segment_", "Results — Segments"), ("word_", "Results — Words"),
@@ -23,15 +30,15 @@ public class CSharpGenerator
         ("timing", "Timings"), ("backend", "Backend"), ("device", "Backend"),
         ("log_", "Logging"), ("version", "Version"), ("abi_", "ABI Metadata"),
         ("open", "Lifecycle"), ("close", "Lifecycle"), ("get_model", "Lifecycle"),
-        ("init_backends", "Backend"), ("capabilities", "Model"), ("supports", "Model"),
-        ("arch_string", "Model"), ("variant_string", "Model"), ("meta_val", "Model"),
+        ("init_backends", "Backend"), ("capabilities", CategoryModel), ("supports", CategoryModel),
+        ("arch_string", CategoryModel), ("variant_string", CategoryModel), ("meta_val", CategoryModel),
         ("set_abort", "Cancellation"), ("was_aborted", "Cancellation"),
-        ("was_truncated", "Cancellation"), ("n_segments", "Results"),
-        ("n_words", "Results"), ("n_tokens", "Results"), ("full_text", "Results"),
-        ("raw_text", "Results"), ("detected_language", "Results"),
-        ("returned_timestamp", "Results"), ("get_segment", "Results"),
-        ("get_word", "Results"), ("get_token", "Results"), ("get_timings", "Results"),
-        ("print_timings", "Results"), ("reset_timings", "Results"),
+        ("was_truncated", "Cancellation"), ("n_segments", CategoryResults),
+        ("n_words", CategoryResults), ("n_tokens", CategoryResults), ("full_text", CategoryResults),
+        ("raw_text", CategoryResults), ("detected_language", CategoryResults),
+        ("returned_timestamp", CategoryResults), ("get_segment", CategoryResults),
+        ("get_word", CategoryResults), ("get_token", CategoryResults), ("get_timings", CategoryResults),
+        ("print_timings", CategoryResults), ("reset_timings", CategoryResults),
         ("tokenize", "Tokenize"), ("status_string", "Status"),
     ];
 
@@ -103,9 +110,9 @@ public class CSharpGenerator
 
     private static void WriteEnums(StringBuilder sb, RustFfiParser parser, CHeaderDoc? headerDoc)
     {
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         sb.AppendLine("// Enums");
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         foreach (var e in parser.ParseEnums())
         {
             WriteEnum(sb, e, headerDoc);
@@ -114,9 +121,9 @@ public class CSharpGenerator
 
     private static void WriteHandles(StringBuilder sb)
     {
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         sb.AppendLine("// Typed handles (opaque pointers with compile-time safety)");
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         WriteHandle(sb, "ModelHandle");
         WriteHandle(sb, "SessionHandle");
     }
@@ -156,9 +163,9 @@ public class CSharpGenerator
 
     private static void WriteStructs(StringBuilder sb, RustFfiParser parser, CHeaderDoc? headerDoc)
     {
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         sb.AppendLine("// Structs");
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         foreach (var s in parser.ParseStructs())
         {
             // Skip opaque handles — they're represented as SafeHandle classes, not structs
@@ -180,9 +187,9 @@ public class CSharpGenerator
 
     private void WriteFunctions(StringBuilder sb, RustFfiParser parser, CHeaderDoc? headerDoc)
     {
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         sb.AppendLine("// Native functions");
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         sb.AppendLine("internal static partial class NativeMethods");
         sb.AppendLine("{");
         sb.AppendLine(InvariantCulture, $"    private const string LibName = \"{dllName}\";");
@@ -213,12 +220,12 @@ public class CSharpGenerator
     /// </summary>
     private static void WriteAbiLayout(StringBuilder sb, RustFfiParser parser)
     {
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         sb.AppendLine("// ABI layout contracts (native ground truth)");
         sb.AppendLine("// Sizes/alignments/offsets come from the compile-time checks emitted");
         sb.AppendLine("// by bindgen in transcribe_sys.rs (size_of!/align_of!/offset_of!).");
         sb.AppendLine("// AbiLayoutTest cross-checks Marshal.SizeOf/OffsetOf against these.");
-        sb.AppendLine("// ════════════════════════════════════════════════════════════════");
+        sb.AppendLine(SeparatorBanner);
         sb.AppendLine("internal static class AbiLayout");
         sb.AppendLine("{");
         sb.AppendLine("    public static readonly (string TypeName, ulong Size, ulong Align, (string Field, nuint Offset)[] Offsets)[] All =");
@@ -387,8 +394,8 @@ public class CSharpGenerator
         }
 
         // Determine return type — borrowed string pointers return IntPtr
-        var isBorrowedStringReturn = fn.ReturnType is PointerType(_, PrimitiveType("c_char"));
-        var retCsType = isBorrowedStringReturn ? "IntPtr" : MapParamType(fn.ReturnType);
+        var isBorrowedStringReturn = fn.ReturnType is PointerType(_, PrimitiveType(CharType));
+        var retCsType = isBorrowedStringReturn ? TypeIntPtr : MapParamType(fn.ReturnType);
 
         sb.AppendLine(InvariantCulture, $"    [LibraryImport(LibName, EntryPoint = \"{fn.Name}\", StringMarshalling = StringMarshalling.Utf8)]");
 
@@ -404,11 +411,11 @@ public class CSharpGenerator
             return p.Type switch
             {
                 // Immutable pointer to char → input string (StringMarshalling.Utf8 handles it)
-                PointerType(PointerMutability.Const, PrimitiveType("c_char"))
+                PointerType(PointerMutability.Const, PrimitiveType(CharType))
                     => $"string {name}",
 
                 // Mutable pointer to char → output buffer (IntPtr)
-                PointerType(PointerMutability.Mutable, PrimitiveType("c_char"))
+                PointerType(PointerMutability.Mutable, PrimitiveType(CharType))
                     => $"IntPtr {name}",
 
                 // Bool param: must be I1 (1 byte)
@@ -442,11 +449,11 @@ public class CSharpGenerator
         PrimitiveType("f64") => "double",
         PrimitiveType("c_int") => "int",
         PrimitiveType("c_uint") => "uint",
-        PrimitiveType("c_char") => "byte",
+        PrimitiveType(CharType) => "byte",
 
         // Opaque handles → IntPtr (P/Invoke works with raw pointers)
-        PointerType(_, OpaqueHandleType("transcribe_model")) => "IntPtr",
-        PointerType(_, OpaqueHandleType("transcribe_session")) => "IntPtr",
+        PointerType(_, OpaqueHandleType("transcribe_model")) => TypeIntPtr,
+        PointerType(_, OpaqueHandleType("transcribe_session")) => TypeIntPtr,
 
         // Borrowed f32 slice → ReadOnlySpan<float> (auto-pinned by LibraryImport source generator)
         PointerType(PointerMutability.Const, PrimitiveType("f32")) => "ReadOnlySpan<float>",
@@ -456,7 +463,7 @@ public class CSharpGenerator
         StructType(var rustName) => ToPascalCase(rustName),
 
         // All other pointer types → IntPtr
-        PointerType => "IntPtr",
+        PointerType => TypeIntPtr,
 
         UnknownType(var raw) => throw new InvalidOperationException(
             $"Unknown Rust type in FFI binding: '{raw}'. " +
@@ -471,10 +478,10 @@ public class CSharpGenerator
     private static string MapStructFieldType(RustType rustType) => rustType switch
     {
         // Borrowed string pointers in structs → IntPtr (caller marshals manually)
-        PointerType(_, PrimitiveType("c_char")) => "IntPtr",
+        PointerType(_, PrimitiveType(CharType)) => TypeIntPtr,
 
         // Double pointer to char → IntPtr (e.g. *const *const c_char)
-        PointerType(_, PointerType(_, PrimitiveType("c_char"))) => "IntPtr",
+        PointerType(_, PointerType(_, PrimitiveType(CharType))) => TypeIntPtr,
 
         // All other types: same as param mapping
         _ => MapParamType(rustType),
@@ -614,7 +621,7 @@ public class CSharpGenerator
 
     private static string ToPascalCase(string s)
     {
-        s = Regex.Replace(s, @"^transcribe_", string.Empty, RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"^transcribe_", string.Empty, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         return string.Join(string.Empty, s.Split('_', StringSplitOptions.RemoveEmptyEntries)
             .Select(CapitalizeWord));
     }
