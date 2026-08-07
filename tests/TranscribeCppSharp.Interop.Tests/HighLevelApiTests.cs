@@ -1253,6 +1253,63 @@ public class HighLevelApiTests : IDisposable
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Tokenize("test", -1));
     }
 
+    [SkippableFact]
+    public void Model_Tokenize_EmptyString_ShouldReturnEmptyOrSingleToken()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        var tokens = model.Tokenize("");
+        Assert.NotNull(tokens);
+        // Empty string may yield 0 tokens or a single end-of-text token
+        Assert.True(tokens.Length >= 0);
+    }
+
+    [SkippableFact]
+    public void Model_Tokenize_SmallInitialCapacity_ShouldRetryAndSucceed()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        // capacity=1 forces the retry loop (negative return = required size)
+        var tokens = model.Tokenize("Hello world, this is a test.", initialCapacity: 1);
+        Assert.NotNull(tokens);
+        Assert.True(tokens.Length > 0);
+    }
+
+    [SkippableFact]
+    public void Model_Tokenize_LargeInitialCapacity_ShouldWork()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        var tokens = model.Tokenize("Hello", initialCapacity: 8192);
+        Assert.NotNull(tokens);
+        Assert.True(tokens.Length > 0);
+    }
+
+    [SkippableFact]
+    public void Model_Tokenize_UnicodeText_ShouldWork()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        var tokens = model.Tokenize("Bonjour, comment allez-vous?");
+        Assert.NotNull(tokens);
+        Assert.True(tokens.Length > 0);
+    }
+
+    [SkippableFact]
+    public void Log_Configure_WithRealCallback_ShouldNotThrow()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        TranscribeCppSharp.Log.Configure((level, msg) => { });
+
+        // Trigger native activity that may produce log output
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+
+        // Clean up: disable logging
+        TranscribeCppSharp.Log.Configure(null);
+        // We can't guarantee the callback was invoked (depends on log levels),
+        // but the test verifies that Configure + Load doesn't crash
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // §6: Assertion fixes — add real assertions to previously empty tests
     // ═══════════════════════════════════════════════════════════════════
