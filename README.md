@@ -38,9 +38,11 @@ If the native library is missing at runtime (e.g. you forgot the runtime package
 
 <!-- @readme basic-transcription -->
 ```csharp
-using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
+var audioPath = TestConfig.AudioPath; // your WAV audio file, e.g. "test-audio/jfk.wav"
+using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
 using var session = model.CreateSession();
-var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+var pcm = PcmExtensions.ReadWavToPcm(audioPath);
 var transcript = session.Run(pcm);
 ```
 <!-- @end basic-transcription -->
@@ -49,10 +51,12 @@ var transcript = session.Run(pcm);
 
 <!-- @readme batch-transcription -->
 ```csharp
-using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
+var audioPath = TestConfig.AudioPath; // your WAV audio file, e.g. "test-audio/jfk.wav"
+using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
 using var session = model.CreateSession();
-var pcm1 = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
-var pcm2 = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+var pcm1 = PcmExtensions.ReadWavToPcm(audioPath);
+var pcm2 = PcmExtensions.ReadWavToPcm(audioPath);
 var results = Batch.Run(session, new[] { pcm1, pcm2 });
 ```
 <!-- @end batch-transcription -->
@@ -173,7 +177,8 @@ Query what a loaded model supports:
 
 <!-- @readme model-capabilities -->
 ```csharp
-using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
+using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
 var supportsPnc = model.Supports(Feature.FeaturePnc);
 var caps = model.GetCapabilities();
 ```
