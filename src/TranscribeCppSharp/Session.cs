@@ -19,7 +19,7 @@ namespace TranscribeCppSharp;
 public sealed class Session : IDisposable
 {
     private readonly Model model;
-    private SessionHandle handle;
+    private readonly SessionHandle handle;
 
     private Session(SessionHandle handle, Model model)
     {

@@ -12,7 +12,7 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class Model : IDisposable
 {
-    private ModelHandle handle;
+    private readonly ModelHandle handle;
     private bool disposed;
 
     private Model(ModelHandle handle) => this.handle = handle;

@@ -11,7 +11,7 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class ModelLoadParamsBuilder : IDisposable
 {
-    private IntPtr handle;
+    private readonly IntPtr handle;
     private ModelLoadParams @params;
     private bool disposed;
 

@@ -11,7 +11,7 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class StreamParamsBuilder : IDisposable
 {
-    private IntPtr handle;
+    private readonly IntPtr handle;
     private StreamParams @params;
     private MoonshineExtBuilder? moonshineExt;
     private ParakeetStreamExtBuilder? parakeetStreamExt;

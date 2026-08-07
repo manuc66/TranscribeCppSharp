@@ -11,7 +11,7 @@ namespace TranscribeCppSharp;
 /// </summary>
 public sealed class SessionParamsBuilder : IDisposable
 {
-    private IntPtr handle;
+    private readonly IntPtr handle;
     private SessionParams @params;
     private bool disposed;
 

@@ -21,7 +21,7 @@ public enum TranscriptionTask
 /// </summary>
 public sealed class RunParamsBuilder : IDisposable
 {
-    private IntPtr handle;
+    private readonly IntPtr handle;
     private RunParams @params;
     private IntPtr languagePtr;
     private IntPtr targetLanguagePtr;
