@@ -18,13 +18,13 @@ public static class Batch
     /// Supports cancellation via <paramref name="ct"/>.
     /// </summary>
     /// <param name="session">The session to use for transcription.</param>
-    /// <param name="pcmBuffers">Array of PCM buffers (16 kHz mono f32).</param>
+    /// <param name="pcmBuffers">PCM buffers (16 kHz mono f32), one per audio clip.</param>
     /// <param name="configure">Optional configuration for run parameters.</param>
     /// <param name="ct">Optional cancellation token.</param>
     /// <returns>Array of results, one per input buffer.</returns>
     public static IReadOnlyList<BatchResult> Run(
         Session session,
-        float[][] pcmBuffers,
+        IReadOnlyList<float[]> pcmBuffers,
         Action<RunParamsBuilder>? configure = null,
         CancellationToken ct = default)
     {
@@ -33,7 +33,7 @@ public static class Batch
 
     private static List<BatchResult> RunInternal(
         Session session,
-        float[][] pcmBuffers,
+        IReadOnlyList<float[]> pcmBuffers,
         Action<RunParamsBuilder>? configure,
         CancellationToken ct)
     {
@@ -43,12 +43,12 @@ public static class Batch
 
         ct.ThrowIfCancellationRequested();
 
-        if (pcmBuffers.Length == 0)
+        if (pcmBuffers.Count == 0)
         {
             return [];
         }
 
-        var n = pcmBuffers.Length;
+        var n = pcmBuffers.Count;
         var pcmPtrs = new IntPtr[n];
         var sampleCounts = new int[n];
 
