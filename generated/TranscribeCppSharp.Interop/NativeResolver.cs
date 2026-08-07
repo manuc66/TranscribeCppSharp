@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -27,7 +28,8 @@ internal static partial class NativeMethods
             return IntPtr.Zero;
         }
 
-        foreach (string candidate in EnumerateCandidates())
+        var candidates = EnumerateCandidates().ToList();
+        foreach (string candidate in candidates)
         {
             if (TryLoadNativeLibrary(candidate, out IntPtr handle))
             {
@@ -35,8 +37,27 @@ internal static partial class NativeMethods
             }
         }
 
-        // Delegate to the default .NET resolution rules.
-        return IntPtr.Zero;
+        // Fail-fast with an actionable message instead of the cryptic
+        // DllNotFoundException that .NET would otherwise produce.
+        throw new DllNotFoundException(BuildNotFoundMessage(candidates));
+    }
+
+    /// <summary>
+    /// Builds the error message shown when the native library cannot be located.
+    /// Exposed internally for tests.
+    /// </summary>
+    internal static string BuildNotFoundMessage(List<string> candidates)
+    {
+        var rid = RuntimeInformation.RuntimeIdentifier;
+        var searched = candidates.Count == 0
+            ? "  (no candidates — app output dir and NuGet packages folder not resolvable)"
+            : string.Join(Environment.NewLine, candidates.Select(c => $"  {c}"));
+
+        return $"The native 'transcribe' library was not found for RID '{rid}'.{Environment.NewLine}" +
+               $"Searched:{Environment.NewLine}{searched}{Environment.NewLine}" +
+               $"To fix, add the native package for your platform:{Environment.NewLine}" +
+               $"  dotnet add package TranscribeCppSharp.Native.{rid}{Environment.NewLine}" +
+               "For musl/Alpine Linux or custom native builds, see the 'Building from source' section of the README.";
     }
 
     private static IEnumerable<string> EnumerateCandidates()
