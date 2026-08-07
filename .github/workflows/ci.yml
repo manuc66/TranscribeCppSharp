@@ -56,7 +56,7 @@ jobs:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
           path: native-packages/*/runtimes
-          key: native-libs-${{ matrix.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION', 'build/native-sha256.json') }}
 
       - name: Cache test assets
         uses: actions/cache@v6
@@ -166,7 +166,7 @@ jobs:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
           path: native-packages/*/runtimes
-          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION', 'build/native-sha256.json') }}
 
       - name: Cache test assets
         uses: actions/cache@v6
@@ -208,7 +208,7 @@ jobs:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
           path: native-packages/*/runtimes
-          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION') }}
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION', 'build/native-sha256.json') }}
 
       - run: dotnet run --project tools/FetchNative -- --all
 
