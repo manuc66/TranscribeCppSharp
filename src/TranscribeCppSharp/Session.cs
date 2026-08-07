@@ -456,8 +456,8 @@ public sealed class Session : IDisposable
         var lang = langPtr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(langPtr) ?? string.Empty;
 
         var segments = ReadSegments();
-        var words = WordCount > 0 ? ReadWords() : Array.Empty<WordResult>();
-        var tokens = NativeMethods.NTokens(handle) > 0 ? ReadTokens() : Array.Empty<TokenResult>();
+        var words = ReadWords();
+        var tokens = ReadTokens();
 
         return new Transcript
         {
