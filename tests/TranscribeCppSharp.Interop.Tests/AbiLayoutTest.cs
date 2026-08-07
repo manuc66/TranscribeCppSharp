@@ -70,6 +70,21 @@ public class AbiLayoutTest
             string.Join(", ", missing));
     }
 
+    [Fact]
+    public void Pack8_SufficientForAllStructAlignments()
+    {
+        // CSharpGenerator hardcodes [StructLayout(Pack = 8)].
+        // If any struct has native alignment > 8, Pack=8 would produce wrong layout.
+        // This test catches that before the size/offset checks in AllStructs_MatchNativeBindgenLayout.
+        const ulong maxPack = 8;
+        foreach (var (typeName, _, align, _) in AbiLayout.All)
+        {
+            Assert.True(align <= maxPack,
+                $"{typeName}: native alignment {align} > Pack={maxPack}. " +
+                "CSharpGenerator must derive Pack from AbiStructAlign or use a larger value.");
+        }
+    }
+
     [SkippableFact]
     public void NativeSizes_MatchManagedStructs()
     {
