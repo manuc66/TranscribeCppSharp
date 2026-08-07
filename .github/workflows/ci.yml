@@ -160,8 +160,6 @@ jobs:
         with:
           dotnet-version: '10.x'
 
-      - run: dotnet build samples/SmokeTest -c Release
-
       - name: Cache native libraries
         uses: actions/cache@v6
         with:
@@ -179,6 +177,10 @@ jobs:
           key: test-assets-${{ hashFiles('scripts/run-integration-tests.sh') }}
 
       - run: dotnet run --project tools/FetchNative
+
+      # Build after FetchNative so the CopyNativeLib target copies the libs
+      # into the output dir; the run below uses --no-build.
+      - run: dotnet build samples/SmokeTest -c Release
 
       - name: Run smoke test
         run: |

@@ -13,18 +13,11 @@
     <ProjectReference Include="..\..\src\TranscribeCppSharp\TranscribeCppSharp.csproj" />
   </ItemGroup>
 
-  <!-- Auto-fetch native libraries if missing (portable: resolves the current
-       RID via NETCoreSdkPortableRuntimeIdentifier, e.g. linux-x64 / osx-arm64). -->
-  <Target Name="FetchNativeLibs" BeforeTargets="BeforeBuild"
-          Condition="!Exists('$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/.done')">
-    <Exec Command="dotnet run --project $(MSBuildThisFileDirectory)../../tools/FetchNative"
-          IgnoreExitCode="true"
-          ConsoleToMSBuild="true" />
-  </Target>
-
   <!-- Copy native lib to output so the DllImportResolver finds it via
        AppContext.BaseDirectory (its first candidate), without requiring
-       LD_LIBRARY_PATH. Same pattern as the Interop.Tests project. -->
+       LD_LIBRARY_PATH. Same pattern as the Interop.Tests project.
+       Native libs must already be present under native-packages/ (run
+       tools/FetchNative once) for this to copy anything. -->
   <Target Name="CopyNativeLib" AfterTargets="Build">
     <ItemGroup>
       <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.so"
