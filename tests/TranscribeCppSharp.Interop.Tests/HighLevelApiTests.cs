@@ -1580,26 +1580,18 @@ public class HighLevelApiTests : IDisposable
         using var session = model.CreateSession();
         var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var buffers = new float[][] { pcm, null! };
-        Assert.ThrowsAny<Exception>(() => TranscribeCppSharp.Batch.Run(session, buffers));
+        Assert.Throws<ArgumentNullException>(() => TranscribeCppSharp.Batch.Run(session, buffers));
     }
 
     [SkippableFact]
-    public void Batch_Run_EmptySubArray_HandlesGracefully()
+    public void Batch_Run_EmptySubArray_ThrowsArgumentException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        // Empty sub-array: native behavior is undefined, but should not crash managed code
-        var buffers = new float[][] { Array.Empty<float>() };
-        try
-        {
-            var results = TranscribeCppSharp.Batch.Run(session, buffers);
-            Assert.NotNull(results);
-        }
-        catch (TranscribeException)
-        {
-            // Native may reject empty buffers — acceptable
-        }
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var buffers = new float[][] { pcm, Array.Empty<float>() };
+        Assert.Throws<ArgumentException>(() => TranscribeCppSharp.Batch.Run(session, buffers));
     }
 
     // ═══════════════════════════════════════════════════════════════════

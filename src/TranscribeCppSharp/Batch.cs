@@ -58,6 +58,16 @@ public static class Batch
         {
             for (int i = 0; i < n; i++)
             {
+                if (pcmBuffers[i] is null)
+                {
+                    throw new ArgumentNullException(nameof(pcmBuffers), $"Element at index {i} is null.");
+                }
+
+                if (pcmBuffers[i].Length == 0)
+                {
+                    throw new ArgumentException($"Element at index {i} is empty (zero samples).", nameof(pcmBuffers));
+                }
+
                 handles[i] = GCHandle.Alloc(pcmBuffers[i], GCHandleType.Pinned);
                 pcmPtrs[i] = handles[i].AddrOfPinnedObject();
                 sampleCounts[i] = pcmBuffers[i].Length;
