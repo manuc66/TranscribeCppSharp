@@ -18,6 +18,9 @@ namespace TranscribeCppSharp;
 /// </remarks>
 public sealed class Session : IDisposable
 {
+    // Unread by design: rooting the parent Model for the session's lifetime so
+    // it is not GC'd while the native session still references it. See class remarks.
+    // NOSONAR S4487
     private readonly Model model;
     private readonly SessionHandle handle;
 

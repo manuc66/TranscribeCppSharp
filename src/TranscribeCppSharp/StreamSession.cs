@@ -25,6 +25,7 @@ public sealed class StreamSession : IDisposable
     // Kept solely to root the owning Session (and transitively its Model) for
     // the lifetime of this stream: the native contract requires the model to
     // outlive every derived session/stream. Never read — do not "clean up".
+    // NOSONAR S4487
     private readonly Session owner;
     private bool disposed;
 
