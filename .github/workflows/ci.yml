@@ -187,7 +187,6 @@ jobs:
           [ -f test-models/ggml-tiny.bin ] || curl -fSL --proto '=https' --proto-redir '=https' -o test-models/ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
           [ -f test-audio/jfk.wav ] || curl -fSL --proto '=https' --proto-redir '=https' -o test-audio/jfk.wav https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav
           
-          LD_LIBRARY_PATH=native-packages/linux-x64/runtimes/linux-x64/native:$LD_LIBRARY_PATH \
           dotnet run --project samples/SmokeTest -c Release --no-build -- \
           test-models/ggml-tiny.bin test-audio/jfk.wav
 
