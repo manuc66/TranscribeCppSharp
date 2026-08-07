@@ -182,6 +182,34 @@ public class HighLevelApiTests : IDisposable
         return path;
     }
 
+    private static string WriteTestWavWithFormat(short audioFormat, short bitsPerSample, int sampleRate = 16000, int numChannels = 1, int sampleCount = 10)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.wav");
+        int bytesPerSample = bitsPerSample / 8;
+        int dataLength = sampleCount * bytesPerSample * numChannels;
+
+        using var ms = new MemoryStream();
+        using (var bw = new BinaryWriter(ms))
+        {
+            bw.Write("RIFF".ToCharArray());
+            bw.Write(36 + dataLength);
+            bw.Write("WAVE".ToCharArray());
+            bw.Write("fmt ".ToCharArray());
+            bw.Write(16);
+            bw.Write(audioFormat);
+            bw.Write((short)numChannels);
+            bw.Write(sampleRate);
+            bw.Write(sampleRate * numChannels * bytesPerSample); // byte rate
+            bw.Write((short)(numChannels * bytesPerSample)); // block align
+            bw.Write(bitsPerSample);
+            bw.Write("data".ToCharArray());
+            bw.Write(dataLength);
+            bw.Write(new byte[dataLength]); // zero-filled data
+        }
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
     [Fact]
     public void ModelLoadParamsBuilder_WithBackend_ShouldSetBackend()
     {
@@ -1358,6 +1386,8 @@ public class HighLevelApiTests : IDisposable
         var transcript = session.Run(pcm);
 
         Assert.False(string.IsNullOrWhiteSpace(transcript.FullText));
+        // JFK audio says "And so my fellow Americans" — golden-text assertion
+        Assert.Contains("fellow Americans", transcript.FullText, StringComparison.OrdinalIgnoreCase);
         Assert.NotNull(transcript.Timing);
         Assert.True(transcript.Segments.Count > 0);
         Assert.False(transcript.WasAborted);
@@ -1486,5 +1516,116 @@ public class HighLevelApiTests : IDisposable
 
         var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
         Assert.Equal((nuint)0, p.nPromptTokens);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6.2: WAV format rejection tests (no native lib required)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void PcmExtensions_ReadWavToPcm_24Bit_ThrowsInvalidDataException()
+    {
+        var path = WriteTestWavWithFormat(audioFormat: 1, bitsPerSample: 24);
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void PcmExtensions_ReadWavToPcm_8Bit_ThrowsInvalidDataException()
+    {
+        var path = WriteTestWavWithFormat(audioFormat: 1, bitsPerSample: 8);
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void PcmExtensions_ReadWavToPcm_FloatFormat_ThrowsInvalidDataException()
+    {
+        // audioFormat=3 = IEEE float
+        var path = WriteTestWavWithFormat(audioFormat: 3, bitsPerSample: 32);
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void PcmExtensions_ReadWavToPcm_ExtensibleFormat_ThrowsInvalidDataException()
+    {
+        // audioFormat=0xFFFE = WAVEFORMATEXTENSIBLE
+        var path = WriteTestWavWithFormat(audioFormat: unchecked((short)0xFFFE), bitsPerSample: 16);
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+        }
+        finally { File.Delete(path); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §7.3: Batch null/empty sub-array validation
+    // ═══════════════════════════════════════════════════════════════════
+
+    [SkippableFact]
+    public void Batch_Run_NullElement_Throws()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var buffers = new float[][] { pcm, null! };
+        Assert.ThrowsAny<Exception>(() => TranscribeCppSharp.Batch.Run(session, buffers));
+    }
+
+    [SkippableFact]
+    public void Batch_Run_EmptySubArray_HandlesGracefully()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        // Empty sub-array: native behavior is undefined, but should not crash managed code
+        var buffers = new float[][] { Array.Empty<float>() };
+        try
+        {
+            var results = TranscribeCppSharp.Batch.Run(session, buffers);
+            Assert.NotNull(results);
+        }
+        catch (TranscribeException)
+        {
+            // Native may reject empty buffers — acceptable
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §7.4: PCM NaN/Inf propagation (requires native lib)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [SkippableFact]
+    public void Session_Run_PcmWithNaN_DoesNotCrash()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        // 1 second of silence with one NaN sample
+        var pcm = new float[16000];
+        pcm[100] = float.NaN;
+        pcm[200] = float.PositiveInfinity;
+        pcm[300] = float.NegativeInfinity;
+        // Should not crash — native lib handles or ignores NaN
+        try
+        {
+            var transcript = session.Run(pcm);
+            Assert.NotNull(transcript);
+        }
+        catch (TranscribeException)
+        {
+            // Native may reject NaN — acceptable, but managed code must not crash
+        }
     }
 }
