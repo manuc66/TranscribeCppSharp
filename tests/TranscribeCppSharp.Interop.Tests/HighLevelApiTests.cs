@@ -687,9 +687,9 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Log_Configure_ShouldNotThrow()
     {
-        Log.Configure((level, msg) => { });
-        Log.Configure(null);
-        Log.Configure(null); // double-disable is safe
+        Assert.Null(Record.Exception(() => Log.Configure((level, msg) => { })));
+        Assert.Null(Record.Exception(() => Log.Configure(null)));
+        Assert.Null(Record.Exception(() => Log.Configure(null))); // double-disable is safe
     }
 
     [Fact]
@@ -797,7 +797,7 @@ public class HighLevelApiTests : IDisposable
         using var stream = session.CreateStream();
 
         var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
-        try
+        var ex = Record.Exception(() =>
         {
             // @readme-begin streaming-transcription
             stream.Begin();
@@ -811,11 +811,15 @@ public class HighLevelApiTests : IDisposable
             stream.Complete();
             var text = stream.CurrentText;
             // @end streaming-transcription
-        }
-        catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
+        });
+
+        if (ex is TranscribeException { StatusCode: Status.ErrNotImplemented })
         {
             // Allowed if streaming is not implemented in the native library
+            return;
         }
+
+        Assert.Null(ex);
     }
 
     [SkippableFact]
@@ -845,16 +849,20 @@ public class HighLevelApiTests : IDisposable
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var stream = session.CreateStream();
-        try
+        var ex = Record.Exception(() =>
         {
             stream.Begin();
             stream.Dispose();
             stream.Dispose(); // second dispose must not throw
-        }
-        catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
+        });
+
+        if (ex is TranscribeException { StatusCode: Status.ErrNotImplemented })
         {
             // Allowed if streaming is not implemented in the native library
+            return;
         }
+
+        Assert.Null(ex);
     }
 
     [SkippableFact]
@@ -892,7 +900,7 @@ public class HighLevelApiTests : IDisposable
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         var artifactDir = Path.GetDirectoryName(typeof(HighLevelApiTests).Assembly.Location)!;
-        TranscribeCppSharp.Backends.Init(artifactDir);
+        Assert.Null(Record.Exception(() => TranscribeCppSharp.Backends.Init(artifactDir)));
     }
 
     [SkippableFact]
@@ -1071,8 +1079,12 @@ public class HighLevelApiTests : IDisposable
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var session = model.CreateSession();
-        session.Dispose();
-        session.Dispose(); // second dispose must not throw
+        var ex = Record.Exception(() =>
+        {
+            session.Dispose();
+            session.Dispose(); // second dispose must not throw
+        });
+        Assert.Null(ex);
     }
 
     [SkippableFact]
@@ -1080,8 +1092,12 @@ public class HighLevelApiTests : IDisposable
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
-        model.Dispose();
-        model.Dispose(); // second dispose must not throw
+        var ex = Record.Exception(() =>
+        {
+            model.Dispose();
+            model.Dispose(); // second dispose must not throw
+        });
+        Assert.Null(ex);
     }
 
     [Fact]
@@ -1332,15 +1348,19 @@ public class HighLevelApiTests : IDisposable
     public void Log_Configure_WithRealCallback_ShouldNotThrow()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        TranscribeCppSharp.Log.Configure((level, msg) => { });
+        Assert.Null(Record.Exception(() => TranscribeCppSharp.Log.Configure((level, msg) => { })));
 
-        // Trigger native activity that may produce log output
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        // Trigger native activity that may produce log output; capture any exception
+        // so the test can assert that Configure + Load doesn't crash. We can't
+        // guarantee the callback was invoked (depends on log levels).
+        var ex = Record.Exception(() =>
+        {
+            using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        });
+        Assert.Null(ex);
 
         // Clean up: disable logging
-        TranscribeCppSharp.Log.Configure(null);
-        // We can't guarantee the callback was invoked (depends on log levels),
-        // but the test verifies that Configure + Load doesn't crash
+        Assert.Null(Record.Exception(() => TranscribeCppSharp.Log.Configure(null)));
     }
 
     // ═══════════════════════════════════════════════════════════════════

@@ -85,10 +85,12 @@ public class InfrastructureTests
     [Fact]
     public void StackAllocHelper_ZeroSize_Works()
     {
-        StackAllocHelper.RunWithBuffer(0, ptr =>
-        {
-            // Zero-size buffer: ptr may be null or valid, but should not crash
-        });
+        var ex = Record.Exception(() =>
+            StackAllocHelper.RunWithBuffer(0, ptr =>
+            {
+                // Zero-size buffer: ptr may be null or valid, but should not crash
+            }));
+        Assert.Null(ex);
     }
 
     [Fact]
