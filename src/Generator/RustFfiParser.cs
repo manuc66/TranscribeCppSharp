@@ -264,4 +264,22 @@ public partial class RustFfiParser
 
     [GeneratedRegex(@"\[""Offset of field: \w+::(?<field>\w+)""\]\s*\[[^\]]*\s*-\s*(?<value>\d+)usize\]")]
     private static partial Regex AbiLayoutOffsetRegex();
+
+    [GeneratedRegex(@"pub\s+type\s+(?<name>\w+)\s*=\s*::std::option::Option<")]
+    private static partial Regex CallbackTypeAliasRegex();
+
+    /// <summary>
+    /// Parse callback type aliases (e.g. <c>pub type transcribe_log_callback = Option&lt;...&gt;</c>).
+    /// Used by the generator to verify all callbacks have hand-written delegates.
+    /// </summary>
+    public List<string> ParseCallbackTypeAliases()
+    {
+        var results = new List<string>();
+        foreach (Match m in CallbackTypeAliasRegex().Matches(content))
+        {
+            results.Add(m.Groups["name"].Value);
+        }
+
+        return results;
+    }
 }

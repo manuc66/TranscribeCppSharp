@@ -40,6 +40,18 @@ public class CSharpGenerator
         "transcribe_model", "transcribe_session",
     ];
 
+    /// <summary>
+    /// Hand-written delegate names. If a new callback type alias is added to
+    /// transcribe_sys.rs, add the corresponding delegate name here AND in
+    /// WriteCallbacks. The generator will fail if a fn-pointer type is found
+    /// without a matching entry.
+    /// </summary>
+    private static readonly HashSet<string> KnownDelegateNames =
+    [
+        "LogCallback",
+        "AbortCallback",
+    ];
+
     private static readonly HashSet<string> CsharpKeywords =
     [
         "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char",
@@ -58,6 +70,8 @@ public class CSharpGenerator
     // ── Public API ─────────────────────────────────────────────────
     public string Generate(RustFfiParser parser, CHeaderDoc? headerDoc = null)
     {
+        VerifyCallbacks(parser);
+
         var sb = new StringBuilder();
         WriteHeader(sb);
         WriteEnums(sb, parser, headerDoc);
@@ -329,6 +343,28 @@ public class CSharpGenerator
 
         sb.AppendLine("}");
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Verify that every fn-pointer function in the Rust file has a
+    /// corresponding hand-written delegate. If a new callback type alias
+    /// is added upstream, this will fail the generation with a clear message.
+    /// </summary>
+    private static void VerifyCallbacks(RustFfiParser parser)
+    {
+        var callbackTypeAliases = parser.ParseCallbackTypeAliases();
+        foreach (var alias in callbackTypeAliases)
+        {
+            // transcribe_log_callback → LogCallback
+            var delegateName = ToPascalCase(alias);
+            if (!KnownDelegateNames.Contains(delegateName))
+            {
+                throw new InvalidOperationException(
+                    $"Callback type alias '{alias}' found in Rust FFI but no corresponding " +
+                    $"delegate '{delegateName}' in KnownDelegateNames. " +
+                    $"Add the delegate to WriteCallbacks and KnownDelegateNames.");
+            }
+        }
     }
 
     private static void WriteFunction(StringBuilder sb, RustFunction fn, CHeaderDoc? headerDoc)
