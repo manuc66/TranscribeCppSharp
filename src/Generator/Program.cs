@@ -6,8 +6,8 @@ var outputDir = args.Length > 2 ? args[2] : "generated/TranscribeCppSharp.Intero
 
 if (!File.Exists(ffiPath))
 {
-    Console.Error.WriteLine($"Rust FFI file not found: {ffiPath}");
-    Console.Error.WriteLine("Usage: Generator <path/to/transcribe_sys.rs> [path/to/transcribe.h] [output-dir]");
+    await Console.Error.WriteLineAsync($"Rust FFI file not found: {ffiPath}");
+    await Console.Error.WriteLineAsync("Usage: Generator <path/to/transcribe_sys.rs> [path/to/transcribe.h] [output-dir]");
     return 1;
 }
 
@@ -38,7 +38,7 @@ var code = generator.Generate(parser, headerDoc);
 
 Directory.CreateDirectory(outputDir);
 var outputPath = Path.Combine(outputDir, "NativeMethods.cs");
-File.WriteAllText(outputPath, code);
+await File.WriteAllTextAsync(outputPath, code);
 Console.WriteLine($"Generated: {outputPath}");
 
 Console.WriteLine("Done.");

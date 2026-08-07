@@ -17,7 +17,7 @@ if (args.Length > 0 && args[0] is "--help" or "-h")
 var fetchAll = args.Contains("--all");
 var updateHashes = args.Contains("--update-hashes");
 var repoRoot = FindRepoRoot();
-var version = File.ReadAllText(Path.Combine(repoRoot, "build", "TRANSCRIBE_VERSION")).Trim();
+var version = (await File.ReadAllTextAsync(Path.Combine(repoRoot, "build", "TRANSCRIBE_VERSION"))).Trim();
 var baseUrl = $"https://github.com/handy-computer/transcribe.cpp/releases/download/v{version}";
 var dest = Path.Combine(repoRoot, "native-packages");
 var hashesPath = Path.Combine(repoRoot, "build", "native-sha256.json");
@@ -111,7 +111,7 @@ foreach (var (rid, archive) in toFetch)
         Directory.CreateDirectory(tmpExtract);
         try
         {
-            TarFile.ExtractToDirectory(tmpTar, tmpExtract, overwriteFiles: true);
+            await TarFile.ExtractToDirectoryAsync(tmpTar, tmpExtract, overwriteFiles: true);
             // Move contents from the single top-level dir to target
             var entries = Directory.GetFileSystemEntries(tmpExtract);
             if (entries.Length == 1 && Directory.Exists(entries[0]))
@@ -132,7 +132,7 @@ foreach (var (rid, archive) in toFetch)
         {
             if (Directory.Exists(tmpExtract)) Directory.Delete(tmpExtract, recursive: true);
         }
-        File.WriteAllText(doneFile, $"fetched {DateTime.UtcNow:O}");
+        await File.WriteAllTextAsync(doneFile, $"fetched {DateTime.UtcNow:O}");
         Console.WriteLine($"Installed {rid}");
     }
     finally
