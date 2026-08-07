@@ -36,75 +36,43 @@ If the native library is missing at runtime (e.g. you forgot the runtime package
 
 ### Basic Transcription
 
+<!-- @readme basic-transcription -->
 ```csharp
-using TranscribeCppSharp;
-
-// Initialize compute backends once, before loading any model
-TranscribeCppSharp.Backends.InitDefault();
-
-// Load the model (GGUF format)
-using var model = Model.Load("whisper-tiny.gguf");
-
-// Create a transcription session
+using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
 using var session = model.CreateSession();
-
-// Input must be 16kHz mono float PCM
-float[] pcm = ...; 
-
-// Run transcription (blocking call)
+var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
 var transcript = session.Run(pcm);
-
-Console.WriteLine($"Result: {transcript.FullText}");
 ```
-
-### Selecting Hardware Backend
-
-By default, the wrapper passes `BackendAuto` and the native library selects the backend it has available. You can force a specific one:
-
-```csharp
-using var model = Model.Load("model.gguf", p => p
-    .WithBackend(BackendRequest.BackendVulkan) // or BackendCuda, BackendMetal, etc.
-    .WithGpuDevice(0)); // Invalid device index -> ErrInvalidArg; unavailable backend -> ErrBackend
-```
-
-Backends must be initialized once before the first `Model.Load`, otherwise the native call fails with `ErrBackend`. Use `Backends.InitDefault()` (resolves the directory next to the loaded library) or `Backends.Init(dir)` to point at a specific artifact directory.
+<!-- @end basic-transcription -->
 
 ### Batch Processing
 
-Transcribe multiple audio buffers in parallel:
-
+<!-- @readme batch-transcription -->
 ```csharp
-var audios = new float[][] { audio1, audio2, audio3 };
-var results = Batch.Run(session, audios);
-
-foreach (var result in results)
-{
-    Console.WriteLine(result.FullText);
-}
+using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+using var session = model.CreateSession();
+var pcm1 = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+var pcm2 = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+var results = Batch.Run(session, new[] { pcm1, pcm2 });
 ```
+<!-- @end batch-transcription -->
 
 ### Real-Time Streaming
 
+<!-- @readme streaming-transcription -->
 ```csharp
-using var stream = session.CreateStream();
-stream.Begin(); // Initialize the streaming state
-
-// Feed audio chunks incrementally
-while (isRecording)
+stream.Begin();
+int chunkSize = 16000; // 1 second
+for (int i = 0; i < pcm.Length; i += chunkSize)
 {
-    float[] chunk = GetAudioChunk();
+    int length = Math.Min(chunkSize, pcm.Length - i);
+    var chunk = pcm.AsSpan(i, length);
     stream.Feed(chunk);
-    
-    // Read partial results
-    var current = stream.CurrentText;
-    Console.Write($"\r{current.FullText}");
 }
-
-// Finalize the stream to get the last bits of text
-// This must be called BEFORE Dispose() if you want the final results
 stream.Complete();
-var final = stream.CurrentText;
+var text = stream.CurrentText;
 ```
+<!-- @end streaming-transcription -->
 
 ## Features
 
@@ -190,18 +158,26 @@ A `DllImportResolver` registered in the Interop layer finds `libtranscribe` in t
 
 The high-level wrapper throws `TranscribeException` when a native call fails. You can filter by `StatusCode` to handle specific errors.
 
+<!-- @readme error-handling -->
 ```csharp
-try 
-{
-    using var model = Model.Load("invalid.gguf");
-}
-catch (TranscribeException ex) when (ex.StatusCode == Status.ErrGguf)
-{
-    Console.WriteLine("Failed to load model: Check file path and format.");
-}
+var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.gguf");
+Assert.ThrowsAny<Exception>(() => Model.Load(nonExistentPath));
 ```
+<!-- @end error-handling -->
 
 *Note: See the `Status` enum in the `TranscribeCppSharp.Interop` namespace for the full list of error codes.*
+
+## Model Capabilities
+
+Query what a loaded model supports:
+
+<!-- @readme model-capabilities -->
+```csharp
+using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+var supportsPnc = model.Supports(Feature.FeaturePnc);
+var caps = model.GetCapabilities();
+```
+<!-- @end model-capabilities -->
 
 ## Thread Safety
 
