@@ -122,7 +122,7 @@ foreach (var (rid, archive) in toFetch)
                     var destPath = Path.Combine(target, relative);
                     if (File.Exists(srcEntry))
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
                         File.Copy(srcEntry, destPath, overwrite: true);
                     }
                 }

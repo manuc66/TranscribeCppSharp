@@ -521,7 +521,7 @@ public sealed class Session : IDisposable
                     throw new TranscribeException(status, getMethodName);
                 }
 
-                results.Add(map(Marshal.PtrToStructure<TNative>(ptr)!));
+                results.Add(map(Marshal.PtrToStructure<TNative>(ptr)));
             }
         });
         return results;

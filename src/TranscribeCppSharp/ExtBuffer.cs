@@ -30,7 +30,7 @@ internal sealed class ExtBuffer<T> : IDisposable
         var size = Marshal.SizeOf<T>();
         handle = Marshal.AllocHGlobal(size);
         init(handle);
-        @params = Marshal.PtrToStructure<T>(handle)!;
+        @params = Marshal.PtrToStructure<T>(handle);
         this.typeName = typeName;
 
         var reportedSize = nativeSize(@params);

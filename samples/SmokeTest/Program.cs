@@ -6,11 +6,11 @@ Console.WriteLine("=== TranscribeCppSharp Smoke Test ===");
 
 // Test 1: Version (raw P/Invoke — no safe wrapper needed)
 var versionPtr = NativeMethods.Version();
-var version = Marshal.PtrToStringUTF8(versionPtr)!;
+var version = Marshal.PtrToStringUTF8(versionPtr);
 Console.WriteLine($"Version: {version}");
 
 var commitPtr = NativeMethods.VersionCommit();
-var commit = Marshal.PtrToStringUTF8(commitPtr)!;
+var commit = Marshal.PtrToStringUTF8(commitPtr);
 Console.WriteLine($"Commit:  {commit}");
 
 // Test 2: ABI struct sizes
