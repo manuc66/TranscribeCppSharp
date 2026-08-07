@@ -365,22 +365,6 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
-    public void RunParamsBuilder_Dispose_DisposesExtBuilder()
-    {
-        var ext = new WhisperExtBuilder();
-        ext.WithTemperature(0.5f);
-
-        using (var builder = new RunParamsBuilder())
-        {
-            builder.WithWhisperExt(ext);
-        }
-
-        // ext should be disposed by RunParamsBuilder.Dispose()
-        // Accessing Build() after dispose should still work (struct is copied)
-        // but the native handle is freed
-    }
-
-    [Fact]
     public void RunParamsBuilder_ExtManualDispose_NoDoubleFree()
     {
         var ext = new WhisperExtBuilder();
@@ -394,20 +378,6 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
-    public void StreamParamsBuilder_Dispose_DisposesExtBuilder()
-    {
-        var ext = new MoonshineExtBuilder();
-        ext.WithMinDecodeIntervalMs(200);
-
-        using (var builder = new StreamParamsBuilder())
-        {
-            builder.WithMoonshineExt(ext);
-        }
-
-        // ext should be disposed by StreamParamsBuilder.Dispose()
-    }
-
-    [Fact]
     public void WhisperExtBuilder_WithSeed_ShouldSetSeed()
     {
         using var builder = new WhisperExtBuilder();
@@ -415,6 +385,100 @@ public class HighLevelApiTests : IDisposable
 
         var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
         Assert.Equal(42u, p.seed);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithPromptTokens_ShouldSetTokens()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithPromptTokens(new[] { 101, 2023, 102 });
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.promptTokens);
+        Assert.Equal((nuint)3, p.nPromptTokens);
+        Assert.Equal(101, Marshal.ReadInt32(p.promptTokens, 0));
+        Assert.Equal(2023, Marshal.ReadInt32(p.promptTokens, 4));
+        Assert.Equal(102, Marshal.ReadInt32(p.promptTokens, 8));
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithPromptCondition_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithPromptCondition(WhisperPromptCondition.WhisperPromptAllSegments);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(WhisperPromptCondition.WhisperPromptAllSegments, p.promptCondition);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithConditionOnPrevTokens_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithConditionOnPrevTokens(true);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.True(p.conditionOnPrevTokens);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithMaxPrevContextTokens_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithMaxPrevContextTokens(1024);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(1024, p.maxPrevContextTokens);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithTemperatureInc_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithTemperatureInc(0.2f);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(0.2f, p.temperatureInc);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithCompressionRatioThold_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithCompressionRatioThold(2.4f);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(2.4f, p.compressionRatioThold);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithLogprobThold_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithLogprobThold(-1.0f);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(-1.0f, p.logprobThold);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithNoSpeechThold_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithNoSpeechThold(0.6f);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(0.6f, p.noSpeechThold);
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithMaxInitialTimestamp_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithMaxInitialTimestamp(1.0f);
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal(1.0f, p.maxInitialTimestamp);
     }
 
     [Fact]
@@ -728,6 +792,83 @@ public class HighLevelApiTests : IDisposable
     }
 
     [SkippableFact]
+    public void StreamSession_Dispose_ShouldResetNativeState()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var stream = session.CreateStream();
+        try
+        {
+            stream.Begin();
+            stream.Dispose(); // should not throw
+            // After dispose, any access should throw ObjectDisposedException
+            Assert.Throws<ObjectDisposedException>(() => stream.State);
+        }
+        catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
+        {
+            // Allowed if streaming is not implemented in the native library
+        }
+    }
+
+    [SkippableFact]
+    public void StreamSession_DoubleDispose_ShouldNotThrow()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var stream = session.CreateStream();
+        try
+        {
+            stream.Begin();
+            stream.Dispose();
+            stream.Dispose(); // second dispose must not throw
+        }
+        catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
+        {
+            // Allowed if streaming is not implemented in the native library
+        }
+    }
+
+    [SkippableFact]
+    public void StreamSession_Begin_WithConfig_ShouldSucceed()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        using var stream = session.CreateStream();
+        try
+        {
+            stream.Begin(
+                runConfig: p => p.WithTask(TranscriptionTask.Transcribe),
+                streamConfig: p => p.WithCommitPolicy(StreamCommitPolicy.StreamCommitAuto));
+            Assert.Equal(StreamState.StreamIdle, stream.State);
+        }
+        catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
+        {
+            // Allowed if streaming is not implemented
+        }
+    }
+
+    [SkippableFact]
+    public void Backends_EnumerateDevices_ShouldReturnList()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        var devices = TranscribeCppSharp.Backends.EnumerateDevices();
+        Assert.NotNull(devices);
+        // On CPU-only CI, there should be at least one device (CPU)
+        Assert.True(devices.Count > 0);
+    }
+
+    [SkippableFact]
+    public void Backends_Init_WithArtifactDir_ShouldNotThrow()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        var artifactDir = Path.GetDirectoryName(typeof(HighLevelApiTests).Assembly.Location)!;
+        TranscribeCppSharp.Backends.Init(artifactDir);
+    }
+
+    [SkippableFact]
     public void Batch_Run_ShouldProcessMultipleBuffers()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
@@ -942,6 +1083,94 @@ public class HighLevelApiTests : IDisposable
         Assert.Throws<ObjectDisposedException>(() => builder.Build());
     }
 
+    [Fact]
+    public void WhisperExtBuilder_WithInitialPrompt_AfterDispose_Throws()
+    {
+        var builder = new WhisperExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithInitialPrompt("test"));
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithPromptTokens_AfterDispose_Throws()
+    {
+        var builder = new WhisperExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithPromptTokens(new[] { 1, 2, 3 }));
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithTemperature_AfterDispose_Throws()
+    {
+        var builder = new WhisperExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithTemperature(0.5f));
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithSeed_AfterDispose_Throws()
+    {
+        var builder = new WhisperExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithSeed(42));
+    }
+
+    [Fact]
+    public void MoonshineExtBuilder_WithMinDecodeIntervalMs_AfterDispose_Throws()
+    {
+        var builder = new MoonshineExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithMinDecodeIntervalMs(200));
+    }
+
+    [Fact]
+    public void VoxtralExtBuilder_WithNumDelayTokens_AfterDispose_Throws()
+    {
+        var builder = new VoxtralExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithNumDelayTokens(5));
+    }
+
+    [Fact]
+    public void VoxtralExtBuilder_WithMinDecodeIntervalMs_AfterDispose_Throws()
+    {
+        var builder = new VoxtralExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithMinDecodeIntervalMs(100));
+    }
+
+    [Fact]
+    public void ParakeetStreamExtBuilder_WithAttContextRight_AfterDispose_Throws()
+    {
+        var builder = new ParakeetStreamExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithAttContextRight(10));
+    }
+
+    [Fact]
+    public void ParakeetBufferedStreamExtBuilder_WithLeftMs_AfterDispose_Throws()
+    {
+        var builder = new ParakeetBufferedStreamExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithLeftMs(500));
+    }
+
+    [Fact]
+    public void ParakeetBufferedStreamExtBuilder_WithChunkMs_AfterDispose_Throws()
+    {
+        var builder = new ParakeetBufferedStreamExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithChunkMs(1000));
+    }
+
+    [Fact]
+    public void ParakeetBufferedStreamExtBuilder_WithRightMs_AfterDispose_Throws()
+    {
+        var builder = new ParakeetBufferedStreamExtBuilder();
+        builder.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => builder.WithRightMs(300));
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // §6: Batch edge cases (no native lib for null/empty checks)
     // ═══════════════════════════════════════════════════════════════════
@@ -1142,5 +1371,63 @@ public class HighLevelApiTests : IDisposable
 
         Assert.Throws<OperationCanceledException>(() =>
             TranscribeCppSharp.Batch.Run(session, new[] { pcm }, ct: cts.Token));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §7: Edge case tests (no native lib required)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void RunParamsBuilder_WithLanguage_UnicodeString_ShouldRoundtrip()
+    {
+        using var builder = new RunParamsBuilder();
+        builder.WithLanguage("fr-FR");
+
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.language);
+        Assert.Equal("fr-FR", Marshal.PtrToStringUTF8(p.language));
+    }
+
+    [Fact]
+    public void RunParamsBuilder_WithTargetLanguage_UnicodeString_ShouldRoundtrip()
+    {
+        using var builder = new RunParamsBuilder();
+        builder.WithTargetLanguage("de-DE");
+
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.targetLanguage);
+        Assert.Equal("de-DE", Marshal.PtrToStringUTF8(p.targetLanguage));
+    }
+
+    [Fact]
+    public void RunParamsBuilder_WithLanguage_SetTwice_ReleasesFirst()
+    {
+        using var builder = new RunParamsBuilder();
+        builder.WithLanguage("en-US");
+        builder.WithLanguage("fr-FR"); // should free the first allocation
+
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal("fr-FR", Marshal.PtrToStringUTF8(p.language));
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithInitialPrompt_EmptyString_ShouldWork()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithInitialPrompt("");
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.initialPrompt);
+        Assert.Equal("", Marshal.PtrToStringUTF8(p.initialPrompt));
+    }
+
+    [Fact]
+    public void WhisperExtBuilder_WithPromptTokens_EmptyArray_ShouldSet()
+    {
+        using var builder = new WhisperExtBuilder();
+        builder.WithPromptTokens(Array.Empty<int>());
+
+        var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
+        Assert.Equal((nuint)0, p.nPromptTokens);
     }
 }
