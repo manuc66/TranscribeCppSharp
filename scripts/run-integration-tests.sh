@@ -107,12 +107,12 @@ COVERLET_THRESHOLD="${COVERLET_THRESHOLD:-70}"
 mkdir -p "$(pwd)/test-results"
 THRESHOLD_ARGS=()
 if [ -n "$COVERLET_THRESHOLD" ]; then
-  THRESHOLD_ARGS=(/p:Threshold="$COVERLET_THRESHOLD" /p:ThresholdType=line /p:ThresholdStat=total)
+  THRESHOLD_ARGS=(-p:Threshold="$COVERLET_THRESHOLD" -p:ThresholdType=line -p:ThresholdStat=total)
 fi
 dotnet test --logger "console;verbosity=detailed" \
-  /p:CollectCoverage=true \
-  "/p:CoverletOutputFormat=$COVERLET_FORMAT" \
-  "/p:CoverletOutput=$(pwd)/test-results/coverage.$COVERLET_FORMAT.xml" \
+  -p:CollectCoverage=true \
+  "-p:CoverletOutputFormat=$COVERLET_FORMAT" \
+  "-p:CoverletOutput=$(pwd)/test-results/coverage.$COVERLET_FORMAT.xml" \
   "${THRESHOLD_ARGS[@]}"
 
 echo ""
