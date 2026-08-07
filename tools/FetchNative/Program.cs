@@ -226,7 +226,7 @@ static void SaveHashes(string path, string version, Dictionary<string, string> h
     var sorted = hashes.OrderBy(kv => kv.Key, StringComparer.Ordinal)
         .ToDictionary(kv => kv.Key, kv => "sha256:" + kv.Value);
     var root = new Dictionary<string, object> { [version] = sorted };
-    File.WriteAllText(path, JsonSerializer.Serialize(root, JsonOptions.Instance) + Environment.NewLine);
+    File.WriteAllText(path, JsonSerializer.Serialize(root, FetchNative.JsonOptions.Instance) + Environment.NewLine);
 }
 
 static string FindRepoRoot()
@@ -252,7 +252,10 @@ static string GetCurrentRid()
     throw new PlatformNotSupportedException($"Unsupported OS: {RuntimeInformation.OSDescription}");
 }
 
-file static class JsonOptions
+namespace FetchNative
 {
-    public static readonly System.Text.Json.JsonSerializerOptions Instance = new() { WriteIndented = true };
+    file static class JsonOptions
+    {
+        public static readonly System.Text.Json.JsonSerializerOptions Instance = new() { WriteIndented = true };
+    }
 }
