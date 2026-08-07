@@ -43,6 +43,17 @@ if (args.Length > 0)
     Console.WriteLine($"\n=== Full Transcription Test (Safe API) ===");
     Console.WriteLine($"Model: {modelPath}");
 
+    if (RunTranscriptionTests(modelPath, wavPath) != 0)
+    {
+        return 1;
+    }
+}
+
+Console.WriteLine("\nSmoke test passed!");
+return 0;
+
+static int RunTranscriptionTests(string modelPath, string? wavPath)
+{
     try
     {
         using var model = TranscribeCppSharp.Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
@@ -53,56 +64,12 @@ if (args.Length > 0)
 
         if (wavPath != null && File.Exists(wavPath))
         {
-            var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(wavPath);
-            Console.WriteLine($"Audio: {pcm.Length} samples ({(double)pcm.Length / 16000:F1}s)");
-
-            // Test A: Normal Run
-            Console.WriteLine($"\n--- Test A: Normal Run ---");
-            var transcript = session.Run(pcm);
-            Console.WriteLine($"Text: {transcript.FullText}");
-            Console.WriteLine($"Language: {transcript.DetectedLanguage}");
-            Console.WriteLine($"Segments: {transcript.Segments.Count}");
-
-            // Test B: Batch Run
-            Console.WriteLine($"\n--- Test B: Batch Run (2x same audio) ---");
-            var batchResults = Batch.Run(session, new[] { pcm, pcm });
-            Console.WriteLine($"Batch results: {batchResults.Count}");
-            for (int i = 0; i < batchResults.Count; i++)
-                Console.WriteLine($"  [{i}]: {batchResults[i].FullText.Trim()}");
-
-            // Test C: Tokenization
-            Console.WriteLine($"\n--- Test C: Tokenization ---");
-            var tokens = model.Tokenize("Hello world, this is a test.");
-            Console.WriteLine($"Tokens: [{string.Join(", ", tokens)}]");
-
-            // Test D: Streaming (if supported)
-            Console.WriteLine($"\n--- Test D: Streaming ---");
-            try
-            {
-                using var stream = session.CreateStream();
-                stream.Begin();
-                var chunk = pcm.AsSpan(0, Math.Min(pcm.Length, 16000));
-                var update = stream.Feed(chunk);
-                Console.WriteLine($"Stream update: ResultChanged={update.ResultChanged}, IsFinal={update.IsFinal}");
-                stream.Complete();
-                Console.WriteLine("Stream finalized");
-            }
-            catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
-            {
-                Console.WriteLine("Streaming not implemented in this build.");
-            }
-
-            if (transcript.Timing != null)
-            {
-                var t = transcript.Timing;
-                Console.WriteLine($"\nTimings: load={t.LoadMs:F1}ms mel={t.MelMs:F1}ms encode={t.EncodeMs:F1}ms decode={t.DecodeMs:F1}ms");
-            }
+            return RunAudioTests(model, session, wavPath);
         }
-        else
-        {
-            Console.WriteLine("No WAV file provided, skipping transcription.");
-            Console.WriteLine("Usage: SmokeTest <model.gguf> [audio.wav]");
-        }
+
+        Console.WriteLine("No WAV file provided, skipping transcription.");
+        Console.WriteLine("Usage: SmokeTest <model.gguf> [audio.wav]");
+        return 0;
     }
     catch (TranscribeException ex)
     {
@@ -111,5 +78,57 @@ if (args.Length > 0)
     }
 }
 
-Console.WriteLine("\nSmoke test passed!");
-return 0;
+static int RunAudioTests(Model model, Session session, string wavPath)
+{
+    var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(wavPath);
+    Console.WriteLine($"Audio: {pcm.Length} samples ({(double)pcm.Length / 16000:F1}s)");
+
+    // Test A: Normal Run
+    Console.WriteLine($"\n--- Test A: Normal Run ---");
+    var transcript = session.Run(pcm);
+    Console.WriteLine($"Text: {transcript.FullText}");
+    Console.WriteLine($"Language: {transcript.DetectedLanguage}");
+    Console.WriteLine($"Segments: {transcript.Segments.Count}");
+
+    // Test B: Batch Run
+    Console.WriteLine($"\n--- Test B: Batch Run (2x same audio) ---");
+    var batchResults = Batch.Run(session, new[] { pcm, pcm });
+    Console.WriteLine($"Batch results: {batchResults.Count}");
+    for (int i = 0; i < batchResults.Count; i++)
+        Console.WriteLine($"  [{i}]: {batchResults[i].FullText.Trim()}");
+
+    // Test C: Tokenization
+    Console.WriteLine($"\n--- Test C: Tokenization ---");
+    var tokens = model.Tokenize("Hello world, this is a test.");
+    Console.WriteLine($"Tokens: [{string.Join(", ", tokens)}]");
+
+    // Test D: Streaming (if supported)
+    RunStreamingTest(session, pcm);
+
+    if (transcript.Timing != null)
+    {
+        var t = transcript.Timing;
+        Console.WriteLine($"\nTimings: load={t.LoadMs:F1}ms mel={t.MelMs:F1}ms encode={t.EncodeMs:F1}ms decode={t.DecodeMs:F1}ms");
+    }
+
+    return 0;
+}
+
+static void RunStreamingTest(Session session, float[] pcm)
+{
+    Console.WriteLine($"\n--- Test D: Streaming ---");
+    try
+    {
+        using var stream = session.CreateStream();
+        stream.Begin();
+        var chunk = pcm.AsSpan(0, Math.Min(pcm.Length, 16000));
+        var update = stream.Feed(chunk);
+        Console.WriteLine($"Stream update: ResultChanged={update.ResultChanged}, IsFinal={update.IsFinal}");
+        stream.Complete();
+        Console.WriteLine("Stream finalized");
+    }
+    catch (TranscribeException ex) when (ex.StatusCode == Status.ErrNotImplemented)
+    {
+        Console.WriteLine("Streaming not implemented in this build.");
+    }
+}

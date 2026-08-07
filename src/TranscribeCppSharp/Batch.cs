@@ -51,27 +51,11 @@ public static class Batch
         var n = pcmBuffers.Count;
         var pcmPtrs = new IntPtr[n];
         var sampleCounts = new int[n];
-
-        // Pin all PCM buffers
         var handles = new GCHandle[n];
+
         try
         {
-            for (int i = 0; i < n; i++)
-            {
-                if (pcmBuffers[i] is null)
-                {
-                    throw new ArgumentNullException(nameof(pcmBuffers), $"Element at index {i} is null.");
-                }
-
-                if (pcmBuffers[i].Length == 0)
-                {
-                    throw new ArgumentException($"Element at index {i} is empty (zero samples).", nameof(pcmBuffers));
-                }
-
-                handles[i] = GCHandle.Alloc(pcmBuffers[i], GCHandleType.Pinned);
-                pcmPtrs[i] = handles[i].AddrOfPinnedObject();
-                sampleCounts[i] = pcmBuffers[i].Length;
-            }
+            PinBuffers(pcmBuffers, handles, pcmPtrs, sampleCounts);
 
             // Allocate arrays for native call
             var pcmPtrArray = Marshal.AllocHGlobal(n * IntPtr.Size);
@@ -84,67 +68,9 @@ public static class Batch
 
                 using var runParams = new RunParamsBuilder();
                 configure?.Invoke(runParams);
+                RunBatchWithCancellation(session, pcmPtrArray, sampleCountArray, n, runParams.Build(), ct);
 
-                Func<bool>? previousCallback = null;
-                if (ct.CanBeCanceled)
-                {
-                    previousCallback = session.GetAbortCallback();
-                    session.SetAbortCallback(() => ct.IsCancellationRequested);
-                }
-
-                try
-                {
-                    var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams.Build());
-                    if (status != Status.Ok)
-                    {
-                        throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
-                    }
-                }
-                catch (TranscribeException ex) when (ex.StatusCode == Status.ErrAborted)
-                {
-                    throw new OperationCanceledException(ct);
-                }
-                finally
-                {
-                    if (ct.CanBeCanceled)
-                    {
-                        if (previousCallback != null)
-                        {
-                            session.SetAbortCallback(previousCallback);
-                        }
-                        else
-                        {
-                            session.ClearAbortCallback();
-                        }
-                    }
-                }
-
-                // Read results
-                var resultCount = session.GetBatchResultCount();
-                var results = new List<BatchResult>(resultCount);
-
-                for (int i = 0; i < resultCount; i++)
-                {
-                    var batchStatus = session.GetBatchResultStatus(i);
-                    var fullText = session.GetBatchResultFullText(i);
-                    var lang = session.GetBatchResultDetectedLanguage(i);
-                    var segments = session.GetBatchSegments(i);
-                    var words = session.GetBatchWords(i);
-                    var tokens = session.GetBatchTokens(i);
-                    var timing = session.GetBatchTimings(i);
-
-                    results.Add(new BatchResult(
-                        Index: i,
-                        FullText: fullText,
-                        DetectedLanguage: lang,
-                        Status: batchStatus,
-                        Segments: segments,
-                        Words: words,
-                        Tokens: tokens,
-                        Timing: timing));
-                }
-
-                return results;
+                return ReadResults(session, session.GetBatchResultCount());
             }
             finally
             {
@@ -154,12 +80,104 @@ public static class Batch
         }
         finally
         {
-            for (int i = 0; i < n; i++)
+            FreeHandles(handles);
+        }
+    }
+
+    private static void PinBuffers(
+        IReadOnlyList<float[]> pcmBuffers,
+        GCHandle[] handles,
+        IntPtr[] pcmPtrs,
+        int[] sampleCounts)
+    {
+        for (int i = 0; i < pcmBuffers.Count; i++)
+        {
+            var buffer = pcmBuffers[i];
+            if (buffer is null)
             {
-                if (handles[i].IsAllocated)
+                throw new ArgumentNullException(nameof(pcmBuffers), $"Element at index {i} is null.");
+            }
+
+            if (buffer.Length == 0)
+            {
+                throw new ArgumentException($"Element at index {i} is empty (zero samples).", nameof(pcmBuffers));
+            }
+
+            handles[i] = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            pcmPtrs[i] = handles[i].AddrOfPinnedObject();
+            sampleCounts[i] = buffer.Length;
+        }
+    }
+
+    private static void RunBatchWithCancellation(
+        Session session,
+        IntPtr pcmPtrArray,
+        IntPtr sampleCountArray,
+        int n,
+        IntPtr runParams,
+        CancellationToken ct)
+    {
+        Func<bool>? previousCallback = null;
+        if (ct.CanBeCanceled)
+        {
+            previousCallback = session.GetAbortCallback();
+            session.SetAbortCallback(() => ct.IsCancellationRequested);
+        }
+
+        try
+        {
+            var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams);
+            if (status != Status.Ok)
+            {
+                throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
+            }
+        }
+        catch (TranscribeException ex) when (ex.StatusCode == Status.ErrAborted)
+        {
+            throw new OperationCanceledException(ct);
+        }
+        finally
+        {
+            if (ct.CanBeCanceled)
+            {
+                if (previousCallback != null)
                 {
-                    handles[i].Free();
+                    session.SetAbortCallback(previousCallback);
                 }
+                else
+                {
+                    session.ClearAbortCallback();
+                }
+            }
+        }
+    }
+
+    private static List<BatchResult> ReadResults(Session session, int resultCount)
+    {
+        var results = new List<BatchResult>(resultCount);
+        for (int i = 0; i < resultCount; i++)
+        {
+            results.Add(new BatchResult(
+                Index: i,
+                FullText: session.GetBatchResultFullText(i),
+                DetectedLanguage: session.GetBatchResultDetectedLanguage(i),
+                Status: session.GetBatchResultStatus(i),
+                Segments: session.GetBatchSegments(i),
+                Words: session.GetBatchWords(i),
+                Tokens: session.GetBatchTokens(i),
+                Timing: session.GetBatchTimings(i)));
+        }
+
+        return results;
+    }
+
+    private static void FreeHandles(GCHandle[] handles)
+    {
+        for (int i = 0; i < handles.Length; i++)
+        {
+            if (handles[i].IsAllocated)
+            {
+                handles[i].Free();
             }
         }
     }
