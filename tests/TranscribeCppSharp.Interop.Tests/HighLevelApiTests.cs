@@ -707,10 +707,8 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Model_Load_NonExistentFile_ShouldThrow()
     {
-        // @readme-begin error-handling
         var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.gguf");
         Assert.ThrowsAny<Exception>(() => Model.Load(nonExistentPath));
-        // @end error-handling
     }
 
     [SkippableFact]

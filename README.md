@@ -162,13 +162,6 @@ A `DllImportResolver` registered in the Interop layer finds `libtranscribe` in t
 
 The high-level wrapper throws `TranscribeException` when a native call fails. You can filter by `StatusCode` to handle specific errors.
 
-<!-- @readme error-handling -->
-```csharp
-var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.gguf");
-Assert.ThrowsAny<Exception>(() => Model.Load(nonExistentPath));
-```
-<!-- @end error-handling -->
-
 *Note: See the `Status` enum in the `TranscribeCppSharp.Interop` namespace for the full list of error codes.*
 
 ## Model Capabilities
