@@ -24,6 +24,7 @@ public sealed class ParakeetStreamExtBuilder : IDisposable
     /// <summary>Attention context right size.</summary>
     public ParakeetStreamExtBuilder WithAttContextRight(int contextRight)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.attContextRight = contextRight;
         return this;
     }

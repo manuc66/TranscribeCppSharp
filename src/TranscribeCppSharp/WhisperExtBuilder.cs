@@ -27,6 +27,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Initial prompt to guide transcription (e.g. "Bonjour, comment allez-vous?").</summary>
     public WhisperExtBuilder WithInitialPrompt(string prompt)
     {
+        buffer.ThrowIfDisposed();
         if (initialPromptPtr != IntPtr.Zero)
         {
             Marshal.FreeCoTaskMem(initialPromptPtr);
@@ -40,6 +41,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Pre-tokenized prompt tokens.</summary>
     public WhisperExtBuilder WithPromptTokens(int[] tokens)
     {
+        buffer.ThrowIfDisposed();
         if (promptTokensPtr != IntPtr.Zero)
         {
             Marshal.FreeHGlobal(promptTokensPtr);
@@ -55,6 +57,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>How to condition on the prompt.</summary>
     public WhisperExtBuilder WithPromptCondition(WhisperPromptCondition condition)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.promptCondition = condition;
         return this;
     }
@@ -62,6 +65,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Whether to condition on previous tokens for context.</summary>
     public WhisperExtBuilder WithConditionOnPrevTokens(bool condition)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.conditionOnPrevTokens = condition;
         return this;
     }
@@ -69,6 +73,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Maximum number of previous context tokens to use.</summary>
     public WhisperExtBuilder WithMaxPrevContextTokens(int maxTokens)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.maxPrevContextTokens = maxTokens;
         return this;
     }
@@ -76,6 +81,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Sampling temperature (0.0 = greedy, higher = more random).</summary>
     public WhisperExtBuilder WithTemperature(float temperature)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.temperature = temperature;
         return this;
     }
@@ -83,6 +89,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Temperature increment for fallback decoding.</summary>
     public WhisperExtBuilder WithTemperatureInc(float temperatureInc)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.temperatureInc = temperatureInc;
         return this;
     }
@@ -90,6 +97,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Compression ratio threshold for fallback detection.</summary>
     public WhisperExtBuilder WithCompressionRatioThold(float thold)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.compressionRatioThold = thold;
         return this;
     }
@@ -97,6 +105,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Log probability threshold for fallback detection.</summary>
     public WhisperExtBuilder WithLogprobThold(float thold)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.logprobThold = thold;
         return this;
     }
@@ -104,6 +113,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>No-speech probability threshold.</summary>
     public WhisperExtBuilder WithNoSpeechThold(float thold)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.noSpeechThold = thold;
         return this;
     }
@@ -111,6 +121,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Random seed for reproducibility.</summary>
     public WhisperExtBuilder WithSeed(uint seed)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.seed = seed;
         return this;
     }
@@ -118,6 +129,7 @@ public sealed class WhisperExtBuilder : IDisposable
     /// <summary>Maximum initial timestamp in seconds.</summary>
     public WhisperExtBuilder WithMaxInitialTimestamp(float seconds)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.maxInitialTimestamp = seconds;
         return this;
     }

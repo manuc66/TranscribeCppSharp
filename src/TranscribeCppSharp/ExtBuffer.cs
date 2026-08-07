@@ -42,6 +42,17 @@ internal sealed class ExtBuffer<T> : IDisposable
         }
     }
 
+    /// <summary>Throws <see cref="ObjectDisposedException"/> if the buffer has been disposed.</summary>
+    public void ThrowIfDisposed()
+    {
+#pragma warning disable CA1513
+        if (disposed)
+        {
+            throw new ObjectDisposedException(typeName);
+        }
+#pragma warning restore CA1513
+    }
+
     /// <summary>Mutable snapshot of the native struct; mutated by the fluent builders.</summary>
     public ref T Params => ref @params;
 

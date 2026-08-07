@@ -24,6 +24,7 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
     /// <summary>Left context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithLeftMs(int leftMs)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.leftMs = leftMs;
         return this;
     }
@@ -31,6 +32,7 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
     /// <summary>Chunk size in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithChunkMs(int chunkMs)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.chunkMs = chunkMs;
         return this;
     }
@@ -38,6 +40,7 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
     /// <summary>Right context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithRightMs(int rightMs)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.rightMs = rightMs;
         return this;
     }

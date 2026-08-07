@@ -24,6 +24,7 @@ public sealed class VoxtralExtBuilder : IDisposable
     /// <summary>Number of delay tokens.</summary>
     public VoxtralExtBuilder WithNumDelayTokens(int numDelayTokens)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.numDelayTokens = numDelayTokens;
         return this;
     }
@@ -31,6 +32,7 @@ public sealed class VoxtralExtBuilder : IDisposable
     /// <summary>Minimum decode interval in milliseconds.</summary>
     public VoxtralExtBuilder WithMinDecodeIntervalMs(int ms)
     {
+        buffer.ThrowIfDisposed();
         buffer.Params.minDecodeIntervalMs = ms;
         return this;
     }
