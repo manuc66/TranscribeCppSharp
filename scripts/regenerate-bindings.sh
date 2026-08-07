@@ -11,17 +11,17 @@ echo "Regenerating bindings from ${TAG}..."
 git clone --depth 1 --branch "${TAG}" "${REPO}" "${TMPDIR}"
 
 FFI_PATH="${TMPDIR}/bindings/rust/sys/src/transcribe_sys.rs"
-if [ ! -f "${FFI_PATH}" ]; then
-    echo "Error: FFI source not found at ${FFI_PATH}"
-    echo "Upstream repo structure may have changed."
+if [[ ! -f "${FFI_PATH}" ]]; then
+    echo "Error: FFI source not found at ${FFI_PATH}" >&2
+    echo "Upstream repo structure may have changed." >&2
     rm -rf "${TMPDIR}"
     exit 1
 fi
 
 HEADER_PATH="${TMPDIR}/include/transcribe.h"
-if [ ! -f "${HEADER_PATH}" ]; then
-    echo "Error: C header not found at ${HEADER_PATH}"
-    echo "Upstream repo structure may have changed."
+if [[ ! -f "${HEADER_PATH}" ]]; then
+    echo "Error: C header not found at ${HEADER_PATH}" >&2
+    echo "Upstream repo structure may have changed." >&2
     rm -rf "${TMPDIR}"
     exit 1
 fi

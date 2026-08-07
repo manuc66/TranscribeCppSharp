@@ -37,7 +37,7 @@ if ! grep -qi "transcribe.cpp authors" README.md; then
     errors=$((errors + 1))
 fi
 
-if [ "$errors" -gt 0 ]; then
+if [[ "$errors" -gt 0 ]]; then
     echo ""
     echo "license-check: $errors problem(s) found"
     exit 1

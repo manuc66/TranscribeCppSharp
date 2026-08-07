@@ -16,6 +16,9 @@ AUDIO_DIR="./test-audio"
 AUDIO_FILE="$AUDIO_DIR/jfk.wav"
 AUDIO_URL="https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav"
 
+# curl: restrict both direct and redirected URLs to HTTPS
+CURL_PROTO="=https"
+
 # Detect platform
 OS="$(uname -s)"
 ARCH="$(uname -m)"
@@ -40,18 +43,18 @@ mkdir -p "$MODEL_DIR"
 mkdir -p "$AUDIO_DIR"
 
 # Download model if not exists
-if [ ! -f "$MODEL_FILE" ]; then
+if [[ ! -f "$MODEL_FILE" ]]; then
     echo "Downloading Whisper tiny model..."
-    curl -fSL --proto '=https' --proto-redir '=https' -o "$MODEL_FILE" "$MODEL_URL"
+    curl -fSL --proto "$CURL_PROTO" --proto-redir "$CURL_PROTO" -o "$MODEL_FILE" "$MODEL_URL"
     echo "Model downloaded to $MODEL_FILE"
 else
     echo "Model already exists at $MODEL_FILE"
 fi
 
 # Download audio if not exists
-if [ ! -f "$AUDIO_FILE" ]; then
+if [[ ! -f "$AUDIO_FILE" ]]; then
     echo "Downloading test audio..."
-    curl -fSL --proto '=https' --proto-redir '=https' -o "$AUDIO_FILE" "$AUDIO_URL"
+    curl -fSL --proto "$CURL_PROTO" --proto-redir "$CURL_PROTO" -o "$AUDIO_FILE" "$AUDIO_URL"
     echo "Audio downloaded to $AUDIO_FILE"
 else
     echo "Audio already exists at $AUDIO_FILE"
@@ -74,15 +77,18 @@ esac
 
 # Check if native library exists — fetch if missing
 LIBFILE="${NATIVE_DIR}/libtranscribe.so"
-if [ "$OS" = "Darwin" ]; then LIBFILE="${NATIVE_DIR}/libtranscribe.dylib"; fi
-case "$OS" in MINGW*|MSYS*|CYGWIN*) LIBFILE="${NATIVE_DIR}/transcribe.dll";; esac
+if [[ "$OS" = "Darwin" ]]; then LIBFILE="${NATIVE_DIR}/libtranscribe.dylib"; fi
+case "$OS" in
+  MINGW*|MSYS*|CYGWIN*) LIBFILE="${NATIVE_DIR}/transcribe.dll" ;;
+  *) ;;
+esac
 
-if [ ! -f "$LIBFILE" ]; then
+if [[ ! -f "$LIBFILE" ]]; then
     echo "Native library not found in ${NATIVE_DIR}. Fetching..."
     dotnet run --project tools/FetchNative
     # Re-check after fetch
-    if [ ! -f "$LIBFILE" ]; then
-        echo "Error: Fetch failed. Native library still missing in ${NATIVE_DIR}."
+    if [[ ! -f "$LIBFILE" ]]; then
+        echo "Error: Fetch failed. Native library still missing in ${NATIVE_DIR}." >&2
         exit 1
     fi
 fi
@@ -106,7 +112,7 @@ COVERLET_FORMAT="${COVERLET_FORMAT:-cobertura}"
 COVERLET_THRESHOLD="${COVERLET_THRESHOLD:-70}"
 mkdir -p "$(pwd)/test-results"
 THRESHOLD_ARGS=()
-if [ -n "$COVERLET_THRESHOLD" ]; then
+if [[ -n "$COVERLET_THRESHOLD" ]]; then
   THRESHOLD_ARGS=(-p:Threshold="$COVERLET_THRESHOLD" -p:ThresholdType=line -p:ThresholdStat=total)
 fi
 dotnet test --logger "console;verbosity=detailed" \
