@@ -148,37 +148,34 @@ public sealed class StreamSession : IDisposable
     }
 
     /// <summary>Read the current streaming text (full, committed, tentative).</summary>
-    public StreamTextResult CurrentText
+    public StreamTextResult GetCurrentText()
     {
-        get
+        ThrowIfDisposed();
+
+        var textSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamText);
+        return StackAllocHelper.RunWithBuffer(textSize, textPtr =>
         {
-            ThrowIfDisposed();
+            NativeMethods.StreamTextInit(textPtr);
 
-            var textSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamText);
-            return StackAllocHelper.RunWithBuffer(textSize, textPtr =>
+            var status = NativeMethods.StreamGetText(session, textPtr);
+            if (status != Status.Ok)
             {
-                NativeMethods.StreamTextInit(textPtr);
+                throw new TranscribeException(status, nameof(NativeMethods.StreamGetText));
+            }
 
-                var status = NativeMethods.StreamGetText(session, textPtr);
-                if (status != Status.Ok)
-                {
-                    throw new TranscribeException(status, nameof(NativeMethods.StreamGetText));
-                }
+            var t = Marshal.PtrToStructure<Interop.StreamText>(textPtr);
+            var fullText = t.fullText != IntPtr.Zero && t.fullTextBytes > 0
+                ? Marshal.PtrToStringUTF8(t.fullText, (int)t.fullTextBytes) ?? string.Empty
+                : string.Empty;
+            var committedText = t.committedText != IntPtr.Zero && t.committedTextBytes > 0
+                ? Marshal.PtrToStringUTF8(t.committedText, (int)t.committedTextBytes) ?? string.Empty
+                : string.Empty;
+            var tentativeText = t.tentativeText != IntPtr.Zero && t.tentativeTextBytes > 0
+                ? Marshal.PtrToStringUTF8(t.tentativeText, (int)t.tentativeTextBytes) ?? string.Empty
+                : string.Empty;
 
-                var t = Marshal.PtrToStructure<Interop.StreamText>(textPtr);
-                var fullText = t.fullText != IntPtr.Zero && t.fullTextBytes > 0
-                    ? Marshal.PtrToStringUTF8(t.fullText, (int)t.fullTextBytes) ?? string.Empty
-                    : string.Empty;
-                var committedText = t.committedText != IntPtr.Zero && t.committedTextBytes > 0
-                    ? Marshal.PtrToStringUTF8(t.committedText, (int)t.committedTextBytes) ?? string.Empty
-                    : string.Empty;
-                var tentativeText = t.tentativeText != IntPtr.Zero && t.tentativeTextBytes > 0
-                    ? Marshal.PtrToStringUTF8(t.tentativeText, (int)t.tentativeTextBytes) ?? string.Empty
-                    : string.Empty;
-
-                return new StreamTextResult(fullText, committedText, tentativeText);
-            });
-        }
+            return new StreamTextResult(fullText, committedText, tentativeText);
+        });
     }
 
     /// <summary>Current state of the streaming session.</summary>

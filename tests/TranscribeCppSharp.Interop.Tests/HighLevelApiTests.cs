@@ -809,7 +809,7 @@ public class HighLevelApiTests : IDisposable
                 stream.Feed(chunk);
             }
             stream.Complete();
-            var text = stream.CurrentText;
+            var text = stream.GetCurrentText();
             // @end streaming-transcription
         });
 

@@ -74,7 +74,7 @@ for (int i = 0; i < pcm.Length; i += chunkSize)
     stream.Feed(chunk);
 }
 stream.Complete();
-var text = stream.CurrentText;
+var text = stream.GetCurrentText();
 ```
 <!-- @end streaming-transcription -->
 

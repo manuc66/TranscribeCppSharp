@@ -76,7 +76,7 @@ public class CSharpGenerator
         WriteHeader(sb);
         WriteEnums(sb, parser, headerDoc);
         WriteHandles(sb);
-        WriteCallbacks(sb, headerDoc);
+        WriteCallbacks(sb);
         WriteStructs(sb, parser, headerDoc);
         WriteAbiLayout(sb, parser);
         WriteFunctions(sb, parser, headerDoc);
@@ -121,7 +121,7 @@ public class CSharpGenerator
         WriteHandle(sb, "SessionHandle");
     }
 
-    private static void WriteCallbacks(StringBuilder sb, CHeaderDoc? headerDoc)
+    private static void WriteCallbacks(StringBuilder sb)
     {
         sb.AppendLine("""
             // ════════════════════════════════════════════════════════════════
@@ -616,9 +616,13 @@ public class CSharpGenerator
     {
         s = Regex.Replace(s, @"^transcribe_", string.Empty, RegexOptions.IgnoreCase);
         return string.Join(string.Empty, s.Split('_', StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => w.All(char.IsUpper)
-                ? char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..].ToLowerInvariant() : string.Empty)
-                : char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..] : string.Empty)));
+            .Select(CapitalizeWord));
+    }
+
+    private static string CapitalizeWord(string word)
+    {
+        var rest = word.All(char.IsUpper) ? word[1..].ToLowerInvariant() : word[1..];
+        return char.ToUpperInvariant(word[0]) + rest;
     }
 
     private static string ToCamelCase(string s)
