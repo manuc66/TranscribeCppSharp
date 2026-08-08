@@ -36,6 +36,15 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
+    <!-- Deterministic/reproducible builds. Deterministic=true is the SDK default
+         but is stated explicitly here; ContinuousIntegrationBuild is what makes the
+         PDB embed normalized paths instead of machine-specific absolute ones, which
+         is what reproducible-build checks (e.g. nuget.info) rely on. It must be set
+         only on CI: on a developer machine the absolute paths let the IDE locate
+         the local sources. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(ContinuousIntegrationBuild)' == '' and '$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
     <!-- Symbol packages -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

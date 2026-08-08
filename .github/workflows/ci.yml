@@ -221,6 +221,8 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: native-nupkg
+          # Native packages are content-only (no compiled assemblies) and never
+          # produce a .snupkg, so only the .nupkg is uploaded here.
           path: nupkgs/*.nupkg
 
   pack-interop:
@@ -249,7 +251,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: interop-nupkg
-          path: nupkgs/*.nupkg
+          path: |
+            nupkgs/*.nupkg
+            nupkgs/*.snupkg
 
   pack-wrapper:
     needs: [build-and-test, get-version]
@@ -270,7 +274,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: wrapper-nupkg
-          path: nupkgs/*.nupkg
+          path: |
+            nupkgs/*.nupkg
+            nupkgs/*.snupkg
 
   push-nugets:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
@@ -298,12 +304,14 @@ jobs:
           user: manuc66
 
       - name: Push all NuGets to nuget.org
-        run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        # Push both the package and its symbol package: the glob *.nupkg does not
+        # match *.snupkg, so the two must be enumerated separately.
+        run: dotnet nuget push "nupkgs/*.nupkg" "nupkgs/*.snupkg" --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Push all NuGets to GitHub Packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet nuget push "nupkgs/*.nupkg" --source "https://nuget.pkg.github.com/manuc66/index.json" --api-key "$GH_TOKEN" --skip-duplicate
+        run: dotnet nuget push "nupkgs/*.nupkg" "nupkgs/*.snupkg" --source "https://nuget.pkg.github.com/manuc66/index.json" --api-key "$GH_TOKEN" --skip-duplicate
 
   create-release:
     if: startsWith(github.ref, 'refs/tags/v')
