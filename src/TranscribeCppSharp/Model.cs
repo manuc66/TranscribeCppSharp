@@ -24,6 +24,8 @@ public sealed class Model : IDisposable
     {
         ArgumentNullException.ThrowIfNull(modelPath);
 
+        Backends.EnsureInitialized();
+
         using var buildParams = new ModelLoadParamsBuilder();
         configure?.Invoke(buildParams);
 

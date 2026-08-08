@@ -724,6 +724,7 @@ public class HighLevelApiTests : IDisposable
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         // @readme-begin basic-transcription
+        Backends.InitDefault(); // optional: automatic in Model.Load, but explicit is clearer
         var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
         var audioPath = TestConfig.AudioPath; // your WAV audio file, e.g. "test-audio/jfk.wav"
         using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
@@ -908,6 +909,7 @@ public class HighLevelApiTests : IDisposable
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         // @readme-begin batch-transcription
+        Backends.InitDefault(); // optional: automatic in Model.Load, but explicit is clearer
         var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
         var audioPath = TestConfig.AudioPath; // your WAV audio file, e.g. "test-audio/jfk.wav"
         using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
@@ -1032,6 +1034,7 @@ public class HighLevelApiTests : IDisposable
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         // @readme-begin model-capabilities
+        Backends.InitDefault(); // optional: automatic in Model.Load, but explicit is clearer
         var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
         using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var supportsPnc = model.Supports(Feature.FeaturePnc);

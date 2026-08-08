@@ -30,14 +30,17 @@ To include the native binaries for your platform, add the corresponding runtime 
 
 *Note: For Linux Alpine (musl) or other platforms, please refer to the [Building from source](#building-from-source) section. Like [Using CUDA](#using-cuda), a custom native build is picked up automatically when placed in the app output directory.*
 
-If the native library is missing at runtime (e.g. you forgot the runtime package), the wrapper throws a `DllNotFoundException` that lists the exact package to add for your platform (e.g. `dotnet add package TranscribeCppSharp.Native.linux-x64`) and the paths it searched. It does not silently produce a misleading error.
+The wrapper resolves `libtranscribe` automatically in plain `dotnet run` scenarios (no `<RuntimeIdentifier>` needed): it searches the app output directory — including the `runtimes/<rid>/native/` layout where .NET places runtime-package binaries — and the NuGet global packages folder. If the native library is still missing at runtime (e.g. you forgot the runtime package), the wrapper throws a `DllNotFoundException` that lists the exact package to add for your platform (e.g. `dotnet add package TranscribeCppSharp.Native.linux-x64`) and the paths it searched. It does not silently produce a misleading error.
 
 ## Quick Start
 
 ### Basic Transcription
 
+`Model.Load` initializes the compute backends automatically on first use, but you can (and for custom setups, should) do it explicitly with `Backends.InitDefault()`:
+
 <!-- @readme basic-transcription -->
 ```csharp
+Backends.InitDefault(); // optional: automatic in Model.Load, but explicit is clearer
 var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
 var audioPath = TestConfig.AudioPath; // your WAV audio file, e.g. "test-audio/jfk.wav"
 using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
@@ -51,6 +54,7 @@ var transcript = session.Run(pcm);
 
 <!-- @readme batch-transcription -->
 ```csharp
+Backends.InitDefault(); // optional: automatic in Model.Load, but explicit is clearer
 var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
 var audioPath = TestConfig.AudioPath; // your WAV audio file, e.g. "test-audio/jfk.wav"
 using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
@@ -156,7 +160,7 @@ The project is divided into several layers, each with a distinct responsibility:
 4.  **`Generator` (Tool)**: Ensures C# bindings stay in sync with the upstream native API by parsing Rust FFI definitions.
 
 ### Native Library Loading
-A `DllImportResolver` registered in the Interop layer finds `libtranscribe` in the app output directory or the NuGet global packages folder, without requiring `LD_LIBRARY_PATH`. Its `libggml*` dependencies are loaded from the same directory by the native loader.
+A `DllImportResolver` registered in the Interop layer finds `libtranscribe` in the app output directory (including the `runtimes/<rid>/native/` layout), the NuGet global packages folder, or lets the runtime's default resolution (`.deps.json` runtime targets) handle it — without requiring `LD_LIBRARY_PATH`. Its `libggml*` dependencies are loaded from the same directory by the native loader.
 
 ## Error Handling
 
@@ -170,6 +174,7 @@ Query what a loaded model supports:
 
 <!-- @readme model-capabilities -->
 ```csharp
+Backends.InitDefault(); // optional: automatic in Model.Load, but explicit is clearer
 var modelPath = TestConfig.ModelPath; // your GGUF model file, e.g. "test-models/ggml-tiny.bin"
 using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
 var supportsPnc = model.Supports(Feature.FeaturePnc);

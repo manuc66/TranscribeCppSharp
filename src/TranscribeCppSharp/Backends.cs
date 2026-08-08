@@ -43,17 +43,9 @@ public static class Backends
         {
             throw new TranscribeException(status, nameof(NativeMethods.InitBackendsDefault));
         }
-    }
 
-    /// <summary>
-    /// Whether a backend request can be satisfied by a currently registered
-    /// device. AUTO is true whenever any device exists; CPU/CPU_ACCEL when a
-    /// CPU device exists; METAL/VULKAN/CUDA when a device of that kind exists.
-    /// Unknown or invalid request values answer false (never an error).
-    /// Corresponds to native transcribe_backend_available.
-    /// </summary>
-    public static bool BackendAvailable(BackendRequest kind)
-        => NativeMethods.BackendAvailable(kind);
+        initialized = true;
+    }
 
     /// <summary>
     /// Initialize backends with a specific artifact directory (for DLLs, shaders, etc.).
@@ -65,7 +57,33 @@ public static class Backends
         {
             throw new TranscribeException(status, nameof(NativeMethods.InitBackends));
         }
+
+        initialized = true;
     }
+
+    private static bool initialized;
+
+    /// <summary>
+    /// Initialize backends on demand (idempotent). Called by <see cref="Model.Load"/>
+    /// so a plain load works without an explicit <see cref="InitDefault"/> first.
+    /// </summary>
+    internal static void EnsureInitialized()
+    {
+        if (!initialized)
+        {
+            InitDefault();
+        }
+    }
+
+    /// <summary>
+    /// Whether a backend request can be satisfied by a currently registered
+    /// device. AUTO is true whenever any device exists; CPU/CPU_ACCEL when a
+    /// CPU device exists; METAL/VULKAN/CUDA when a device of that kind exists.
+    /// Unknown or invalid request values answer false (never an error).
+    /// Corresponds to native transcribe_backend_available.
+    /// </summary>
+    public static bool BackendAvailable(BackendRequest kind)
+        => NativeMethods.BackendAvailable(kind);
 
     /// <summary>
     /// Enumerate all available compute devices.

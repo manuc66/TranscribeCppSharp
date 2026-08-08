@@ -69,6 +69,7 @@ public sealed class StreamSession : IDisposable
     {
         ThrowIfDisposed();
 
+        AbiValidation.ValidateSize<Interop.StreamUpdate>(AbiStruct.AbiStreamUpdate, nameof(Interop.StreamUpdate));
         var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
         var buffer = ArrayPool<byte>.Shared.Rent(updateSize);
         try
@@ -109,6 +110,7 @@ public sealed class StreamSession : IDisposable
     {
         ThrowIfDisposed();
 
+        AbiValidation.ValidateSize<Interop.StreamUpdate>(AbiStruct.AbiStreamUpdate, nameof(Interop.StreamUpdate));
         var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
         return StackAllocHelper.RunWithBuffer(updateSize, updatePtr =>
         {
@@ -152,6 +154,7 @@ public sealed class StreamSession : IDisposable
     {
         ThrowIfDisposed();
 
+        AbiValidation.ValidateSize<Interop.StreamText>(AbiStruct.AbiStreamText, nameof(Interop.StreamText));
         var textSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamText);
         return StackAllocHelper.RunWithBuffer(textSize, textPtr =>
         {

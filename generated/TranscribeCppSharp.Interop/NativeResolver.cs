@@ -2,7 +2,10 @@
 // assembly and survives regeneration of NativeMethods.cs. It registers a
 // DllImportResolver so the native library is found without LD_LIBRARY_PATH,
 // custom DLL search paths, or manual copying, both in published apps and in
-// plain "dotnet run" scenarios.
+// plain "dotnet run" scenarios. It searches the app output directory —
+// including the runtimes/<rid>/native/ layout where .NET places runtime-package
+// binaries — and the NuGet global packages folder. On failure it throws a
+// DllNotFoundException that lists the exact package to add and the paths searched.
 #nullable enable
 
 using System;
@@ -60,15 +63,32 @@ internal static partial class NativeMethods
                "For musl/Alpine Linux or custom native builds, see the 'Building from source' section of the README.";
     }
 
-    private static IEnumerable<string> EnumerateCandidates()
+    internal static IEnumerable<string> EnumerateCandidates()
     {
         string fileName = GetNativeFileName();
 
-        // 1. App output directory (dotnet publish / build output).
+        // 1. App output directory (dotnet publish / build output) root.
         yield return Path.Combine(AppContext.BaseDirectory, fileName);
 
-        // 2. NuGet global packages folder:
+        // 2. App output runtimes/<rid>/native — the standard .NET layout where
+        //    runtime packages place their binaries. The subfolder carries the
+        //    concrete RID (e.g. linux-x64), which differs from the portable RID
+        //    RuntimeInformation.RuntimeIdentifier reports (e.g. arch-x64) when no
+        //    <RuntimeIdentifier> is set — so enumerate every runtimes/*/native.
+        string runtimesDir = Path.Combine(AppContext.BaseDirectory, "runtimes");
+        if (Directory.Exists(runtimesDir))
+        {
+            foreach (string nativeDir in EnumerateNativeDirs(runtimesDir))
+            {
+                yield return Path.Combine(nativeDir, fileName);
+            }
+        }
+
+        // 3. NuGet global packages folder:
         //    ~/.nuget/packages/transcribecppsharp.native.<rid>/<version>/runtimes/<rid>/native/
+        //    Enumerate every native.<rid> package and every runtimes/*/native it
+        //    ships, since the runtime reports the portable RID while package and
+        //    runtimes folders use the concrete RID.
         string? packagesFolder = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
         if (string.IsNullOrEmpty(packagesFolder))
         {
@@ -79,21 +99,39 @@ internal static partial class NativeMethods
             }
         }
 
-        string rid = RuntimeInformation.RuntimeIdentifier;
-        if (string.IsNullOrEmpty(packagesFolder) || string.IsNullOrEmpty(rid))
+        if (string.IsNullOrEmpty(packagesFolder) || !Directory.Exists(packagesFolder))
         {
             yield break;
         }
 
-        string packageRoot = Path.Combine(packagesFolder, $"transcribecppsharp.native.{rid.ToLowerInvariant()}");
-        if (!Directory.Exists(packageRoot))
+        foreach (string packageDir in Directory.EnumerateDirectories(
+                     packagesFolder, "transcribecppsharp.native.*", SearchOption.TopDirectoryOnly))
         {
-            yield break;
-        }
+            foreach (string versionDir in GetVersionDirs(packageDir))
+            {
+                string pkgRuntimes = Path.Combine(versionDir, "runtimes");
+                if (!Directory.Exists(pkgRuntimes))
+                {
+                    continue;
+                }
 
-        foreach (string versionDir in GetVersionDirs(packageRoot))
+                foreach (string nativeDir in EnumerateNativeDirs(pkgRuntimes))
+                {
+                    yield return Path.Combine(nativeDir, fileName);
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateNativeDirs(string runtimesRoot)
+    {
+        foreach (string ridDir in Directory.EnumerateDirectories(runtimesRoot, "*", SearchOption.TopDirectoryOnly))
         {
-            yield return Path.Combine(versionDir, "runtimes", rid, "native", fileName);
+            string nativeDir = Path.Combine(ridDir, "native");
+            if (Directory.Exists(nativeDir))
+            {
+                yield return nativeDir;
+            }
         }
     }
 
