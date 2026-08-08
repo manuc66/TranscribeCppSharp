@@ -64,18 +64,27 @@ internal static partial class NativeMethods
     }
 
     internal static IEnumerable<string> EnumerateCandidates()
+        => EnumerateCandidates(AppContext.BaseDirectory, ResolvePackagesFolder());
+
+    /// <summary>
+    /// Enumerates candidate native-library paths, most specific first.
+    /// <paramref name="baseDirectory"/> is the app output directory and
+    /// <paramref name="packagesFolder"/> the NuGet global packages folder
+    /// (null disables the NuGet fallback). Exposed internally for tests.
+    /// </summary>
+    internal static IEnumerable<string> EnumerateCandidates(string baseDirectory, string? packagesFolder)
     {
         string fileName = GetNativeFileName();
 
         // 1. App output directory (dotnet publish / build output) root.
-        yield return Path.Combine(AppContext.BaseDirectory, fileName);
+        yield return Path.Combine(baseDirectory, fileName);
 
         // 2. App output runtimes/<rid>/native — the standard .NET layout where
         //    runtime packages place their binaries. The subfolder carries the
         //    concrete RID (e.g. linux-x64), which differs from the portable RID
         //    RuntimeInformation.RuntimeIdentifier reports (e.g. arch-x64) when no
         //    <RuntimeIdentifier> is set — so enumerate every runtimes/*/native.
-        string runtimesDir = Path.Combine(AppContext.BaseDirectory, "runtimes");
+        string runtimesDir = Path.Combine(baseDirectory, "runtimes");
         if (Directory.Exists(runtimesDir))
         {
             foreach (string nativeDir in EnumerateNativeDirs(runtimesDir))
@@ -89,16 +98,6 @@ internal static partial class NativeMethods
         //    Enumerate every native.<rid> package and every runtimes/*/native it
         //    ships, since the runtime reports the portable RID while package and
         //    runtimes folders use the concrete RID.
-        string? packagesFolder = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
-        if (string.IsNullOrEmpty(packagesFolder))
-        {
-            string? home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrEmpty(home))
-            {
-                packagesFolder = Path.Combine(home, ".nuget", "packages");
-            }
-        }
-
         if (string.IsNullOrEmpty(packagesFolder) || !Directory.Exists(packagesFolder))
         {
             yield break;
@@ -121,6 +120,21 @@ internal static partial class NativeMethods
                 }
             }
         }
+    }
+
+    private static string? ResolvePackagesFolder()
+    {
+        string? packagesFolder = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+        if (string.IsNullOrEmpty(packagesFolder))
+        {
+            string? home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrEmpty(home))
+            {
+                packagesFolder = Path.Combine(home, ".nuget", "packages");
+            }
+        }
+
+        return packagesFolder;
     }
 
     private static IEnumerable<string> EnumerateNativeDirs(string runtimesRoot)

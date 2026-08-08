@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 using Xunit;
@@ -52,18 +53,48 @@ public class NativeResolverTests
         // Regression: plain `dotnet run` (no <RuntimeIdentifier>) reports a portable
         // RID (e.g. arch-x64), but .NET places runtime-package binaries under
         // runtimes/<concrete-rid>/native/ — the resolver must search that layout.
-        string sep = Path.DirectorySeparatorChar.ToString();
-        var candidates = NativeMethods.EnumerateCandidates().ToList();
+        var baseDir = CreateTempBaseDirWithRuntimes();
+        try
+        {
+            var candidates = NativeMethods.EnumerateCandidates(baseDir, packagesFolder: null).ToList();
 
-        Assert.Contains(candidates, c => c.Contains($"runtimes{sep}") && c.Contains($"{sep}native{sep}"));
+            var fileName = GetNativeFileName();
+            Assert.Contains(Path.Combine(baseDir, "runtimes", "linux-x64", "native", fileName), candidates);
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
     }
 
     [Fact]
     public void EnumerateCandidates_FirstCandidateIsAppBaseDirectory()
     {
-        var candidates = NativeMethods.EnumerateCandidates().ToList();
+        var candidates = NativeMethods.EnumerateCandidates("/tmp/fake-base", packagesFolder: null).ToList();
 
         Assert.NotEmpty(candidates);
-        Assert.Equal(Path.Combine(AppContext.BaseDirectory, "libtranscribe.so"), candidates[0]);
+        Assert.Equal(Path.Combine("/tmp/fake-base", GetNativeFileName()), candidates[0]);
+    }
+
+    private static string GetNativeFileName()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return "transcribe.dll";
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            return "libtranscribe.dylib";
+        }
+
+        return "libtranscribe.so";
+    }
+
+    private static string CreateTempBaseDirWithRuntimes()
+    {
+        string baseDir = Path.Combine(Path.GetTempPath(), "transcribe-resolver-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(baseDir, "runtimes", "linux-x64", "native"));
+        return baseDir;
     }
 }
