@@ -13,6 +13,9 @@ public sealed class Transcript
     /// <summary>Complete transcribed text of the run. Corresponds to native transcribe_full_text(session).</summary>
     public string FullText { get; init; } = string.Empty;
 
+    /// <summary>Raw decoded output before family post-processing. Corresponds to native transcribe_raw_text(session).</summary>
+    public string RawText { get; init; } = string.Empty;
+
     /// <summary>Detected language code (e.g. "en"). Corresponds to native transcribe_detected_language(session).</summary>
     public string DetectedLanguage { get; init; } = string.Empty;
 
@@ -30,6 +33,9 @@ public sealed class Transcript
 
     /// <summary>Tokens, read via native transcribe_n_tokens / transcribe_get_token.</summary>
     public IReadOnlyList<TokenResult> Tokens { get; init; } = [];
+
+    /// <summary>Speaker segments, read via native transcribe_n_speaker_segments / transcribe_get_speaker_segment.</summary>
+    public IReadOnlyList<SpeakerSegmentResult> SpeakerSegments { get; init; } = [];
 
     /// <summary>Timings of the run, via native transcribe_get_timings. Null when the run produced no timings.</summary>
     public TimingsResult? Timing { get; init; }

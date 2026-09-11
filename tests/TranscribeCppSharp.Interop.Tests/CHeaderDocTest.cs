@@ -60,7 +60,7 @@ public class CHeaderDocTest
     {
         var doc = Doc.GetStructDoc("transcribe_model_load_params");
         Assert.NotNull(doc);
-        Assert.Contains("model", doc);
+        Assert.Contains("model", doc, System.StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -69,6 +69,6 @@ public class CHeaderDocTest
         // No struct field carries a preceding comment block in this header;
         // docs live at struct level. The parser must return null rather than
         // inventing per-field docs.
-        Assert.Null(Doc.GetStructFieldDoc("transcribe_backend_device", "name"));
+        Assert.Null(Doc.GetStructFieldDoc("transcribe_device_info", "name"));
     }
 }

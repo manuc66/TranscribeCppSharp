@@ -187,6 +187,22 @@ public sealed class Model : IDisposable
     }
 
     /// <summary>
+    /// The compute device this model is running on, with live memory snapshot.
+    /// Null when the model has no resolved device.
+    /// </summary>
+    public BackendDevice? Device
+    {
+        get
+        {
+            ThrowIfDisposed();
+            var deviceHandle = NativeMethods.ModelDevice(handle);
+            var result = Backends.GetDeviceInfo(deviceHandle);
+            GC.KeepAlive(this);
+            return result;
+        }
+    }
+
+    /// <summary>
     /// Tokenize text using the model's tokenizer.
     /// </summary>
     /// <param name="text">The text to tokenize.</param>

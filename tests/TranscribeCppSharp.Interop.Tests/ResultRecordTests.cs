@@ -27,10 +27,11 @@ public class ResultRecordTests
         Assert.Equal(a.GetHashCode(), b.GetHashCode());
         Assert.True(a == b);
 
-        var (start, end, text) = a;
+        var (start, end, text, speakerId) = a;
         Assert.Equal(TimeSpan.FromSeconds(1), start);
         Assert.Equal(TimeSpan.FromSeconds(2), end);
         Assert.Equal("hello", text);
+        Assert.Equal(0, speakerId);
     }
 
     [Fact]

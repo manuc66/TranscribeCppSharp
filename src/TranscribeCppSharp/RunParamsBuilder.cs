@@ -71,6 +71,16 @@ public sealed class RunParamsBuilder : IDisposable
     }
 
     /// <summary>
+    /// Speaker-diarization toggle. Non-default values against a model without
+    /// <c>FeatureDiarization</c> emit a native WARN and keep default behavior.
+    /// </summary>
+    public RunParamsBuilder WithDiarize(DiarizeMode diarize)
+    {
+        @params.diarize = diarize;
+        return this;
+    }
+
+    /// <summary>
     /// Source language of the audio as a BCP-47-ish short code (e.g. "fr",
     /// "en"). Per the upstream API, the value must be a language code — there
     /// is no "auto" sentinel: pass NULL (do not call this method) to

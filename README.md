@@ -103,12 +103,12 @@ build of transcribe.cpp and place it next to your app; the wrapper prefers
 native binaries in the app output directory over the packaged ones.
 
 1. **Download** the upstream CUDA archive for your platform (this project is
-   bound to transcribe.cpp v0.1.3):
+   bound to transcribe.cpp v0.2.3):
 
-   - Linux x64: `transcribe-native-0.1.3-linux-x86_64-cuda.tar.gz`
-   - Windows x64: `transcribe-native-0.1.3-windows-x86_64-cuda.tar.gz`
+   - Linux x64: `transcribe-native-0.2.3-linux-x86_64-cuda.tar.gz`
+   - Windows x64: `transcribe-native-0.2.3-windows-x86_64-cuda.tar.gz`
 
-   from the [transcribe.cpp v0.1.3 release](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.1.3).
+   from the [transcribe.cpp v0.2.3 release](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.2.3).
 
 2. **Extract** it and copy `libtranscribe.so` (Linux) or `transcribe.dll`
    (Windows) — plus the sibling `libggml*.so` / `ggml*.dll` files — into your
@@ -118,8 +118,10 @@ native binaries in the app output directory over the packaged ones.
 
    ```csharp
    using var model = Model.Load("model.gguf", p => p
-       .WithBackend(BackendRequest.BackendCuda)
-       .WithGpuDevice(0));
+       .WithBackend(BackendRequest.BackendCuda));
+   // Exact device: enumerate and pass the handle (omit for automatic selection)
+   var cuda = Backends.EnumerateDevices().First(d => d.Kind == "cuda");
+   using var modelOnGpu = Model.Load("model.gguf", p => p.WithDevice(cuda));
    ```
 
    You can verify CUDA is actually available in the current build with
@@ -186,7 +188,7 @@ var caps = model.GetCapabilities();
 
 The native library and this wrapper are **not** thread-safe by default. The relevant rules:
 
-- **Concurrent compute is limited**: at most one `Session.Run`, `Batch.Run`, or active stream may be in flight across **all sessions of the same model** at a time. Sessions share the model's backend instances and some per-family state, so overlapping runs on the same model race (per the upstream library: corrupted decodes on CPU, command-buffer failures on Metal). This is a **known limitation of the upstream native library in 0.x**, documented in its [public header](https://github.com/handy-computer/transcribe.cpp/blob/v0.1.3/include/transcribe.h) (see "KNOWN 0.x LIMITATION — concurrent COMPUTE"), not something this wrapper imposes or can lift.
+- **Concurrent compute is limited**: at most one `Session.Run`, `Batch.Run`, or active stream may be in flight across **all sessions of the same model** at a time. Sessions share the model's backend instances and some per-family state, so overlapping runs on the same model race (per the upstream library: corrupted decodes on CPU, command-buffer failures on Metal). This is a **known limitation of the upstream native library in 0.x**, documented in its [public header](https://github.com/handy-computer/transcribe.cpp/blob/v0.2.3/include/transcribe.h) (see "KNOWN 0.x LIMITATION — concurrent COMPUTE"), not something this wrapper imposes or can lift.
   - For **parallel transcription**, load **one model per worker** (each worker gets its own `Model`, hence its own backend instances).
   - **Serialized** use of many sessions on one model (e.g. a session pool behind a mutex) is fully supported.
 - **`Model`**: believed **thread-safe** for creating sessions — you can create multiple `Session` objects from a single `Model` instance across different threads, as long as their runs do not overlap (see the concurrent-compute limit above). Not covered by concurrency tests yet.
@@ -205,9 +207,9 @@ The native library and this wrapper are **not** thread-safe by default. The rele
 Two version numbers are in play, decoupled on purpose:
 
 - **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper.
-- **`TranscribeCppSharp.Interop`** and **`TranscribeCppSharp.Native.*`** are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.1.3` = transcribe.cpp v0.1.3). They track the ABI, not the wrapper's API.
+- **`TranscribeCppSharp.Interop`** and **`TranscribeCppSharp.Native.*`** are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.2.3` = transcribe.cpp v0.2.3). They track the ABI, not the wrapper's API.
 
-So `TranscribeCppSharp 0.1.0` depends on `TranscribeCppSharp.Interop 0.1.3`; a later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](CHANGELOG.md).
+So `TranscribeCppSharp 0.1.0` depends on `TranscribeCppSharp.Interop 0.2.3`; a later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Attribution
 
@@ -237,6 +239,10 @@ dotnet run --project tools/FetchNative
 
 # Run unit and integration tests
 ./scripts/run-integration-tests.sh
+
+# Opt-in: also fetch the MOSS diarization model (~617 MB) and run the
+# speaker-attribution test
+WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
 
 # Run the smoke test sample
 dotnet run --project samples/SmokeTest -- model.gguf audio.wav
@@ -275,6 +281,6 @@ curate their licenses.
 
 Before using a model in a commercial product, check the license on the page
 you download it from (typically Hugging Face). The [upstream transcribe.cpp
-docs](https://github.com/handy-computer/transcribe.cpp/blob/v0.1.3/docs/models)
+docs](https://github.com/handy-computer/transcribe.cpp/blob/v0.2.3/docs/models)
 describe each supported family and where its models come from; that is the
 source of truth, not this README.

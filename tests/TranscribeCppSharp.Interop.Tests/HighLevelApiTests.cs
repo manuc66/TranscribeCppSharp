@@ -221,13 +221,23 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
-    public void ModelLoadParamsBuilder_WithGpuDevice_ShouldSetDevice()
+    public void ModelLoadParamsBuilder_WithDevice_ShouldSetDevice()
     {
         using var builder = new ModelLoadParamsBuilder();
-        builder.WithGpuDevice(0);
+        var handle = new IntPtr(12345);
+        builder.WithDevice(handle);
 
         var p = Marshal.PtrToStructure<ModelLoadParams>(builder.Build());
-        Assert.Equal(0, p.gpuDevice);
+        Assert.Equal(handle, p.device);
+    }
+
+    [Fact]
+    public void ModelLoadParamsBuilder_WithDeviceDefault_IsAuto()
+    {
+        using var builder = new ModelLoadParamsBuilder();
+
+        var p = Marshal.PtrToStructure<ModelLoadParams>(builder.Build());
+        Assert.Equal(IntPtr.Zero, p.device);
     }
 
     [Fact]
@@ -897,6 +907,185 @@ public class HighLevelApiTests : IDisposable
     }
 
     [SkippableFact]
+    public void Backends_EnumerateDevices_ShouldReturnRuntimeHandles()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        TranscribeCppSharp.Backends.InitDefault();
+        var devices = TranscribeCppSharp.Backends.EnumerateDevices();
+        Assert.True(devices.Count > 0);
+        Assert.All(devices, d => Assert.NotEqual(IntPtr.Zero, d.Handle));
+
+        // Handles round-trip through GetDeviceInfo.
+        var first = devices[0];
+        var resolved = TranscribeCppSharp.Backends.GetDeviceInfo(first.Handle);
+        Assert.NotNull(resolved);
+        Assert.Equal(first.Name, resolved.Name);
+        Assert.Equal(first.Handle, resolved.Handle);
+    }
+
+    [SkippableFact]
+    public void Model_Load_WithExactDevice_ShouldSucceed()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        TranscribeCppSharp.Backends.InitDefault();
+        var devices = TranscribeCppSharp.Backends.EnumerateDevices();
+        var cpu = devices.FirstOrDefault(d => d.Kind == "cpu");
+        Assert.NotNull(cpu);
+
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithDevice(cpu));
+        Assert.NotNull(model);
+        Assert.NotNull(model.Device);
+        Assert.Equal(cpu.Handle, model.Device.Handle);
+    }
+
+    [SkippableFact]
+    public void Model_Device_ShouldReportLoadedDevice()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        var device = model.Device;
+        Assert.NotNull(device);
+        Assert.NotEqual(IntPtr.Zero, device.Handle);
+        Assert.Equal("cpu", device.Kind);
+    }
+
+    [SkippableFact]
+    public void Session_Run_ShouldExposeRawTextAndSpeakerSegments()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var transcript = session.Run(pcm);
+
+        Assert.False(string.IsNullOrEmpty(transcript.FullText));
+        Assert.NotNull(transcript.RawText);
+        Assert.NotNull(transcript.SpeakerSegments);
+        Assert.All(transcript.Segments, s => Assert.Equal(0, s.SpeakerId));
+        Assert.Equal(transcript.RawText, session.RawText);
+        Assert.Equal(transcript.SpeakerSegments.Count, session.SpeakerSegmentCount);
+    }
+
+    [Fact]
+    public void RunParamsBuilder_WithDiarize_ShouldSetDiarize()
+    {
+        using var builder = new RunParamsBuilder();
+        builder.WithDiarize(DiarizeMode.DiarizeModeOn);
+
+        var p = Marshal.PtrToStructure<RunParams>(builder.Build());
+        Assert.Equal(DiarizeMode.DiarizeModeOn, p.diarize);
+    }
+
+    [Fact]
+    public void SortformerStreamExtBuilder_WithPreset_ShouldSet()
+    {
+        using var builder = new SortformerStreamExtBuilder();
+        builder.WithPreset(SortformerPreset.SortformerPresetLowLatency);
+
+        var p = Marshal.PtrToStructure<SortformerStreamExt>(builder.Build());
+        Assert.Equal(SortformerPreset.SortformerPresetLowLatency, p.preset);
+    }
+
+    [Fact]
+    public void StreamParamsBuilder_WithSortformerExt_ShouldSetFamily()
+    {
+        using var ext = new SortformerStreamExtBuilder();
+        ext.WithPreset(SortformerPreset.SortformerPresetHighLatency);
+
+        using var builder = new StreamParamsBuilder();
+        builder.WithSortformerExt(ext);
+
+        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        Assert.NotEqual(IntPtr.Zero, p.family);
+        var extStruct = Marshal.PtrToStructure<SortformerStreamExt>(p.family);
+        Assert.Equal(SortformerPreset.SortformerPresetHighLatency, extStruct.preset);
+    }
+
+    [Fact]
+    public void SortformerStreamExtBuilder_WithPreset_AfterDispose_Throws()
+    {
+        var builder = new SortformerStreamExtBuilder();
+        builder.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => builder.WithPreset(SortformerPreset.SortformerPresetDefault));
+    }
+
+    [Fact]
+    public void Backends_GetDeviceInfo_ZeroHandle_ReturnsNull()
+    {
+        Assert.Null(TranscribeCppSharp.Backends.GetDeviceInfo(IntPtr.Zero));
+    }
+
+    [SkippableFact]
+    public void Model_Supports_Diarization_Whisper_ShouldBeFalse()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+
+        Assert.False(model.Supports(Feature.FeatureDiarization));
+    }
+
+    [SkippableFact]
+    public void Session_Run_RawText_ShouldExposeUnprocessedDecode()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var transcript = session.Run(pcm);
+
+        // Whisper emits timestamp tags (<|0.00|>) that post-processing strips:
+        // raw is the verbatim decode, full text is the clean transcript.
+        Assert.NotEmpty(transcript.RawText);
+        Assert.NotEqual(transcript.FullText, transcript.RawText);
+        Assert.Equal(transcript.RawText, session.RawText);
+    }
+
+    [SkippableFact]
+    public void Session_Run_WithDiarizeOn_UnsupportedModel_ShouldUseDefaultBehavior()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var baseline = session.Run(pcm);
+
+        // Non-default diarize against a model without FeatureDiarization emits
+        // a native WARN and proceeds with default behavior (no throw).
+        var transcript = session.Run(pcm, r => r.WithDiarize(DiarizeMode.DiarizeModeOn));
+
+        Assert.Equal(baseline.FullText, transcript.FullText);
+        Assert.NotNull(transcript.SpeakerSegments);
+        Assert.Empty(transcript.SpeakerSegments);
+        Assert.All(transcript.Segments, s => Assert.Equal(0, s.SpeakerId));
+    }
+
+    [SkippableFact]
+    public void Session_Run_WithDiarizeOn_SupportedModel_ShouldAttributeSpeakers()
+    {
+        // Opt-in heavy asset (MOSS Q4_K_M, ~617 MB): fetch with
+        // WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh.
+        var mossPath = Path.Combine(TestConfig.RepoRoot, "test-models", "moss-transcribe-diarize-q4-k-m.gguf");
+        Skip.IfNot(File.Exists(mossPath), $"Diarization model not present at {mossPath}.");
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
+
+        using var model = Model.Load(mossPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        Assert.True(model.Supports(Feature.FeatureDiarization));
+
+        using var session = model.CreateSession();
+        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var transcript = session.Run(pcm, r => r.WithDiarize(DiarizeMode.DiarizeModeOn));
+
+        Assert.NotEmpty(transcript.FullText);
+        // Single-speaker JFK sample: everything attributed to speaker 1.
+        Assert.NotEmpty(transcript.SpeakerSegments);
+        Assert.All(transcript.SpeakerSegments, s => Assert.Equal(1, s.SpeakerId));
+        Assert.All(transcript.Segments, s => Assert.Equal(1, s.SpeakerId));
+        // Raw keeps the inline [start][Sxx] markers that full text strips.
+        Assert.Contains("[S01]", transcript.RawText);
+    }
+
+    [SkippableFact]
     public void Backends_Init_WithArtifactDir_ShouldNotThrow()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
@@ -926,6 +1115,9 @@ public class HighLevelApiTests : IDisposable
         Assert.NotNull(results[0].Words);
         Assert.NotNull(results[0].Tokens);
         Assert.NotNull(results[0].Timing);
+        Assert.NotEmpty(results[0].RawText);
+        Assert.NotNull(results[0].SpeakerSegments);
+        Assert.Empty(results[0].SpeakerSegments);
     }
 
     [SkippableFact]

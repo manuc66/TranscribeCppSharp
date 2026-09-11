@@ -30,9 +30,9 @@ if (status != Status.Ok)
     Console.WriteLine("Backend init failed (expected without GPU), continuing...");
 }
 
-// Test 4: Backend device count
-var deviceCount = NativeMethods.BackendDeviceCount();
-Console.WriteLine($"Backend devices: {deviceCount}");
+// Test 4: Device count
+var deviceCount = NativeMethods.DeviceCount();
+Console.WriteLine($"Devices: {deviceCount}");
 
 // Test 5: Full transcription using safe wrapper (if model provided)
 if (args.Length > 0)

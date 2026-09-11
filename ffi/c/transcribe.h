@@ -152,7 +152,7 @@
  * exactly and refuses to load a native provider that does not match.
  */
 #define TRANSCRIBE_VERSION_MAJOR 0
-#define TRANSCRIBE_VERSION_MINOR 1
+#define TRANSCRIBE_VERSION_MINOR 2
 #define TRANSCRIBE_VERSION_PATCH 3
 
 #define TRANSCRIBE_VERSION_STRINGIZE_(x) #x
@@ -362,7 +362,8 @@ typedef enum {
     TRANSCRIBE_ABI_STREAM_TEXT       = 10,
     TRANSCRIBE_ABI_SESSION_LIMITS    = 11,
     TRANSCRIBE_ABI_EXT               = 12,
-    TRANSCRIBE_ABI_BACKEND_DEVICE    = 13,
+    TRANSCRIBE_ABI_DEVICE_INFO       = 13,
+    TRANSCRIBE_ABI_SPEAKER_SEGMENT   = 14,
 } transcribe_abi_struct;
 
 /* sizeof / alignof of the selected public struct, or 0 for an unknown id.
@@ -431,9 +432,10 @@ typedef enum {
 } transcribe_task;
 
 /*
- * Timestamp policy: transcribe_run_params_init() requests NONE for
- * text-first transcription. AUTO is an opt-in "richest supported"
- * mode: it is treated as "equal to the model's max_timestamp_kind."
+ * Timestamp policy: transcribe_run_params_init() requests AUTO, the richest
+ * supported output. AUTO requests the richest granularity compatible with the model and
+ * the other selected run tasks (for example, a prompt-selected diarization
+ * task may not compose with the model's separate timestamp task).
  * The dispatcher never rejects AUTO, and the per-family run() handler
  * resolves it to the finest granularity the model can actually
  * produce when it assembles the result. A non-AUTO request is treated
@@ -520,6 +522,41 @@ enum transcribe_itn_mode {
     TRANSCRIBE_ITN_MODE_DEFAULT = 0,
     TRANSCRIBE_ITN_MODE_OFF     = 1,
     TRANSCRIBE_ITN_MODE_ON      = 2,
+};
+
+/*
+ * Speaker-diarization toggle on the run params.
+ *
+ * Symmetric semantics to transcribe_pnc_mode / transcribe_itn_mode but
+ * for speaker attribution. Families whose model emits speaker-attributed
+ * output read this field; families that do not ignore it. Non-DEFAULT
+ * values against a model for which
+ * transcribe_model_supports(model, TRANSCRIBE_FEATURE_DIARIZATION)
+ * returns false emit a WARN and proceed with default behavior.
+ *
+ * When ON resolves, the model's speaker markers are parsed into
+ * structured results: segment rows carry speaker_id and the
+ * speaker-segment accessors (transcribe_n_speaker_segments /
+ * transcribe_get_speaker_segment) are populated, with the markers
+ * stripped from the text. How a family produces markers is
+ * family-specific: moss always emits them (parsing is pure host-side
+ * post-processing), while granite-speech-4.1-2b-plus emits them only
+ * when its prompt requests the speaker-attribution task, so there ON
+ * changes the instruction the model is given. See each family doc.
+ *
+ *   DEFAULT (0): library default: OFF for every family. Zero-init gives
+ *                this value.
+ *   OFF:         no speaker attribution. Families where diarization is a
+ *                requested task do not request it. Families such as moss
+ *                whose model always emits inline metadata still strip that
+ *                metadata so full_text remains a clean transcript.
+ *   ON:          request (if needed) and parse speaker markers into
+ *                segment speaker_id + speaker segments.
+ */
+enum transcribe_diarize_mode {
+    TRANSCRIBE_DIARIZE_MODE_DEFAULT = 0,
+    TRANSCRIBE_DIARIZE_MODE_OFF     = 1,
+    TRANSCRIBE_DIARIZE_MODE_ON      = 2,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -638,7 +675,7 @@ TRANSCRIBE_API bool transcribe_model_accepts_ext_kind(const struct transcribe_mo
  *         that successfully initializes, probing every discrete GPU
  *         before any integrated GPU; within a tier, devices are tried
  *         in ggml's device registry order — which is build-time
- *         prioritized (Metal on Apple, Vulkan / CUDA / SYCL on
+ *         prioritized (Metal on Apple, Vulkan / CUDA / ROCm / SYCL on
  *         Linux, …). An integrated GPU is selected only when no
  *         discrete GPU initializes. Host-memory accelerators (BLAS,
  *         AMX, …) are additionally layered onto the scheduler when
@@ -671,6 +708,12 @@ TRANSCRIBE_API bool transcribe_model_accepts_ext_kind(const struct transcribe_mo
  *         if Vulkan is not available in this build. Host-memory
  *         accelerators are still layered on when present.
  *
+ * CUDA    Require the NVIDIA CUDA backend. Returns TRANSCRIBE_ERR_BACKEND
+ *         if CUDA is not available in this build.
+ *
+ * ROCM    Require the AMD ROCm backend. Returns TRANSCRIBE_ERR_BACKEND
+ *         if ROCm is not available in this build.
+ *
  * Callers that need to know which backend they actually landed on
  * can query transcribe_model_backend() after load.
  */
@@ -681,6 +724,7 @@ typedef enum {
     TRANSCRIBE_BACKEND_VULKAN    = 3,
     TRANSCRIBE_BACKEND_CPU_ACCEL = 4,
     TRANSCRIBE_BACKEND_CUDA      = 5,
+    TRANSCRIBE_BACKEND_ROCM      = 6,
 } transcribe_backend_request;
 
 /* ----------------------------------------------------------------------- */
@@ -750,17 +794,37 @@ TRANSCRIBE_API transcribe_status transcribe_init_backends(const char * artifact_
 TRANSCRIBE_API transcribe_status transcribe_init_backends_default(void);
 
 /*
+ * Opaque process-local compute-device handle. Handles are owned by the
+ * runtime, remain valid for the life of the process, and must not be freed.
+ * They may be compared for equality but are not persistent identifiers; use
+ * transcribe_device_get_info() and its device_id field for persistence.
+ */
+struct transcribe_device;
+typedef struct transcribe_device * transcribe_device_t;
+
+/*
  * Number of compute devices currently registered with the runtime
  * (compiled-in backends plus any modules loaded by
  * transcribe_init_backends). A device is something a model can be placed
  * on: the CPU, an Apple GPU via Metal, a Vulkan GPU, ...
  */
-TRANSCRIBE_API int transcribe_backend_device_count(void);
+TRANSCRIBE_API int transcribe_device_count(void);
+
+/*
+ * Return the registered device at `index`, or NULL when index is out of
+ * range. The returned handle is runtime-owned and process-local.
+ *
+ * IMPORTANT: NULL is also the automatic-selection sentinel in
+ * transcribe_model_load_params::device. Always check this return value before
+ * assigning it to model-load params; assigning an unchecked out-of-range
+ * result would request automatic selection rather than exact selection.
+ */
+TRANSCRIBE_API transcribe_device_t transcribe_device_get(int index);
 
 /*
  * Device type: ggml's vendor-agnostic classification of a device,
  * orthogonal to `kind` below (which carries the vendor: metal/vulkan/cuda/
- * ...). Backends report this classification themselves, so treat it as a
+ * rocm/...). Backends report this classification themselves, so treat it as a
  * runtime hint about CPU/GPU/IGPU/ACCEL placement rather than a portable
  * hardware-memory taxonomy. The numeric values mirror ggml's device-type
  * enum.
@@ -781,8 +845,8 @@ typedef enum {
  *
  * kind is the library's vendor classification, one of: "cpu", "accel" (a
  * host-memory accelerator such as BLAS/AMX), "metal", "vulkan", "cuda",
- * "sycl", "gpu" (an unrecognized GPU), or "unknown". device_type is the
- * orthogonal CPU/GPU/IGPU/ACCEL axis.
+ * "rocm", "sycl", "gpu" (an unrecognized GPU), or "unknown". device_type is
+ * the orthogonal CPU/GPU/IGPU/ACCEL axis.
  *
  * device_id is a stable hardware identifier when the backend reports one
  * (for PCI devices the lower-case bus id "domain:bus:device.function", e.g.
@@ -797,7 +861,7 @@ typedef enum {
  * this process's allocations; on a discrete GPU they are device-global; on
  * the CPU they are system RAM. 0 means the backend does not report it.
  */
-struct transcribe_backend_device {
+struct transcribe_device_info {
     uint64_t               struct_size;  /* sizeof(*this); set by _init() */
     const char *           name;         /* ggml device name, e.g. "Metal" */
     const char *           description;  /* human-readable, e.g. "Apple M4 Max" */
@@ -808,43 +872,37 @@ struct transcribe_backend_device {
     transcribe_device_type device_type;  /* CPU/GPU/IGPU/ACCEL axis */
 };
 
-TRANSCRIBE_API void transcribe_backend_device_init(struct transcribe_backend_device * p);
+TRANSCRIBE_API void transcribe_device_info_init(struct transcribe_device_info * p);
 
 /*
- * Fill *out (initialized via transcribe_backend_device_init) with device
- * `index` in [0, transcribe_backend_device_count()).
+ * Fill *out (initialized via transcribe_device_info_init) with information
+ * about `device`. memory_free is live as of this call; re-invoke to refresh it
+ * (e.g. to poll a device's available memory over time).
  *
- * memory_free is live as of this call; re-invoke to refresh it (e.g. to
- * poll a device's available memory over time). The device handles are
- * stable for the life of the process, so the same index always names the
- * same device.
+ * Returns TRANSCRIBE_ERR_INVALID_ARG if device or out is NULL or device is
+ * not from this runtime's registry. Returns TRANSCRIBE_ERR_BAD_STRUCT_SIZE if
+ * out fails the struct-size check.
  */
-TRANSCRIBE_API transcribe_status transcribe_get_backend_device(int index, struct transcribe_backend_device * out);
+TRANSCRIBE_API transcribe_status transcribe_device_get_info(transcribe_device_t             device,
+                                                            struct transcribe_device_info * out);
 
 /*
  * Whether a backend request can be satisfied by some registered device:
  * AUTO whenever any device exists; CPU and CPU_ACCEL when a CPU device
- * exists; METAL / VULKAN / CUDA when a device of that kind exists. Unknown
- * or invalid request values answer false (never an error). This is the
+ * exists; METAL / VULKAN / CUDA / ROCM when a device of that kind exists.
+ * Unknown or invalid request values answer false (never an error). This is the
  * probe a binding uses to turn `backend="vulkan"` on a machine without
  * Vulkan into a clear exception instead of a failed model load.
  */
 TRANSCRIBE_API bool transcribe_backend_available(transcribe_backend_request kind);
 
 /*
- * Fill *out (initialized via transcribe_backend_device_init) with the
- * compute device this loaded model is running on — the device that owns its
- * weights and runs most of its graph. Same struct and same live-snapshot
- * semantics as transcribe_get_backend_device: memory_free is current as of
- * the call, so re-invoke to ask "how much memory is left on the device my
- * model landed on" at any time after load.
- *
- * Returns TRANSCRIBE_ERR_INVALID_ARG if model or out is NULL (or out fails
- * the struct-size check), or TRANSCRIBE_ERR_BACKEND if the model has no
- * resolved compute device.
+ * Return the compute device this loaded model is running on — the device
+ * that owns its weights and runs most of its graph. Returns NULL if model is
+ * NULL or has no resolved compute device. Pass the returned handle to
+ * transcribe_device_get_info() for metadata and a live memory snapshot.
  */
-TRANSCRIBE_API transcribe_status transcribe_model_get_device(const struct transcribe_model *    model,
-                                                             struct transcribe_backend_device * out);
+TRANSCRIBE_API transcribe_device_t transcribe_model_device(const struct transcribe_model * model);
 
 /*
  * Initialization of caller-owned params structs.
@@ -876,37 +934,26 @@ TRANSCRIBE_API transcribe_status transcribe_model_get_device(const struct transc
  * backend:    which backend to request. See transcribe_backend_request
  *             for the semantics of each value. Default is AUTO.
  *
- * gpu_device: Multi-GPU selector. 0 (the default) means "auto / the first
- *             device of the chosen kind": AUTO picks the first GPU that
- *             initializes, and explicit METAL/VULKAN/CUDA requests pick the
- *             first matching device — in both cases probing every discrete
- *             GPU before any integrated GPU, in ggml's registry order
- *             within each tier.
+ * device:  NULL (the default) applies the backend's automatic policy. AUTO
+ *          probes every discrete GPU before integrated GPUs and finally falls
+ *          back to CPU; an explicit GPU backend picks the first matching
+ *          device. A non-NULL handle selects that exact registered device,
+ *          including the device returned at index 0.
  *
- *             A value > 0 selects the GPU/IGPU device at that global ggml
- *             registry index — the same index space transcribe_get_backend_device()
- *             enumerates, so enumerate first to choose one. The selected
- *             device becomes the model's primary backend, validated against
- *             `backend`: it must be a GPU/IGPU, and for an explicit
- *             METAL/VULKAN/CUDA request it must be that vendor. The index is
- *             order-dependent — ggml's registry order can shift across driver
- *             updates or hosts, so treat it as a runtime selection, not a
- *             stable identifier; correlate via the enumerated device's name /
- *             device_id when you need stability.
+ *          Exact selection never silently falls back to another primary
+ *          device. With backend=AUTO, the selected device determines the
+ *          backend. With an explicit backend, the device must match it. CPU
+ *          and CPU_ACCEL accept an exact CPU device; ACCEL devices cannot be
+ *          selected as a primary. Invalid, foreign, or mismatched handles are
+ *          rejected with TRANSCRIBE_ERR_INVALID_ARG.
  *
- *             gpu_device is rejected with TRANSCRIBE_ERR_INVALID_ARG when it
- *             is negative, out of range, names a non-GPU device, names a
- *             device whose vendor doesn't match an explicit GPU request, or
- *             is non-zero alongside a CPU / CPU_ACCEL request (there is no
- *             GPU to select). Note there is no way to explicitly select the
- *             device at registry index 0 — 0 is the auto sentinel. An
- *             integrated GPU sitting at index 0 is therefore reachable only
- *             via the probe order, when no discrete GPU initializes.
+ *          Handles are process-local. Persist device_id (when available), then
+ *          enumerate and resolve a fresh handle in each process.
  */
 struct transcribe_model_load_params {
     uint64_t                   struct_size;
     transcribe_backend_request backend;
-    int                        gpu_device;
+    transcribe_device_t        device;
 };
 
 TRANSCRIBE_API void transcribe_model_load_params_init(struct transcribe_model_load_params * params);
@@ -966,9 +1013,9 @@ TRANSCRIBE_API void transcribe_session_params_init(struct transcribe_session_par
  *              for translate via its capabilities; otherwise the run
  *              returns TRANSCRIBE_ERR_UNSUPPORTED_TASK.
  *
- * timestamps:  requested granularity. Default params request NONE.
- *              Use AUTO to get the finest granularity the model
- *              supports.
+ * timestamps:  requested granularity. Default params request AUTO,
+ *              which selects the finest granularity compatible with
+ *              the model and other selected run tasks.
  *
  * pnc:         punctuation+capitalization runtime toggle. See
  *              transcribe_pnc_mode. DEFAULT is always safe. Non-DEFAULT
@@ -982,6 +1029,13 @@ TRANSCRIBE_API void transcribe_session_params_init(struct transcribe_session_par
  *              values against models for which
  *              transcribe_model_supports(model, TRANSCRIBE_FEATURE_ITN) is
  *              false emit a WARN and proceed with the model's default
+ *              behavior.
+ *
+ * diarize:     speaker-attribution runtime toggle. See
+ *              transcribe_diarize_mode. DEFAULT is always safe. Non-DEFAULT
+ *              values against models for which
+ *              transcribe_model_supports(model, TRANSCRIBE_FEATURE_DIARIZATION)
+ *              is false emit a WARN and proceed with the model's default
  *              behavior.
  *
  * language:        source language hint as a BCP-47-ish short code, or
@@ -1000,9 +1054,14 @@ TRANSCRIBE_API void transcribe_session_params_init(struct transcribe_session_par
  *
  * keep_special_tags: keep special vocabulary tags (e.g. <|...|>) in the
  *                     returned text fields. Default (false) strips them
- *                     for clean transcripts; set true to keep the raw
- *                     tags. Token-level accessors always expose the raw
- *                     token text regardless of this flag.
+ *                     for clean transcripts; set true to keep the tags
+ *                     inline. Honored by the families whose models emit
+ *                     such tags (canary, parakeet, sensevoice); parakeet
+ *                     additionally includes/excludes the tag tokens in
+ *                     its public token rows. Most callers should prefer
+ *                     transcribe_raw_text(), which returns the pre-
+ *                     cleanup decode for EVERY family without giving up
+ *                     the clean transcribe_full_text.
  *
  * family:      optional family-specific extension. NULL selects family
  *              defaults. The pointed-to object is caller-owned; the
@@ -1022,6 +1081,7 @@ struct transcribe_run_params {
     transcribe_timestamp_kind     timestamps;
     enum transcribe_pnc_mode      pnc;
     enum transcribe_itn_mode      itn;
+    enum transcribe_diarize_mode  diarize;
     const char *                  language;
     const char *                  target_language;
     bool                          keep_special_tags;
@@ -1266,6 +1326,17 @@ TRANSCRIBE_API transcribe_status transcribe_model_get_capabilities(const struct 
  *                        vs does-emit" distinction as PNC; non-DEFAULT
  *                        itn against an unsupported model warns.
  *
+ *   DIARIZATION          The model emits speaker-attributed output and
+ *                        the runtime exposes a toggle via
+ *                        transcribe_run_params::diarize. When true,
+ *                        segment rows carry speaker_id and the
+ *                        speaker-segment accessors are populated (mode
+ *                        permitting). False does NOT mean multi-speaker
+ *                        audio is mis-transcribed — only that speaker
+ *                        attribution is unavailable. Non-DEFAULT diarize
+ *                        against a model where this returns false emits
+ *                        a WARN and proceeds.
+ *
  * Returns false on NULL model or unknown feature enum.
  */
 typedef enum {
@@ -1275,6 +1346,7 @@ typedef enum {
     TRANSCRIBE_FEATURE_CANCELLATION         = 3,
     TRANSCRIBE_FEATURE_PNC                  = 4,
     TRANSCRIBE_FEATURE_ITN                  = 5,
+    TRANSCRIBE_FEATURE_DIARIZATION          = 6,
 } transcribe_feature;
 
 TRANSCRIBE_API bool transcribe_model_supports(const struct transcribe_model * model, transcribe_feature feature);
@@ -1291,7 +1363,7 @@ TRANSCRIBE_API bool transcribe_model_supports(const struct transcribe_model * mo
  *     and the architecture handler had no default to substitute.
  *
  *   transcribe_model_backend(): the runtime backend currently bound
- *     to this model, e.g. "cpu", "metal", "vulkan", "cuda". This is
+ *     to this model, e.g. "cpu", "metal", "vulkan", "cuda", "ROCm". This is
  *     the mechanism for detecting CPU fallback when GPU was requested.
  *
  *     Returns an empty string when no runtime backend is currently
@@ -2259,7 +2331,21 @@ TRANSCRIBE_API void transcribe_reset_timings(struct transcribe_session * session
 /* Result accessors - top level                                            */
 /* ----------------------------------------------------------------------- */
 
-TRANSCRIBE_API const char *              transcribe_full_text(const struct transcribe_session * session);
+TRANSCRIBE_API const char * transcribe_full_text(const struct transcribe_session * session);
+
+/*
+ * The model's decoded output BEFORE family post-processing — inline
+ * diarization markers (moss `[0.48][S01]`, granite `[Speaker N]:`),
+ * timestamp/special tokens (whisper), language/event/emotion tags
+ * (sensevoice, parakeet, canary), chat-envelope prefixes (qwen3_asr),
+ * and whitespace trims are all still present. transcribe_full_text is
+ * always the clean transcript; this is the escape hatch for callers who
+ * want what the model actually emitted (debugging, custom parsing).
+ * Equal to full_text modulo whitespace for families that emit clean
+ * text natively. Session-owned; same lifetime as transcribe_full_text.
+ * Empty string before any successful run.
+ */
+TRANSCRIBE_API const char *              transcribe_raw_text(const struct transcribe_session * session);
 TRANSCRIBE_API transcribe_timestamp_kind transcribe_returned_timestamp_kind(const struct transcribe_session * session);
 TRANSCRIBE_API int                       transcribe_n_segments(const struct transcribe_session * session);
 TRANSCRIBE_API int                       transcribe_n_words(const struct transcribe_session * session);
@@ -2327,7 +2413,8 @@ struct transcribe_segment {
     int          n_words;
     int          first_token;
     int          n_tokens;
-    const char * text; /* session-owned; see lifetime note above */
+    const char * text;       /* session-owned; see lifetime note above */
+    int32_t      speaker_id; /* 1-based; 0 = no speaker attribution */
 };
 
 TRANSCRIBE_API void transcribe_segment_init(struct transcribe_segment * out);
@@ -2395,6 +2482,53 @@ TRANSCRIBE_API transcribe_status transcribe_get_token(const struct transcribe_se
                                                       struct transcribe_token *         out);
 
 /* ----------------------------------------------------------------------- */
+/* Speaker-segment results (diarization)                                   */
+/* ----------------------------------------------------------------------- */
+
+/*
+ * "Who spoke when" rows, populated when the run resolved diarization ON
+ * for a model with TRANSCRIBE_FEATURE_DIARIZATION (see
+ * transcribe_diarize_mode). Rows are ordered by emission order of the
+ * model's speaker turns; rows MAY overlap in time (two speakers talking
+ * at once are two overlapping rows). A model that attributes text but
+ * carries no timing information reports t0_ms == t1_ms == 0 ("absent"
+ * per the zero-sentinel rule).
+ *
+ * These rows are the transcript-independent view of speaker activity.
+ * The transcript-attached view is transcribe_segment::speaker_id.
+ *
+ * p is the attribution confidence when the model produces one, or NaN
+ * when it does not (same convention as transcribe_token::p). On
+ * out-of-range index `p` follows the zero-init rule (0.0f, not NaN);
+ * inspect `speaker_id != 0` to distinguish a present row.
+ *
+ * Empty (count 0) whenever diarization did not run: unsupported family,
+ * diarize mode OFF, or no speaker markers recognized in this result.
+ */
+struct transcribe_speaker_segment {
+    uint64_t struct_size;
+    int64_t  t0_ms;
+    int64_t  t1_ms;
+    int32_t  speaker_id; /* 1-based; 0 = row not present */
+    float    p;          /* confidence hint; NaN = not produced */
+};
+
+TRANSCRIBE_API void transcribe_speaker_segment_init(struct transcribe_speaker_segment * out);
+
+/* 0 before any run, on NULL session, or when diarization did not run. */
+TRANSCRIBE_API int transcribe_n_speaker_segments(const struct transcribe_session * session);
+
+/*
+ * Read one speaker-segment row into caller-owned storage. Same contract
+ * as transcribe_get_segment: INVALID_ARG on NULL out, BAD_STRUCT_SIZE on
+ * a zero/short struct_size, otherwise OK with the struct written when i
+ * is in range and left zero-initialized when it is not.
+ */
+TRANSCRIBE_API transcribe_status transcribe_get_speaker_segment(const struct transcribe_session *   session,
+                                                                int                                 i,
+                                                                struct transcribe_speaker_segment * out);
+
+/* ----------------------------------------------------------------------- */
 /* Batch result accessors                                                  */
 /* ----------------------------------------------------------------------- */
 
@@ -2453,6 +2587,9 @@ TRANSCRIBE_API transcribe_status transcribe_batch_status(const struct transcribe
 
 TRANSCRIBE_API const char * transcribe_batch_full_text(const struct transcribe_session * session, int i);
 
+/* Per-utterance raw text; same contract as transcribe_raw_text. */
+TRANSCRIBE_API const char * transcribe_batch_raw_text(const struct transcribe_session * session, int i);
+
 TRANSCRIBE_API transcribe_timestamp_kind
 transcribe_batch_returned_timestamp_kind(const struct transcribe_session * session, int i);
 
@@ -2483,6 +2620,14 @@ TRANSCRIBE_API transcribe_status transcribe_batch_get_token(const struct transcr
                                                             int                               i,
                                                             int                               j,
                                                             struct transcribe_token *         out);
+
+/* Speaker-segment batch mirrors; same contracts as the single-result pair. */
+TRANSCRIBE_API int transcribe_batch_n_speaker_segments(const struct transcribe_session * session, int i);
+
+TRANSCRIBE_API transcribe_status transcribe_batch_get_speaker_segment(const struct transcribe_session *   session,
+                                                                      int                                 i,
+                                                                      int                                 j,
+                                                                      struct transcribe_speaker_segment * out);
 
 /*
  * Per-utterance timings for a batched run. Mirrors transcribe_get_timings but

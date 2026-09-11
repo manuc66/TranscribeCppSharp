@@ -16,6 +16,12 @@ AUDIO_DIR="./test-audio"
 AUDIO_FILE="$AUDIO_DIR/jfk.wav"
 AUDIO_URL="https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav"
 
+# Opt-in heavy asset for the diarization tests (MOSS Q4_K_M, ~617 MB).
+# Only fetched when WITH_DIARIZATION_MODEL=1; the diarization test skips
+# otherwise. Pinned to the upstream release the wrapper binds to.
+MOSS_FILE="$MODEL_DIR/moss-transcribe-diarize-q4-k-m.gguf"
+MOSS_URL="https://huggingface.co/handy-computer/MOSS-Transcribe-Diarize-gguf/resolve/main/MOSS-Transcribe-Diarize-Q4_K_M.gguf"
+
 # curl: restrict both direct and redirected URLs to HTTPS
 CURL_PROTO="=https"
 
@@ -58,6 +64,19 @@ if [[ ! -f "$AUDIO_FILE" ]]; then
     echo "Audio downloaded to $AUDIO_FILE"
 else
     echo "Audio already exists at $AUDIO_FILE"
+fi
+
+# Download diarization model only on explicit opt-in (large asset)
+if [[ "${WITH_DIARIZATION_MODEL:-0}" == "1" ]]; then
+    if [[ ! -f "$MOSS_FILE" ]]; then
+        echo "Downloading MOSS diarization model (~617 MB)..."
+        curl -fSL --proto "$CURL_PROTO" --proto-redir "$CURL_PROTO" -o "$MOSS_FILE" "$MOSS_URL"
+        echo "Model downloaded to $MOSS_FILE"
+    else
+        echo "Diarization model already exists at $MOSS_FILE"
+    fi
+else
+    echo "Skipping diarization model (set WITH_DIARIZATION_MODEL=1 to fetch it)"
 fi
 
 # Set library path for native library (the CopyNativeLib target also places the

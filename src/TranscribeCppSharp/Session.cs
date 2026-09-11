@@ -122,6 +122,34 @@ public sealed class Session : IDisposable
         }
     }
 
+    /// <summary>
+    /// The model's decoded output before family post-processing (inline
+    /// diarization markers, tags, … still present). Empty before any run.
+    /// </summary>
+    public string RawText
+    {
+        get
+        {
+            ThrowIfDisposed();
+            var ptr = NativeMethods.RawText(handle);
+            var result = ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
+            GC.KeepAlive(this);
+            return result;
+        }
+    }
+
+    /// <summary>Number of speaker segments in the last result (0 when diarization did not run).</summary>
+    public int SpeakerSegmentCount
+    {
+        get
+        {
+            ThrowIfDisposed();
+            var count = NativeMethods.NSpeakerSegments(handle);
+            GC.KeepAlive(this);
+            return count;
+        }
+    }
+
     /// <summary>Number of segments in the last result.</summary>
     public int SegmentCount
     {
@@ -244,7 +272,25 @@ public sealed class Session : IDisposable
             map: static seg => new SegmentResult(
                 Start: TimeSpan.FromMilliseconds(seg.t0Ms),
                 End: TimeSpan.FromMilliseconds(seg.t1Ms),
-                Text: Marshal.PtrToStringUTF8(seg.text) ?? string.Empty));
+                Text: Marshal.PtrToStringUTF8(seg.text) ?? string.Empty,
+                SpeakerId: seg.speakerId));
+    }
+
+    /// <summary>Read speaker segments from the last run result (empty when diarization did not run).</summary>
+    public IReadOnlyList<SpeakerSegmentResult> ReadSpeakerSegments()
+    {
+        ThrowIfDisposed();
+        return ReadItems<Interop.SpeakerSegment, SpeakerSegmentResult>(
+            count: NativeMethods.NSpeakerSegments(handle),
+            abi: AbiStruct.AbiSpeakerSegment,
+            init: NativeMethods.SpeakerSegmentInit,
+            get: (i, ptr) => NativeMethods.GetSpeakerSegment(handle, i, ptr),
+            getMethodName: nameof(NativeMethods.GetSpeakerSegment),
+            map: static seg => new SpeakerSegmentResult(
+                Start: TimeSpan.FromMilliseconds(seg.t0Ms),
+                End: TimeSpan.FromMilliseconds(seg.t1Ms),
+                SpeakerId: seg.speakerId,
+                Probability: seg.p));
     }
 
     /// <summary>Read words from the last run result.</summary>
@@ -384,7 +430,32 @@ public sealed class Session : IDisposable
             map: static seg => new SegmentResult(
                 Start: TimeSpan.FromMilliseconds(seg.t0Ms),
                 End: TimeSpan.FromMilliseconds(seg.t1Ms),
-                Text: Marshal.PtrToStringUTF8(seg.text) ?? string.Empty));
+                Text: Marshal.PtrToStringUTF8(seg.text) ?? string.Empty,
+                SpeakerId: seg.speakerId));
+    }
+
+    /// <summary>Get the per-utterance raw text of a batch result.</summary>
+    internal string GetBatchResultRawText(int index)
+    {
+        ThrowIfDisposed();
+        var ptr = NativeMethods.BatchRawText(handle, index);
+        return ptr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
+    }
+
+    internal IReadOnlyList<SpeakerSegmentResult> GetBatchSpeakerSegments(int batchIndex)
+    {
+        ThrowIfDisposed();
+        return ReadItems<Interop.SpeakerSegment, SpeakerSegmentResult>(
+            count: NativeMethods.BatchNSpeakerSegments(handle, batchIndex),
+            abi: AbiStruct.AbiSpeakerSegment,
+            init: NativeMethods.SpeakerSegmentInit,
+            get: (j, ptr) => NativeMethods.BatchGetSpeakerSegment(handle, batchIndex, j, ptr),
+            getMethodName: nameof(NativeMethods.BatchGetSpeakerSegment),
+            map: static seg => new SpeakerSegmentResult(
+                Start: TimeSpan.FromMilliseconds(seg.t0Ms),
+                End: TimeSpan.FromMilliseconds(seg.t1Ms),
+                SpeakerId: seg.speakerId,
+                Probability: seg.p));
     }
 
     internal IReadOnlyList<WordResult> GetBatchWords(int batchIndex)
@@ -461,10 +532,12 @@ public sealed class Session : IDisposable
         var segments = ReadSegments();
         var words = ReadWords();
         var tokens = ReadTokens();
+        var speakerSegments = ReadSpeakerSegments();
 
         return new Transcript
         {
             FullText = FullText,
+            RawText = RawText,
             DetectedLanguage = lang,
             WasAborted = WasAborted,
             WasTruncated = WasTruncated,
@@ -472,6 +545,7 @@ public sealed class Session : IDisposable
             Segments = segments,
             Words = words,
             Tokens = tokens,
+            SpeakerSegments = speakerSegments,
         };
     }
 

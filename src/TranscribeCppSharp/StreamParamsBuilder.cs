@@ -16,6 +16,7 @@ public sealed class StreamParamsBuilder : IDisposable
     private MoonshineExtBuilder? moonshineExt;
     private ParakeetStreamExtBuilder? parakeetStreamExt;
     private ParakeetBufferedStreamExtBuilder? parakeetBufferedExt;
+    private SortformerStreamExtBuilder? sortformerExt;
     private VoxtralExtBuilder? voxtralExt;
     private bool disposed;
 
@@ -72,6 +73,16 @@ public sealed class StreamParamsBuilder : IDisposable
         return this;
     }
 
+    /// <summary>Sortformer streaming extension parameters.</summary>
+    public StreamParamsBuilder WithSortformerExt(SortformerStreamExtBuilder ext)
+    {
+        ArgumentNullException.ThrowIfNull(ext);
+        ClearFamily();
+        sortformerExt = ext;
+        @params.family = ext.Build();
+        return this;
+    }
+
     /// <summary>Voxtral realtime streaming extension parameters.</summary>
     public StreamParamsBuilder WithVoxtralExt(VoxtralExtBuilder ext)
     {
@@ -90,6 +101,8 @@ public sealed class StreamParamsBuilder : IDisposable
         parakeetStreamExt = null;
         parakeetBufferedExt?.Dispose();
         parakeetBufferedExt = null;
+        sortformerExt?.Dispose();
+        sortformerExt = null;
         voxtralExt?.Dispose();
         voxtralExt = null;
         @params.family = IntPtr.Zero;

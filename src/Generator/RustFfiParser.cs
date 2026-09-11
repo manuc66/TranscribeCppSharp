@@ -15,6 +15,8 @@ public partial class RustFfiParser
     [
         "transcribe_model",
         "transcribe_session",
+        "transcribe_device",
+        "transcribe_device_t",
     ];
 
     private static readonly HashSet<string> PrimitiveNames =

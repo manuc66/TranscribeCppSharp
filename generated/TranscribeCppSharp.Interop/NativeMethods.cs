@@ -181,7 +181,8 @@ public enum AbiStruct
     AbiStreamText = 10,
     AbiSessionLimits = 11,
     AbiExt = 12,
-    AbiBackendDevice = 13,
+    AbiDeviceInfo = 13,
+    AbiSpeakerSegment = 14,
 }
 
 /// <summary>
@@ -213,9 +214,10 @@ public enum Task
 
 /// <summary>
 /// <para>
-/// Timestamp policy: transcribe_run_params_init() requests NONE for
-/// text-first transcription. AUTO is an opt-in "richest supported"
-/// mode: it is treated as "equal to the model's max_timestamp_kind."
+/// Timestamp policy: transcribe_run_params_init() requests AUTO, the richest
+/// supported output. AUTO requests the richest granularity compatible with the model and
+/// the other selected run tasks (for example, a prompt-selected diarization
+/// task may not compose with the model's separate timestamp task).
 /// The dispatcher never rejects AUTO, and the per-family run() handler
 /// resolves it to the finest granularity the model can actually
 /// produce when it assembles the result. A non-AUTO request is treated
@@ -323,6 +325,47 @@ public enum ItnMode
 
 /// <summary>
 /// <para>
+/// Speaker-diarization toggle on the run params.
+/// </para>
+/// <para>
+/// Symmetric semantics to transcribe_pnc_mode / transcribe_itn_mode but
+/// for speaker attribution. Families whose model emits speaker-attributed
+/// output read this field; families that do not ignore it. Non-DEFAULT
+/// values against a model for which
+/// transcribe_model_supports(model, TRANSCRIBE_FEATURE_DIARIZATION)
+/// returns false emit a WARN and proceed with default behavior.
+/// </para>
+/// <para>
+/// When ON resolves, the model's speaker markers are parsed into
+/// structured results: segment rows carry speaker_id and the
+/// speaker-segment accessors (transcribe_n_speaker_segments /
+/// transcribe_get_speaker_segment) are populated, with the markers
+/// stripped from the text. How a family produces markers is
+/// family-specific: moss always emits them (parsing is pure host-side
+/// post-processing), while granite-speech-4.1-2b-plus emits them only
+/// when its prompt requests the speaker-attribution task, so there ON
+/// changes the instruction the model is given. See each family doc.
+/// </para>
+/// <para>
+/// DEFAULT (0): library default: OFF for every family. Zero-init gives
+/// this value.
+/// OFF:         no speaker attribution. Families where diarization is a
+/// requested task do not request it. Families such as moss
+/// whose model always emits inline metadata still strip that
+/// metadata so full_text remains a clean transcript.
+/// ON:          request (if needed) and parse speaker markers into
+/// segment speaker_id + speaker segments.
+/// </para>
+/// </summary>
+public enum DiarizeMode
+{
+    DiarizeModeDefault = 0,
+    DiarizeModeOff = 1,
+    DiarizeModeOn = 2,
+}
+
+/// <summary>
+/// <para>
 /// Extension slot — the API surface a typed family extension is pointed
 /// at. Slot acceptance is a model-and-slot concern; the dispatcher
 /// validates <c>slot</c> matches the call site before delegating to the
@@ -359,7 +402,7 @@ public enum ExtSlot
 /// that successfully initializes, probing every discrete GPU
 /// before any integrated GPU; within a tier, devices are tried
 /// in ggml's device registry order — which is build-time
-/// prioritized (Metal on Apple, Vulkan / CUDA / SYCL on
+/// prioritized (Metal on Apple, Vulkan / CUDA / ROCm / SYCL on
 /// Linux, …). An integrated GPU is selected only when no
 /// discrete GPU initializes. Host-memory accelerators (BLAS,
 /// AMX, …) are additionally layered onto the scheduler when
@@ -397,6 +440,14 @@ public enum ExtSlot
 /// accelerators are still layered on when present.
 /// </para>
 /// <para>
+/// CUDA    Require the NVIDIA CUDA backend. Returns TRANSCRIBE_ERR_BACKEND
+/// if CUDA is not available in this build.
+/// </para>
+/// <para>
+/// ROCM    Require the AMD ROCm backend. Returns TRANSCRIBE_ERR_BACKEND
+/// if ROCm is not available in this build.
+/// </para>
+/// <para>
 /// Callers that need to know which backend they actually landed on
 /// can query transcribe_model_backend() after load.
 /// </para>
@@ -409,13 +460,14 @@ public enum BackendRequest
     BackendVulkan = 3,
     BackendCpuAccel = 4,
     BackendCuda = 5,
+    BackendRocm = 6,
 }
 
 /// <summary>
 /// <para>
 /// Device type: ggml's vendor-agnostic classification of a device,
 /// orthogonal to <c>kind</c> below (which carries the vendor: metal/vulkan/cuda/
-/// ...). Backends report this classification themselves, so treat it as a
+/// rocm/...). Backends report this classification themselves, so treat it as a
 /// runtime hint about CPU/GPU/IGPU/ACCEL placement rather than a portable
 /// hardware-memory taxonomy. The numeric values mirror ggml's device-type
 /// enum.
@@ -477,6 +529,18 @@ public enum DeviceType
 /// itn against an unsupported model warns.
 /// </para>
 /// <para>
+/// DIARIZATION          The model emits speaker-attributed output and
+/// the runtime exposes a toggle via
+/// transcribe_run_params::diarize. When true,
+/// segment rows carry speaker_id and the
+/// speaker-segment accessors are populated (mode
+/// permitting). False does NOT mean multi-speaker
+/// audio is mis-transcribed — only that speaker
+/// attribution is unavailable. Non-DEFAULT diarize
+/// against a model where this returns false emits
+/// a WARN and proceeds.
+/// </para>
+/// <para>
 /// Returns false on NULL model or unknown feature enum.
 /// </para>
 /// </summary>
@@ -488,6 +552,7 @@ public enum Feature
     FeatureCancellation = 3,
     FeaturePnc = 4,
     FeatureItn = 5,
+    FeatureDiarization = 6,
 }
 
 /// <summary>
@@ -595,6 +660,14 @@ public enum StreamCommitPolicy
     StreamCommitAuto = 0,
     StreamCommitOnFinalize = 1,
     StreamCommitStablePrefix = 2,
+}
+
+public enum SortformerPreset
+{
+    SortformerPresetDefault = 0,
+    SortformerPresetVeryHighLatency = 1,
+    SortformerPresetHighLatency = 2,
+    SortformerPresetLowLatency = 3,
 }
 
 public enum WhisperPromptCondition
@@ -746,8 +819,8 @@ public struct Ext
 /// <para>
 /// kind is the library's vendor classification, one of: "cpu", "accel" (a
 /// host-memory accelerator such as BLAS/AMX), "metal", "vulkan", "cuda",
-/// "sycl", "gpu" (an unrecognized GPU), or "unknown". device_type is the
-/// orthogonal CPU/GPU/IGPU/ACCEL axis.
+/// "rocm", "sycl", "gpu" (an unrecognized GPU), or "unknown". device_type is
+/// the orthogonal CPU/GPU/IGPU/ACCEL axis.
 /// </para>
 /// <para>
 /// device_id is a stable hardware identifier when the backend reports one
@@ -766,7 +839,7 @@ public struct Ext
 /// </para>
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
-public struct BackendDevice
+public struct DeviceInfo
 {
     public ulong structSize;
     public IntPtr name;
@@ -787,34 +860,23 @@ public struct BackendDevice
 /// for the semantics of each value. Default is AUTO.
 /// </para>
 /// <para>
-/// gpu_device: Multi-GPU selector. 0 (the default) means "auto / the first
-/// device of the chosen kind": AUTO picks the first GPU that
-/// initializes, and explicit METAL/VULKAN/CUDA requests pick the
-/// first matching device — in both cases probing every discrete
-/// GPU before any integrated GPU, in ggml's registry order
-/// within each tier.
+/// device:  NULL (the default) applies the backend's automatic policy. AUTO
+/// probes every discrete GPU before integrated GPUs and finally falls
+/// back to CPU; an explicit GPU backend picks the first matching
+/// device. A non-NULL handle selects that exact registered device,
+/// including the device returned at index 0.
 /// </para>
 /// <para>
-/// A value > 0 selects the GPU/IGPU device at that global ggml
-/// registry index — the same index space transcribe_get_backend_device()
-/// enumerates, so enumerate first to choose one. The selected
-/// device becomes the model's primary backend, validated against
-/// <c>backend</c>: it must be a GPU/IGPU, and for an explicit
-/// METAL/VULKAN/CUDA request it must be that vendor. The index is
-/// order-dependent — ggml's registry order can shift across driver
-/// updates or hosts, so treat it as a runtime selection, not a
-/// stable identifier; correlate via the enumerated device's name /
-/// device_id when you need stability.
+/// Exact selection never silently falls back to another primary
+/// device. With backend=AUTO, the selected device determines the
+/// backend. With an explicit backend, the device must match it. CPU
+/// and CPU_ACCEL accept an exact CPU device; ACCEL devices cannot be
+/// selected as a primary. Invalid, foreign, or mismatched handles are
+/// rejected with TRANSCRIBE_ERR_INVALID_ARG.
 /// </para>
 /// <para>
-/// gpu_device is rejected with TRANSCRIBE_ERR_INVALID_ARG when it
-/// is negative, out of range, names a non-GPU device, names a
-/// device whose vendor doesn't match an explicit GPU request, or
-/// is non-zero alongside a CPU / CPU_ACCEL request (there is no
-/// GPU to select). Note there is no way to explicitly select the
-/// device at registry index 0 — 0 is the auto sentinel. An
-/// integrated GPU sitting at index 0 is therefore reachable only
-/// via the probe order, when no discrete GPU initializes.
+/// Handles are process-local. Persist device_id (when available), then
+/// enumerate and resolve a fresh handle in each process.
 /// </para>
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
@@ -822,7 +884,7 @@ public struct ModelLoadParams
 {
     public ulong structSize;
     public BackendRequest backend;
-    public int gpuDevice;
+    public IntPtr device;
 }
 
 /// <summary>
@@ -889,9 +951,9 @@ public struct SessionParams
 /// returns TRANSCRIBE_ERR_UNSUPPORTED_TASK.
 /// </para>
 /// <para>
-/// timestamps:  requested granularity. Default params request NONE.
-/// Use AUTO to get the finest granularity the model
-/// supports.
+/// timestamps:  requested granularity. Default params request AUTO,
+/// which selects the finest granularity compatible with
+/// the model and other selected run tasks.
 /// </para>
 /// <para>
 /// pnc:         punctuation+capitalization runtime toggle. See
@@ -907,6 +969,14 @@ public struct SessionParams
 /// values against models for which
 /// transcribe_model_supports(model, TRANSCRIBE_FEATURE_ITN) is
 /// false emit a WARN and proceed with the model's default
+/// behavior.
+/// </para>
+/// <para>
+/// diarize:     speaker-attribution runtime toggle. See
+/// transcribe_diarize_mode. DEFAULT is always safe. Non-DEFAULT
+/// values against models for which
+/// transcribe_model_supports(model, TRANSCRIBE_FEATURE_DIARIZATION)
+/// is false emit a WARN and proceed with the model's default
 /// behavior.
 /// </para>
 /// <para>
@@ -929,9 +999,14 @@ public struct SessionParams
 /// <para>
 /// keep_special_tags: keep special vocabulary tags (e.g. &lt;|...|>) in the
 /// returned text fields. Default (false) strips them
-/// for clean transcripts; set true to keep the raw
-/// tags. Token-level accessors always expose the raw
-/// token text regardless of this flag.
+/// for clean transcripts; set true to keep the tags
+/// inline. Honored by the families whose models emit
+/// such tags (canary, parakeet, sensevoice); parakeet
+/// additionally includes/excludes the tag tokens in
+/// its public token rows. Most callers should prefer
+/// transcribe_raw_text(), which returns the pre-
+/// cleanup decode for EVERY family without giving up
+/// the clean transcribe_full_text.
 /// </para>
 /// <para>
 /// family:      optional family-specific extension. NULL selects family
@@ -954,6 +1029,7 @@ public struct RunParams
     public TimestampKind timestamps;
     public PncMode pnc;
     public ItnMode itn;
+    public DiarizeMode diarize;
     public IntPtr language;
     public IntPtr targetLanguage;
     [MarshalAs(UnmanagedType.I1)]
@@ -1475,6 +1551,7 @@ public struct Segment
     public int firstToken;
     public int nTokens;
     public IntPtr text;
+    public int speakerId;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
@@ -1516,6 +1593,41 @@ public struct Token
     public IntPtr text;
 }
 
+/// <summary>
+/// <para>
+/// "Who spoke when" rows, populated when the run resolved diarization ON
+/// for a model with TRANSCRIBE_FEATURE_DIARIZATION (see
+/// transcribe_diarize_mode). Rows are ordered by emission order of the
+/// model's speaker turns; rows MAY overlap in time (two speakers talking
+/// at once are two overlapping rows). A model that attributes text but
+/// carries no timing information reports t0_ms == t1_ms == 0 ("absent"
+/// per the zero-sentinel rule).
+/// </para>
+/// <para>
+/// These rows are the transcript-independent view of speaker activity.
+/// The transcript-attached view is transcribe_segment::speaker_id.
+/// </para>
+/// <para>
+/// p is the attribution confidence when the model produces one, or NaN
+/// when it does not (same convention as transcribe_token::p). On
+/// out-of-range index <c>p</c> follows the zero-init rule (0.0f, not NaN);
+/// inspect <c>speaker_id != 0</c> to distinguish a present row.
+/// </para>
+/// <para>
+/// Empty (count 0) whenever diarization did not run: unsupported family,
+/// diarize mode OFF, or no speaker markers recognized in this result.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct SpeakerSegment
+{
+    public ulong structSize;
+    public long t0Ms;
+    public long t1Ms;
+    public int speakerId;
+    public float p;
+}
+
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct MoonshineStreamingStreamExt
 {
@@ -1537,6 +1649,13 @@ public struct ParakeetBufferedStreamExt
     public int leftMs;
     public int chunkMs;
     public int rightMs;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct SortformerStreamExt
+{
+    public Ext ext;
+    public SortformerPreset preset;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
@@ -1593,22 +1712,24 @@ internal static class AbiLayout
     public static readonly (string TypeName, ulong Size, ulong Align, (string Field, nuint Offset)[] Offsets)[] All =
     [
         ("Ext", 16, 8, [("size", 0), ("kind", 8)]),
-        ("BackendDevice", 64, 8, [("structSize", 0), ("name", 8), ("description", 16), ("kind", 24), ("deviceId", 32), ("memoryTotal", 40), ("memoryFree", 48), ("deviceType", 56)]),
-        ("ModelLoadParams", 16, 8, [("structSize", 0), ("backend", 8), ("gpuDevice", 12)]),
+        ("DeviceInfo", 64, 8, [("structSize", 0), ("name", 8), ("description", 16), ("kind", 24), ("deviceId", 32), ("memoryTotal", 40), ("memoryFree", 48), ("deviceType", 56)]),
+        ("ModelLoadParams", 24, 8, [("structSize", 0), ("backend", 8), ("device", 16)]),
         ("SessionParams", 24, 8, [("structSize", 0), ("nThreads", 8), ("kvType", 12), ("nCtx", 16)]),
-        ("RunParams", 64, 8, [("structSize", 0), ("task", 8), ("timestamps", 12), ("pnc", 16), ("itn", 20), ("language", 24), ("targetLanguage", 32), ("keepSpecialTags", 40), ("family", 48), ("specKDrafts", 56)]),
+        ("RunParams", 72, 8, [("structSize", 0), ("task", 8), ("timestamps", 12), ("pnc", 16), ("itn", 20), ("diarize", 24), ("language", 32), ("targetLanguage", 40), ("keepSpecialTags", 48), ("family", 56), ("specKDrafts", 64)]),
         ("Capabilities", 56, 8, [("structSize", 0), ("nativeSampleRate", 8), ("nLanguages", 12), ("languages", 16), ("maxTimestampKind", 24), ("supportsLanguageDetect", 28), ("supportsTranslate", 29), ("supportsStreaming", 30), ("supportsSpecDecode", 31), ("maxAudioMs", 32), ("nTranslateTargetLanguages", 40), ("translateTargetLanguages", 48)]),
         ("SessionLimits", 32, 8, [("structSize", 0), ("effectiveNCtx", 8), ("effectiveMaxAudioMs", 16), ("maxKvBytes", 24)]),
         ("StreamParams", 24, 8, [("structSize", 0), ("family", 8), ("commitPolicy", 16), ("stablePrefixAgreementN", 20)]),
         ("StreamUpdate", 48, 8, [("structSize", 0), ("resultChanged", 8), ("isFinal", 9), ("revision", 12), ("inputReceivedMs", 16), ("audioCommittedMs", 24), ("bufferedMs", 32), ("committedChanged", 40), ("tentativeChanged", 41)]),
         ("StreamText", 64, 8, [("structSize", 0), ("fullText", 8), ("fullTextBytes", 16), ("committedText", 24), ("committedTextBytes", 32), ("tentativeText", 40), ("tentativeTextBytes", 48), ("rawTentativeStartBytes", 56)]),
         ("Timings", 24, 8, [("structSize", 0), ("loadMs", 8), ("melMs", 12), ("encodeMs", 16), ("decodeMs", 20)]),
-        ("Segment", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("firstWord", 24), ("nWords", 28), ("firstToken", 32), ("nTokens", 36), ("text", 40)]),
+        ("Segment", 56, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("firstWord", 24), ("nWords", 28), ("firstToken", 32), ("nTokens", 36), ("text", 40), ("speakerId", 48)]),
         ("Word", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("segIndex", 24), ("firstToken", 28), ("nTokens", 32), ("text", 40)]),
         ("Token", 48, 8, [("structSize", 0), ("id", 8), ("p", 12), ("t0Ms", 16), ("t1Ms", 24), ("segIndex", 32), ("wordIndex", 36), ("text", 40)]),
+        ("SpeakerSegment", 32, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("speakerId", 24), ("p", 28)]),
         ("MoonshineStreamingStreamExt", 24, 8, [("ext", 0), ("minDecodeIntervalMs", 16)]),
         ("ParakeetStreamExt", 24, 8, [("ext", 0), ("attContextRight", 16)]),
         ("ParakeetBufferedStreamExt", 32, 8, [("ext", 0), ("leftMs", 16), ("chunkMs", 20), ("rightMs", 24)]),
+        ("SortformerStreamExt", 24, 8, [("ext", 0), ("preset", 16)]),
         ("VoxtralRealtimeStreamExt", 24, 8, [("ext", 0), ("numDelayTokens", 16), ("minDecodeIntervalMs", 20)]),
         ("WhisperRunExt", 80, 8, [("ext", 0), ("initialPrompt", 16), ("promptTokens", 24), ("nPromptTokens", 32), ("promptCondition", 40), ("conditionOnPrevTokens", 44), ("maxPrevContextTokens", 48), ("temperature", 52), ("temperatureInc", 56), ("compressionRatioThold", 60), ("logprobThold", 64), ("noSpeechThold", 68), ("seed", 72), ("maxInitialTimestamp", 76)]),
         ("WhisperChunkTrace", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("temperatureUsed", 24), ("compressionRatio", 28), ("avgLogprob", 32), ("noSpeechProb", 36), ("noSpeechTriggered", 40), ("nFallbacks", 44)]),
@@ -1846,33 +1967,48 @@ internal static partial class NativeMethods
     /// on: the CPU, an Apple GPU via Metal, a Vulkan GPU, ...
     /// </para>
     /// </summary>
-    [LibraryImport(LibName, EntryPoint = "transcribe_backend_device_count", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int BackendDeviceCount();
-
-    [LibraryImport(LibName, EntryPoint = "transcribe_backend_device_init", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void BackendDeviceInit(IntPtr /* transcribe_backend_device */ p);
+    [LibraryImport(LibName, EntryPoint = "transcribe_device_count", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int DeviceCount();
 
     /// <summary>
     /// <para>
-    /// Fill *out (initialized via transcribe_backend_device_init) with device
-    /// <c>index</c> in [0, transcribe_backend_device_count()).
+    /// Return the registered device at <c>index</c>, or NULL when index is out of
+    /// range. The returned handle is runtime-owned and process-local.
     /// </para>
     /// <para>
-    /// memory_free is live as of this call; re-invoke to refresh it (e.g. to
-    /// poll a device's available memory over time). The device handles are
-    /// stable for the life of the process, so the same index always names the
-    /// same device.
+    /// IMPORTANT: NULL is also the automatic-selection sentinel in
+    /// transcribe_model_load_params::device. Always check this return value before
+    /// assigning it to model-load params; assigning an unchecked out-of-range
+    /// result would request automatic selection rather than exact selection.
     /// </para>
     /// </summary>
-    [LibraryImport(LibName, EntryPoint = "transcribe_get_backend_device", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status GetBackendDevice(int index, IntPtr /* transcribe_backend_device */ @out);
+    [LibraryImport(LibName, EntryPoint = "transcribe_device_get", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr DeviceGet(int index);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_device_info_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void DeviceInfoInit(IntPtr /* transcribe_device_info */ p);
+
+    /// <summary>
+    /// <para>
+    /// Fill *out (initialized via transcribe_device_info_init) with information
+    /// about <c>device</c>. memory_free is live as of this call; re-invoke to refresh it
+    /// (e.g. to poll a device's available memory over time).
+    /// </para>
+    /// <para>
+    /// Returns TRANSCRIBE_ERR_INVALID_ARG if device or out is NULL or device is
+    /// not from this runtime's registry. Returns TRANSCRIBE_ERR_BAD_STRUCT_SIZE if
+    /// out fails the struct-size check.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_device_get_info", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status DeviceGetInfo(IntPtr device, IntPtr /* transcribe_device_info */ @out);
 
     /// <summary>
     /// <para>
     /// Whether a backend request can be satisfied by some registered device:
     /// AUTO whenever any device exists; CPU and CPU_ACCEL when a CPU device
-    /// exists; METAL / VULKAN / CUDA when a device of that kind exists. Unknown
-    /// or invalid request values answer false (never an error). This is the
+    /// exists; METAL / VULKAN / CUDA / ROCM when a device of that kind exists.
+    /// Unknown or invalid request values answer false (never an error). This is the
     /// probe a binding uses to turn <c>backend="vulkan"</c> on a machine without
     /// Vulkan into a clear exception instead of a failed model load.
     /// </para>
@@ -1883,21 +2019,14 @@ internal static partial class NativeMethods
 
     /// <summary>
     /// <para>
-    /// Fill *out (initialized via transcribe_backend_device_init) with the
-    /// compute device this loaded model is running on — the device that owns its
-    /// weights and runs most of its graph. Same struct and same live-snapshot
-    /// semantics as transcribe_get_backend_device: memory_free is current as of
-    /// the call, so re-invoke to ask "how much memory is left on the device my
-    /// model landed on" at any time after load.
-    /// </para>
-    /// <para>
-    /// Returns TRANSCRIBE_ERR_INVALID_ARG if model or out is NULL (or out fails
-    /// the struct-size check), or TRANSCRIBE_ERR_BACKEND if the model has no
-    /// resolved compute device.
+    /// Return the compute device this loaded model is running on — the device
+    /// that owns its weights and runs most of its graph. Returns NULL if model is
+    /// NULL or has no resolved compute device. Pass the returned handle to
+    /// transcribe_device_get_info() for metadata and a live memory snapshot.
     /// </para>
     /// </summary>
-    [LibraryImport(LibName, EntryPoint = "transcribe_model_get_device", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial Status ModelGetDevice(IntPtr model, IntPtr /* transcribe_backend_device */ @out);
+    [LibraryImport(LibName, EntryPoint = "transcribe_model_device", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr ModelDevice(IntPtr model);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_model_load_params_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ModelLoadParamsInit(IntPtr /* transcribe_model_load_params */ @params);
@@ -1953,7 +2082,7 @@ internal static partial class NativeMethods
     /// </para>
     /// <para>
     /// transcribe_model_backend(): the runtime backend currently bound
-    /// to this model, e.g. "cpu", "metal", "vulkan", "cuda". This is
+    /// to this model, e.g. "cpu", "metal", "vulkan", "cuda", "ROCm". This is
     /// the mechanism for detecting CPU fallback when GPU was requested.
     /// </para>
     /// <para>
@@ -2688,6 +2817,23 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_full_text", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr FullText(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// The model's decoded output BEFORE family post-processing — inline
+    /// diarization markers (moss <c>[0.48][S01]</c>, granite <c>[Speaker N]:</c>),
+    /// timestamp/special tokens (whisper), language/event/emotion tags
+    /// (sensevoice, parakeet, canary), chat-envelope prefixes (qwen3_asr),
+    /// and whitespace trims are all still present. transcribe_full_text is
+    /// always the clean transcript; this is the escape hatch for callers who
+    /// want what the model actually emitted (debugging, custom parsing).
+    /// Equal to full_text modulo whitespace for families that emit clean
+    /// text natively. Session-owned; same lifetime as transcribe_full_text.
+    /// Empty string before any successful run.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_raw_text", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr RawText(IntPtr session);
+
     [LibraryImport(LibName, EntryPoint = "transcribe_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
     public static partial TimestampKind ReturnedTimestampKind(IntPtr session);
 
@@ -2777,6 +2923,28 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_get_token", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status GetToken(IntPtr session, int i, IntPtr /* transcribe_token */ @out);
 
+    [LibraryImport(LibName, EntryPoint = "transcribe_speaker_segment_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void SpeakerSegmentInit(IntPtr /* transcribe_speaker_segment */ @out);
+
+    /// <summary>
+    /// <para>
+    /// 0 before any run, on NULL session, or when diarization did not run.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_n_speaker_segments", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int NSpeakerSegments(IntPtr session);
+
+    /// <summary>
+    /// <para>
+    /// Read one speaker-segment row into caller-owned storage. Same contract
+    /// as transcribe_get_segment: INVALID_ARG on NULL out, BAD_STRUCT_SIZE on
+    /// a zero/short struct_size, otherwise OK with the struct written when i
+    /// is in range and left zero-initialized when it is not.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_get_speaker_segment", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status GetSpeakerSegment(IntPtr session, int i, IntPtr /* transcribe_speaker_segment */ @out);
+
     /// <summary>
     /// <para>
     /// Number of per-utterance results available. 0 before any run, or if
@@ -2807,6 +2975,14 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_full_text", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr BatchFullText(IntPtr session, int i);
+
+    /// <summary>
+    /// <para>
+    /// Per-utterance raw text; same contract as transcribe_raw_text.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_batch_raw_text", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr BatchRawText(IntPtr session, int i);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_returned_timestamp_kind", StringMarshalling = StringMarshalling.Utf8)]
     public static partial TimestampKind BatchReturnedTimestampKind(IntPtr session, int i);
@@ -2841,6 +3017,17 @@ internal static partial class NativeMethods
 
     /// <summary>
     /// <para>
+    /// Speaker-segment batch mirrors; same contracts as the single-result pair.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_batch_n_speaker_segments", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int BatchNSpeakerSegments(IntPtr session, int i);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_speaker_segment", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status BatchGetSpeakerSegment(IntPtr session, int i, int j, IntPtr /* transcribe_speaker_segment */ @out);
+
+    /// <summary>
+    /// <para>
     /// Per-utterance timings for a batched run. Mirrors transcribe_get_timings but
     /// indexed by utterance. load_ms is the model-scoped load time (same for every
     /// utterance). mel_ms / encode_ms / decode_ms are this utterance's stage times;
@@ -2866,6 +3053,9 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibName, EntryPoint = "transcribe_parakeet_buffered_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ParakeetBufferedStreamExtInit(IntPtr /* transcribe_parakeet_buffered_stream_ext */ ext);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_sortformer_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void SortformerStreamExtInit(IntPtr /* transcribe_sortformer_stream_ext */ ext);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_voxtral_realtime_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void VoxtralRealtimeStreamExtInit(IntPtr /* transcribe_voxtral_realtime_stream_ext */ ext);

@@ -28,7 +28,7 @@ fi
 
 dotnet run --project src/Generator -- "${FFI_PATH}" "${HEADER_PATH}"
 
-mkdir -p rust
+mkdir -p ffi/rust ffi/c
 cp "${FFI_PATH}" ffi/rust/transcribe_sys.rs
 cp "${HEADER_PATH}" ffi/c/transcribe.h
 

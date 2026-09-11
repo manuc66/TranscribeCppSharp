@@ -44,7 +44,7 @@ public class CSharpGenerator
 
     private static readonly HashSet<string> OpaqueHandleNames =
     [
-        "transcribe_model", "transcribe_session",
+        "transcribe_model", "transcribe_session", "transcribe_device",
     ];
 
     /// <summary>
@@ -452,8 +452,12 @@ public class CSharpGenerator
         PrimitiveType(CharType) => "byte",
 
         // Opaque handles → IntPtr (P/Invoke works with raw pointers)
-        PointerType(_, OpaqueHandleType("transcribe_model")) => TypeIntPtr,
-        PointerType(_, OpaqueHandleType("transcribe_session")) => TypeIntPtr,
+        PointerType(_, OpaqueHandleType) => TypeIntPtr,
+        OpaqueHandleType => TypeIntPtr,
+
+        // transcribe_device_t is a type alias for *mut transcribe_device —
+        // the parser surfaces it as a named struct type, map it to IntPtr.
+        StructType("transcribe_device_t") => TypeIntPtr,
 
         // Borrowed f32 slice → ReadOnlySpan<float> (auto-pinned by LibraryImport source generator)
         PointerType(PointerMutability.Const, PrimitiveType("f32")) => "ReadOnlySpan<float>",

@@ -165,7 +165,9 @@ public static class Batch
                 Segments: session.GetBatchSegments(i),
                 Words: session.GetBatchWords(i),
                 Tokens: session.GetBatchTokens(i),
-                Timing: session.GetBatchTimings(i)));
+                Timing: session.GetBatchTimings(i),
+                RawText: session.GetBatchResultRawText(i),
+                SpeakerSegments: session.GetBatchSpeakerSegments(i)));
         }
 
         return results;

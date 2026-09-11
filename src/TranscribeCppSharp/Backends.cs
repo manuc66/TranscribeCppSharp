@@ -12,7 +12,7 @@ namespace TranscribeCppSharp;
 /// </summary>
 public static class Backends
 {
-    /// <summary>Native library version string (e.g. "0.1.3").</summary>
+    /// <summary>Native library version string (e.g. "0.2.3").</summary>
     public static string Version
     {
         get
@@ -87,43 +87,71 @@ public static class Backends
 
     /// <summary>
     /// Enumerate all available compute devices.
+    /// Handles are runtime-owned and valid for the life of the process.
     /// </summary>
     public static IReadOnlyList<BackendDevice> EnumerateDevices()
     {
-        var count = NativeMethods.BackendDeviceCount();
+        var count = NativeMethods.DeviceCount();
         if (count <= 0)
         {
             return [];
         }
 
         var devices = new List<BackendDevice>(count);
-        var deviceSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiBackendDevice);
+        var deviceSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiDeviceInfo);
         StackAllocHelper.RunWithBuffer(deviceSize, devicePtr =>
         {
             for (int i = 0; i < count; i++)
             {
-                devices.Add(ReadDeviceAt(devicePtr, i));
+                var handle = NativeMethods.DeviceGet(i);
+                if (handle == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                devices.Add(ReadDeviceInfo(handle, devicePtr));
             }
         });
 
         return devices;
     }
 
-    private static BackendDevice ReadDeviceAt(IntPtr devicePtr, int index)
+    private static BackendDevice ReadDeviceInfo(IntPtr handle, IntPtr devicePtr)
     {
-        NativeMethods.BackendDeviceInit(devicePtr);
-        var status = NativeMethods.GetBackendDevice(index, devicePtr);
+        NativeMethods.DeviceInfoInit(devicePtr);
+        var status = NativeMethods.DeviceGetInfo(handle, devicePtr);
         if (status != Status.Ok)
         {
-            throw new TranscribeException(status, nameof(NativeMethods.GetBackendDevice));
+            throw new TranscribeException(status, nameof(NativeMethods.DeviceGetInfo));
         }
 
-        return ConvertDevice(devicePtr);
+        return ConvertDevice(handle, devicePtr);
     }
 
-    private static BackendDevice ConvertDevice(IntPtr devicePtr)
+    /// <summary>
+    /// Resolve metadata for a runtime-owned device handle (e.g. from
+    /// <see cref="Model.Device"/>). Returns null when handle is zero.
+    /// </summary>
+    public static BackendDevice? GetDeviceInfo(IntPtr handle)
     {
-        var d = Marshal.PtrToStructure<Interop.BackendDevice>(devicePtr);
+        if (handle == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        BackendDevice? result = null;
+        var deviceSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiDeviceInfo);
+        StackAllocHelper.RunWithBuffer(deviceSize, devicePtr =>
+        {
+            result = ReadDeviceInfo(handle, devicePtr);
+        });
+
+        return result;
+    }
+
+    private static BackendDevice ConvertDevice(IntPtr handle, IntPtr devicePtr)
+    {
+        var d = Marshal.PtrToStructure<Interop.DeviceInfo>(devicePtr);
         var name = PtrToStringOrEmpty(d.name);
         var description = PtrToStringOrEmpty(d.description);
         var kind = PtrToStringOrEmpty(d.kind);
@@ -136,7 +164,10 @@ public static class Backends
             DeviceId: deviceId,
             MemoryTotal: d.memoryTotal,
             MemoryFree: d.memoryFree,
-            DeviceType: d.deviceType);
+            DeviceType: d.deviceType)
+        {
+            Handle = handle,
+        };
     }
 
     private static string PtrToStringOrEmpty(IntPtr ptr)
