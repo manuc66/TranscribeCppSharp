@@ -246,6 +246,10 @@ WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
 
 # Run the smoke test sample
 dotnet run --project samples/SmokeTest -- model.gguf audio.wav
+
+# Demo sample: transcribe audio with speaker diarization (MOSS).
+# WAV is read directly; other formats (ogg, mp3, …) are decoded with ffmpeg.
+dotnet run --project samples/Diarize -- audio.ogg
 ```
 
 ### Building from source

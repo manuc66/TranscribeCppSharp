@@ -18,7 +18,9 @@ AUDIO_URL="https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav"
 
 # Opt-in heavy asset for the diarization tests (MOSS Q4_K_M, ~617 MB).
 # Only fetched when WITH_DIARIZATION_MODEL=1; the diarization test skips
-# otherwise. Pinned to the upstream release the wrapper binds to.
+# otherwise. Note: this is a floating HF "main" asset (no pinned revision or
+# checksum) — the test only requires a recent Q4_K_M that reports
+# FeatureDiarization.
 MOSS_FILE="$MODEL_DIR/moss-transcribe-diarize-q4-k-m.gguf"
 MOSS_URL="https://huggingface.co/handy-computer/MOSS-Transcribe-Diarize-gguf/resolve/main/MOSS-Transcribe-Diarize-Q4_K_M.gguf"
 

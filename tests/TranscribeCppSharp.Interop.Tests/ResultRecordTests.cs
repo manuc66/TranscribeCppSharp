@@ -98,8 +98,8 @@ public class ResultRecordTests
         IReadOnlyList<WordResult> words = [word];
         IReadOnlyList<TokenResult> tokens = [token];
 
-        var a = new BatchResult(0, "full", "en", Status.Ok, segments, words, tokens, timing);
-        var b = new BatchResult(0, "full", "en", Status.Ok, segments, words, tokens, timing);
+        var a = new BatchResult(0, "full", "en", Status.Ok, segments, words, tokens, timing, []);
+        var b = new BatchResult(0, "full", "en", Status.Ok, segments, words, tokens, timing, []);
 
         Assert.Equal(a, b);
         Assert.Equal(0, a.Index);
@@ -171,8 +171,8 @@ public class ResultRecordTests
     [Fact]
     public void NullableTiming_IsStoredAsIs()
     {
-        var withTiming = new BatchResult(0, "a", "en", Status.Ok, [], [], [], new TimingsResult(1, 2, 3, 4));
-        var withoutTiming = new BatchResult(0, "a", "en", Status.Ok, [], [], [], null);
+        var withTiming = new BatchResult(0, "a", "en", Status.Ok, [], [], [], new TimingsResult(1, 2, 3, 4), []);
+        var withoutTiming = new BatchResult(0, "a", "en", Status.Ok, [], [], [], null, []);
 
         Assert.NotNull(withTiming.Timing);
         Assert.Null(withoutTiming.Timing);

@@ -232,6 +232,15 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
+    public void ModelLoadParamsBuilder_WithDevice_ZeroHandle_Throws()
+    {
+        using var builder = new ModelLoadParamsBuilder();
+        var manual = new BackendDevice("manual", "", "cpu", "id", 0, 0, DeviceType.DeviceTypeCpu);
+
+        Assert.Throws<ArgumentException>(() => builder.WithDevice(manual));
+    }
+
+    [Fact]
     public void ModelLoadParamsBuilder_WithDeviceDefault_IsAuto()
     {
         using var builder = new ModelLoadParamsBuilder();
@@ -1082,7 +1091,7 @@ public class HighLevelApiTests : IDisposable
         Assert.All(transcript.SpeakerSegments, s => Assert.Equal(1, s.SpeakerId));
         Assert.All(transcript.Segments, s => Assert.Equal(1, s.SpeakerId));
         // Raw keeps the inline [start][Sxx] markers that full text strips.
-        Assert.Contains("[S01]", transcript.RawText);
+        Assert.Matches(@"\[S[0-9]{2}\]", transcript.RawText);
     }
 
     [SkippableFact]

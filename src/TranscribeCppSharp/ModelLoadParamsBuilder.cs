@@ -38,10 +38,20 @@ public sealed class ModelLoadParamsBuilder : IDisposable
     /// device; a mismatched backend/device pair makes
     /// <see cref="Model.Load"/> throw <see cref="TranscribeException"/>.
     /// Handles are process-local: persist DeviceId, re-enumerate per process.
+    /// A device without a handle (IntPtr.Zero, e.g. hand-constructed) is
+    /// rejected — pass no device for automatic selection.
     /// </summary>
     public ModelLoadParamsBuilder WithDevice(BackendDevice device)
     {
         ArgumentNullException.ThrowIfNull(device);
+        if (device.Handle == IntPtr.Zero)
+        {
+            throw new ArgumentException(
+                "The device has no runtime handle (IntPtr.Zero): it was not produced by " +
+                $"{nameof(Backends.EnumerateDevices)}(). A zero handle means automatic allocation; omit {nameof(WithDevice)} for that instead.",
+                nameof(device));
+        }
+
         @params.device = device.Handle;
         return this;
     }

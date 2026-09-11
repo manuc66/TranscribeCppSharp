@@ -17,5 +17,5 @@ public record BatchResult(
     IReadOnlyList<WordResult> Words,
     IReadOnlyList<TokenResult> Tokens,
     TimingsResult? Timing,
-    string RawText = "",
-    IReadOnlyList<SpeakerSegmentResult>? SpeakerSegments = null);
+    IReadOnlyList<SpeakerSegmentResult> SpeakerSegments,
+    string RawText = "");
