@@ -39,3 +39,8 @@ test-models/
 native-packages/*/runtimes/
 test-results/
 coverage.json
+
+# local transcriptions (never commit/read these)
+/sortie.txt
+/transcription.json
+/transcription.*
