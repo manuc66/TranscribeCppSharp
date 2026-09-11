@@ -7,13 +7,15 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 `TranscribeCppSharp.Interop` and `TranscribeCppSharp.Native.*` track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
-## [Unreleased] - transcribe.cpp v0.2.3
+## [0.2.0] - wrapper release
 
-Binds to **transcribe.cpp v0.2.3** (was v0.1.3). Upstream v0.2.0 was a
+**Breaking API change** (wrapper minor bump per SemVer 0.x): the device-selection
+API no longer uses integer GPU indices. Binds to **transcribe.cpp v0.2.3** (was
+v0.1.3). Upstream v0.2.0 was a
 deliberate pre-1.0 ABI break — see upstream
 [docs/migrating-to-0.2.md](https://github.com/handy-computer/transcribe.cpp/blob/v0.2.3/docs/migrating-to-0.2.md).
 
-- Device selection: `ModelLoadParamsBuilder.WithGpuDevice(int)` removed
+- Device selection: `ModelLoadParamsBuilder.WithGpuDevice(int)` **removed**
   (obsolete error) — use `WithDevice(BackendDevice)` / `WithDevice(IntPtr)`
   with a handle from `Backends.EnumerateDevices()`. `BackendDevice` now
   carries the runtime-owned `Handle`; `Backends.GetDeviceInfo(handle)`
@@ -51,4 +53,5 @@ Wrapper SemVer baseline. This release binds to **transcribe.cpp v0.1.3**.
 - **v0.2.3** — current version packaged by this project.
 - **v0.1.3** — first version packaged by this project.
 
+[0.2.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.1.3...v0.1.0
