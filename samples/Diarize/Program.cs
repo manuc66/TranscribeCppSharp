@@ -82,6 +82,7 @@ var merged = new StringBuilder();
 var finalSegments = new List<(double msStart, double msEnd, int speaker, string text)>();
 long lastSegmentEndMs = -overlapMs;
 int chunkIndex = 0;
+var overall = Stopwatch.StartNew();
 
 using (var outFile = outPath is null ? null : new StreamWriter(outPath, append: false, new UTF8Encoding(false)) { AutoFlush = true })
 {
@@ -113,6 +114,7 @@ using (var outFile = outPath is null ? null : new StreamWriter(outPath, append: 
         var chunkStartMs = (long)(offset / (double)sampleRate * 1000);
 
         Console.WriteLine($"\n=== window {chunkIndex + 1} @ {Ts(chunkStartMs)} ({len:N0} samples) ===");
+        var windowSw = Stopwatch.StartNew();
 
         Transcript transcript;
         try
@@ -135,6 +137,13 @@ using (var outFile = outPath is null ? null : new StreamWriter(outPath, append: 
         {
             Console.WriteLine($"  raw    : {transcript.RawText.Trim()}");
         }
+
+        var windowSec = windowSw.Elapsed.TotalSeconds;
+        var audioSec = len / (double)sampleRate;
+        var processedSec = (offset + len) / (double)sampleRate;
+        var remainingSec = pcm.Length / (double)sampleRate - processedSec;
+        var rtf = windowSec / audioSec;
+        Console.WriteLine($"  time   : {Dur(windowSec)}/ {audioSec:0.0}s audio (RTF {rtf:0.0}x) | done {Dur(processedSec)} / {Dur(pcm.Length / (double)sampleRate)} | ETA ~{Dur(remainingSec * rtf)}");
 
         foreach (var seg in transcript.Segments)
         {
@@ -194,6 +203,15 @@ using (var outFile = outPath is null ? null : new StreamWriter(outPath, append: 
 
         Console.WriteLine($"\ntranscript written to: {outPath} ({outFormat})");
     }
+
+    var totalSec = overall.Elapsed.TotalSeconds;
+    Console.WriteLine($"\n=== summary ===");
+    Console.WriteLine($"  total  : {Dur(totalSec)} (RTF {totalSec / (pcm.Length / (double)sampleRate):0.0}x) for {Dur(pcm.Length / (double)sampleRate)} audio");
+    Console.WriteLine($"  windows: {chunkIndex + 1}");
+    if (outPath is not null)
+    {
+        Console.WriteLine($"  file   : {outPath} ({outFormat})");
+    }
 }
 
 Console.WriteLine("\n=== merged transcript (speaker-attributed) ===");
@@ -223,6 +241,14 @@ static string Ts(double totalMs)
     return t.TotalHours >= 1
         ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}.{tenths:0}"
         : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}.{tenths:0}";
+}
+
+static string Dur(double totalSec)
+{
+    var t = TimeSpan.FromSeconds(totalSec);
+    return t.TotalHours >= 1
+        ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}"
+        : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
 }
 
 static string VttTs(double totalMs)
