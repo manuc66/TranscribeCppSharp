@@ -257,7 +257,7 @@ static string VttTs(double totalMs)
     return $"{(int)t.TotalHours:00}:{t.Minutes:00}:{t.Seconds:00}.{t.Milliseconds:000}";
 }
 
-static string Normalize(string s) => Regex.Replace(s.Trim(), @"\s+", " ");
+static string Normalize(string s) => Regex.Replace(s.Trim(), @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(1));
 
 static void WriteVttHeader(StreamWriter w, string audioPath, TimeSpan duration, string model, string lang, DiarizeMode diarize, int windowSecs)
 {
@@ -303,11 +303,24 @@ static float[] LoadPcm(string path)
     }
 }
 
+static string ResolveTool(string name)
+{
+    var candidates = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+        .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+        .SelectMany(dir => new[]
+        {
+            Path.Combine(dir, name),
+            Path.Combine(dir, name + (OperatingSystem.IsWindows() ? ".exe" : string.Empty))
+        });
+    return Path.GetFullPath(candidates.FirstOrDefault(File.Exists)
+        ?? throw new InvalidOperationException($"'{name}' not found in PATH."));
+}
+
 static float[] DecodeWithFfmpeg(string path)
 {
     var psi = new ProcessStartInfo
     {
-        FileName = "ffmpeg",
+        FileName = ResolveTool("ffmpeg"),
         Arguments = $"-v error -i \"{path}\" -ar 16000 -ac 1 -f f32le -",
         RedirectStandardOutput = true,
         UseShellExecute = false,
