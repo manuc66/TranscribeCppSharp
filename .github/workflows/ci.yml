@@ -75,21 +75,23 @@ jobs:
       - name: Run tests (including integration)
         # shell: bash so the same script runs on Windows (Git Bash), macOS and
         # Linux. chmod is a no-op on Windows but harmless.
-        # The 70% coverage threshold is enforced only on Linux: it is a quality
-        # gate for the CI baseline, and the coverage numbers on macOS/Windows
-        # (different binaries, platform-specific skips) are not the metric we
-        # gate on.
+        # Coverage (collect + 70% threshold) is enforced only on Linux: it is a
+        # quality gate for the CI baseline, and the coverage numbers on
+        # macOS/Windows (different binaries, platform-specific skips) are not
+        # the metric we gate on. Linux-only also avoids the intermittent
+        # coverlet "Unable to read beyond the end of the stream" shutdown race
+        # on Windows/macOS (coverlet issues #1981/#1983).
         shell: bash
         env:
+          COVERLET_COLLECT: ${{ runner.os == 'Linux' && '1' || '0' }}
           COVERLET_THRESHOLD: ${{ runner.os == 'Linux' && '70' || '' }}
         run: chmod +x scripts/run-integration-tests.sh && ./scripts/run-integration-tests.sh
 
-      # Upload coverage and report once per platform, suffixed so matrix
-      # artifacts never collide.
       - name: Upload coverage report
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.os }}
+          name: coverage
           path: test-results/coverage.cobertura.xml
           if-no-files-found: error
 

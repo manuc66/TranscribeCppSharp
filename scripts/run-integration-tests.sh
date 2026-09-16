@@ -127,20 +127,30 @@ echo ""
 #
 # The format and threshold are overridable for consumers that need a different
 # report (e.g. SonarCloud uses OpenCover and no threshold):
+#   COVERLET_COLLECT=1 (default) | 0 disables coverage entirely
 #   COVERLET_FORMAT=cobertura (default) | opencover | ...
 #   COVERLET_THRESHOLD=70 (default; empty disables the gate)
+#
+# The CI enables coverage only on Linux (COVERLET_COLLECT=1 there): the
+# quality gate is Linux-only by design, and the VSTest MSBuild integration
+# (-p:CollectCoverage) is prone to an intermittent "Unable to read beyond the
+# end of the stream" race on Windows/macOS shutdown (coverlet issues #1981/#1983).
+COVERLET_COLLECT="${COVERLET_COLLECT:-1}"
 COVERLET_FORMAT="${COVERLET_FORMAT:-cobertura}"
 COVERLET_THRESHOLD="${COVERLET_THRESHOLD:-70}"
-mkdir -p "$(pwd)/test-results"
-THRESHOLD_ARGS=()
-if [[ -n "$COVERLET_THRESHOLD" ]]; then
-  THRESHOLD_ARGS=(-p:Threshold="$COVERLET_THRESHOLD" -p:ThresholdType=line -p:ThresholdStat=total)
+
+COVERAGE_ARGS=()
+if [[ "$COVERLET_COLLECT" == "1" ]]; then
+  mkdir -p "$(pwd)/test-results"
+  COVERAGE_ARGS=(-p:CollectCoverage=true \
+    "-p:CoverletOutputFormat=$COVERLET_FORMAT" \
+    "-p:CoverletOutput=$(pwd)/test-results/coverage.$COVERLET_FORMAT.xml")
+  if [[ -n "$COVERLET_THRESHOLD" ]]; then
+    COVERAGE_ARGS+=(-p:Threshold="$COVERLET_THRESHOLD" -p:ThresholdType=line -p:ThresholdStat=total)
+  fi
 fi
 dotnet test --logger "console;verbosity=detailed" \
-  -p:CollectCoverage=true \
-  "-p:CoverletOutputFormat=$COVERLET_FORMAT" \
-  "-p:CoverletOutput=$(pwd)/test-results/coverage.$COVERLET_FORMAT.xml" \
-  "${THRESHOLD_ARGS[@]}"
+  "${COVERAGE_ARGS[@]}"
 
 echo ""
 echo "=== Integration tests completed ==="
