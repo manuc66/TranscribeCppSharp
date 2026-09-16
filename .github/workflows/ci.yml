@@ -48,8 +48,6 @@ jobs:
 
       - run: dotnet restore
 
-      - run: dotnet build --no-restore
-      
       - name: Cache native libraries
         uses: actions/cache@v6
         with:
@@ -66,8 +64,13 @@ jobs:
             test-audio
           key: test-assets-${{ matrix.os }}-${{ hashFiles('scripts/run-integration-tests.sh') }}
 
+      # Fetch before build: the build copies the natives into the output dirs
+      # (CopyNativeLib in SmokeTest/Tests/Diarize), so it fails on a cold cache
+      # if the libs are not there yet.
       - name: Fetch native libraries
         run: dotnet run --project tools/FetchNative
+
+      - run: dotnet build --no-restore
 
       - name: Run tests (including integration)
         # shell: bash so the same script runs on Windows (Git Bash), macOS and
