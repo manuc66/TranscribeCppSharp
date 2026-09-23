@@ -13,6 +13,10 @@
          version (NativeVersion, defaulting to TRANSCRIBE_VERSION). -->
     <Version>$(WrapperVersionFile)</Version>
     <NativeVersion Condition="'$(NativeVersion)' == ''">$(TranscribeVersionFile)</NativeVersion>
+    <!-- No lock file: this meta-package only references the native packages,
+         whose content hash is not stable across local feeds (repacked each CI
+         run), which makes NU1403 fail on pinned (release) versions. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
     <!-- No lib/ output by design (meta-package); NU5128 warns about that.
          CS2008/CA1016 are noise for a project with no source files. -->
     <NoWarn>$(NoWarn);NU5128;CS2008;CA1016</NoWarn>
