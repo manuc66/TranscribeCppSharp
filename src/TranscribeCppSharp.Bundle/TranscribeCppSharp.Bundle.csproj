@@ -8,6 +8,11 @@
     <IsPackable>true</IsPackable>
     <PackageId>TranscribeCppSharp.Bundle</PackageId>
     <Description>Convenience meta-package: the TranscribeCppSharp wrapper plus the native transcribe.cpp binaries for every supported platform. Install this to get running on any OS; for a minimal footprint install TranscribeCppSharp plus the matching TranscribeCppSharp.Native.&lt;rid&gt; package instead.</Description>
+    <!-- A user-facing package: it follows the wrapper's SemVer, not the upstream
+         ABI version. The native dependencies, however, stay on the upstream
+         version (NativeVersion, defaulting to TRANSCRIBE_VERSION). -->
+    <Version>$(WrapperVersionFile)</Version>
+    <NativeVersion Condition="'$(NativeVersion)' == ''">$(TranscribeVersionFile)</NativeVersion>
     <!-- No lib/ output by design (meta-package); NU5128 warns about that.
          CS2008/CA1016 are noise for a project with no source files. -->
     <NoWarn>$(NoWarn);NU5128;CS2008;CA1016</NoWarn>
@@ -19,16 +24,16 @@
     <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
   </ItemGroup>
 
-  <!-- Native binaries for every supported platform; versions track the upstream
-       transcribe.cpp version (the package's own Version), unlike the wrapper
-       which has its own SemVer. In CI these come from the local feed produced by
-       the pack-native job (RestoreAdditionalProjectSources). -->
+  <!-- Native binaries for every supported platform; they track the upstream
+       transcribe.cpp version (NativeVersion), unlike this package which follows
+       the wrapper. In CI these come from the local feed produced by the
+       pack-native job (RestoreAdditionalProjectSources). -->
   <ItemGroup>
-    <PackageReference Include="TranscribeCppSharp.Native.win-x64" Version="$(Version)" />
-    <PackageReference Include="TranscribeCppSharp.Native.linux-x64" Version="$(Version)" />
-    <PackageReference Include="TranscribeCppSharp.Native.linux-arm64" Version="$(Version)" />
-    <PackageReference Include="TranscribeCppSharp.Native.osx-arm64" Version="$(Version)" />
-    <PackageReference Include="TranscribeCppSharp.Native.osx-x64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.win-x64" Version="$(NativeVersion)" />
+    <PackageReference Include="TranscribeCppSharp.Native.linux-x64" Version="$(NativeVersion)" />
+    <PackageReference Include="TranscribeCppSharp.Native.linux-arm64" Version="$(NativeVersion)" />
+    <PackageReference Include="TranscribeCppSharp.Native.osx-arm64" Version="$(NativeVersion)" />
+    <PackageReference Include="TranscribeCppSharp.Native.osx-x64" Version="$(NativeVersion)" />
   </ItemGroup>
 
 </Project>

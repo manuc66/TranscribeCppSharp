@@ -299,8 +299,9 @@ jobs:
       - name: Pack Bundle meta-package
         run: |
           dotnet pack src/TranscribeCppSharp.Bundle -c Release -o nupkgs \
-            /p:Version=${{ needs.get-version.outputs.version }} \
+            /p:Version=${{ needs.get-version.outputs.wrapper-version }} \
             /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }} \
+            /p:NativeVersion=${{ needs.get-version.outputs.version }} \
             "/p:RestoreAdditionalProjectSources=$(pwd)/local-feed"
 
       - uses: actions/upload-artifact@v7
@@ -335,7 +336,7 @@ jobs:
       - name: Pack tool (RID-specific)
         run: |
           dotnet pack src/TranscribeCppSharp.Cli -c Release -o nupkgs \
-            /p:Version=${{ needs.get-version.outputs.version }} \
+            /p:Version=${{ needs.get-version.outputs.wrapper-version }} \
             /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }}
 
       - uses: actions/upload-artifact@v7

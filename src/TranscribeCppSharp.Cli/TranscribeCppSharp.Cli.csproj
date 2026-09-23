@@ -14,6 +14,8 @@
     <ToolCommandName>transcribe</ToolCommandName>
     <PackageId>TranscribeCppSharp.Cli</PackageId>
     <IsPackable>true</IsPackable>
+    <!-- A user-facing tool: follows the wrapper's SemVer (not the upstream ABI). -->
+    <Version>$(WrapperVersionFile)</Version>
 
     <!-- RID-specific tool packages: `dotnet tool install` picks the package for
          the user's platform automatically (no RID to specify). `any` is the
