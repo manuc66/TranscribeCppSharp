@@ -308,9 +308,45 @@ jobs:
           name: bundle-nupkg
           path: nupkgs/*.nupkg
 
+  pack-tool:
+    # .NET tool, RID-specific: `dotnet tool install` picks the package for the
+    # user's platform and only that RID's native binaries are embedded. The
+    # `any` fallback is framework-dependent and carries no native.
+    needs: [build-and-test, get-version]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Cache native libraries
+        uses: actions/cache@v6
+        with:
+          # Cache only the downloaded binaries, not the .csproj files, so a
+          # stale cache never overwrites project changes from the checkout.
+          path: native-packages/*/runtimes
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION', 'build/native-sha256.json') }}
+
+      - name: Fetch native libraries (all RIDs, embedded per RID package)
+        run: dotnet run --project tools/FetchNative -- --all
+
+      - name: Pack tool (RID-specific)
+        run: |
+          dotnet pack src/TranscribeCppSharp.Cli -c Release -o nupkgs \
+            /p:Version=${{ needs.get-version.outputs.version }} \
+            /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }} \
+            "/p:RuntimeIdentifiers=win-x64;linux-x64;linux-arm64;osx-arm64;osx-x64"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tool-nupkg
+          path: nupkgs/*.nupkg
+
   push-nugets:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-    needs: [pack-native, pack-interop, pack-wrapper, pack-bundle]
+    needs: [pack-native, pack-interop, pack-wrapper, pack-bundle, pack-tool]
     runs-on: ubuntu-latest
     permissions:
       id-token: write

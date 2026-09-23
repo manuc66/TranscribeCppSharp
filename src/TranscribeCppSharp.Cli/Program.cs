@@ -15,7 +15,7 @@ if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
         multi-speaker audio). Defaults: MOSS diarization model and forced
         English (robust on non-native speech).
 
-        Usage: dotnet run --project samples/Diarize -- <audio> [model.gguf] [options]
+        Usage: transcribe <audio> [model.gguf] [options]
 
           <audio>        WAV (16 kHz mono 16-bit) read directly; any other
                          format (ogg, mp3, m4a, …) is decoded with ffmpeg
@@ -40,7 +40,7 @@ if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
 var audioPath = Path.GetFullPath(args[0]);
 var modelPath = args.Length > 1 && !args[1].StartsWith("--")
     ? Path.GetFullPath(args[1])
-    : Path.Combine(RepoRoot(), "test-models", DefaultModel);
+    : Path.Combine(Directory.GetCurrentDirectory(), "test-models", DefaultModel);
 
 var lang = ArgAfter("--lang") ?? "en";
 var chunkSeconds = int.TryParse(ArgAfter("--chunk"), out var cs) && cs > 0 ? cs : 300;
@@ -230,9 +230,6 @@ string ArgAfter(string name)
 
     return null;
 }
-
-static string RepoRoot() => Path.GetFullPath(
-    Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
 static string Ts(double totalMs)
 {

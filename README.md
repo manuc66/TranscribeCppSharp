@@ -254,10 +254,25 @@ WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
 # Run the smoke test sample
 dotnet run --project samples/SmokeTest -- model.gguf audio.wav
 
-# Demo sample: transcribe audio with speaker diarization (MOSS).
+# CLI: transcribe audio, with optional speaker diarization (MOSS model).
 # WAV is read directly; other formats (ogg, mp3, …) are decoded with ffmpeg.
-dotnet run --project samples/Diarize -- audio.ogg
+dotnet run --project src/TranscribeCppSharp.Cli -- audio.ogg
 ```
+
+### Command-line tool
+
+The same CLI ships as a .NET tool. It is published RID-specific, so `dotnet tool
+install` pulls only your platform's package (with its native binaries embedded —
+no download at first run):
+
+```bash
+dotnet tool install -g TranscribeCppSharp.Cli
+transcribe audio.ogg --model moss-transcribe-diarize-q4-k-m.gguf
+```
+
+Models are not bundled: pass `--model <path>` (a GGUF/whisper file), or drop
+`moss-transcribe-diarize-q4-k-m.gguf` in a `test-models/` folder next to where you
+run the command.
 
 ### Building from source
 

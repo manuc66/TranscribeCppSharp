@@ -3,22 +3,46 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>TranscribeCppSharp.Cli</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <IncludeSymbols>false</IncludeSymbols>
+
+    <!-- Distributed as a .NET tool: `dotnet tool install -g TranscribeCppSharp.Cli`. -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>transcribe</ToolCommandName>
+    <PackageId>TranscribeCppSharp.Cli</PackageId>
+    <IsPackable>true</IsPackable>
+
+    <!-- RID-specific tool packages: `dotnet tool install` picks the package for
+         the user's platform automatically (no RID to specify). `any` is the
+         framework-dependent fallback for platforms without a dedicated build.
+         .NET SDK 10+ required. -->
+    <ToolPackageRuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-arm64;osx-x64;any</ToolPackageRuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TranscribeCppSharp\TranscribeCppSharp.csproj" />
+    <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
   </ItemGroup>
 
-  <!-- Copy native libs to the output so the DllImportResolver finds them via
-       AppContext.BaseDirectory (its first candidate), without LD_LIBRARY_PATH.
-       Same pattern as the SmokeTest sample. Native libs must already be present
-       under native-packages/ (run tools/FetchNative once) for this to copy
-       anything. -->
-  <Target Name="CopyNativeLib" AfterTargets="Build">
+  <!-- Embed the native runtime for the RID being packed into the RID-specific
+       tool package, taken from native-packages/ (fetched by tools/FetchNative).
+       A per-RID PackageReference does NOT work here: NuGet restore evaluates
+       PackageReference once with RuntimeIdentifier unset, so RID-conditional
+       references are never restored. Content, by contrast, is evaluated during
+       each inner pack (which does set RuntimeIdentifier). -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'any'">
+    <None Include="$(MSBuildThisFileDirectory)../../native-packages/$(RuntimeIdentifier)/runtimes/$(RuntimeIdentifier)/native/*"
+          Exclude="$(MSBuildThisFileDirectory)../../native-packages/$(RuntimeIdentifier)/runtimes/$(RuntimeIdentifier)/native/.done"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Local dev convenience: when no RID is set (plain `dotnet run`), copy the
+       native libs from native-packages/ (fetched with tools/FetchNative) into the
+       output so the DllImportResolver finds them via AppContext.BaseDirectory. -->
+  <Target Name="CopyNativeLib" AfterTargets="Build" Condition="'$(RuntimeIdentifier)' == ''">
     <ItemGroup>
       <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.so"
                  Condition="!$([MSBuild]::IsOSPlatform('Windows')) And !$([MSBuild]::IsOSPlatform('OSX'))" />
