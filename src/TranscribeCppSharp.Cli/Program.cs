@@ -7,25 +7,42 @@ using TranscribeCppSharp;
 using TranscribeCppSharp.Cli;
 using TranscribeCppSharp.Interop;
 
-const string DefaultModel = "moss";
+const string DefaultModel = "moss-transcribe-diarize";
+
+if (args.Contains("--list-models"))
+{
+    ModelStore.List();
+    return 0;
+}
+
+if (args.Contains("--model-info"))
+{
+    return ModelStore.Info(ArgAfter("--model-info") ?? string.Empty) ? 0 : 1;
+}
 
 if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
 {
     Console.WriteLine("""
-        Transcribe audio with speaker diarization (best quality on
-        multi-speaker audio). Defaults: MOSS diarization model and forced
-        English (robust on non-native speech).
+        Transcribe audio with a speech-to-text model. Supports every model family
+        that transcribe.cpp supports (Whisper, Moonshine, Parakeet, Canary, GigaAM,
+        Voxtral, Qwen3-ASR, MOSS diarization, …).
 
         Usage: transcribe <audio> [model] [options]
 
           <audio>        WAV (16 kHz mono 16-bit) read directly; any other
                          format (ogg, mp3, m4a, …) is decoded with ffmpeg
                          (must be installed)
-          [model]        a model file path, or a known name (default: moss).
-                         Known names: tiny, base, small, moss — downloaded
+          [model]        a model file path, a known alias (default:
+                         moss-transcribe-diarize), or a HuggingFace spec
+                         '<owner>/<repo>/<file.gguf>[@<revision>]'.
+                         Aliases and any other supported GGUF are downloaded
                          from HuggingFace on first use and cached.
 
           --model <m>    same as the [model] argument
+          --quant <q>    quantization for a known alias (e.g. Q4_K_M, Q5_K_M,
+                         Q8_0, F16); default is per model (see --list-models)
+          --list-models  list the known model aliases and exit
+          --model-info <alias>  show details (revision, size, license) for one alias
           --lang <code>  language code for the decoder (default: en)
           --chunk <sec>  max per-transcription window in seconds (default: 300);
                          long audio is split with 1 s overlap and deduplicated
@@ -47,11 +64,12 @@ try
 {
     modelPath = ModelStore.Resolve(
         ArgAfter("--model")
-        ?? (args.Length > 1 && !args[1].StartsWith("--") ? args[1] : DefaultModel));
+        ?? (args.Length > 1 && !args[1].StartsWith("--") ? args[1] : DefaultModel),
+        ArgAfter("--quant"));
 }
 catch (Exception ex) when (ex is IOException or HttpRequestException)
 {
-    // Unknown name, download failure, checksum mismatch: report and stop.
+    // Unknown alias/spec, download failure, checksum mismatch: report and stop.
     Console.Error.WriteLine(ex.Message);
     return 1;
 }
@@ -233,7 +251,7 @@ return 0;
 
 string ArgAfter(string name)
 {
-    for (int i = 1; i < args.Length - 1; i++)
+    for (int i = 0; i < args.Length - 1; i++)
     {
         if (args[i] == name && !args[i + 1].StartsWith("--"))
         {

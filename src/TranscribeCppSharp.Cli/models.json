@@ -1,45 +1,725 @@
 {
-  "$comment": "Known models for the 'transcribe' CLI. Names are resolved to a local cache; files are downloaded on first use from HuggingFace at a pinned revision and verified by sha256. Keep revisions pinned (never 'main') so the checksum stays valid. sha256 values come from the HuggingFace LFS 'oid' (see tools/README or the PR that added this file).",
+  "defaultQuant": "Q5_K_M",
   "models": {
-    "tiny": {
-      "repo": "ggerganov/whisper.cpp",
-      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
-      "file": "ggml-tiny.bin",
-      "sha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
-      "size": 77691713,
-      "license": "MIT",
-      "licenseUrl": "https://github.com/ggerganov/whisper.cpp/blob/master/LICENSE",
-      "description": "Whisper tiny (multilingual), ~74 MB. Fastest, lowest accuracy."
+    "breeze-asr-25": {
+      "repo": "handy-computer/Breeze-ASR-25-gguf",
+      "revision": "6b7a53cea9265a2cf2b19e37b3ceadeb2927d3ba",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/Breeze-ASR-25-gguf",
+      "quant": "Q5_K_M",
+      "file": "Breeze-ASR-25-Q5_K_M.gguf",
+      "sha256": "c871fc811b33a16a5607c4d4166cfa2c0a1d359f7796e3da255e3e922f59139b",
+      "size": 1160366080
     },
-    "base": {
-      "repo": "ggerganov/whisper.cpp",
-      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
-      "file": "ggml-base.bin",
-      "sha256": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
-      "size": 147951465,
-      "license": "MIT",
-      "licenseUrl": "https://github.com/ggerganov/whisper.cpp/blob/master/LICENSE",
-      "description": "Whisper base (multilingual), ~141 MB."
+    "canary-180m-flash": {
+      "repo": "handy-computer/canary-180m-flash-gguf",
+      "revision": "456e6049062ecf06f1a0f4607f2ee3dc80ebbf8a",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/canary-180m-flash-gguf",
+      "quant": "Q5_K_M",
+      "file": "canary-180m-flash-Q5_K_M.gguf",
+      "sha256": "a87992d84aea5329fa5d70f2eb440d3ae4fe47bd774875374ec381472d348299",
+      "size": 158704320
     },
-    "small": {
-      "repo": "ggerganov/whisper.cpp",
-      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
-      "file": "ggml-small.bin",
-      "sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
-      "size": 487601967,
-      "license": "MIT",
-      "licenseUrl": "https://github.com/ggerganov/whisper.cpp/blob/master/LICENSE",
-      "description": "Whisper small (multilingual), ~465 MB."
+    "canary-1b": {
+      "repo": "handy-computer/canary-1b-gguf",
+      "revision": "a44e9c7596fe5e37040bbad8c54fba47f14c992f",
+      "license": "cc-by-nc-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/canary-1b-gguf",
+      "quant": "Q5_K_M",
+      "file": "canary-1b-Q5_K_M.gguf",
+      "sha256": "1139f01aad4ed4208d2c0532cfc25939cbc26cea1e160084c83f40d5b6eaed35",
+      "size": 837694272
     },
-    "moss": {
-      "repo": "handy-computer/MOSS-Transcribe-Diarize-gguf",
+    "canary-1b-flash": {
+      "repo": "handy-computer/canary-1b-flash-gguf",
+      "revision": "ea436b4968b6a4e5b34fbe9a51a961388f1bda71",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/canary-1b-flash-gguf",
+      "quant": "Q5_K_M",
+      "file": "canary-1b-flash-Q5_K_M.gguf",
+      "sha256": "7eed3cac92f255a4adbd518c58663d3fbf65984d2619189e593f2d374b05c601",
+      "size": 769563424
+    },
+    "canary-1b-v2": {
+      "repo": "handy-computer/canary-1b-v2-gguf",
+      "revision": "e2d8e6d7f2accc1259dc5497b517b4083047e44b",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/canary-1b-v2-gguf",
+      "quant": "Q5_K_M",
+      "file": "canary-1b-v2-Q5_K_M.gguf",
+      "sha256": "9c3a893c93795438baf9b4b1c853c39b60316c3a0d259a3ba6e284712f5ddb71",
+      "size": 836664032
+    },
+    "canary-qwen-2.5b": {
+      "repo": "handy-computer/canary-qwen-2.5b-gguf",
+      "revision": "df576c1641eb59bb66bc3c396bbdd8b0b113825a",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/canary-qwen-2.5b-gguf",
+      "quant": "Q5_K_M",
+      "file": "canary-qwen-2.5b-Q5_K_M.gguf",
+      "sha256": "d71b1d9ae442dc538665ed4df63a69520eb9be769ec0bc78c7d2f40040928306",
+      "size": 1983729024
+    },
+    "cohere-transcribe-03-2026": {
+      "repo": "handy-computer/cohere-transcribe-03-2026-gguf",
+      "revision": "ab667acedcb5d8d56837ef3ed3568c3ad50dde47",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/cohere-transcribe-03-2026-gguf",
+      "quant": "Q5_K_M",
+      "file": "cohere-transcribe-03-2026-Q5_K_M.gguf",
+      "sha256": "14d02f1ad6dd77b3a60f82639879012c3adb4fe25c50a5a47a2c4c661daf1558",
+      "size": 1770270208
+    },
+    "cohere-transcribe-arabic-07-2026": {
+      "repo": "handy-computer/cohere-transcribe-arabic-07-2026-gguf",
+      "revision": "5e6b33c211458ac69347d297abb6d47a250c328f",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/cohere-transcribe-arabic-07-2026-gguf",
+      "quant": "Q5_K_M",
+      "file": "cohere-transcribe-arabic-07-2026-Q5_K_M.gguf",
+      "sha256": "55e61c9b047e36f0e084d367f6b0bfecc71a6a0527da6eea4f0c687f3584775f",
+      "size": 1770270112
+    },
+    "diar_streaming_sortformer_4spk-v2.1": {
+      "repo": "handy-computer/diar_streaming_sortformer_4spk-v2.1-gguf",
+      "revision": "ae4afbb5c3d33b71cf2dbf600022b655ee706dd0",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/diar_streaming_sortformer_4spk-v2.1-gguf",
+      "quant": "Q8_0",
+      "file": "diar_streaming_sortformer_4spk-v2.1-Q8_0.gguf",
+      "sha256": "a5dacdc650790266c7a362e54e6bf51952015487edaa606c4e11632bc32442a9",
+      "size": 139310336
+    },
+    "fun-asr-mlt-nano-2512": {
+      "repo": "handy-computer/Fun-ASR-MLT-Nano-2512-gguf",
+      "revision": "364640227abd3f786d139ac43b8ac1a98673989d",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/Fun-ASR-MLT-Nano-2512-gguf",
+      "quant": "Q5_K_M",
+      "file": "Fun-ASR-MLT-Nano-2512-Q5_K_M.gguf",
+      "sha256": "5906267c6067d254a2681f40d9eac70c4291ae14fb58ffea4c4cd22a307517ec",
+      "size": 631129152
+    },
+    "fun-asr-nano-2512": {
+      "repo": "handy-computer/Fun-ASR-Nano-2512-gguf",
+      "revision": "1b60240dda8f895d14b5d5d59a90d1509e27f662",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/Fun-ASR-Nano-2512-gguf",
+      "quant": "Q5_K_M",
+      "file": "Fun-ASR-Nano-2512-Q5_K_M.gguf",
+      "sha256": "68de7b48ba46b739254fb57486edf7023943cb0af63767ab795d58d6e482096c",
+      "size": 631128832
+    },
+    "gigaam-v3-ctc": {
+      "repo": "handy-computer/gigaam-v3-ctc-gguf",
+      "revision": "696b1bc14be5a4c423090bdc31da27793def4065",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/gigaam-v3-ctc-gguf",
+      "quant": "Q5_K_M",
+      "file": "gigaam-v3-ctc-Q5_K_M.gguf",
+      "sha256": "2002cd7603b99c318b52a88047d6676e69218083014f19b11c84da0223fb2023",
+      "size": 204563392
+    },
+    "gigaam-v3-e2e-ctc": {
+      "repo": "handy-computer/gigaam-v3-e2e-ctc-gguf",
+      "revision": "ab38ecc31dbd25264cf96e07dd4dbcf744151618",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/gigaam-v3-e2e-ctc-gguf",
+      "quant": "Q5_K_M",
+      "file": "gigaam-v3-e2e-ctc-Q5_K_M.gguf",
+      "sha256": "d7c6a729f9bae8714d05cb7e66149e662c5098fe10b66206b70f4917f4f84004",
+      "size": 204911200
+    },
+    "gigaam-v3-e2e-rnnt": {
+      "repo": "handy-computer/gigaam-v3-e2e-rnnt-gguf",
+      "revision": "b9b68a835993df09018237a11d2a9b8c1925844d",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/gigaam-v3-e2e-rnnt-gguf",
+      "quant": "Q5_K_M",
+      "file": "gigaam-v3-e2e-rnnt-Q5_K_M.gguf",
+      "sha256": "0f5969b05f7e196e8922e243c64963132025a5ae7ec2f83d028ae120d201594f",
+      "size": 206392736
+    },
+    "gigaam-v3-rnnt": {
+      "repo": "handy-computer/gigaam-v3-rnnt-gguf",
+      "revision": "bbaea47d3e7b1bfa702ac050127cd93ff778837d",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/gigaam-v3-rnnt-gguf",
+      "quant": "Q5_K_M",
+      "file": "gigaam-v3-rnnt-Q5_K_M.gguf",
+      "sha256": "3541b4e6b2c3909e99254bcb7c61565137038f24db5651a779885d0c08257348",
+      "size": 205690784
+    },
+    "granite-4.0-1b-speech": {
+      "repo": "handy-computer/granite-4.0-1b-speech-gguf",
+      "revision": "9f243e662e448e8bcc64c3b1195413e106002334",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/granite-4.0-1b-speech-gguf",
+      "quant": "Q5_K_M",
+      "file": "granite-4.0-1b-speech-Q5_K_M.gguf",
+      "sha256": "f5e371d2a894e5b30dce793d573df2a965d7705488750b4ef5a6cad1069e2572",
+      "size": 1829704544
+    },
+    "granite-speech-4.1-2b": {
+      "repo": "handy-computer/granite-speech-4.1-2b-gguf",
+      "revision": "8636dae5eebb011a3d9b56215944ed0925a0d035",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/granite-speech-4.1-2b-gguf",
+      "quant": "Q5_K_M",
+      "file": "granite-speech-4.1-2b-Q5_K_M.gguf",
+      "sha256": "63e0d3a82fa6f0f4688af0b7d7ee784864d271b7be820f4ea43c8298c59b0ac5",
+      "size": 1829704544
+    },
+    "granite-speech-4.1-2b-nar": {
+      "repo": "handy-computer/granite-speech-4.1-2b-nar-gguf",
+      "revision": "c186f8d7ed6c67b947b90fd8ed9587be971766fa",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/granite-speech-4.1-2b-nar-gguf",
+      "quant": "Q5_K_M",
+      "file": "granite-speech-4.1-2b-nar-Q5_K_M.gguf",
+      "sha256": "88d7c7b5b8b59c95bb6580a1e7d5d81cae63943cef71405ff477527b0bb69fca",
+      "size": 1782089344
+    },
+    "granite-speech-4.1-2b-plus": {
+      "repo": "handy-computer/granite-speech-4.1-2b-plus-gguf",
+      "revision": "fc98d5c650f77eaa6210f0d70aac73c3c567f38c",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/granite-speech-4.1-2b-plus-gguf",
+      "quant": "Q5_K_M",
+      "file": "granite-speech-4.1-2b-plus-Q5_K_M.gguf",
+      "sha256": "3415f2c2d5979ded038dc012e5a875d77602fa5a0699cc75ee7fa47991f42530",
+      "size": 1691297088
+    },
+    "granite-speech-5.0-470m-turboctc": {
+      "repo": "handy-computer/granite-speech-5.0-470m-turboctc-gguf",
+      "revision": "2b0b44d0d6c8b94a2e4f04a2cf3ec6a5c054463b",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/granite-speech-5.0-470m-turboctc-gguf",
+      "quant": "Q5_K_M",
+      "file": "granite-speech-5.0-470m-turboctc-Q5_K_M.gguf",
+      "sha256": "a18c6882ff9dbcefbe674ccb8f8653578ed7dbc3fa9a955f036f3617b9627cce",
+      "size": 335737184
+    },
+    "granite-speech-5.0-470m-turboctc-nc": {
+      "repo": "handy-computer/granite-speech-5.0-470m-turboctc-nc-gguf",
+      "revision": "fb8091e2c1e50ef67d3e795ee9f84d703343d7c5",
+      "license": "cc-by-nc-sa-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/granite-speech-5.0-470m-turboctc-nc-gguf",
+      "quant": "Q5_K_M",
+      "file": "granite-speech-5.0-470m-turboctc-nc-Q5_K_M.gguf",
+      "sha256": "0ad269ed1cacab002b4cc26fa4c12d134e7a90b395e6ddcb4ca0cba3bb710973",
+      "size": 336016544
+    },
+    "medasr": {
+      "repo": "handy-computer/medasr-gguf",
+      "revision": "4d7958fe23a9b8046951497f44d4aa67a9883cd3",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/medasr-gguf",
+      "quant": "Q5_K_M",
+      "file": "medasr-Q5_K_M.gguf",
+      "sha256": "873c90a9a78d98446b5e02506073108496df6ff2d062d26f5f7b90f6f1368f1f",
+      "size": 94239936
+    },
+    "moonshine-base": {
+      "repo": "handy-computer/moonshine-base-gguf",
+      "revision": "cb703342553d960a95e2b4b0f48b8142648ddb22",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-base-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-base-Q8_0.gguf",
+      "sha256": "7f0027dfd857d310b63a85ef57cadf183da712cc374f85a648f8bc18aaa2efc8",
+      "size": 77476480
+    },
+    "moonshine-base-ar": {
+      "repo": "handy-computer/moonshine-base-ar-gguf",
+      "revision": "61b329e9f5362966891b20c15fbf9d071015535d",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-base-ar-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-base-ar-Q8_0.gguf",
+      "sha256": "1a5b34653dfff0917d5bc7de1aeafca674162a5efa674472358d1b7f1644cf73",
+      "size": 77476480
+    },
+    "moonshine-base-ja": {
+      "repo": "handy-computer/moonshine-base-ja-gguf",
+      "revision": "b799a363cf5419510f651e5b31ec8db47e607e98",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-base-ja-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-base-ja-Q8_0.gguf",
+      "sha256": "8ee6e9d7c9df69a3ea654af77659f1c0c08bf90998c2e2a269826096ffafc4f0",
+      "size": 77476480
+    },
+    "moonshine-base-ko": {
+      "repo": "handy-computer/moonshine-base-ko-gguf",
+      "revision": "eb13d3dc58222245d8efcb76423eb56dc9e80d14",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-base-ko-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-base-ko-Q8_0.gguf",
+      "sha256": "b430672cfdde98b894bd98adf1a8b3470308fea39ad1e6bb0f54d8fc9e114471",
+      "size": 77476480
+    },
+    "moonshine-base-uk": {
+      "repo": "handy-computer/moonshine-base-uk-gguf",
+      "revision": "094ab3ac27154de41f9031c09093e818d5819ec8",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-base-uk-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-base-uk-Q8_0.gguf",
+      "sha256": "6dcac8c3905706e8c8416f531a479eccaa38cdaf1eae439f776fda4d4faa88d3",
+      "size": 77476512
+    },
+    "moonshine-base-vi": {
+      "repo": "handy-computer/moonshine-base-vi-gguf",
+      "revision": "4966da6b10e66d1aee9bc320daea4b07d3bf159c",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-base-vi-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-base-vi-Q8_0.gguf",
+      "sha256": "d382ec7ac6aa821d25b921ab982bf1bf29da591cad73372b65209c6a74decb36",
+      "size": 77476512
+    },
+    "moonshine-base-zh": {
+      "repo": "handy-computer/moonshine-base-zh-gguf",
+      "revision": "1724e1d6b339eb636439051f6141fa3c42e2acb1",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-base-zh-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-base-zh-Q8_0.gguf",
+      "sha256": "1bae1d753b29b0c34038585b576d28e4f262ed10c6c7217e023fa5d624dc15ad",
+      "size": 77476480
+    },
+    "moonshine-streaming-medium": {
+      "repo": "handy-computer/moonshine-streaming-medium-gguf",
+      "revision": "0f99e956a9e63d591ddd7f2a20dfead255e96c68",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-streaming-medium-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-streaming-medium-Q8_0.gguf",
+      "sha256": "f7c9564249b508f6012927ec4f9e536087da53a7047f858ca9975bea5f75299e",
+      "size": 295793568
+    },
+    "moonshine-streaming-small": {
+      "repo": "handy-computer/moonshine-streaming-small-gguf",
+      "revision": "7e32b1b3dfce5d3a38dad59630ffce608f15c4aa",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-streaming-small-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-streaming-small-Q8_0.gguf",
+      "sha256": "d03670f69629b649085d0f44a63d97668b4119117cc9611a4e4ad94341713dfc",
+      "size": 198506848
+    },
+    "moonshine-streaming-tiny": {
+      "repo": "handy-computer/moonshine-streaming-tiny-gguf",
+      "revision": "f33fef628bc4d7ddb419384b1cf28ee83b662b06",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-streaming-tiny-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-streaming-tiny-Q8_0.gguf",
+      "sha256": "930e4622ad3a24158b91406c30c977fa6a26b34cb32d6ac3e57cfb23383a869e",
+      "size": 50462816
+    },
+    "moonshine-tiny": {
+      "repo": "handy-computer/moonshine-tiny-gguf",
+      "revision": "83c2af356aebbb3ce6a8371d6fd86cb601003666",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-tiny-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-tiny-Q8_0.gguf",
+      "sha256": "2fd348d7b38f97d309cc3ec6848f3f57f537b80244950f07d2637e463f95a3a1",
+      "size": 35466912
+    },
+    "moonshine-tiny-ar": {
+      "repo": "handy-computer/moonshine-tiny-ar-gguf",
+      "revision": "f9958e69e37cfdac76d99c47b005a29311a5a032",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-tiny-ar-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-tiny-ar-Q8_0.gguf",
+      "sha256": "e0bfa7c3aad2fe7acce022566daa1bb6140b6b263ba79655241acec7f7e0000b",
+      "size": 35466944
+    },
+    "moonshine-tiny-ja": {
+      "repo": "handy-computer/moonshine-tiny-ja-gguf",
+      "revision": "f736864579a739d0a24c77d6a853bec3239f5955",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-tiny-ja-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-tiny-ja-Q8_0.gguf",
+      "sha256": "b47da12b2238cd176d9deebf31d49803c9eb4e99de5fd3abf672b4c0e2773c26",
+      "size": 35466944
+    },
+    "moonshine-tiny-ko": {
+      "repo": "handy-computer/moonshine-tiny-ko-gguf",
+      "revision": "ffb0437b63aac1f2d67e5d6290eab125877bd84c",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-tiny-ko-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-tiny-ko-Q8_0.gguf",
+      "sha256": "3ffe3340ceed10843789e2f7bf580097213c97a3537cae7031dbfe2a409b36b7",
+      "size": 35466944
+    },
+    "moonshine-tiny-uk": {
+      "repo": "handy-computer/moonshine-tiny-uk-gguf",
+      "revision": "ab0890a09cde15cca11c193e01d89a8efed42c81",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-tiny-uk-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-tiny-uk-Q8_0.gguf",
+      "sha256": "61c372f6d99cce6c7b7c45626a51a6c935217368e715d9c4e036ce85f4496338",
+      "size": 35466944
+    },
+    "moonshine-tiny-vi": {
+      "repo": "handy-computer/moonshine-tiny-vi-gguf",
+      "revision": "a7f0b9adfce6d74d3e14632228db22dd0b938c7b",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-tiny-vi-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-tiny-vi-Q8_0.gguf",
+      "sha256": "a42a80ef2e3636104aa2aff87cdde3e251e319e7d0d1acb3fb594cc601d8b95f",
+      "size": 35466944
+    },
+    "moonshine-tiny-zh": {
+      "repo": "handy-computer/moonshine-tiny-zh-gguf",
+      "revision": "07fbc847c57369d3c87598198345f386a785fbb3",
+      "license": "mit",
+      "licenseUrl": "https://huggingface.co/handy-computer/moonshine-tiny-zh-gguf",
+      "quant": "Q8_0",
+      "file": "moonshine-tiny-zh-Q8_0.gguf",
+      "sha256": "95387abe90625410f8e2bcec43faaaadc0d92ef1e721117eb8a69cd31a7ef692",
+      "size": 35466944
+    },
+    "moss-transcribe-diarize": {
+      "repo": "handy-computer/moss-transcribe-diarize-gguf",
       "revision": "bfa3d24438711391d8713c6ab0efd6264527757c",
-      "file": "MOSS-Transcribe-Diarize-Q4_K_M.gguf",
-      "sha256": "e371990f2c8f21ded18e18cfac8906b059b5ee7cbce154ed4d3c582c05100b8b",
-      "size": 617345184,
-      "license": "Apache-2.0",
-      "licenseUrl": "https://huggingface.co/handy-computer/MOSS-Transcribe-Diarize-gguf",
-      "description": "MOSS Transcribe-Diarize Q4_K_M, ~589 MB. Speaker diarization."
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/moss-transcribe-diarize-gguf",
+      "quant": "Q5_K_M",
+      "file": "MOSS-Transcribe-Diarize-Q5_K_M.gguf",
+      "sha256": "52deaeff931272f3d49eb437f0f4916e42fce9f42e68db250047408241cf473c",
+      "size": 700313760
+    },
+    "multitalker-parakeet-streaming-0.6b-v1": {
+      "repo": "handy-computer/multitalker-parakeet-streaming-0.6b-v1-gguf",
+      "revision": "a9a7208d8f205b5816770a6f7fb83afc81a7691b",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/multitalker-parakeet-streaming-0.6b-v1-gguf",
+      "quant": "Q5_K_M",
+      "file": "bundle/multitalker-parakeet-streaming-0.6b-v1-Q5_K_M.gguf",
+      "sha256": "38c98bc0715ee95b4271952630661050a8c3c37f64b8b178c62b8b699668cbdb",
+      "size": 681209984
+    },
+    "nemotron-3.5-asr-streaming-0.6b": {
+      "repo": "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf",
+      "revision": "8139c4ec14bdc45c361adf8d57c27c28e7478272",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf",
+      "quant": "Q5_K_M",
+      "file": "nemotron-3.5-asr-streaming-0.6b-Q5_K_M.gguf",
+      "sha256": "86429e8c4f7fdcf9b3312269ad1ca6669478ba7805331c4aea7a2e33e9910d65",
+      "size": 559647200
+    },
+    "nemotron-speech-streaming-en-0.6b": {
+      "repo": "handy-computer/nemotron-speech-streaming-en-0.6b-gguf",
+      "revision": "9789e0ebf77277911272f0d9a35e1646b5aa6004",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/nemotron-speech-streaming-en-0.6b-gguf",
+      "quant": "Q5_K_M",
+      "file": "nemotron-speech-streaming-en-0.6b-Q5_K_M.gguf",
+      "sha256": "d6b8b36f9aca6a751779d064a29f6583f3e82c0c15646904383c8436a25c1489",
+      "size": 538989568
+    },
+    "parakeet-ctc-0.6b": {
+      "repo": "handy-computer/parakeet-ctc-0.6b-gguf",
+      "revision": "e9f010196d52a55bf132ca0e14eb2ff5755f8049",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-ctc-0.6b-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-ctc-0.6b-Q5_K_M.gguf",
+      "sha256": "8837b9489682f870dae15e126940956d4c0a03fbe884d82edcd8b8c8b1dc0f22",
+      "size": 532544704
+    },
+    "parakeet-ctc-1.1b": {
+      "repo": "handy-computer/parakeet-ctc-1.1b-gguf",
+      "revision": "38475f86e133e8f81832677af29db1a2c976d1d3",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-ctc-1.1b-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-ctc-1.1b-Q5_K_M.gguf",
+      "sha256": "8b38f60bb1c56b518953a39703068adc09991993b5aab52782e038a86a6c04cc",
+      "size": 928584736
+    },
+    "parakeet-primeline": {
+      "repo": "handy-computer/parakeet-primeline-gguf",
+      "revision": "7c63545b352e5d410ccc1ea1eb49aa751e65780b",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-primeline-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-primeline-Q5_K_M.gguf",
+      "sha256": "a1dd12b7f374c33d5e33a61c8a852035d27064cefe53f8cdfc3410cddf3b31c8",
+      "size": 548946336
+    },
+    "parakeet-rnnt-0.6b": {
+      "repo": "handy-computer/parakeet-rnnt-0.6b-gguf",
+      "revision": "5287ceee974bed9be19fc4d23b792b163dbd362e",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-rnnt-0.6b-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-rnnt-0.6b-Q5_K_M.gguf",
+      "sha256": "b2910e4f81f35cc99ce830847040ac469c07aa27d289e9e517d6b73b47a4d7d5",
+      "size": 539714976
+    },
+    "parakeet-rnnt-1.1b": {
+      "repo": "handy-computer/parakeet-rnnt-1.1b-gguf",
+      "revision": "a57f23cc9b9fa9bd5561b3746c5077fafa6b39b6",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-rnnt-1.1b-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-rnnt-1.1b-Q5_K_M.gguf",
+      "sha256": "8ee2ead0c30773440743591cd8a9f8ac180c27f450c9b053805b2bab6bf352cb",
+      "size": 935755008
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "repo": "handy-computer/parakeet-tdt-0.6b-v2-gguf",
+      "revision": "382796e405a9fe37145938dccbabfb25e93e4286",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v2-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-tdt-0.6b-v2-Q5_K_M.gguf",
+      "sha256": "dfa904520b95451599683613fea47766c378c5fdf5d8cddf48151226b6eaec85",
+      "size": 539012608
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "repo": "handy-computer/parakeet-tdt-0.6b-v3-gguf",
+      "revision": "90f082450fcbacdb54e5900c44ef697c9ea59622",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v3-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-tdt-0.6b-v3-Q5_K_M.gguf",
+      "sha256": "cc722e76adc1a629fc0b2535de879d99b8160d07ad4c0215e2ca7d7ea0ae4b8f",
+      "size": 548946272
+    },
+    "parakeet-tdt-1.1b": {
+      "repo": "handy-computer/parakeet-tdt-1.1b-gguf",
+      "revision": "097c6cba3def8533f8c30e572122b64503ffa995",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-tdt-1.1b-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-tdt-1.1b-Q5_K_M.gguf",
+      "sha256": "18c22888fed10676fde72fdd5b833fab9175a6abf4e0cb390eb0a59b0b107cd3",
+      "size": 935758496
+    },
+    "parakeet-tdt_ctc-1.1b": {
+      "repo": "handy-computer/parakeet-tdt_ctc-1.1b-gguf",
+      "revision": "7c7c26cdbe4f92d319176f83b5131cb15863b8a1",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-tdt_ctc-1.1b-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-tdt_ctc-1.1b-Q5_K_M.gguf",
+      "sha256": "da23eb8c78fe3813b88f616db85e8191cfbfffdbc2b8bb8bd74a94eb8987caee",
+      "size": 935758080
+    },
+    "parakeet-tdt_ctc-110m": {
+      "repo": "handy-computer/parakeet-tdt_ctc-110m-gguf",
+      "revision": "766f172fe70eb66785e3371664f53762e0fbafaa",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-tdt_ctc-110m-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-tdt_ctc-110m-Q5_K_M.gguf",
+      "sha256": "1552e707fddb59e3741b66ea917fc91a9381e336a4730739b1d2d448cb013a2e",
+      "size": 101335520
+    },
+    "parakeet-unified-en-0.6b": {
+      "repo": "handy-computer/parakeet-unified-en-0.6b-gguf",
+      "revision": "d5249700b2382bf5c5024c2421d101b8db54a629",
+      "license": "cc-by-4.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/parakeet-unified-en-0.6b-gguf",
+      "quant": "Q5_K_M",
+      "file": "parakeet-unified-en-0.6b-Q5_K_M.gguf",
+      "sha256": "f9def6f9b4e83ab7d006df3e1b676dfa1f973a3b6da232a9c99fcaa66bcd2836",
+      "size": 540795264
+    },
+    "qwen3-asr-0.6b": {
+      "repo": "handy-computer/Qwen3-ASR-0.6B-gguf",
+      "revision": "28c66fba077f1359a42b52c55b618a24cdb6e0e7",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/Qwen3-ASR-0.6B-gguf",
+      "quant": "Q5_K_M",
+      "file": "Qwen3-ASR-0.6B-Q5_K_M.gguf",
+      "sha256": "062a7bcb18675c2fe5ffd0e8b354eac6a1ceada9b2af9ef7168746ae16b54358",
+      "size": 645356192
+    },
+    "qwen3-asr-1.7b": {
+      "repo": "handy-computer/Qwen3-ASR-1.7B-gguf",
+      "revision": "3555bd238a8572bbace3ebf60d23b036dc0a5dbe",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/Qwen3-ASR-1.7B-gguf",
+      "quant": "Q5_K_M",
+      "file": "Qwen3-ASR-1.7B-Q5_K_M.gguf",
+      "sha256": "034c557fe92ff8fcd9a9c041cbdaad347be0a86a58d3a348f63cf3f0180879d0",
+      "size": 1517290464
+    },
+    "sensevoicesmall": {
+      "repo": "handy-computer/SenseVoiceSmall-gguf",
+      "revision": "3d0e44ad1ba285d09e7c86d6cc07604385082bb4",
+      "license": "other",
+      "licenseUrl": "https://huggingface.co/handy-computer/SenseVoiceSmall-gguf",
+      "quant": "Q5_K_M",
+      "file": "SenseVoiceSmall-Q5_K_M.gguf",
+      "sha256": "622a819ef9b37dc5506f0079ddedca6ec22e272bb9b4fe950d8f13422d1ccd0b",
+      "size": 172474880
+    },
+    "voxtral-mini-3b-2507": {
+      "repo": "handy-computer/Voxtral-Mini-3B-2507-gguf",
+      "revision": "b9e655d7a09a24394edf457e08651163ad22732d",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/Voxtral-Mini-3B-2507-gguf",
+      "quant": "Q5_K_M",
+      "file": "Voxtral-Mini-3B-2507-Q5_K_M.gguf",
+      "sha256": "9ea2eb85359f7771270715849dc2b0e80381a59dab09d9c5d85352ab9c53f675",
+      "size": 3464182432
+    },
+    "voxtral-mini-4b-realtime-2602": {
+      "repo": "handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf",
+      "revision": "65d1c9408859a0ca0f1c11b025ee951486af21d6",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf",
+      "quant": "Q5_K_M",
+      "file": "Voxtral-Mini-4B-Realtime-2602-Q5_K_M.gguf",
+      "sha256": "e20a7582c5cf8159454c909b7f57b184b287cb3d7c3ec85744727a2cec51b08f",
+      "size": 3281439008
+    },
+    "voxtral-small-24b-2507": {
+      "repo": "handy-computer/Voxtral-Small-24B-2507-gguf",
+      "revision": "4ab5a0708a16619b2b5b98f14b20333e0de17943",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/Voxtral-Small-24B-2507-gguf",
+      "quant": "Q5_K_M",
+      "file": "Voxtral-Small-24B-2507-Q5_K_M.gguf",
+      "sha256": "a53f73a5f63b7663fe155977616a636acac567dac898f6ef82ca519017e8b6e7",
+      "size": 17138659808
+    },
+    "whisper-base": {
+      "repo": "handy-computer/whisper-base-gguf",
+      "revision": "30c1704968f7540e112bab3ea3cc4b274902c360",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-base-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-base-Q5_K_M.gguf",
+      "sha256": "8e0feb7bc35780353cf31821018e601bb7b7cff6c9a0e17ada5a5db23f4db867",
+      "size": 63786048
+    },
+    "whisper-base.en": {
+      "repo": "handy-computer/whisper-base.en-gguf",
+      "revision": "f83d8d187299d4fc06e86a6de5084375ceac34bf",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-base.en-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-base.en-Q5_K_M.gguf",
+      "sha256": "549e6e991588cd748dc6bf53b8fe47629dc08ed9038b8955270ee98fbc5e4c54",
+      "size": 63709472
+    },
+    "whisper-large": {
+      "repo": "handy-computer/whisper-large-gguf",
+      "revision": "cb93fc5b8f7f06658687a624af75e9ca54bc8057",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-large-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-large-Q5_K_M.gguf",
+      "sha256": "b1dfb9fa0e9b0574d8c822f51662b8e59915831e1a3ca0d191f18ff8ba742639",
+      "size": 1160366048
+    },
+    "whisper-large-v2": {
+      "repo": "handy-computer/whisper-large-v2-gguf",
+      "revision": "25062d25fc998138a697514d047c30f5a5faa410",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-large-v2-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-large-v2-Q5_K_M.gguf",
+      "sha256": "94fab1289a98d26bf375174a8daa00f44c7b16a9944726dde05361e5a8bd07ff",
+      "size": 1160366080
+    },
+    "whisper-large-v3": {
+      "repo": "handy-computer/whisper-large-v3-gguf",
+      "revision": "b33a05f1459f33b0c876f014a57d51618b77d754",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-large-v3-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-large-v3-Q5_K_M.gguf",
+      "sha256": "6053d0fd69a0fd48b8fea5ea7a52b9e0cde389343566fa30e453a1b2b258dc38",
+      "size": 1161143008
+    },
+    "whisper-large-v3-turbo": {
+      "repo": "handy-computer/whisper-large-v3-turbo-gguf",
+      "revision": "ceea6c8a94a21ab85be244d311e874a39344dbf5",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-large-v3-turbo-Q5_K_M.gguf",
+      "sha256": "977b5db4e004349dffd1ab9caa10ba5aaba3fc3edd3ba72cadb84328a3203e36",
+      "size": 619628128
+    },
+    "whisper-medium": {
+      "repo": "handy-computer/whisper-medium-gguf",
+      "revision": "835ad19fff976143d650e35113a6544980cbd983",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-medium-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-medium-Q5_K_M.gguf",
+      "sha256": "4e2a8904a866b3aa7ef70d7640ec6abc5f0a05524cd950ea4b66ace12122bf53",
+      "size": 582746048
+    },
+    "whisper-medium.en": {
+      "repo": "handy-computer/whisper-medium.en-gguf",
+      "revision": "f467a42fbc6158c3f6943280b2d243e528658b9a",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-medium.en-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-medium.en-Q5_K_M.gguf",
+      "sha256": "8c90b55725036f1362fc5a583432a4e63370304dbf0f96b6245685f8a588174f",
+      "size": 582669056
+    },
+    "whisper-small": {
+      "repo": "handy-computer/whisper-small-gguf",
+      "revision": "a2073177cb69bd74b9ca9460b852d17fbfd5d68c",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-small-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-small-Q5_K_M.gguf",
+      "sha256": "326cd00c3e7217c751667c7c1600eaf7e0de174e186ca2c16b4bf590251c3c3b",
+      "size": 193749056
+    },
+    "whisper-small.en": {
+      "repo": "handy-computer/whisper-small.en-gguf",
+      "revision": "465682f43898836b623801603ca6432a41275586",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-small.en-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-small.en-Q5_K_M.gguf",
+      "sha256": "e96a679e57d36f80bb26512f3893185d219ddd8880cdac4c433e5af13a001b47",
+      "size": 193672256
+    },
+    "whisper-tiny": {
+      "repo": "handy-computer/whisper-tiny-gguf",
+      "revision": "2678cc66038359b97c8e6fd6454c56fc9006d571",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-tiny-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-tiny-Q5_K_M.gguf",
+      "sha256": "72cfa8ee436a635a5b6fb373cc056a828b9efe96d32d6eb8769ed3cc5b429719",
+      "size": 44211616
+    },
+    "whisper-tiny.en": {
+      "repo": "handy-computer/whisper-tiny.en-gguf",
+      "revision": "f2406b60206a289ed322f1cf8c492c070c042b1f",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/handy-computer/whisper-tiny.en-gguf",
+      "quant": "Q5_K_M",
+      "file": "whisper-tiny.en-Q5_K_M.gguf",
+      "sha256": "610a75700023ffd74df1ab538353525d0a82a3e35702b923e955e69422519740",
+      "size": 44135072
     }
   }
 }

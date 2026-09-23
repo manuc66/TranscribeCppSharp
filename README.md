@@ -267,16 +267,25 @@ no download at first run):
 
 ```bash
 dotnet tool install -g TranscribeCppSharp.Cli
-transcribe audio.ogg --model tiny          # Whisper tiny, downloaded on first use
-transcribe audio.ogg --model moss          # speaker diarization (MOSS)
-transcribe audio.ogg /path/to/model.gguf   # your own model file (offline)
+transcribe --list-models                     # 72 curated models across all families
+transcribe audio.ogg --model whisper-tiny    # alias, downloaded on first use
+transcribe audio.ogg --model whisper-tiny --quant Q8_0
+transcribe audio.ogg --model moss-transcribe-diarize   # speaker diarization
+transcribe audio.ogg /path/to/model.gguf     # your own file (offline)
+transcribe audio.ogg --model handy-computer/whisper-tiny-gguf/whisper-tiny-Q5_K_M.gguf
 ```
 
-Known model names: `tiny`, `base`, `small` (Whisper, MIT) and `moss` (MOSS
-Transcribe-Diarize, Apache-2.0). They are downloaded once from a **pinned
-HuggingFace revision**, verified by sha256, and cached locally
+Aliases cover **every model family transcribe.cpp supports** (Whisper, Moonshine,
+Parakeet, Canary, GigaAM, Voxtral, Qwen3-ASR, Granite-speech, MOSS/streaming
+diarization, …); `--list-models` also shows each model's **license** (some are
+non-commercial, e.g. `cc-by-nc-4.0`) and `--model-info <alias>` gives the full
+record. Anything else can be pulled with the generic
+`--model <owner>/<repo>/<file.gguf>[@<revision>]` spec.
+
+Models are downloaded once from a **pinned HuggingFace revision**, verified by
+sha256 (read from the HF LFS metadata, never from the download), and cached
 (`$XDG_CACHE_HOME/TranscribeCppSharp/models`, `%LOCALAPPDATA%` on Windows) so
-later runs are offline. Pass a file path to use your own model.
+later runs are offline. Model weights are never bundled with the tool.
 
 ### Building from source
 
