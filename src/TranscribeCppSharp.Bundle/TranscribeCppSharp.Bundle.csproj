@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Meta-package: no assembly of its own, only dependencies. -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IsPackable>true</IsPackable>
+    <PackageId>TranscribeCppSharp.Bundle</PackageId>
+    <Description>Convenience meta-package: the TranscribeCppSharp wrapper plus the native transcribe.cpp binaries for every supported platform. Install this to get running on any OS; for a minimal footprint install TranscribeCppSharp plus the matching TranscribeCppSharp.Native.&lt;rid&gt; package instead.</Description>
+    <!-- No lib/ output by design (meta-package); NU5128 warns about that.
+         CS2008/CA1016 are noise for a project with no source files. -->
+    <NoWarn>$(NoWarn);NU5128;CS2008;CA1016</NoWarn>
+    <!-- Content-only package, nothing to symbolize. -->
+    <IncludeSymbols>false</IncludeSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
+  </ItemGroup>
+
+  <!-- Native binaries for every supported platform; versions track the upstream
+       transcribe.cpp version (the package's own Version), unlike the wrapper
+       which has its own SemVer. In CI these come from the local feed produced by
+       the pack-native job (RestoreAdditionalProjectSources). -->
+  <ItemGroup>
+    <PackageReference Include="TranscribeCppSharp.Native.win-x64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.linux-x64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.linux-arm64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.osx-arm64" Version="$(Version)" />
+    <PackageReference Include="TranscribeCppSharp.Native.osx-x64" Version="$(Version)" />
+  </ItemGroup>
+
+</Project>

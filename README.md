@@ -14,13 +14,20 @@
 
 ## Installation
 
-Add the main wrapper package to your project:
+The wrapper is platform-agnostic and ships no native binaries. A minimal install is the wrapper plus the native runtime package for your platform:
 
 ```bash
 dotnet add package TranscribeCppSharp
+dotnet add package TranscribeCppSharp.Native.linux-x64   # pick your platform
 ```
 
-To include the native binaries for your platform, add the corresponding runtime package:
+If you would rather not pick a platform (or want one package that works everywhere), install the bundle meta-package instead — it pulls the wrapper and every native runtime:
+
+```bash
+dotnet add package TranscribeCppSharp.Bundle
+```
+
+Native runtime packages:
 
 - **Linux (x64)**: `TranscribeCppSharp.Native.linux-x64`
 - **Linux (ARM64)**: `TranscribeCppSharp.Native.linux-arm64`
@@ -207,9 +214,9 @@ The native library and this wrapper are **not** thread-safe by default. The rele
 Two version numbers are in play, decoupled on purpose:
 
 - **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper.
-- **`TranscribeCppSharp.Interop`** and **`TranscribeCppSharp.Native.*`** are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.2.3` = transcribe.cpp v0.2.3). They track the ABI, not the wrapper's API.
+- **`TranscribeCppSharp.Interop`**, the **`TranscribeCppSharp.Native.*`** runtime packages and the **`TranscribeCppSharp.Bundle`** meta-package are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.2.3` = transcribe.cpp v0.2.3). They track the ABI, not the wrapper's API.
 
-So `TranscribeCppSharp 0.2.0` depends on `TranscribeCppSharp.Interop 0.2.3`; a later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](CHANGELOG.md).
+So `TranscribeCppSharp 0.2.0` depends on `TranscribeCppSharp.Interop 0.2.3`; `TranscribeCppSharp.Bundle 0.2.3` pulls that wrapper plus all the native runtime packages. A later upstream release will ship as a new Interop/Native/Bundle version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Attribution
 

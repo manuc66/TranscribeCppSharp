@@ -231,7 +231,7 @@ jobs:
           path: nupkgs/*.nupkg
 
   pack-interop:
-    needs: [build-and-test, get-version, pack-native]
+    needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -240,18 +240,12 @@ jobs:
         with:
           dotnet-version: '10.x'
 
-      - name: Download native NuGets (local feed for restore)
-        uses: actions/download-artifact@v8
-        with:
-          name: native-nupkg
-          path: local-feed
-
-      - name: Pack Interop NuGet
+      - name: Pack Interop NuGet (core, no native runtimes)
+        # The Interop package is platform-agnostic: consumers add the native
+        # package for their RID, or the TranscribeCppSharp.Bundle meta-package.
         run: |
           dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs \
-            /p:Version=${{ needs.get-version.outputs.version }} \
-            /p:PackNativeRuntimes=true \
-            "/p:RestoreAdditionalProjectSources=$(pwd)/local-feed"
+            /p:Version=${{ needs.get-version.outputs.version }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -283,9 +277,40 @@ jobs:
             nupkgs/*.nupkg
             nupkgs/*.snupkg
 
+  pack-bundle:
+    # Convenience meta-package: wrapper + every native RID. Depends on both the
+    # native and wrapper jobs so their packages exist (the natives come from the
+    # local feed produced by pack-native).
+    needs: [build-and-test, get-version, pack-native, pack-wrapper]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Download native NuGets (local feed for restore)
+        uses: actions/download-artifact@v8
+        with:
+          name: native-nupkg
+          path: local-feed
+
+      - name: Pack Bundle meta-package
+        run: |
+          dotnet pack src/TranscribeCppSharp.Bundle -c Release -o nupkgs \
+            /p:Version=${{ needs.get-version.outputs.version }} \
+            /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }} \
+            "/p:RestoreAdditionalProjectSources=$(pwd)/local-feed"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-nupkg
+          path: nupkgs/*.nupkg
+
   push-nugets:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-    needs: [pack-native, pack-interop, pack-wrapper]
+    needs: [pack-native, pack-interop, pack-wrapper, pack-bundle]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
