@@ -4,9 +4,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using TranscribeCppSharp;
+using TranscribeCppSharp.Cli;
 using TranscribeCppSharp.Interop;
 
-const string DefaultModel = "moss-transcribe-diarize-q4-k-m.gguf";
+const string DefaultModel = "moss";
 
 if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
 {
@@ -15,14 +16,16 @@ if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
         multi-speaker audio). Defaults: MOSS diarization model and forced
         English (robust on non-native speech).
 
-        Usage: transcribe <audio> [model.gguf] [options]
+        Usage: transcribe <audio> [model] [options]
 
           <audio>        WAV (16 kHz mono 16-bit) read directly; any other
                          format (ogg, mp3, m4a, …) is decoded with ffmpeg
                          (must be installed)
-          [model.gguf]   default: test-models/moss-transcribe-diarize-q4-k-m.gguf
-                         (fetch with WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh)
+          [model]        a model file path, or a known name (default: moss).
+                         Known names: tiny, base, small, moss — downloaded
+                         from HuggingFace on first use and cached.
 
+          --model <m>    same as the [model] argument
           --lang <code>  language code for the decoder (default: en)
           --chunk <sec>  max per-transcription window in seconds (default: 300);
                          long audio is split with 1 s overlap and deduplicated
@@ -38,9 +41,20 @@ if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
 }
 
 var audioPath = Path.GetFullPath(args[0]);
-var modelPath = args.Length > 1 && !args[1].StartsWith("--")
-    ? Path.GetFullPath(args[1])
-    : Path.Combine(Directory.GetCurrentDirectory(), "test-models", DefaultModel);
+
+string modelPath;
+try
+{
+    modelPath = ModelStore.Resolve(
+        ArgAfter("--model")
+        ?? (args.Length > 1 && !args[1].StartsWith("--") ? args[1] : DefaultModel));
+}
+catch (Exception ex) when (ex is IOException or HttpRequestException)
+{
+    // Unknown name, download failure, checksum mismatch: report and stop.
+    Console.Error.WriteLine(ex.Message);
+    return 1;
+}
 
 var lang = ArgAfter("--lang") ?? "en";
 var chunkSeconds = int.TryParse(ArgAfter("--chunk"), out var cs) && cs > 0 ? cs : 300;
@@ -54,7 +68,6 @@ if (outFormat is not ("plain" or "vtt" or "json"))
 }
 
 if (!File.Exists(audioPath)) { Console.Error.WriteLine($"no such file: {audioPath}"); return 1; }
-if (!File.Exists(modelPath)) { Console.Error.WriteLine($"model not found: {modelPath}\n  fetch it with WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh"); return 1; }
 
 Backends.InitDefault();
 

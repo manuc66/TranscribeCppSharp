@@ -267,12 +267,16 @@ no download at first run):
 
 ```bash
 dotnet tool install -g TranscribeCppSharp.Cli
-transcribe audio.ogg --model moss-transcribe-diarize-q4-k-m.gguf
+transcribe audio.ogg --model tiny          # Whisper tiny, downloaded on first use
+transcribe audio.ogg --model moss          # speaker diarization (MOSS)
+transcribe audio.ogg /path/to/model.gguf   # your own model file (offline)
 ```
 
-Models are not bundled: pass `--model <path>` (a GGUF/whisper file), or drop
-`moss-transcribe-diarize-q4-k-m.gguf` in a `test-models/` folder next to where you
-run the command.
+Known model names: `tiny`, `base`, `small` (Whisper, MIT) and `moss` (MOSS
+Transcribe-Diarize, Apache-2.0). They are downloaded once from a **pinned
+HuggingFace revision**, verified by sha256, and cached locally
+(`$XDG_CACHE_HOME/TranscribeCppSharp/models`, `%LOCALAPPDATA%` on Windows) so
+later runs are offline. Pass a file path to use your own model.
 
 ### Building from source
 

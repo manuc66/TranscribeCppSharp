@@ -29,6 +29,11 @@
     <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Known-model manifest (names -> HuggingFace repo/revision/sha256). -->
+    <EmbeddedResource Include="models.json" LogicalName="models.json" />
+  </ItemGroup>
+
   <!-- Embed the native runtime for the RID being packed into the RID-specific
        tool package, taken from native-packages/ (fetched by tools/FetchNative).
        A per-RID PackageReference does NOT work here: NuGet restore evaluates
