@@ -213,10 +213,10 @@ The native library and this wrapper are **not** thread-safe by default. The rele
 
 Two version numbers are in play, decoupled on purpose:
 
-- **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper.
-- **`TranscribeCppSharp.Interop`**, the **`TranscribeCppSharp.Native.*`** runtime packages and the **`TranscribeCppSharp.Bundle`** meta-package are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.2.3` = transcribe.cpp v0.2.3). They track the ABI, not the wrapper's API.
+- **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper. The user-facing packages **`TranscribeCppSharp.Bundle`** (meta-package) and **`TranscribeCppSharp.Cli`** (the `transcribe` tool) follow the wrapper's version too.
+- **`TranscribeCppSharp.Interop`** and the **`TranscribeCppSharp.Native.*`** runtime packages are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.2.3` = transcribe.cpp v0.2.3). They track the ABI, not the wrapper's API.
 
-So `TranscribeCppSharp 0.2.0` depends on `TranscribeCppSharp.Interop 0.2.3`; `TranscribeCppSharp.Bundle 0.2.3` pulls that wrapper plus all the native runtime packages. A later upstream release will ship as a new Interop/Native/Bundle version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](CHANGELOG.md).
+So `TranscribeCppSharp 0.2.0` depends on `TranscribeCppSharp.Interop 0.2.3`; `TranscribeCppSharp.Bundle 0.3.0` pulls a wrapper and the native runtime packages of the matching upstream version. A later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Attribution
 
