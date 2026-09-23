@@ -336,8 +336,7 @@ jobs:
         run: |
           dotnet pack src/TranscribeCppSharp.Cli -c Release -o nupkgs \
             /p:Version=${{ needs.get-version.outputs.version }} \
-            /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }} \
-            "/p:RuntimeIdentifiers=win-x64;linux-x64;linux-arm64;osx-arm64;osx-x64"
+            /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }}
 
       - uses: actions/upload-artifact@v7
         with:

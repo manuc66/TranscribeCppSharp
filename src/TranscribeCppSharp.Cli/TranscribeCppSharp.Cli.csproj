@@ -18,7 +18,10 @@
     <!-- RID-specific tool packages: `dotnet tool install` picks the package for
          the user's platform automatically (no RID to specify). `any` is the
          framework-dependent fallback for platforms without a dedicated build.
-         .NET SDK 10+ required. -->
+         RuntimeIdentifiers must be a superset of ToolPackageRuntimeIdentifiers;
+         it only drives packaging here (the native is local content, not a
+         package, so restore downloads nothing). .NET SDK 10+ required. -->
+    <RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-arm64;osx-x64;any</RuntimeIdentifiers>
     <ToolPackageRuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-arm64;osx-x64;any</ToolPackageRuntimeIdentifiers>
   </PropertyGroup>
 
