@@ -304,7 +304,16 @@ public enum PncMode
 /// emit a WARN and proceed with default behavior.
 /// </para>
 /// <para>
-/// DEFAULT (0): family default. Zero-init gives this value.
+/// DEFAULT (0): family default. Zero-init gives this value. Most families
+/// follow their upstream default; <c>sensevoice</c> is the
+/// exception and resolves DEFAULT to ON, because there the
+/// ITN toggle is also the only source of casing and
+/// punctuation, so ITN-off would hand an unconfigured caller
+/// lowercase unpunctuated text. For sensevoice, DEFAULT is
+/// therefore NOT the setting the published WER tables were
+/// measured at — the harness pins ITN off (docs/tools/wer.md).
+/// <c>funasr_nano</c> has the same shape of toggle but keeps the
+/// upstream <c>itn=False</c> default.
 /// OFF:         explicit ITN off. Supporting families emit verbatim
 /// spoken-form text. Non-supporting families ignore (WARN).
 /// ON:          explicit ITN on. Supporting families apply ITN.
