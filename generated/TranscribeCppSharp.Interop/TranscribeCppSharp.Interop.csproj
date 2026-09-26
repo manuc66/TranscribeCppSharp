@@ -29,6 +29,7 @@
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
     <InternalsVisibleTo Include="SmokeTest" />
     <InternalsVisibleTo Include="TranscribeCppSharp" />
+    <InternalsVisibleTo Include="TranscribeCppSharp.Cli" />
   </ItemGroup>
 
   <!-- This is the platform-agnostic "core": it never depends on the native

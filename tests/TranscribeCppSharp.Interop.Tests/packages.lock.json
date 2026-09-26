@@ -146,6 +146,12 @@
           "TranscribeCppSharp.Interop": "[0.2.3, )"
         }
       },
+      "transcribecppsharp.cli": {
+        "type": "Project",
+        "dependencies": {
+          "TranscribeCppSharp": "[0.3.0, )"
+        }
+      },
       "transcribecppsharp.interop": {
         "type": "Project"
       }

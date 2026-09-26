@@ -55,6 +55,9 @@
     <ProjectReference Include="..\..\src\Generator\Generator.csproj" />
     <ProjectReference Include="..\..\generated\TranscribeCppSharp.Interop\TranscribeCppSharp.Interop.csproj" />
     <ProjectReference Include="..\..\src\TranscribeCppSharp\TranscribeCppSharp.csproj" />
+    <!-- For the CLI's pure backend/device policy (DeviceSelection), which is
+         unit tested here because CI has no GPU to exercise it on. -->
+    <ProjectReference Include="..\..\src\TranscribeCppSharp.Cli\TranscribeCppSharp.Cli.csproj" />
   </ItemGroup>
 
 </Project>

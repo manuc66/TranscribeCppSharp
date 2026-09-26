@@ -36,6 +36,12 @@
     <EmbeddedResource Include="models.json" LogicalName="models.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- DeviceSelection is internal; the tests assert the backend/device
+         policy on machines that have no GPU to exercise it on. -->
+    <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
+  </ItemGroup>
+
   <!-- Embed the native runtime for the RID being packed into the RID-specific
        tool package, taken from native-packages/ (fetched by tools/FetchNative).
        A per-RID PackageReference does NOT work here: NuGet restore evaluates

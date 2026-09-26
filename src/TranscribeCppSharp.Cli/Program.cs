@@ -20,6 +20,16 @@ if (args.Contains("--model-info"))
     return ModelStore.Info(ArgAfter("--model-info") ?? string.Empty) ? 0 : 1;
 }
 
+if (args.Contains("--list-devices"))
+{
+    // Needs the backends registered, so it cannot be answered from the
+    // manifest like --list-models. Handled before any model resolution so it
+    // never triggers a download.
+    Backends.InitDefault();
+    Console.WriteLine(DeviceSelection.FormatDevices(Backends.EnumerateDevices()));
+    return 0;
+}
+
 if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
 {
     Console.WriteLine("""
@@ -43,6 +53,15 @@ if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
                          Q8_0, F16); default is per model (see --list-models)
           --list-models  list the known model aliases and exit
           --model-info <alias>  show details (revision, size, license) for one alias
+          --backend <b>  compute backend: auto (default), cpu, cpu-accel,
+                         metal, vulkan, cuda, rocm. 'auto' runs on the GPU
+                         when one initializes (every discrete GPU is probed
+                         before the integrated ones) and falls back to the CPU
+                         otherwise; a forced backend fails instead of falling
+                         back
+          --device <n>   run on that exact device (index from --list-devices);
+                         never falls back to another device
+          --list-devices list the compute devices this build and machine can see
           --lang <code>  language code for the decoder (default: en)
           --chunk <sec>  max per-transcription window in seconds (default: 300);
                          long audio is split with 1 s overlap and deduplicated
@@ -85,15 +104,61 @@ if (outFormat is not ("plain" or "vtt" or "json"))
     return 1;
 }
 
+var backendName = ArgAfter("--backend") ?? "auto";
+if (!DeviceSelection.TryParseBackend(backendName, out var backend, out var backendError))
+{
+    Console.Error.WriteLine(backendError);
+    return 1;
+}
+
+string? deviceArg = ArgAfter("--device");
+int? deviceIndex = null;
+if (deviceArg is not null)
+{
+    if (!int.TryParse(deviceArg, out int parsed) || parsed < 0)
+    {
+        Console.Error.WriteLine($"invalid --device: '{deviceArg}' (expected a non-negative index from --list-devices)");
+        return 1;
+    }
+
+    deviceIndex = parsed;
+}
+
 if (!File.Exists(audioPath)) { Console.Error.WriteLine($"no such file: {audioPath}"); return 1; }
 
 Backends.InitDefault();
 
+var devices = Backends.EnumerateDevices();
+DeviceChoice? choice = DeviceSelection.Resolve(devices, backend, deviceIndex, out var deviceError);
+if (choice is null)
+{
+    Console.Error.WriteLine(deviceError);
+    return 1;
+}
+
+// A forced backend that this build/machine does not have fails here rather
+// than silently landing on another one: the upstream returns ERR_BACKEND, and
+// quietly using the CPU would misreport what actually ran.
+if (choice.Device is null && backend != BackendRequest.BackendAuto && !Backends.BackendAvailable(backend))
+{
+    Console.Error.WriteLine($"--backend {backendName} is not available in this build or on this machine.");
+    Console.Error.WriteLine(devices.Count == 0 ? "No compute device is registered." : DeviceSelection.FormatDevices(devices));
+    return 1;
+}
+
 var pcm = LoadPcm(audioPath);
 Console.WriteLine($"audio : {pcm.Length:N0} samples = {pcm.Length / 16000d:F1}s @ 16kHz mono");
 
-using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+using var model = Model.Load(modelPath, p =>
+{
+    p.WithBackend(choice.Backend);
+    if (choice.Device is not null)
+    {
+        p.WithDevice(choice.Device);
+    }
+});
 Console.WriteLine($"model : {model.Architecture}/{model.Variant}");
+Console.WriteLine($"compute: {DescribeCompute(choice, model)}");
 Console.WriteLine($"diarization supported: {model.Supports(Feature.FeatureDiarization)}");
 
 using var session = model.CreateSession();
@@ -260,6 +325,26 @@ string ArgAfter(string name)
     }
 
     return null;
+}
+
+// Reports the backend the model ACTUALLY landed on (transcribe_model_backend
+// plus the resolved device), not the one that was requested, so "GPU active"
+// is a fact on screen and not an assumption. When the default auto selection
+// ends up on the CPU, that is spelled out: it means no GPU initialized here.
+static string DescribeCompute(DeviceChoice choice, Model model)
+{
+    string actual = string.IsNullOrEmpty(model.Backend) ? "unknown" : model.Backend;
+    BackendDevice? device = model.Device;
+    string where = device is null ? string.Empty : $" on {DeviceSelection.Describe(device)}";
+    // Only for an automatic choice: an explicit --device 2 (the CPU) is what
+    // the user asked for and must not be reported as a fallback.
+    string note = choice.Device is null
+        && choice.Backend == BackendRequest.BackendAuto
+        && string.Equals(device?.Kind, "cpu", StringComparison.OrdinalIgnoreCase)
+            ? " (no GPU initialized, CPU fallback)"
+            : string.Empty;
+
+    return $"{actual}{where} [requested: {choice.Request}]{note}";
 }
 
 static string Ts(double totalMs)

@@ -37,6 +37,12 @@ packaging + tooling release.
   are verified by sha256 (read from the HF LFS metadata) and cached.
 - `--list-models` / `--model-info <alias>` show each model's license
   (non-commercial licenses are flagged); `--quant` selects a quantization.
+- **GPU by default.** The tool no longer pins the CPU backend: it uses the
+  upstream `AUTO` policy (every discrete GPU probed before the integrated ones,
+  CPU as last resort) and prints the backend the model actually landed on.
+  `--backend <auto|cpu|cpu-accel|metal|vulkan|cuda|rocm>` forces one and
+  `--device <n>` pins an exact device (indices from `--list-devices`); a forced
+  choice fails loudly rather than falling back silently.
 - `tools/UpdateModelManifest` regenerates the model manifest from the
   HuggingFace API.
 
