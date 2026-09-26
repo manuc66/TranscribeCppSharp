@@ -7,6 +7,24 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 `TranscribeCppSharp.Interop` and `TranscribeCppSharp.Native.*` track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
+## [0.3.1] - wrapper release
+
+Binds to **transcribe.cpp v0.2.4** (was v0.2.3). No C# API change; this is a
+packaging release, so the wrapper takes a patch bump while `Interop` and
+`Native.*` move to 0.2.4.
+
+- The `TranscribeCppSharp.Native.*` packages now redistribute the upstream
+  v0.2.4 archives. On the native side that means ggml 0.25.3, an upstream fix
+  for decode-budget scaling, lower Parakeet memory use, and an offline Voxtral
+  patch — all authored upstream by the transcribe.cpp authors.
+- **No ABI change**: the upstream Rust FFI file is byte-for-byte identical
+  between v0.2.3 and v0.2.4, and the public header differs only by its version
+  define and one doc comment. The only visible effect on this package is a
+  corrected doc comment on `ItnMode.ItnModeDefault`: upstream v0.2.4 documents
+  that `DEFAULT` resolves to **ON** for `sensevoice` (its ITN toggle is the only
+  source of casing and punctuation there), while `funasr_nano` keeps the
+  upstream `itn=False` default.
+
 ## [0.3.0] - wrapper release
 
 Binds to **transcribe.cpp v0.2.3** (unchanged). No C# API change; this is a
@@ -93,9 +111,11 @@ Wrapper SemVer baseline. This release binds to **transcribe.cpp v0.1.3**.
 
 ## Upstream version history (transcribe.cpp)
 
-- **v0.2.3** — current version packaged by this project.
+- **v0.2.4** — current version packaged by this project.
+- **v0.2.3** — packaged by 0.2.0 and 0.3.0.
 - **v0.1.3** — first version packaged by this project.
 
+[0.3.1]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.1.3...v0.1.0
