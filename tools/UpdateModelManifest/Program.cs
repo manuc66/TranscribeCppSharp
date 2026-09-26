@@ -10,6 +10,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TranscribeCppSharp.Tools.UpdateModelManifest;
 
 string author = ArgAfter("--author") ?? "handy-computer";
 string quant = ArgAfter("--quant") ?? "Q5_K_M";
@@ -198,44 +199,50 @@ static string FindRepoRoot()
     throw new DirectoryNotFoundException("Could not find repo root (TranscribeCppSharp.slnx)");
 }
 
-internal sealed class Manifest
+// The manifest DTOs live in a named namespace rather than the global one
+// (SonarCloud rule S3903). A block-scoped namespace is used because a
+// file-scoped one would have to precede the top-level statements.
+namespace TranscribeCppSharp.Tools.UpdateModelManifest
 {
-    public string DefaultQuant { get; set; } = string.Empty;
-
-    public SortedDictionary<string, ModelEntry> Models { get; set; } = new(StringComparer.Ordinal);
-}
-
-internal sealed class ModelEntry
-{
-    public string Repo { get; set; } = string.Empty;
-
-    public string Revision { get; set; } = string.Empty;
-
-    public string License { get; set; } = string.Empty;
-
-    public string LicenseUrl { get; set; } = string.Empty;
-
-    public string Quant { get; set; } = string.Empty;
-
-    public string File { get; set; } = string.Empty;
-
-    public string Sha256 { get; set; } = string.Empty;
-
-    public long Size { get; set; }
-}
-
-internal sealed record HfFile(string Path, string Sha256, long Size)
-{
-    public string Name => Path[(Path.LastIndexOf('/') + 1)..];
-
-    public string Quant
+    internal sealed class Manifest
     {
-        get
+        public string DefaultQuant { get; set; } = string.Empty;
+
+        public SortedDictionary<string, ModelEntry> Models { get; set; } = new(StringComparer.Ordinal);
+    }
+
+    internal sealed class ModelEntry
+    {
+        public string Repo { get; set; } = string.Empty;
+
+        public string Revision { get; set; } = string.Empty;
+
+        public string License { get; set; } = string.Empty;
+
+        public string LicenseUrl { get; set; } = string.Empty;
+
+        public string Quant { get; set; } = string.Empty;
+
+        public string File { get; set; } = string.Empty;
+
+        public string Sha256 { get; set; } = string.Empty;
+
+        public long Size { get; set; }
+    }
+
+    internal sealed record HfFile(string Path, string Sha256, long Size)
+    {
+        public string Name => Path[(Path.LastIndexOf('/') + 1)..];
+
+        public string Quant
         {
-            int dash = Name.LastIndexOf('-');
-            return dash >= 0 && Name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
-                ? Name[(dash + 1)..^".gguf".Length]
-                : "unknown";
+            get
+            {
+                int dash = Name.LastIndexOf('-');
+                return dash >= 0 && Name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
+                    ? Name[(dash + 1)..^".gguf".Length]
+                    : "unknown";
+            }
         }
     }
 }
