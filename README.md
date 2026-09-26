@@ -12,6 +12,11 @@
 
 .NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp): load GGUF speech-to-text models and transcribe audio (16 kHz mono float PCM) from C#.
 
+Two ways to use it:
+
+- **A command-line tool** — `dotnet tool install -g TranscribeCppSharp.Cli` gives you `transcribe`, which downloads a curated model on first use and prints or exports the transcript. See [Command-line tool](#command-line-tool).
+- **A .NET library** — the `TranscribeCppSharp` wrapper (plus the native runtime package for your platform) for C# code. See [Installation](#installation) and [Quick Start](#quick-start).
+
 ## Installation
 
 The wrapper is platform-agnostic and ships no native binaries. A minimal install is the wrapper plus the native runtime package for your platform:
@@ -38,6 +43,207 @@ Native runtime packages:
 *Note: For Linux Alpine (musl) or other platforms, please refer to the [Building from source](#building-from-source) section. Like [Using CUDA](#using-cuda), a custom native build is picked up automatically when placed in the app output directory.*
 
 The wrapper resolves `libtranscribe` automatically in plain `dotnet run` scenarios (no `<RuntimeIdentifier>` needed): it searches the app output directory — including the `runtimes/<rid>/native/` layout where .NET places runtime-package binaries — and the NuGet global packages folder. If the native library is still missing at runtime (e.g. you forgot the runtime package), the wrapper throws a `DllNotFoundException` that lists the exact package to add for your platform (e.g. `dotnet add package TranscribeCppSharp.Native.linux-x64`) and the paths it searched. It does not silently produce a misleading error.
+
+## Command-line tool
+
+`transcribe` is the fastest way to try this project: it needs no code, no
+project file, and no manual model handling.
+
+```bash
+dotnet tool install -g TranscribeCppSharp.Cli
+```
+
+The tool is published per platform (win-x64, linux-x64, linux-arm64, osx-x64,
+osx-arm64), and the native runtime for your platform is embedded in the package,
+so nothing native is downloaded at first run. It needs the .NET 10 runtime.
+
+### Transcribe a file
+
+```bash
+transcribe jfk.wav --model whisper-tiny
+```
+
+The model is fetched from HuggingFace on first use (42 MB for that alias),
+verified by sha256 and cached. Aliases carry a pinned revision, so later runs
+reuse the cache and need no network. Console output below, with the
+`ggml_*`/`load_backend` native log lines and the two timing lines (per-window
+progress and the real-time factor, which depend on your hardware) omitted.
+Decimal separators follow your locale:
+
+```text
+audio : 176 000 samples = 11,0s @ 16kHz mono
+model : whisper/whisper-tiny
+diarization supported: False
+window: 300s (model max audio 0s)
+
+=== window 1 @ 00:00.0 (176 000 samples) ===
+  lang   :    aborted: False  truncated: False
+  full   : And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.
+
+=== summary ===
+  windows: 1
+```
+
+### Choose a model
+
+The model argument accepts three forms:
+
+```bash
+transcribe audio.wav --model whisper-tiny            # curated alias (72 across all families)
+transcribe audio.wav --model whisper-tiny --quant Q8_0
+transcribe audio.wav /path/to/my-model.gguf           # local file, fully offline
+transcribe audio.wav handy-computer/parakeet-tdt-0.6b-v3-gguf/parakeet-tdt-0.6b-v3-Q5_K_M.gguf
+```
+
+`--list-models` prints every alias with its quantization, license and size, and
+flags non-commercial licenses; `--model-info <alias>` gives the full record
+(pinned revision, sha256, license URL). Excerpts:
+
+```text
+$ transcribe --list-models
+alias                                    quant    license              size
+breeze-asr-25                            Q5_K_M   apache-2.0         1106 MB
+canary-1b                                Q5_K_M   cc-by-nc-4.0 !      798 MB
+parakeet-tdt-0.6b-v3                     Q5_K_M   cc-by-4.0           523 MB
+whisper-large-v3-turbo                   Q5_K_M   apache-2.0          590 MB
+…
+! = non-commercial license; verify before any commercial use.
+
+$ transcribe --model-info whisper-tiny
+whisper-tiny
+  repo       : handy-computer/whisper-tiny-gguf
+  revision   : 2678cc66038359b97c8e6fd6454c56fc9006d571
+  quant      : Q5_K_M
+  file       : whisper-tiny-Q5_K_M.gguf
+  size       : 42 MB
+  license    : apache-2.0
+  license url: https://huggingface.co/handy-computer/whisper-tiny-gguf
+```
+
+Any GGUF that transcribe.cpp supports works through the generic
+`<owner>/<repo>/<file.gguf>[@<revision>]` form, so the alias list is a
+convenience, not a limit. Two differences from an alias: the license is unknown
+(only the model card is linked) and, unless you pin `@<revision>`, the current
+revision is looked up on HuggingFace on **every** run — the cache is still used,
+but the run is not offline. Models are cached under
+`$XDG_CACHE_HOME/TranscribeCppSharp/models` (`%LOCALAPPDATA%` on Windows,
+`~/Library/Caches` on macOS); weights are never bundled with the tool. See
+[Model licenses](#model-licenses) before using a model commercially.
+
+### Export the transcript
+
+`--out` writes the transcript to a file; `--format` picks the shape:
+
+| `--format` | Output |
+| --- | --- |
+| `plain` (default) | header comments + timestamped lines |
+| `vtt` | WebVTT, with speaker cues |
+| `json` | `{"language", "text", "segments":[{start,end,speaker,text}]}` |
+
+```bash
+transcribe jfk.wav --model whisper-tiny --out jfk.vtt --format vtt
+```
+
+```vtt
+WEBVTT
+NOTE source: /audio/jfk.wav
+NOTE audio 00:00:11 model whisper/whisper-tiny lang en diarize on window 300s generated 2026-01-01 09:00:00
+
+00:00:00.000 --> 00:00:10.500
+<v Speaker 0>And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.</v>
+
+NOTE done 2026-01-01 09:00:00
+```
+
+Real output, with the input path and timestamps replaced by placeholders. The
+`NOTE source` line records the absolute path of the input file, as does the
+`# source` header of the `plain` format.
+
+`--format json` writes the language, the full text and the segments, with times
+in seconds:
+
+```json
+{
+  "language": "en",
+  "text": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+  "segments": [
+    {"start":0,"end":10.5,"speaker":0,"text":"And so my fellow Americans ask not what your country can do for you, ask what you can do for your country."}
+  ]
+}
+```
+
+### Long audio and speaker diarization
+
+Audio longer than one window is split with a 1 s overlap and deduplicated;
+`--chunk` sets the window size in seconds (default 300, lowered automatically if
+the model reports a smaller maximum).
+
+Diarization is **on by default** and the default model is `moss-transcribe-diarize`
+(667 MB), which attributes each segment to a speaker. Use `--no-diarize` to turn
+it off. Speaker attribution only happens with a diarization-capable model: on
+other models (Whisper, Parakeet, …) the native library prints a warning and
+every segment is reported as `Speaker 0`.
+
+### Audio input
+
+16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, …) is
+decoded by shelling out to `ffmpeg`, which must be installed and on `PATH`.
+Convert it yourself if you prefer:
+
+```bash
+ffmpeg -i input.mp3 -ar 16000 -ac 1 output.wav
+```
+
+### All options
+
+```text
+$ transcribe --help
+Transcribe audio with a speech-to-text model. Supports every model family
+that transcribe.cpp supports (Whisper, Moonshine, Parakeet, Canary, GigaAM,
+Voxtral, Qwen3-ASR, MOSS diarization, …).
+
+Usage: transcribe <audio> [model] [options]
+
+  <audio>        WAV (16 kHz mono 16-bit) read directly; any other
+                 format (ogg, mp3, m4a, …) is decoded with ffmpeg
+                 (must be installed)
+  [model]        a model file path, a known alias (default:
+                 moss-transcribe-diarize), or a HuggingFace spec
+                 '<owner>/<repo>/<file.gguf>[@<revision>]'.
+                 Aliases and any other supported GGUF are downloaded
+                 from HuggingFace on first use and cached.
+
+  --model <m>    same as the [model] argument
+  --quant <q>    quantization for a known alias (e.g. Q4_K_M, Q5_K_M,
+                 Q8_0, F16); default is per model (see --list-models)
+  --list-models  list the known model aliases and exit
+  --model-info <alias>  show details (revision, size, license) for one alias
+  --lang <code>  language code for the decoder (default: en)
+  --chunk <sec>  max per-transcription window in seconds (default: 300);
+                 long audio is split with 1 s overlap and deduplicated
+  --no-diarize   disable speaker diarization
+  --out <file>   write the transcript to a file; format controlled
+                 by --format (plain/vtt/json)
+  --format <fmt> transcript file format: plain (default, timestamped
+                 lines), vtt (WebVTT, speaker cues) or json
+                 (whisper-style segments)
+  --help         show this help
+```
+
+### What the CLI does not do
+
+Stated plainly, so nothing is implied:
+
+- **CPU backend only.** The tool always requests `BackendRequest.BackendCpu`;
+  there is no `--backend` flag. For Vulkan/Metal/CUDA, use the library API
+  ([Using CUDA](#using-cuda), [Quick Start](#quick-start)).
+- **One file per run.** No batch or directory input.
+- **No interactive/streaming mode.** Each window is transcribed to completion;
+  see [Real-Time Streaming](#real-time-streaming) for the incremental API.
+- **Blocking.** Transcription runs on the calling thread, as in the native
+  library ([Concurrency Model](#concurrency-model)).
+- **Not covered by CI.** The CI pipeline builds and packs the tool but never
+  executes it; the automated tests exercise the library, not `transcribe`.
 
 ## Quick Start
 
@@ -91,6 +297,9 @@ var text = stream.GetCurrentText();
 
 ## Features
 
+- **Command-Line Tool**: `transcribe` transcribes a file with 72 curated models
+  across every family transcribe.cpp supports, with speaker diarization and
+  plain/WebVTT/JSON export. See [Command-line tool](#command-line-tool).
 - **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Canary, GigaAM, and others — 16 families upstream).
 - **Hardware Acceleration**: The bundled runtimes include CPU, Vulkan (Windows/Linux) and Metal (macOS) backends. See [Using CUDA](#using-cuda) for NVIDIA GPUs.
 - **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for native resource lifetime.
@@ -98,7 +307,7 @@ var text = stream.GetCurrentText();
   - **High-Level Wrapper**: Intuitive C# API for rapid development.
   - **Low-Level Interop**: Direct access to the native C API when needed.
   - **Streaming & Batch**: Support for incremental streaming transcription and batch processing.
-- **Cross-Platform**: Pre-compiled native runtimes are packaged for Windows, Linux, and macOS (x64 and ARM64). Only linux-x64 is exercised by CI.
+- **Cross-Platform**: Pre-compiled native runtimes are packaged for Windows, Linux, and macOS (x64 and ARM64). Build and test run on Linux, macOS and Windows in CI.
 
 ## Using CUDA
 
@@ -166,7 +375,8 @@ The project is divided into several layers, each with a distinct responsibility:
 1.  **`TranscribeCppSharp.Native.*` (Runtimes)**: Platform-specific packages containing the pre-compiled native `libtranscribe` binaries.
 2.  **`TranscribeCppSharp.Interop` (Low-level)**: Auto-generated P/Invoke declarations using `LibraryImport`.
 3.  **`TranscribeCppSharp` (High-level)**: Idiomatic C# abstraction layer providing `IDisposable` resources and typed exceptions.
-4.  **`Generator` (Tool)**: Ensures C# bindings stay in sync with the upstream native API by parsing Rust FFI definitions.
+4.  **`TranscribeCppSharp.Cli` (Command-line tool)**: The `transcribe` .NET tool, a consumer of the high-level wrapper. It adds model resolution/download/caching, windowing and transcript export on top of it.
+5.  **`Generator` (Tool)**: Ensures C# bindings stay in sync with the upstream native API by parsing Rust FFI definitions.
 
 ### Native Library Loading
 A `DllImportResolver` registered in the Interop layer finds `libtranscribe` in the app output directory (including the `runtimes/<rid>/native/` layout), the NuGet global packages folder, or lets the runtime's default resolution (`.deps.json` runtime targets) handle it — without requiring `LD_LIBRARY_PATH`. Its `libggml*` dependencies are loaded from the same directory by the native loader.
@@ -227,6 +437,7 @@ This project is **a packaging and binding effort only** — the underlying libra
 - I did **not** author the native library and claim no credit for it. This repository only adds:
   - A C# interop layer (auto-generated P/Invoke bindings via `LibraryImport`).
   - A high-level C# wrapper (`IDisposable` resources, typed exceptions).
+  - A command-line tool (`transcribe`) and the model manifest it resolves against.
   - Pre-built native binaries packaged for .NET consumption.
 
 The transcribe.cpp project is an independent upstream project; bug reports about the native library itself should go to its [repository](https://github.com/handy-computer/transcribe.cpp).
@@ -254,38 +465,13 @@ WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
 # Run the smoke test sample
 dotnet run --project samples/SmokeTest -- model.gguf audio.wav
 
-# CLI: transcribe audio, with optional speaker diarization (MOSS model).
+# Run the CLI from source (see "Command-line tool" for the installed tool).
 # WAV is read directly; other formats (ogg, mp3, …) are decoded with ffmpeg.
 dotnet run --project src/TranscribeCppSharp.Cli -- audio.ogg
 ```
 
-### Command-line tool
-
-The same CLI ships as a .NET tool. It is published RID-specific, so `dotnet tool
-install` pulls only your platform's package (with its native binaries embedded —
-no download at first run):
-
-```bash
-dotnet tool install -g TranscribeCppSharp.Cli
-transcribe --list-models                     # 72 curated models across all families
-transcribe audio.ogg --model whisper-tiny    # alias, downloaded on first use
-transcribe audio.ogg --model whisper-tiny --quant Q8_0
-transcribe audio.ogg --model moss-transcribe-diarize   # speaker diarization
-transcribe audio.ogg /path/to/model.gguf     # your own file (offline)
-transcribe audio.ogg --model handy-computer/whisper-tiny-gguf/whisper-tiny-Q5_K_M.gguf
-```
-
-Aliases cover **every model family transcribe.cpp supports** (Whisper, Moonshine,
-Parakeet, Canary, GigaAM, Voxtral, Qwen3-ASR, Granite-speech, MOSS/streaming
-diarization, …); `--list-models` also shows each model's **license** (some are
-non-commercial, e.g. `cc-by-nc-4.0`) and `--model-info <alias>` gives the full
-record. Anything else can be pulled with the generic
-`--model <owner>/<repo>/<file.gguf>[@<revision>]` spec.
-
-Models are downloaded once from a **pinned HuggingFace revision**, verified by
-sha256 (read from the HF LFS metadata, never from the download), and cached
-(`$XDG_CACHE_HOME/TranscribeCppSharp/models`, `%LOCALAPPDATA%` on Windows) so
-later runs are offline. Model weights are never bundled with the tool.
+Both need `tools/FetchNative` to have run first, so the native libraries are in
+the output directory.
 
 ### Building from source
 
