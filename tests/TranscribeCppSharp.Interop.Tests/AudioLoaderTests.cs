@@ -208,6 +208,38 @@ public class AudioLoaderTests
     }
 
     [Fact]
+    public void Load_FfmpegPathDoesNotBlockOnAnUnreadPipe()
+    {
+        if (!HasFfmpeg)
+        {
+            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            return;
+        }
+
+        // The ffmpeg output goes to a file, so nothing reads the child's stdout.
+        // A RedirectStandardOutput left over from when the output was a pipe
+        // would create a pipe nobody drains, and a single byte would fill it and
+        // hang the process. This asserts the call returns at all, and with the
+        // right samples, on input large enough that a stall would show.
+        using var temp = new TempWorkspace();
+        const int frames = 44_100 * 60; // 60 s at 44.1 kHz, mono
+        string source = temp.Combine("minute.wav");
+        WriteRampWav44k1Mono(source, frames);
+
+        // A generous ceiling: the decode of 60 s takes well under a second, so
+        // anything near this is a stall. xUnit has no per-test timeout that
+        // fails cleanly, so a hang shows as a suite timeout instead.
+        var task = System.Threading.Tasks.Task.Run(() => AudioLoader.DecodeWithFfmpeg(source));
+        Assert.True(
+            task.Wait(TimeSpan.FromSeconds(60)),
+            "DecodeWithFfmpeg did not return within 60 s: it is blocked on a stream nobody reads");
+
+        float[] pcm = task.Result;
+        long expectedSamples = (long)frames * 16000 / 44100;
+        Assert.InRange(pcm.Length, (int)(expectedSamples - 64), (int)(expectedSamples + 64));
+    }
+
+    [Fact]
     public void Load_LeavesNoTemporaryFileBehind()
     {
         if (!HasFfmpeg)
@@ -248,6 +280,47 @@ public class AudioLoaderTests
 
         Assert.DoesNotContain("\n", ex.Message);
         Assert.Contains(path, ex.Message);
+    }
+
+    private static void WriteRampWav44k1Mono(string path, int frames)
+    {
+        const int sampleRate = 44_100;
+        const short channels = 1;
+        const short bits = 16;
+        int dataBytes = frames * channels * (bits / 8);
+
+        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var w = new BinaryWriter(stream);
+        w.Write("RIFF"u8.ToArray());
+        w.Write(36 + dataBytes);
+        w.Write("WAVE"u8.ToArray());
+        w.Write("fmt "u8.ToArray());
+        w.Write(16);
+        w.Write((short)1);
+        w.Write(channels);
+        w.Write(sampleRate);
+        w.Write(sampleRate * channels * (bits / 8));
+        w.Write((short)(channels * (bits / 8)));
+        w.Write(bits);
+        w.Write("data"u8.ToArray());
+        w.Write(dataBytes);
+
+        var block = new byte[65536];
+        int remaining = dataBytes;
+        int frame = 0;
+        while (remaining > 0)
+        {
+            int n = Math.Min(block.Length, remaining);
+            for (int i = 0; i < n; i += 2)
+            {
+                short value = (short)(((frame++ % 200) - 100) * 300);
+                block[i] = (byte)(value & 0xFF);
+                block[i + 1] = (byte)((value >> 8) & 0xFF);
+            }
+
+            w.Write(block, 0, n);
+            remaining -= n;
+        }
     }
 
     private static void WriteConstantWav44kStereo(string path, int frames, int sampleRate, float value)

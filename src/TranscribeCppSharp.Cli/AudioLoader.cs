@@ -67,11 +67,21 @@ internal static class AudioLoader
         string temp = Path.Combine(Path.GetTempPath(), $"transcribe-{Guid.NewGuid():N}.f32");
         try
         {
+            // -nostdin: ffmpeg reads stdin by default and stdin is inherited
+            // here, so in an interactive terminal it can consume the user's
+            // keystrokes. It is also the documented way to stop a child blocking
+            // on an input stream nobody is feeding.
+            //
+            // Nothing is redirected. The output goes to the file, and a
+            // RedirectStandardOutput here would create a pipe that nothing
+            // reads, so a single byte from ffmpeg would fill it and block the
+            // process forever. stderr is left inherited for the same reason: the
+            // `-v error` output goes to the console, where a user can act on it,
+            // and capturing it would need a reader to avoid the same hazard.
             var psi = new ProcessStartInfo
             {
                 FileName = ResolveTool("ffmpeg"),
-                Arguments = $"-v error -y -i \"{path}\" -ar 16000 -ac 1 -f f32le \"{temp}\"",
-                RedirectStandardOutput = true,
+                Arguments = $"-nostdin -v error -y -i \"{path}\" -ar 16000 -ac 1 -f f32le \"{temp}\"",
                 UseShellExecute = false,
             };
 
