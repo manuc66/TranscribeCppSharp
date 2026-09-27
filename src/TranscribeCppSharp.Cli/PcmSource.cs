@@ -130,12 +130,15 @@ internal sealed class WavPcmSource : PcmSource
                 return null;
             }
 
-            if (ReadFourCC(reader) != "RIFF" || ReadFourCC(reader) != "WAVE")
+            // RIFF is "RIFF", then a 4-byte file size, then "WAVE". Reading the
+            // two codes back to back puts the file size where "WAVE" should be.
+            string riff = ReadFourCC(reader);
+            _ = reader.ReadInt32(); // file size, ignored
+            string wave = ReadFourCC(reader);
+            if (riff != "RIFF" || wave != "WAVE")
             {
                 return null;
             }
-
-            _ = reader.ReadInt32(); // file size, ignored
 
             (long dataStart, int dataSize, int channels) = WalkChunks(stream, reader);
 
@@ -205,10 +208,18 @@ internal sealed class WavPcmSource : PcmSource
 
             if (id == "fmt " && size >= 16)
             {
+                // The full 16-byte PCM fmt chunk, field by field. Reading only
+                // the first three and skipping the rest by arithmetic is how this
+                // got the sample width wrong: bitsPerSample was never read, so a
+                // 24-bit file was accepted and then read as 16-bit, which is
+                // quiet nonsense rather than an error.
                 audioFormat = ReadInt16(reader);
                 channels = ReadInt16(reader);
                 sampleRate = ReadInt32(reader);
-                Skip(stream, size - 12);
+                _ = ReadInt32(reader);                          // byte rate
+                _ = ReadInt16(reader);                          // block align
+                bitsPerSample = ReadInt16(reader);
+                Skip(stream, size - 16);
             }
             else if (id == "data")
             {
@@ -217,11 +228,6 @@ internal sealed class WavPcmSource : PcmSource
                 {
                     throw new InvalidDataException(
                         $"Unsupported audio format {audioFormat} (expected PCM = 1)");
-                }
-
-                if (bitsPerSample == 0)
-                {
-                    bitsPerSample = 16;
                 }
 
                 if (bitsPerSample != 16)
