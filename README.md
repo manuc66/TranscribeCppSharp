@@ -408,8 +408,18 @@ Verified end to end with MOSS Transcribe-Diarize Q4_K_M on the JFK sample:
 `Supports` is true, ON attributes speaker 1 on every segment, OFF gives the same
 text with no attribution, batch carries the same speaker segments, and the two
 speakers of a two-voice sample come back as speakers 1 and 2. The tests are in
-`tests/TranscribeCppSharp.Interop.Tests/DiarizationTests.cs` and skip without
-the model (`WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh`).
+`tests/TranscribeCppSharp.Interop.Tests/DiarizationTests.cs`.
+
+Those tests need the ~617 MB MOSS asset, so they are **opt-in and skipped in
+CI** — a deliberate trade (a 617 MB download per runner, cached but invalidated
+whenever the integration script changes). Run them with:
+
+```bash
+WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
+```
+
+Until you do, nothing in CI would notice a regression that emptied
+`SpeakerSegments` or broke the `SpeakerId` mapping.
 
 ## Features
 
