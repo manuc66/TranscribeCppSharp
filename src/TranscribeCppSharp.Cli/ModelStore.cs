@@ -53,6 +53,20 @@ internal static class ModelStore
         ?? throw new InvalidOperationException("Embedded model manifest 'models.json' is invalid.");
 
     /// <summary>
+    /// How the HuggingFace client is built. The download, the sha256
+    /// verification and the cache are the part of the CLI a user hits on a
+    /// first run, so they need tests; a seam here is what makes them reachable
+    /// without the network. Production never sets it.
+    /// </summary>
+    internal static Func<HttpClient> HttpClientFactory { get; set; } = NewHttpClient;
+
+    /// <summary>
+    /// Where models are cached. Set only by tests, to keep their downloads out
+    /// of the user's real cache; null means the platform default.
+    /// </summary>
+    internal static string? CacheRootOverride { get; set; }
+
+    /// <summary>
     /// Resolves the model argument: an existing path is used as-is; a known alias
     /// or a HuggingFace repo/file spec is fetched (once) and cached.
     /// </summary>
@@ -74,7 +88,7 @@ internal static class ModelStore
                 return EnsureLocal(info.Repo, info.Revision, info.File, info.Sha256, info.Size, info.License, info.LicenseUrl, error);
             }
 
-            using var http = NewHttpClient();
+            using var http = HttpClientFactory();
             HfFile file = ResolveHfFile(http, info.Repo, info.Revision, quant, isSuffix: true)
                 ?? throw new FileNotFoundException($"No '{quant}' quantization found for '{argument}' in {info.Repo}.");
             return EnsureLocal(info.Repo, info.Revision, file.Path, file.Sha256, file.Size, info.License, info.LicenseUrl, error);
@@ -94,7 +108,7 @@ internal static class ModelStore
                 file = file[..at];
             }
 
-            using var http = NewHttpClient();
+            using var http = HttpClientFactory();
             revision ??= ResolveRevision(http, repo);
             HfFile resolved = ResolveHfFile(http, repo, revision, file, isSuffix: false)
                 ?? throw new FileNotFoundException($"File '{file}' not found in {repo}@{revision}.");
@@ -207,7 +221,11 @@ internal static class ModelStore
             string name = path[(path.LastIndexOf('/') + 1)..];
             bool match = isSuffix
                 ? name.EndsWith($"-{fileOrQuant}.gguf", StringComparison.OrdinalIgnoreCase)
-                : string.Equals(name, fileOrQuant, StringComparison.OrdinalIgnoreCase);
+
+                // A spec may name a file in a subdirectory ("owner/repo/q4/f.gguf"),
+                // so the full path counts as well as the bare file name.
+                : string.Equals(name, fileOrQuant, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(path, fileOrQuant, StringComparison.OrdinalIgnoreCase);
             if (!match)
             {
                 continue;
@@ -237,7 +255,7 @@ internal static class ModelStore
 
     private static async Task DownloadAsync(string url, string destination)
     {
-        using var http = NewHttpClient();
+        using var http = HttpClientFactory();
         using HttpResponseMessage response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
 
@@ -261,6 +279,11 @@ internal static class ModelStore
 
     private static string CacheRoot()
     {
+        if (CacheRootOverride is { } root)
+        {
+            return root;
+        }
+
         if (OperatingSystem.IsWindows())
         {
             return Path.Combine(

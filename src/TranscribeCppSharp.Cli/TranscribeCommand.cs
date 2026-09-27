@@ -102,21 +102,10 @@ internal static class TranscribeCommand
             return 1;
         }
 
-        string modelPath;
-        try
-        {
-            modelPath = ModelStore.Resolve(options.ModelSpec, options.Quant, stderr);
-        }
-        catch (Exception ex) when (ex is IOException or HttpRequestException)
-        {
-            // Unknown alias/spec, download failure, checksum mismatch: report and stop.
-            stderr.WriteLine(ex.Message);
-            return 1;
-        }
-
-        // The input file and every flag were validated before the model was
-        // resolved, so a mistyped path or option costs no download.
-
+        // Everything that can be checked without a model is checked before the
+        // model is resolved: the input file and its flags (CliOptions), then the
+        // compute choice. A mistyped path, a bad option or an unavailable forced
+        // backend must not cost a 600+ MB download to find out.
         Backends.InitDefault();
 
         var devices = Backends.EnumerateDevices();
@@ -134,6 +123,18 @@ internal static class TranscribeCommand
         {
             stderr.WriteLine($"--backend {options.BackendName} is not available in this build or on this machine.");
             stderr.WriteLine(devices.Count == 0 ? "No compute device is registered." : DeviceSelection.FormatDevices(devices));
+            return 1;
+        }
+
+        string modelPath;
+        try
+        {
+            modelPath = ModelStore.Resolve(options.ModelSpec, options.Quant, stderr);
+        }
+        catch (Exception ex) when (ex is IOException or HttpRequestException)
+        {
+            // Unknown alias/spec, download failure, checksum mismatch: report and stop.
+            stderr.WriteLine(ex.Message);
             return 1;
         }
 

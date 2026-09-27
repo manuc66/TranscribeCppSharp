@@ -27,18 +27,30 @@ Fixed:
   window never advanced. A window that leaves no room for the overlap is now
   rejected, with the smallest usable value in the message.
 - The model was resolved (and downloaded — 667 MB for the default alias)
-  *before* the input file and the flags were checked. Every check now happens
-  first, so a mistyped filename costs nothing.
+  *before* the input file, the flags and the compute choice were checked. Every
+  check now happens first, so a mistyped filename or a `--backend cuda` on a
+  machine without CUDA costs nothing.
 - An unknown option was ignored: `--formt json` silently wrote the plain
   format. Unknown options, an extra positional argument, an unusable `--chunk`
   and an empty `--lang` are now reported.
+- A HuggingFace spec naming a file in a subdirectory
+  (`owner/repo/q4/model.gguf`) could never resolve and reported the file as
+  "not found": only the bare file name was compared against the repo listing.
+  The full path is accepted too.
+- The README claimed that pinning `@<revision>` in a HuggingFace spec makes a
+  later run offline. It does not: a spec carries no sha256, so the hash is read
+  from the HuggingFace metadata on **every** run. Only the curated aliases are
+  offline from the second run on, because the shipped manifest pins their
+  revision *and* their hash. The README now says that.
 
 Added:
 
 - Test coverage for the CLI: argument parsing, the window/overlap math, the
-  audio loader, the plain/WebVTT/JSON writers, the model manifest, the command
-  in process, and the real executable end to end. The CLI assembly goes from
-  effectively no coverage to ~80% line coverage (224 -> 339 tests).
+  audio loader, the plain/WebVTT/JSON writers, the model manifest, the download
+  and its sha256 verification (with a stubbed HTTP handler, so no 600 MB fetch
+  is needed), the command in process, and the real executable end to end. The
+  CLI assembly goes from effectively no coverage to ~92% line coverage
+  (224 -> 360 tests).
 - The README's "All options" block had drifted from `transcribe --help` (it was
   missing `--backend`, `--device` and `--list-devices`); a test now compares the
   two.

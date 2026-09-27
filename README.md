@@ -161,9 +161,12 @@ whisper-tiny
 Any GGUF that transcribe.cpp supports works through the generic
 `<owner>/<repo>/<file.gguf>[@<revision>]` form, so the alias list is a
 convenience, not a limit. Two differences from an alias: the license is unknown
-(only the model card is linked) and, unless you pin `@<revision>`, the current
-revision is looked up on HuggingFace on **every** run — the cache is still used,
-but the run is not offline. Models are cached under
+(only the model card is linked) and the sha256 comes from the HuggingFace
+metadata on **every** run, because a spec carries no hash of its own — so a spec
+needs the network even when the weights are already cached. A curated alias pins
+its revision *and* its sha256 in the shipped manifest, which is why it is
+offline from the second run on. Pinning `@<revision>` only removes the
+"which revision is current?" lookup, not the file lookup. Models are cached under
 `$XDG_CACHE_HOME/TranscribeCppSharp/models` (`%LOCALAPPDATA%` on Windows,
 `~/Library/Caches` on macOS); weights are never bundled with the tool. See
 [Model licenses](#model-licenses) before using a model commercially.

@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using TranscribeCppSharp.Cli;
+using TranscribeCppSharp.Interop;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -205,6 +206,50 @@ public class TranscribeCommandTests
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("--out", result.Error);
         AssertNoCrash(result);
+    }
+
+    [Fact]
+    public void ListDevices_PrintsTheTableWithoutLoadingAModel()
+    {
+        // Answers before any model resolution, so it must work on a machine with
+        // no model and no network.
+        Result result = Run("--list-devices");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("index", result.Out);
+        Assert.Contains("kind", result.Out);
+        // At least the CPU: the native library always registers it.
+        Assert.Contains("cpu", result.Out);
+        AssertNoCrash(result);
+    }
+
+    [Fact]
+    public void AForcedBackendThatIsUnavailableFailsInsteadOfFallingBack()
+    {
+        using var temp = new TempWorkspace();
+        string audio = temp.WriteWav("a.wav", new float[16000]);
+
+        // Whatever this machine has, it cannot have all of these at once; the
+        // point is that an unavailable forced backend is reported, never
+        // silently replaced by the CPU.
+        foreach (string backend in new[] { "cuda", "rocm" })
+        {
+            if (Backends.BackendAvailable(Parse(backend)))
+            {
+                continue;
+            }
+
+            Result result = Run(audio, temp.Combine("unused.gguf"), "--backend", backend);
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains($"--backend {backend} is not available", result.Error);
+            AssertNoCrash(result);
+        }
+
+        static BackendRequest Parse(string name) => name switch
+        {
+            "cuda" => BackendRequest.BackendCuda,
+            _ => BackendRequest.BackendRocm,
+        };
     }
 
     [SkippableFact]
