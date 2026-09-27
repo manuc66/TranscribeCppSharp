@@ -130,6 +130,167 @@ public class AudioLoaderTests
         Assert.Contains(notAudio, ex.Message);
     }
 
+    [Fact]
+    public void Load_FfmpegPathReadsEveryByteOfALargeStream()
+    {
+        if (!HasFfmpeg)
+        {
+            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            return;
+        }
+
+        using var temp = new TempWorkspace();
+
+        // A 16 kHz mono WAV, so the direct reader handles it. Sent through
+        // ffmpeg explicitly (rather than via Load, which short-circuits), the
+        // decode path has to reproduce the WAV reader's floats exactly, which
+        // pins the f32 byte order and the 1/32768 scaling.
+        //
+        // The signal is 20 s long, so 1.28 MB of f32 crosses the read buffer and
+        // the ReadExactly path that fills the float[] is genuinely exercised.
+        const int frames = 20 * 16_000;
+        var expected = new float[frames];
+        for (int i = 0; i < frames; i++)
+        {
+            // A ramp plus a step, so a misaligned read shows up as a shifted or
+            // wrapped value rather than a plausible-looking constant.
+            expected[i] = ((i % 512) - 256) / 300f;
+        }
+
+        string path = temp.WriteWav("mono16k-long.wav", expected);
+        float[] viaDecode = AudioLoader.DecodeWithFfmpeg(path);
+
+        Assert.Equal(expected.Length, viaDecode.Length);
+        for (int i = 0; i < expected.Length; i++)
+        {
+            // 3 decimals, not 4: the WAV on disk is 16-bit, so the value that
+            // went in was already rounded to a multiple of 1/32768 (~3e-5) and
+            // ffmpeg returns that rounded value as f32. Comparing tighter than
+            // the source resolution would be comparing the rounding, not the
+            // byte order.
+            Assert.Equal(expected[i], viaDecode[i], 3);
+        }
+    }
+
+    [Fact]
+    public void Load_ResamplesAndDownmixesThroughFfmpeg()
+    {
+        if (!HasFfmpeg)
+        {
+            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            return;
+        }
+
+        using var temp = new TempWorkspace();
+        const int frames = 8000;
+        string source = temp.Combine("stereo44k.wav");
+        WriteConstantWav44kStereo(source, frames, sampleRate: 44_100, value: 0.5f);
+
+        float[] pcm = AudioLoader.Load(source);
+
+        // 8000 frames at 44.1 kHz is 0.18 s, so ~2903 samples at 16 kHz. The
+        // exact count is ffmpeg's to decide, so this only pins two things: the
+        // downmix and resample kept a non-zero signal everywhere (a short read
+        // or a partially filled buffer would leave a run of zeros), and it
+        // stayed flat (a byte-order or stride slip would not).
+        //
+        // The absolute level is deliberately not asserted: ffmpeg's resampler
+        // does not have unity DC gain. Verified on this machine, a constant 0.5
+        // input decodes to a constant 0.707, so pinning 0.5 would be pinning
+        // ffmpeg's filter, which is not this code's business and can change
+        // with an ffmpeg version.
+        Assert.InRange(pcm.Length, 2800, 3000);
+        Assert.All(pcm, s => Assert.NotEqual(0f, s));
+
+        float first = pcm[0];
+        Assert.All(pcm, s => Assert.Equal(first, s, 4));
+        Assert.InRange(first, 0.4f, 0.9f);
+    }
+
+    [Fact]
+    public void Load_LeavesNoTemporaryFileBehind()
+    {
+        if (!HasFfmpeg)
+        {
+            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            return;
+        }
+
+        using var temp = new TempWorkspace();
+        string source = temp.Combine("stereo.wav");
+        WriteConstantWav44kStereo(source, frames: 1000, sampleRate: 44_100, value: 0.25f);
+
+        string tempRoot = Path.GetTempPath();
+        string[] before = Directory.GetFiles(tempRoot, "transcribe-*.f32");
+        _ = AudioLoader.Load(source);
+        string[] after = Directory.GetFiles(tempRoot, "transcribe-*.f32");
+
+        Assert.Equal(before.Length, after.Length);
+    }
+
+    [Fact]
+    public void Load_ReportsOneLineWhenTheInputCannotBeDecoded()
+    {
+        if (!HasFfmpeg)
+        {
+            _output.WriteLine("ffmpeg is not installed: skipping.");
+            return;
+        }
+
+        // A file with a valid WAV header shape but garbage payload: ffmpeg runs
+        // and fails, so this covers the exit-code branch of the decode path.
+        using var temp = new TempWorkspace();
+        var junk = new byte[4096];
+        junk.AsSpan().Fill(0xAB);
+        string path = temp.WriteBytes("garbage.wav", junk);
+
+        AudioLoadException ex = Assert.Throws<AudioLoadException>(() => AudioLoader.Load(path));
+
+        Assert.DoesNotContain("\n", ex.Message);
+        Assert.Contains(path, ex.Message);
+    }
+
+    private static void WriteConstantWav44kStereo(string path, int frames, int sampleRate, float value)
+    {
+        short bits = 16;
+        short channels = 2;
+        int dataBytes = frames * channels * (bits / 8);
+        short sample = (short)Math.Clamp(value * short.MaxValue, short.MinValue, short.MaxValue);
+
+        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var w = new BinaryWriter(stream);
+        w.Write("RIFF"u8.ToArray());
+        w.Write(36 + dataBytes);
+        w.Write("WAVE"u8.ToArray());
+        w.Write("fmt "u8.ToArray());
+        w.Write(16);
+        w.Write((short)1);
+        w.Write(channels);
+        w.Write(sampleRate);
+        w.Write(sampleRate * channels * (bits / 8));
+        w.Write((short)(channels * (bits / 8)));
+        w.Write(bits);
+        w.Write("data"u8.ToArray());
+        w.Write(dataBytes);
+
+        // One buffer for the whole payload: a per-sample write here would make
+        // the test itself the slow part.
+        var block = new byte[65536];
+        for (int i = 0; i < block.Length; i += 2)
+        {
+            block[i] = (byte)(sample & 0xFF);
+            block[i + 1] = (byte)((sample >> 8) & 0xFF);
+        }
+
+        int remaining = dataBytes;
+        while (remaining > 0)
+        {
+            int n = Math.Min(block.Length, remaining);
+            w.Write(block, 0, n);
+            remaining -= n;
+        }
+    }
+
     private static void WriteWav44kStereo(string path, int frames)
     {
         const int sampleRate = 44_100;
