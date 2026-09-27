@@ -19,9 +19,9 @@ string outPath = ArgAfter("--out") ?? Path.Combine(FindRepoRoot(), "src", "Trans
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
 http.DefaultRequestHeaders.UserAgent.ParseAdd("TranscribeCppSharp.UpdateModelManifest/1.0");
 
-Console.Error.WriteLine($"Listing GGUF repositories for author '{author}'...");
+await Console.Error.WriteLineAsync($"Listing GGUF repositories for author '{author}'...");
 List<string> repos = await ListGgufReposAsync(http, author);
-Console.Error.WriteLine($"Found {repos.Count} '-gguf' repositories.");
+await Console.Error.WriteLineAsync($"Found {repos.Count} '-gguf' repositories.");
 
 var models = new SortedDictionary<string, ModelEntry>(StringComparer.Ordinal);
 foreach (string repo in repos)
@@ -29,7 +29,7 @@ foreach (string repo in repos)
     ModelEntry? entry = await BuildEntryAsync(http, repo, quant);
     if (entry is null)
     {
-        Console.Error.WriteLine($"  ! {repo}: no usable .gguf file, skipped");
+        await Console.Error.WriteLineAsync($"  ! {repo}: no usable .gguf file, skipped");
         continue;
     }
 
@@ -41,7 +41,7 @@ foreach (string repo in repos)
 
     alias = alias.ToLowerInvariant();
     models[alias] = entry;
-    Console.Error.WriteLine($"  + {alias}  ({repo}, {entry.Quant})");
+    await Console.Error.WriteLineAsync($"  + {alias}  ({repo}, {entry.Quant})");
 }
 
 var manifest = new Manifest { DefaultQuant = quant, Models = models };
@@ -52,7 +52,7 @@ string json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 });
 await File.WriteAllTextAsync(outPath, json + Environment.NewLine);
-Console.Error.WriteLine($"Wrote {models.Count} models to {outPath}");
+await Console.Error.WriteLineAsync($"Wrote {models.Count} models to {outPath}");
 
 static async Task<List<string>> ListGgufReposAsync(HttpClient http, string author)
 {
@@ -114,7 +114,7 @@ static async Task<ModelEntry?> BuildEntryAsync(HttpClient http, string repo, str
     string modelStem = repo[(repo.LastIndexOf('/') + 1)..];
     modelStem = modelStem.EndsWith("-gguf", StringComparison.Ordinal) ? modelStem[..^"-gguf".Length] : modelStem;
 
-    HfFile? chosen = Pick(files, modelStem, quant);
+    HfFile? chosen = Pick(files, quant);
     if (chosen is null)
     {
         return null;
@@ -133,7 +133,7 @@ static async Task<ModelEntry?> BuildEntryAsync(HttpClient http, string repo, str
     };
 }
 
-static HfFile? Pick(List<HfFile> files, string modelStem, string preferredQuant)
+static HfFile? Pick(List<HfFile> files, string preferredQuant)
 {
     // Preferred quantization, then sensible fallbacks, then anything. Match on
     // the file name suffix so files nested in a sub folder (e.g. bundle/…) work.

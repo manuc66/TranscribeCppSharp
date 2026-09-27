@@ -72,22 +72,28 @@ public sealed class StreamSession : IDisposable
         AbiValidation.ValidateSize<Interop.StreamUpdate>(AbiStruct.AbiStreamUpdate, nameof(Interop.StreamUpdate));
         var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
 
-        // stackalloc + fixed, the shape Complete() and GetCurrentText() already
-        // use. This used to rent from ArrayPool and pin a GCHandle on every
-        // call, which is the per-chunk hot path: measured at 94 ns for the
-        // rent/pin/free against 12 ns here. The win is small — the struct is 48
-        // bytes and the native call dominates — but the pool is the wrong tool
-        // for a fixed-size scratch struct, and this was the only one of the
-        // three buffer strategies in this class that used it.
+        // A pooled buffer pinned for the call, rather than stackalloc.
         //
-        // The span is passed as a parameter rather than captured: a
-        // ReadOnlySpan<T> cannot be captured by a lambda or closed over by a
-        // local function (CS9108), so the helper takes a delegate and the span
-        // travels as an argument.
-        return StackAllocHelper.RunWithBuffer(
-            updateSize,
-            (IntPtr updatePtr, ReadOnlySpan<float> pcm) =>
+        // stackalloc would be faster — measured at 12 ns against 94 ns for the
+        // rent/pin/free below — but reaching StackAllocHelper from here needs an
+        // extra overload: a ReadOnlySpan<float> cannot be captured by a lambda
+        // (CS9108), so the span would have to travel as a delegate argument, and
+        // that overload would be the one place this wrapper adds `unsafe` on top
+        // of the two StackAllocHelper already has. Turning a Span into a native
+        // pointer needs `fixed`, and Unsafe.AsPointer needs unsafe as well, so it
+        // cannot be expressed without the keyword.
+        //
+        // 82 ns per feed does not buy that: the struct is 48 bytes and the native
+        // call dominates by orders of magnitude. At 100 ms chunks it is 0.0008%
+        // of a second of audio. Stated here so the choice is not mistaken for an
+        // oversight.
+        var buffer = ArrayPool<byte>.Shared.Rent(updateSize);
+        try
+        {
+            var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
             {
+                var updatePtr = handle.AddrOfPinnedObject();
                 NativeMethods.StreamUpdateInit(updatePtr);
                 var status = NativeMethods.StreamFeed(session, pcm, pcm.Length, updatePtr);
                 if (status != Status.Ok)
@@ -97,8 +103,16 @@ public sealed class StreamSession : IDisposable
 
                 var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
                 return ToStreamUpdateResult(u);
-            },
-            pcm);
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     /// <summary>

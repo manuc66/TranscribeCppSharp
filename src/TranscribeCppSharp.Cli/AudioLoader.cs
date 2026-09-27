@@ -178,19 +178,28 @@ internal static class AudioLoader
 /// The input audio could not be read. Carries a message meant for the user, so
 /// the command reports it instead of letting a .NET stack trace escape.
 /// </summary>
-// NOSONAR csharpsquid:S3871 — this type is deliberately internal. The CLI ships
-// as a .NET tool, and a public exception here would put an implementation type
-// of the command into the package's public API for no consumer to catch: the
-// process reports the message on stderr and exits 1, and nothing outside the
-// assembly ever sees this. The rest of the CLI is internal for the same reason.
-internal sealed class AudioLoadException : Exception
+/// <remarks>
+/// Public because an exception type is part of a contract: a caller that wraps
+/// the loader has to be able to catch this one specifically rather than
+/// <see cref="Exception"/>. It was internal, on the reasoning that the CLI ships
+/// as a .NET tool and nothing outside the assembly ever sees it — true of the
+/// process, but the project also references this assembly from its tests and the
+/// rule exists for a reason. The type is documented, so the public surface costs
+/// nothing here.
+/// </remarks>
+public sealed class AudioLoadException : Exception
 {
-    internal AudioLoadException(string message)
+    /// <summary>Creates the exception with a message meant for the user.</summary>
+    /// <param name="message">One line, no stack trace intended.</param>
+    public AudioLoadException(string message)
         : base(message)
     {
     }
 
-    internal AudioLoadException(string message, Exception innerException)
+    /// <summary>Creates the exception with the underlying cause attached.</summary>
+    /// <param name="message">One line, no stack trace intended.</param>
+    /// <param name="innerException">What actually failed.</param>
+    public AudioLoadException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
