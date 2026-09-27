@@ -10,24 +10,48 @@ namespace TranscribeCppSharp.Cli;
 internal static class AudioLoader
 {
     /// <summary>
-    /// Loads the input audio as 16 kHz mono float PCM. Throws
-    /// <see cref="AudioLoadException"/> (a one-line message, no stack trace for
-    /// the user) when the file is neither a readable WAV nor decodable by
-    /// ffmpeg.
+    /// Opens the input audio as a random-access source of 16 kHz mono float PCM.
+    /// Throws <see cref="AudioLoadException"/> (a one-line message, no stack
+    /// trace for the user) when the file is neither a readable WAV nor decodable
+    /// by ffmpeg.
     /// </summary>
-    internal static float[] Load(string path)
+    /// <remarks>
+    /// The caller owns the result and must dispose it: an ffmpeg-decoded input
+    /// is backed by a temporary file that Dispose removes.
+    /// </remarks>
+    internal static PcmSource Open(string path)
     {
         try
         {
-            return PcmExtensions.ReadWavToPcm(path);
+            WavPcmSource? wav = WavPcmSource.TryOpen(path);
+            if (wav is not null)
+            {
+                return wav;
+            }
         }
-        catch (Exception ex) when (ex is InvalidDataException or EndOfStreamException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is InvalidDataException or EndOfStreamException or IOException
+                                      or UnauthorizedAccessException)
         {
             // Not a 16 kHz mono 16-bit WAV (or not readable at all): any other
             // format is decoded with ffmpeg. A truncated file lands here too, and
             // ffmpeg then reports it as undecodable, which is the truth.
-            return DecodeWithFfmpeg(path);
         }
+
+        return DecodeToSourceWithFfmpeg(path);
+    }
+
+    /// <summary>
+    /// Loads the whole input as 16 kHz mono float PCM.
+    /// </summary>
+    /// <remarks>
+    /// Kept for callers that want the entire file. The command itself uses
+    /// <see cref="Open"/> and reads one window at a time, because materialising
+    /// the file costs 219 MiB for an hour of audio and it is never needed whole.
+    /// </remarks>
+    internal static float[] Load(string path)
+    {
+        using PcmSource source = Open(path);
+        return source.ReadWindow(0, (int)Math.Min(source.LengthSamples, int.MaxValue));
     }
 
     private static string ResolveTool(string name)
@@ -46,15 +70,27 @@ internal static class AudioLoader
     }
 
     /// <summary>
-    /// Decodes <paramref name="path"/> with ffmpeg into 16 kHz mono f32 PCM.
+    /// Decodes <paramref name="path"/> with ffmpeg into 16 kHz mono f32 PCM, and
+    /// returns the whole thing.
     /// </summary>
     /// <remarks>
     /// Internal rather than private so the tests can drive it directly: the
     /// public <see cref="Load"/> short-circuits a 16 kHz mono WAV to the direct
     /// reader, which is the case these tests need to compare against, and that
-    /// combination is otherwise unreachable from outside the class.
+    /// combination is otherwise unreachable from outside the class. The command
+    /// itself uses the streaming source instead.
     /// </remarks>
     internal static float[] DecodeWithFfmpeg(string path)
+    {
+        using FfmpegPcmSource source = DecodeToSourceWithFfmpeg(path);
+        return source.ReadWindow(0, (int)Math.Min(source.LengthSamples, int.MaxValue));
+    }
+
+    /// <summary>
+    /// Runs ffmpeg once, writing raw f32le to a temporary file, and returns a
+    /// source that reads windows out of it. The file lives as long as the source.
+    /// </summary>
+    private static FfmpegPcmSource DecodeToSourceWithFfmpeg(string path)
     {
         // ffmpeg writes raw f32le to a temporary file rather than to stdout.
         // A pipe does not carry its length, so reading one means buffering the
@@ -62,8 +98,8 @@ internal static class AudioLoader
         // MemoryStream, which held up to three full-size copies at once (the
         // growth buffer, its ToArray() copy, and the float[] being built).
         // Measured peak RSS for 30 minutes of audio: 610 MiB that way, against
-        // 299 MiB for the direct WAV reader. With a file the length is known up
-        // front, so the float[] is the only large allocation.
+        // 299 MiB for the direct WAV reader. A file gives the length up front and
+        // can be read in windows, so the decoded audio never has to be resident.
         string temp = Path.Combine(Path.GetTempPath(), $"transcribe-{Guid.NewGuid():N}.f32");
         try
         {
@@ -108,69 +144,72 @@ internal static class AudioLoader
                 }
             }
 
-            return ReadF32File(temp, path);
+            return OpenF32File(temp, path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A temp directory that cannot be written is a real possibility
             // (read-only /tmp, a full disk). Say so instead of surfacing a raw
             // .NET exception as a stack trace.
+            TryDelete(temp);
             throw new AudioLoadException(
                 $"could not decode {path}: ffmpeg ran but its output could not be staged in the temporary directory "
                 + $"({temp}): {ex.Message}", ex);
         }
-        finally
+        catch
         {
-            try
-            {
-                if (File.Exists(temp))
-                {
-                    File.Delete(temp);
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // A leftover temporary file must not fail the run.
-            }
+            TryDelete(temp);
+            throw;
         }
     }
 
     /// <summary>
-    /// Reads a raw little-endian f32 file into a float[]. The file's length is
-    /// known before allocating, so the result is the only large allocation.
+    /// Wraps the decoded f32 file in a source, checking it is a whole number of
+    /// samples and that its length is one this tool can address.
     /// </summary>
-    private static float[] ReadF32File(string temp, string source)
+    private static FfmpegPcmSource OpenF32File(string temp, string source)
     {
         var info = new FileInfo(temp);
         if (!info.Exists)
         {
+            TryDelete(temp);
             throw new AudioLoadException($"ffmpeg reported success but produced no output for {source}.");
         }
 
         long length = info.Length;
         if (length % sizeof(float) != 0)
         {
+            TryDelete(temp);
             throw new AudioLoadException($"ffmpeg returned a truncated PCM stream for {source}.");
         }
 
-        // Cap at int.MaxValue: a float[] is indexed with int, and the length has
-        // to fit the array anyway.
-        if (length > int.MaxValue)
+        // Cap at int.MaxValue: a window is read into a float[] indexed by int, so
+        // the sample count has to fit one. A window is far below this in practice;
+        // the guard is here so the failure is one clear line rather than a wrap.
+        if (length / sizeof(float) > int.MaxValue)
         {
+            TryDelete(temp);
             throw new AudioLoadException(
-                $"{source} decodes to {length} bytes of PCM, which is more than this tool can hold in one array.");
+                $"{source} decodes to {length / sizeof(float)} samples, which is more than this tool can index.");
         }
 
-        var pcm = new float[length / sizeof(float)];
-        using (var stream = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1, useAsync: false))
+        var stream = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1, useAsync: false);
+        return new FfmpegPcmSource(temp, stream, length / sizeof(float));
+    }
+
+    private static void TryDelete(string temp)
+    {
+        try
         {
-            // Read straight into the float[] through its byte view: no second
-            // buffer, and the endianness is ffmpeg's documented f32le.
-            Span<float> samples = pcm;
-            stream.ReadExactly(MemoryMarshal.AsBytes(samples));
+            if (File.Exists(temp))
+            {
+                File.Delete(temp);
+            }
         }
-
-        return pcm;
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A leftover temporary file must not fail the run.
+        }
     }
 }
 
