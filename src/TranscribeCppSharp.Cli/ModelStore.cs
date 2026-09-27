@@ -56,7 +56,10 @@ internal static class ModelStore
     /// Resolves the model argument: an existing path is used as-is; a known alias
     /// or a HuggingFace repo/file spec is fetched (once) and cached.
     /// </summary>
-    public static string Resolve(string argument, string? quant)
+    /// <param name="argument">A file path, a curated alias or an HF spec.</param>
+    /// <param name="quant">Optional quantization override for a curated alias.</param>
+    /// <param name="error">Where the download progress is reported.</param>
+    public static string Resolve(string argument, string? quant, TextWriter error)
     {
         if (File.Exists(argument))
         {
@@ -68,13 +71,13 @@ internal static class ModelStore
         {
             if (quant is null || string.Equals(quant, info.Quant, StringComparison.OrdinalIgnoreCase))
             {
-                return EnsureLocal(info.Repo, info.Revision, info.File, info.Sha256, info.Size, info.License, info.LicenseUrl);
+                return EnsureLocal(info.Repo, info.Revision, info.File, info.Sha256, info.Size, info.License, info.LicenseUrl, error);
             }
 
             using var http = NewHttpClient();
             HfFile file = ResolveHfFile(http, info.Repo, info.Revision, quant, isSuffix: true)
                 ?? throw new FileNotFoundException($"No '{quant}' quantization found for '{argument}' in {info.Repo}.");
-            return EnsureLocal(info.Repo, info.Revision, file.Path, file.Sha256, file.Size, info.License, info.LicenseUrl);
+            return EnsureLocal(info.Repo, info.Revision, file.Path, file.Sha256, file.Size, info.License, info.LicenseUrl, error);
         }
 
         // HuggingFace spec: "<owner>/<repo>/<file>[@<revision>]".
@@ -95,7 +98,7 @@ internal static class ModelStore
             revision ??= ResolveRevision(http, repo);
             HfFile resolved = ResolveHfFile(http, repo, revision, file, isSuffix: false)
                 ?? throw new FileNotFoundException($"File '{file}' not found in {repo}@{revision}.");
-            return EnsureLocal(repo, revision, resolved.Path, resolved.Sha256, resolved.Size, license: "see the model card", licenseUrl: $"https://huggingface.co/{repo}");
+            return EnsureLocal(repo, revision, resolved.Path, resolved.Sha256, resolved.Size, license: "see the model card", licenseUrl: $"https://huggingface.co/{repo}", error);
         }
 
         throw new FileNotFoundException(
@@ -104,39 +107,39 @@ internal static class ModelStore
             $"{Environment.NewLine}Or pass a model file path, or a HuggingFace spec like 'handy-computer/whisper-tiny-gguf/whisper-tiny-Q5_K_M.gguf'.");
     }
 
-    public static void List()
+    public static void List(TextWriter writer)
     {
         Manifest manifest = LoadedManifest;
-        Console.WriteLine($"{"alias",-40} {"quant",-8} {"license",-16} {"size",8}");
+        writer.WriteLine($"{"alias",-40} {"quant",-8} {"license",-16} {"size",8}");
         foreach ((string alias, ModelInfo info) in manifest.Models)
         {
             string license = IsNonCommercial(info.License) ? $"{info.License} !" : info.License;
-            Console.WriteLine($"{alias,-40} {info.Quant,-8} {license,-16} {info.Size / (1024 * 1024),6} MB");
+            writer.WriteLine($"{alias,-40} {info.Quant,-8} {license,-16} {info.Size / (1024 * 1024),6} MB");
         }
 
-        Console.WriteLine();
-        Console.WriteLine("! = non-commercial license; verify before any commercial use.");
-        Console.WriteLine($"Default quantization: {manifest.DefaultQuant}. Override with --quant <Q4_K_M|Q5_K_M|Q8_0|...>.");
-        Console.WriteLine("Details for one alias: --model-info <alias>.");
-        Console.WriteLine("Any other GGUF supported by transcribe.cpp: --model <owner>/<repo>/<file.gguf>[@<revision>].");
+        writer.WriteLine();
+        writer.WriteLine("! = non-commercial license; verify before any commercial use.");
+        writer.WriteLine($"Default quantization: {manifest.DefaultQuant}. Override with --quant <Q4_K_M|Q5_K_M|Q8_0|...>.");
+        writer.WriteLine("Details for one alias: --model-info <alias>.");
+        writer.WriteLine("Any other GGUF supported by transcribe.cpp: --model <owner>/<repo>/<file.gguf>[@<revision>].");
     }
 
-    public static bool Info(string alias)
+    public static bool Info(string alias, TextWriter writer, TextWriter error)
     {
         if (!LoadedManifest.Models.TryGetValue(alias, out ModelInfo? info))
         {
-            Console.Error.WriteLine($"Unknown alias '{alias}'. Run 'transcribe --list-models'.");
+            error.WriteLine($"Unknown alias '{alias}'. Run 'transcribe --list-models'.");
             return false;
         }
 
-        Console.WriteLine(alias);
-        Console.WriteLine($"  repo       : {info.Repo}");
-        Console.WriteLine($"  revision   : {info.Revision}");
-        Console.WriteLine($"  quant      : {info.Quant}");
-        Console.WriteLine($"  file       : {info.File}");
-        Console.WriteLine($"  size       : {info.Size / (1024 * 1024)} MB");
-        Console.WriteLine($"  license    : {info.License}{(IsNonCommercial(info.License) ? "  (non-commercial!)" : string.Empty)}");
-        Console.WriteLine($"  license url: {info.LicenseUrl}");
+        writer.WriteLine(alias);
+        writer.WriteLine($"  repo       : {info.Repo}");
+        writer.WriteLine($"  revision   : {info.Revision}");
+        writer.WriteLine($"  quant      : {info.Quant}");
+        writer.WriteLine($"  file       : {info.File}");
+        writer.WriteLine($"  size       : {info.Size / (1024 * 1024)} MB");
+        writer.WriteLine($"  license    : {info.License}{(IsNonCommercial(info.License) ? "  (non-commercial!)" : string.Empty)}");
+        writer.WriteLine($"  license url: {info.LicenseUrl}");
         return true;
     }
 
@@ -145,7 +148,7 @@ internal static class ModelStore
         || license.Contains("noncommercial", StringComparison.OrdinalIgnoreCase)
         || license.Contains("non-commercial", StringComparison.OrdinalIgnoreCase);
 
-    private static string EnsureLocal(string repo, string revision, string file, string sha256, long size, string license, string licenseUrl)
+    private static string EnsureLocal(string repo, string revision, string file, string sha256, long size, string license, string licenseUrl, TextWriter error)
     {
         string dir = Path.Combine(CacheRoot(), repo.Replace('/', '_'), revision);
         string dest = Path.Combine(dir, file.Replace('/', '_'));
@@ -156,11 +159,11 @@ internal static class ModelStore
 
         Directory.CreateDirectory(dir);
         string url = $"https://huggingface.co/{repo}/resolve/{revision}/{file}";
-        Console.Error.WriteLine($"Downloading '{file}' ({(size > 0 ? $"{size / (1024 * 1024)} MB, " : string.Empty)}{license}) from HuggingFace...");
-        Console.Error.WriteLine($"  {url}");
+        error.WriteLine($"Downloading '{file}' ({(size > 0 ? $"{size / (1024 * 1024)} MB, " : string.Empty)}{license}) from HuggingFace...");
+        error.WriteLine($"  {url}");
         if (licenseUrl.Length > 0)
         {
-            Console.Error.WriteLine($"  license: {licenseUrl}");
+            error.WriteLine($"  license: {licenseUrl}");
         }
 
         string tmp = dest + ".part-" + Guid.NewGuid().ToString("N");
@@ -176,7 +179,7 @@ internal static class ModelStore
             }
 
             File.Move(tmp, dest, overwrite: true);
-            Console.Error.WriteLine($"Model cached at {dest}");
+            error.WriteLine($"Model cached at {dest}");
             return dest;
         }
         finally
