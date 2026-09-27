@@ -41,6 +41,27 @@ Fixed:
   `GetCurrentText()` used `stackalloc` for the same struct. Now consistent
   (94 ns -> 12 ns per feed). This one is a consistency and allocation fix, not a
   performance claim: at 100 ms chunks it is 0.0008% of a second of audio.
+- A cancellable `Run` (or `Batch.Run`) installed its token as
+  `SetAbortCallback(() => ct.IsCancellationRequested)`, allocating a closure
+  over the token, a second delegate to wrap it, and a third for the matching
+  `ClearAbortCallback` — on every call. The token is now stored and a single
+  interop delegate, created once per session, reads whichever abort source is
+  current. Measured **89 bytes/call -> 0** with the delegates forced to escape.
+  This closes the long-standing `FINDINGS_OPEN.md` §4.3.
+
+Also cleaned up, on the way:
+
+- The ffmpeg invocation left a `RedirectStandardOutput = true` behind when its
+  output moved from a pipe to a file: .NET created the pipe and nothing drained
+  it. It was dead code rather than a live hang — with that command line ffmpeg
+  writes 0 bytes to stdout — but leaving it would have reintroduced a hang that
+  no test catches the moment a future change made ffmpeg write there. ffmpeg is
+  now also run with `-nostdin`, so it cannot consume the user's keystrokes or
+  block on an input stream nobody feeds.
+- `Session.GetLimits` and `Model.GetCapabilities` allocated their native struct
+  with `Marshal.AllocHGlobal` while every other struct-shaped call goes through
+  `StackAllocHelper`. Now consistent; both structs (56 and 32 bytes) use the
+  stack path. A consistency change, not a performance one.
 
 Corrected:
 
@@ -61,7 +82,9 @@ Added:
   conversion chunks (both sides of the boundary, and the stereo downmix stride
   across one), a truncated data chunk, the ffmpeg path compared sample-for-sample
   against the WAV reader over 1.28 MB of decoded audio, resample plus stereo
-  downmix, temp-file cleanup, and the new `StackAllocHelper` overload.
+  downmix, temp-file cleanup, the new `StackAllocHelper` overload, and the abort
+  source (a token and a user callback staying distinguishable, and switching
+  between them without allocating).
 
 ### Command-line tool: first-run robustness and test coverage
 
