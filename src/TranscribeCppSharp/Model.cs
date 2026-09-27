@@ -136,8 +136,7 @@ public sealed class Model : IDisposable
     {
         ThrowIfDisposed();
         var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiCapabilities);
-        var ptr = Marshal.AllocHGlobal(size);
-        try
+        return StackAllocHelper.RunWithBuffer(size, ptr =>
         {
             NativeMethods.CapabilitiesInit(ptr);
             var status = NativeMethods.ModelGetCapabilities(handle, ptr);
@@ -148,6 +147,9 @@ public sealed class Model : IDisposable
 
             var caps = Marshal.PtrToStructure<Interop.Capabilities>(ptr);
 
+            // The language pointers are borrowed from the model, so they are
+            // copied out here rather than borrowed into the result: a
+            // ModelCapabilities has to stay valid after the native struct is gone.
             var languages = new string[caps.nLanguages];
             for (int i = 0; i < caps.nLanguages; i++)
             {
@@ -172,11 +174,7 @@ public sealed class Model : IDisposable
                 SupportsSpecDecode: caps.supportsSpecDecode,
                 MaxAudioMs: caps.maxAudioMs,
                 TranslateTargetLanguages: targetLanguages);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(ptr);
-        }
+        });
     }
 
     /// <summary>Check if the model supports a given feature.</summary>

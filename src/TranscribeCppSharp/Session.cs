@@ -234,8 +234,7 @@ public sealed class Session : IDisposable
     {
         ThrowIfDisposed();
         var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiSessionLimits);
-        var ptr = Marshal.AllocHGlobal(size);
-        try
+        return StackAllocHelper.RunWithBuffer(size, ptr =>
         {
             NativeMethods.SessionLimitsInit(ptr);
             var status = NativeMethods.SessionGetLimits(handle, ptr);
@@ -249,11 +248,7 @@ public sealed class Session : IDisposable
                 EffectiveNCtx: limits.effectiveNCtx,
                 EffectiveMaxAudioMs: limits.effectiveMaxAudioMs,
                 MaxKvBytes: limits.maxKvBytes);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(ptr);
-        }
+        });
     }
 
     /// <summary>Reset timing statistics for this session.</summary>
