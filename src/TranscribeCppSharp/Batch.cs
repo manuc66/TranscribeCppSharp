@@ -121,7 +121,11 @@ public static class Batch
         if (ct.CanBeCanceled)
         {
             previousCallback = session.GetAbortCallback();
-            session.SetAbortCallback(() => ct.IsCancellationRequested);
+
+            // SetAbortToken, not SetAbortCallback(() => ct.IsCancellationRequested):
+            // the closure would be allocated on every batch call. See the remarks
+            // on SetAbortToken.
+            session.SetAbortToken(ct);
         }
 
         try

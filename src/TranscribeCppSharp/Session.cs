@@ -84,7 +84,7 @@ public sealed class Session : IDisposable
         if (ct.CanBeCanceled)
         {
             var previousCallback = abortCallback;
-            SetAbortCallback(() => ct.IsCancellationRequested);
+            SetAbortToken(ct);
             try
             {
                 RunNative(pcm, configure);
@@ -341,8 +341,60 @@ public sealed class Session : IDisposable
     {
         ThrowIfDisposed();
         this.abortCallback = abortCallback ?? throw new ArgumentNullException(nameof(abortCallback));
-        interopAbortCallback = _ => this.abortCallback();
-        NativeMethods.SetAbortCallback(handle, interopAbortCallback, IntPtr.Zero);
+        abortToken = default;
+        abortUsesToken = false;
+        var cb = EnsureInteropCallback();
+        NativeMethods.SetAbortCallback(handle, cb, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// Install <paramref name="ct"/> as the abort source, without allocating a
+    /// closure for it.
+    /// </summary>
+    /// <remarks>
+    /// A cancellable <see cref="Run"/> used to call
+    /// <c>SetAbortCallback(() =&gt; ct.IsCancellationRequested)</c>, which
+    /// allocated a closure over <paramref name="ct"/> on every call, and
+    /// <see cref="SetAbortCallback"/> then allocated a second delegate to wrap
+    /// it — two allocations per cancellable run. Storing the token and having
+    /// the single interop delegate read it removes both. The delegate itself is
+    /// created once per session and reused, so a repeated cancellable loop
+    /// allocates nothing here.
+    /// </remarks>
+    internal void SetAbortToken(CancellationToken ct)
+    {
+        ThrowIfDisposed();
+        abortToken = ct;
+        abortUsesToken = true;
+        abortCallback = null;
+        var cb = EnsureInteropCallback();
+        NativeMethods.SetAbortCallback(handle, cb, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// The single interop delegate this session registers with the native side,
+    /// created on first use and then reused. It is rooted for the session's
+    /// lifetime because the native library holds the pointer to it.
+    /// </summary>
+    private Interop.AbortCallback EnsureInteropCallback()
+    {
+        return interopAbortCallback ??= new Interop.AbortCallback(InvokeAbortCallback);
+    }
+
+    /// <summary>
+    /// The body the native library calls to ask whether to abort. Reads the
+    /// current source on every call, so switching between a user callback and a
+    /// token does not need a new delegate.
+    /// </summary>
+    private bool InvokeAbortCallback(IntPtr userdata)
+    {
+        _ = userdata;
+        if (abortUsesToken)
+        {
+            return abortToken.IsCancellationRequested;
+        }
+
+        return abortCallback?.Invoke() ?? false;
     }
 
     /// <summary>
@@ -352,22 +404,29 @@ public sealed class Session : IDisposable
     {
         ThrowIfDisposed();
 
-        // Set a no-op callback to disable abort checks while keeping
-        // the delegate rooted to prevent GC.
+        // Register a callback that always returns false to disable abort checks
+        // while keeping the delegate rooted. It is the same delegate instance
+        // for the whole session, so clearing does not allocate either.
         abortCallback = null;
-        interopAbortCallback = _ => false;
-        NativeMethods.SetAbortCallback(handle, interopAbortCallback, IntPtr.Zero);
+        abortToken = default;
+        abortUsesToken = false;
+        var cb = EnsureInteropCallback();
+        NativeMethods.SetAbortCallback(handle, cb, IntPtr.Zero);
     }
 
     /// <summary>
-    /// Get the current abort callback, if any.
+    /// Get the current abort callback, if any. Null when the abort source is a
+    /// <see cref="CancellationToken"/> installed by a cancellable run rather
+    /// than a user callback.
     /// </summary>
     internal Func<bool>? GetAbortCallback()
     {
-        return abortCallback;
+        return abortUsesToken ? null : abortCallback;
     }
 
     private Func<bool>? abortCallback;
+    private CancellationToken abortToken;
+    private bool abortUsesToken;
     private Interop.AbortCallback? interopAbortCallback;
 
     /// <summary>
