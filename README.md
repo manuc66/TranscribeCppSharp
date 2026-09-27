@@ -235,7 +235,10 @@ entry points that can ask for it — and the one that cannot.
 
 16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, …) is
 decoded by shelling out to `ffmpeg`, which must be installed and on `PATH`.
-Convert it yourself if you prefer:
+The decoded audio is staged in a temporary file (removed afterwards), so
+decoding needs write access to the system temp directory; peak memory for the
+conversion is the decoded buffer and nothing more. Convert it yourself if you
+prefer:
 
 ```bash
 ffmpeg -i input.mp3 -ar 16000 -ac 1 output.wav
