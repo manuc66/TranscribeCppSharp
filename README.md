@@ -295,10 +295,14 @@ Stated plainly, so nothing is implied:
   see [Real-Time Streaming](#real-time-streaming) for the incremental API.
 - **Blocking.** Transcription runs on the calling thread, as in the native
   library ([Concurrency Model](#concurrency-model)).
-- **Not covered by CI end to end.** The CI pipeline builds and packs the tool,
-  and unit-tests its device-selection policy, but never runs a real
-  transcription through it (no GPU on the runners); the automated integration
-  tests exercise the library, not `transcribe`.
+- **No GPU in CI.** The test suite does run the tool end to end — argument
+  parsing, the exported files, and a real transcription of the bundled test
+  audio on the CPU, both in process and by launching the executable — but the
+  runners have no GPU, so the GPU selection itself is only covered by the
+  device-selection policy tests, not by a real run. Speaker attribution with a
+  diarization model is covered only when the opt-in MOSS asset is fetched
+  (`WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh`); CI does not
+  fetch it.
 
 ## Quick Start
 
