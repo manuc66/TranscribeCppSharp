@@ -193,7 +193,7 @@ public class AudioLoaderTests
     }
 
     [Fact]
-    public void Load_FfmpegPathDoesNotBlockOnAnUnreadPipe()
+    public async System.Threading.Tasks.Task Load_FfmpegPathDoesNotBlockOnAnUnreadPipe()
     {
         if (!HasFfmpeg)
         {
@@ -212,14 +212,14 @@ public class AudioLoaderTests
         WriteRampWav44k1Mono(source, frames);
 
         // A generous ceiling: the decode of 60 s takes well under a second, so
-        // anything near this is a stall. xUnit has no per-test timeout that
-        // fails cleanly, so a hang shows as a suite timeout instead.
+        // anything near this is a stall. WaitAsync turns a stall into a failed
+        // test instead of a hung suite, which a bare Wait would not.
+        // Task is qualified: this test namespace sits inside TranscribeCppSharp.Interop,
+        // which has a Task type of its own (the native task enum), so the unqualified
+        // name would not resolve to System.Threading.Tasks.Task.
         var task = System.Threading.Tasks.Task.Run(() => AudioLoader.DecodeWithFfmpeg(source));
-        Assert.True(
-            task.Wait(TimeSpan.FromSeconds(60)),
-            "DecodeWithFfmpeg did not return within 60 s: it is blocked on a stream nobody reads");
+        float[] pcm = await task.WaitAsync(TimeSpan.FromSeconds(60));
 
-        float[] pcm = task.Result;
         long expectedSamples = (long)frames * 16000 / 44100;
         Assert.InRange(pcm.Length, (int)(expectedSamples - 64), (int)(expectedSamples + 64));
     }
