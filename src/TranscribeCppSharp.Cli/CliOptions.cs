@@ -116,7 +116,25 @@ internal sealed record CliOptions
                 case "--no-diarize":
                     noDiarize = true;
                     break;
+                case "--help" or "-h" or "--list-models" or "--list-devices":
+                    // Answered before parsing; accepted here so a stray one is
+                    // never reported as an unknown option.
+                    break;
+                case "--model-info":
+                    // Also answered before parsing, but it takes a value that
+                    // must not be mistaken for a positional argument.
+                    if (!TakeValue(args, ref i, "--model-info", out _, out error)) { return false; }
+                    break;
                 default:
+                    if (args[i].Length > 1 && args[i][0] == '-')
+                    {
+                        // An unknown flag used to be ignored, so a typo silently
+                        // ran with a different setting (e.g. --formt json wrote
+                        // the plain format). It is reported instead.
+                        error = $"unknown option: {args[i]} (see '{TranscribeCommand.ToolName} --help').";
+                        return false;
+                    }
+
                     positional.Add(args[i]);
                     break;
             }
@@ -124,7 +142,20 @@ internal sealed record CliOptions
 
         if (positional.Count == 0)
         {
-            error = "no audio file given (see 'transcribe --help').";
+            error = $"no audio file given (see '{TranscribeCommand.ToolName} --help').";
+            return false;
+        }
+
+        if (positional.Count > 2)
+        {
+            error = $"unexpected argument: {positional[2]} (the usage is <audio> [model] [options], "
+                + $"see '{TranscribeCommand.ToolName} --help').";
+            return false;
+        }
+
+        string audioPath = Path.GetFullPath(positional[0]);
+        if (!TryCheckInput(audioPath, out error))
+        {
             return false;
         }
 
@@ -144,16 +175,34 @@ internal sealed record CliOptions
             return false;
         }
 
+        if (!TryParseChunk(chunk, out var chunkSeconds, out error))
+        {
+            return false;
+        }
+
+        if (!TryParseLanguage(language, out var lang, out error))
+        {
+            return false;
+        }
+
+        string? outFile = outPath is null ? null : Path.GetFullPath(outPath);
+        if (outFile is not null && !Directory.Exists(Path.GetDirectoryName(outFile)!))
+        {
+            // Checked here, not when the file is opened: this is the last thing
+            // that can be checked before the model is downloaded.
+            error = $"--out: no such directory: {Path.GetDirectoryName(outFile)}";
+            return false;
+        }
+
         options = new CliOptions
         {
-            AudioPath = Path.GetFullPath(positional[0]),
+            AudioPath = audioPath,
             ModelSpec = model ?? (positional.Count > 1 ? positional[1] : DefaultModel),
             Quant = quant,
-            Language = language ?? DefaultLanguage,
-            // An unusable --chunk falls back to the default, as before.
-            ChunkSeconds = int.TryParse(chunk, out int chunkSeconds) && chunkSeconds > 0 ? chunkSeconds : DefaultChunkSeconds,
+            Language = lang,
+            ChunkSeconds = chunkSeconds,
             Diarize = noDiarize ? DiarizeMode.DiarizeModeOff : DiarizeMode.DiarizeModeOn,
-            OutPath = outPath is null ? null : Path.GetFullPath(outPath),
+            OutPath = outFile,
             Format = transcriptFormat,
             Backend = backend,
             BackendName = DeviceSelection.Name(backend),
@@ -237,6 +286,76 @@ internal sealed record CliOptions
         }
 
         index = parsed;
+        return true;
+    }
+
+    private static bool TryParseChunk(string? name, out int seconds, out string? error)
+    {
+        seconds = DefaultChunkSeconds;
+        error = null;
+
+        if (name is null)
+        {
+            return true;
+        }
+
+        if (!int.TryParse(name, out int parsed) || parsed < 1)
+        {
+            // A silent fallback to the default would leave the user believing
+            // they had set the window.
+            error = $"invalid --chunk: '{name}' (expected a whole number of seconds, {DefaultChunkSeconds} by default)";
+            return false;
+        }
+
+        if (parsed <= WindowPlanner.OverlapMs / 1000)
+        {
+            // Long audio is split with a 1 s overlap, so a window of 1 s could
+            // never advance: rejected here instead of looping forever.
+            error = $"invalid --chunk: {parsed}s is not longer than the {WindowPlanner.OverlapMs / 1000}s overlap "
+                + $"between two windows (use {WindowPlanner.OverlapMs / 1000 + 1} or more).";
+            return false;
+        }
+
+        seconds = parsed;
+        return true;
+    }
+
+    private static bool TryParseLanguage(string? name, out string language, out string? error)
+    {
+        language = DefaultLanguage;
+        error = null;
+
+        if (name is null)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            error = $"invalid --lang: '{name}' (expected a language code, e.g. en, fr, de)";
+            return false;
+        }
+
+        language = name;
+        return true;
+    }
+
+    private static bool TryCheckInput(string path, out string? error)
+    {
+        error = null;
+
+        if (Directory.Exists(path))
+        {
+            error = $"not a file: {path} (a directory was given; the CLI transcribes one file per run)";
+            return false;
+        }
+
+        if (!File.Exists(path))
+        {
+            error = $"no such file: {path}";
+            return false;
+        }
+
         return true;
     }
 }

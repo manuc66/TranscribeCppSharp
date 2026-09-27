@@ -11,8 +11,9 @@ internal static class AudioLoader
 {
     /// <summary>
     /// Loads the input audio as 16 kHz mono float PCM. Throws
-    /// <see cref="InvalidDataException"/> when the file is neither a readable
-    /// WAV nor something ffmpeg can decode.
+    /// <see cref="AudioLoadException"/> (a one-line message, no stack trace for
+    /// the user) when the file is neither a readable WAV nor decodable by
+    /// ffmpeg.
     /// </summary>
     internal static float[] Load(string path)
     {
@@ -20,8 +21,11 @@ internal static class AudioLoader
         {
             return PcmExtensions.ReadWavToPcm(path);
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is InvalidDataException or EndOfStreamException or IOException or UnauthorizedAccessException)
         {
+            // Not a 16 kHz mono 16-bit WAV (or not readable at all): any other
+            // format is decoded with ffmpeg. A truncated file lands here too, and
+            // ffmpeg then reports it as undecodable, which is the truth.
             return DecodeWithFfmpeg(path);
         }
     }
@@ -36,7 +40,9 @@ internal static class AudioLoader
                 Path.Combine(dir, name + (OperatingSystem.IsWindows() ? ".exe" : string.Empty))
             });
         return Path.GetFullPath(candidates.FirstOrDefault(File.Exists)
-            ?? throw new InvalidOperationException($"'{name}' not found in PATH."));
+            ?? throw new AudioLoadException(
+                $"'{name}' was not found in PATH. Install ffmpeg, or convert the audio first: "
+                + "ffmpeg -i input.mp3 -ar 16000 -ac 1 output.wav"));
     }
 
     private static float[] DecodeWithFfmpeg(string path)
@@ -49,32 +55,61 @@ internal static class AudioLoader
             UseShellExecute = false,
         };
 
-        using var proc = Process.Start(psi)
-            ?? throw new InvalidOperationException("Failed to start ffmpeg.");
-
-        using var stdout = proc.StandardOutput.BaseStream;
-        using var buffer = new MemoryStream();
-        stdout.CopyTo(buffer);
-        proc.WaitForExit();
-
-        if (proc.ExitCode != 0)
+        Process proc;
+        try
         {
-            throw new InvalidDataException(
-                "ffmpeg could not decode the audio. Install ffmpeg, or convert to a 16 kHz mono 16-bit WAV first.");
+            proc = Process.Start(psi)
+                ?? throw new InvalidOperationException("Failed to start ffmpeg.");
+        }
+        catch (Exception ex) when (ex is not AudioLoadException)
+        {
+            throw new AudioLoadException($"Could not start ffmpeg: {ex.Message}", ex);
         }
 
-        var bytes = buffer.ToArray();
-        if (bytes.Length % sizeof(float) != 0)
+        using (proc)
         {
-            throw new InvalidDataException("ffmpeg returned a truncated PCM stream.");
-        }
+            using var stdout = proc.StandardOutput.BaseStream;
+            using var buffer = new MemoryStream();
+            stdout.CopyTo(buffer);
+            proc.WaitForExit();
 
-        var pcm = new float[bytes.Length / sizeof(float)];
-        for (int i = 0; i < pcm.Length; i++)
-        {
-            pcm[i] = BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(i * sizeof(float)));
-        }
+            if (proc.ExitCode != 0)
+            {
+                throw new AudioLoadException(
+                    $"could not decode {path}: it is not a 16 kHz mono 16-bit WAV and ffmpeg could not decode it either. "
+                    + "Convert it first (ffmpeg -i input -ar 16000 -ac 1 output.wav) or install ffmpeg.");
+            }
 
-        return pcm;
+            var bytes = buffer.ToArray();
+            if (bytes.Length % sizeof(float) != 0)
+            {
+                throw new AudioLoadException($"ffmpeg returned a truncated PCM stream for {path}.");
+            }
+
+            var pcm = new float[bytes.Length / sizeof(float)];
+            for (int i = 0; i < pcm.Length; i++)
+            {
+                pcm[i] = BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(i * sizeof(float)));
+            }
+
+            return pcm;
+        }
+    }
+}
+
+/// <summary>
+/// The input audio could not be read. Carries a message meant for the user, so
+/// the command reports it instead of letting a .NET stack trace escape.
+/// </summary>
+internal sealed class AudioLoadException : Exception
+{
+    internal AudioLoadException(string message)
+        : base(message)
+    {
+    }
+
+    internal AudioLoadException(string message, Exception innerException)
+        : base(message, innerException)
+    {
     }
 }

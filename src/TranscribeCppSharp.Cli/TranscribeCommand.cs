@@ -114,11 +114,8 @@ internal static class TranscribeCommand
             return 1;
         }
 
-        if (!File.Exists(options.AudioPath))
-        {
-            stderr.WriteLine($"no such file: {options.AudioPath}");
-            return 1;
-        }
+        // The input file and every flag were validated before the model was
+        // resolved, so a mistyped path or option costs no download.
 
         Backends.InitDefault();
 
@@ -145,7 +142,7 @@ internal static class TranscribeCommand
         {
             pcm = AudioLoader.Load(options.AudioPath);
         }
-        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException)
+        catch (Exception ex) when (ex is AudioLoadException or IOException or UnauthorizedAccessException)
         {
             // A file that is neither a readable WAV nor decodable by ffmpeg, or
             // no ffmpeg at all: one line, not a .NET stack trace.
@@ -187,9 +184,20 @@ internal static class TranscribeCommand
         long lastSegmentEndMs = -WindowPlanner.OverlapMs;
         var overall = Stopwatch.StartNew();
 
-        using (var outFile = options.OutPath is null
-            ? null
-            : new StreamWriter(options.OutPath, append: false, new UTF8Encoding(false)) { AutoFlush = true })
+        StreamWriter? outFile;
+        try
+        {
+            outFile = OpenOutput(options.OutPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            // The parent directory is checked while parsing, so reaching this is
+            // a permission or a path problem: report it, do not dump a stack trace.
+            stderr.WriteLine($"--out: cannot write to {options.OutPath}: {ex.Message}");
+            return 1;
+        }
+
+        using (outFile)
         {
             if (outFile is not null)
             {
@@ -295,6 +303,11 @@ internal static class TranscribeCommand
         TranscriptFormat.Json => "json",
         _ => "plain",
     };
+
+    private static StreamWriter? OpenOutput(string? path)
+        => path is null
+            ? null
+            : new StreamWriter(path, append: false, new UTF8Encoding(false)) { AutoFlush = true };
 
     private static bool Has(string[] args, string name)
     {
