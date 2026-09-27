@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using TranscribeCppSharp.Cli;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -52,6 +53,50 @@ public class ReadmeExamplesTest
                 NormalizeWhitespace(sourceContent),
                 NormalizeWhitespace(readmeContent));
         }
+    }
+
+    [Fact]
+    public void Readme_AllOptionsBlock_ShouldBeTheRealHelpText()
+    {
+        // The README quotes `transcribe --help` verbatim. It had drifted: the
+        // compute options were missing from the README but present in the tool.
+        string readme = File.ReadAllText(ReadmePath);
+        string? block = ExtractFencedBlockStartingWith(readme, "$ transcribe --help");
+
+        Assert.NotNull(block);
+        Assert.Equal(
+            NormalizeWhitespace(TranscribeCommand.HelpText),
+            NormalizeWhitespace(block!));
+    }
+
+    /// <summary>
+    /// The body of the fenced block whose first line is <paramref name="marker"/>.
+    /// </summary>
+    private static string? ExtractFencedBlockStartingWith(string content, string marker)
+    {
+        int markerIndex = content.IndexOf(marker, StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        // The opening fence is the last one before the marker: the marker is
+        // inside the block, not before it.
+        int open = content.LastIndexOf("```", markerIndex, StringComparison.Ordinal);
+        if (open < 0)
+        {
+            return null;
+        }
+
+        int bodyStart = content.IndexOf('\n', open) + 1;
+        if (!content[bodyStart..].StartsWith(marker, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        bodyStart += marker.Length + 1;
+        int close = content.IndexOf("```", bodyStart, StringComparison.Ordinal);
+        return close < 0 ? null : content[bodyStart..close];
     }
 
     private static Dictionary<string, string> ExtractAllMarkedSections()

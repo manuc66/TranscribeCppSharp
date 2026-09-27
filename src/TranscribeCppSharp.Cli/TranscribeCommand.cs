@@ -18,7 +18,8 @@ internal static class TranscribeCommand
     /// <summary>The name the tool is installed as.</summary>
     internal const string ToolName = "transcribe";
 
-    // @readme-begin cli-help
+    // The README "All options" section is checked against this text by
+    // ReadmeExamplesTest, so the two cannot drift apart.
     internal const string HelpText = """
         Transcribe audio with a speech-to-text model. Supports every model family
         that transcribe.cpp supports (Whisper, Moonshine, Parakeet, Canary, GigaAM,
@@ -60,7 +61,6 @@ internal static class TranscribeCommand
                          (whisper-style segments)
           --help         show this help
         """;
-    // @end cli-help
 
     /// <summary>
     /// Runs one command. Returns the process exit code: 0 on success, 1 on a

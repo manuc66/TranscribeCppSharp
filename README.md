@@ -256,6 +256,15 @@ Usage: transcribe <audio> [model] [options]
                  Q8_0, F16); default is per model (see --list-models)
   --list-models  list the known model aliases and exit
   --model-info <alias>  show details (revision, size, license) for one alias
+  --backend <b>  compute backend: auto (default), cpu, cpu-accel,
+                 metal, vulkan, cuda, rocm. 'auto' runs on the GPU
+                 when one initializes (every discrete GPU is probed
+                 before the integrated ones) and falls back to the CPU
+                 otherwise; a forced backend fails instead of falling
+                 back
+  --device <n>   run on that exact device (index from --list-devices);
+                 never falls back to another device
+  --list-devices list the compute devices this build and machine can see
   --lang <code>  language code for the decoder (default: en)
   --chunk <sec>  max per-transcription window in seconds (default: 300);
                  long audio is split with 1 s overlap and deduplicated
