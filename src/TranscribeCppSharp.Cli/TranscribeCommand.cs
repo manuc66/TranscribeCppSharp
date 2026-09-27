@@ -214,8 +214,14 @@ internal static class TranscribeCommand
                 AudioWindow window = windows[chunkIndex];
                 int offset = window.OffsetSamples;
                 int len = window.LengthSamples;
-                var chunk = new float[len];
-                Array.Copy(pcm, offset, chunk, 0, len);
+
+                // A view of the window, not a copy of it. This used to allocate
+                // a float[] per window and Array.Copy into it, which is
+                // pointless: Session.Run takes a ReadOnlySpan<float>, so the
+                // slice can be passed straight through. A 300 s window is
+                // 19 MB, and each one was a large object heap allocation for
+                // nothing.
+                var chunk = pcm.AsSpan(offset, len);
                 long chunkStartMs = window.StartMs;
 
                 stdout.WriteLine($"\n=== window {chunkIndex + 1} @ {Fmt.Ts(chunkStartMs)} ({Fmt.Samples(len)} samples) ===");
