@@ -86,4 +86,41 @@ internal static class StackAllocHelper
             return use((IntPtr)pBuffer);
         }
     }
+
+    /// <summary>
+    /// Same as the <see cref="RunWithBuffer{T}(int, Func{IntPtr, T})"/>
+    /// overload, with an extra argument passed to <paramref name="use"/>. This
+    /// exists for callers that
+    /// also have a <c>ReadOnlySpan&lt;float&gt;</c> to hand to the native call:
+    /// such a span cannot be captured by a lambda or closed over by a local
+    /// function (CS9108), so it has to travel as a parameter.
+    /// </summary>
+    internal static unsafe T RunWithBuffer<T, TArg>(int size, Func<IntPtr, TArg, T> use, TArg arg)
+        where TArg : allows ref struct
+    {
+        ArgumentNullException.ThrowIfNull(use);
+        if (size < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(size), size, "Buffer size must be non-negative.");
+        }
+
+        if (size > MaxStackSize)
+        {
+            var ptr = Marshal.AllocHGlobal(size);
+            try
+            {
+                return use(ptr, arg);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+        }
+
+        Span<byte> buffer = stackalloc byte[size];
+        fixed (byte* pBuffer = buffer)
+        {
+            return use((IntPtr)pBuffer, arg);
+        }
+    }
 }
