@@ -178,6 +178,11 @@ internal static class AudioLoader
 /// The input audio could not be read. Carries a message meant for the user, so
 /// the command reports it instead of letting a .NET stack trace escape.
 /// </summary>
+// NOSONAR csharpsquid:S3871 — this type is deliberately internal. The CLI ships
+// as a .NET tool, and a public exception here would put an implementation type
+// of the command into the package's public API for no consumer to catch: the
+// process reports the message on stderr and exits 1, and nothing outside the
+// assembly ever sees this. The rest of the CLI is internal for the same reason.
 internal sealed class AudioLoadException : Exception
 {
     internal AudioLoadException(string message)

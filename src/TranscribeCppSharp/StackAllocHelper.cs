@@ -90,11 +90,21 @@ internal static class StackAllocHelper
     /// <summary>
     /// Same as the <see cref="RunWithBuffer{T}(int, Func{IntPtr, T})"/>
     /// overload, with an extra argument passed to <paramref name="use"/>. This
-    /// exists for callers that
-    /// also have a <c>ReadOnlySpan&lt;float&gt;</c> to hand to the native call:
-    /// such a span cannot be captured by a lambda or closed over by a local
-    /// function (CS9108), so it has to travel as a parameter.
+    /// exists for callers that also have a
+    /// <c>ReadOnlySpan&lt;float&gt;</c> to hand to the native call: such a span
+    /// cannot be captured by a lambda or closed over by a local function
+    /// (CS9108), so it has to travel as a parameter.
     /// </summary>
+    // NOSONAR csharpsquid:S6640 — `unsafe` is the mechanism of this whole file,
+    // not an incidental addition: stackalloc plus a pointer to hand to a P/Invoke
+    // is what RunWithBuffer is for. There is no safe equivalent — turning a Span
+    // into a native pointer needs `fixed`, and the obvious alternative
+    // (Unsafe.AsPointer) also requires an unsafe context, which was checked
+    // rather than assumed. The two overloads above this one are the same shape
+    // and are already in the analysis baseline. What is safe here is the
+    // discipline: the buffer is a local, its lifetime is the callback's, and
+    // StackAllocHelper owns the stack-vs-heap decision so no caller can get it
+    // wrong.
     internal static unsafe T RunWithBuffer<T, TArg>(int size, Func<IntPtr, TArg, T> use, TArg arg)
         where TArg : allows ref struct
     {

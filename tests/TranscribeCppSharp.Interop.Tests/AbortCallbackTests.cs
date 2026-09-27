@@ -40,7 +40,7 @@ public class AbortCallbackTests
     }
 
     [Fact]
-    public void SetAbortCallback_DisposesCleanly()
+    public void SetAbortCallback_SurvivesBeingSetClearedAndSetAgain()
     {
         using var fixture = SessionFixture.TryCreate(_output);
         if (fixture is null)
@@ -52,8 +52,15 @@ public class AbortCallbackTests
         // then disposed: the interop delegate is rooted for the session's life,
         // so this is where a lifetime mistake would show.
         fixture.Session.SetAbortCallback(() => false);
+        Assert.NotNull(fixture.Session.GetAbortCallback());
+
         fixture.Session.ClearAbortCallback();
+        Assert.Null(fixture.Session.GetAbortCallback());
+
+        // And the session must be reusable afterwards, not left holding a
+        // delegate that was cleared underneath it.
         fixture.Session.SetAbortCallback(() => false);
+        Assert.NotNull(fixture.Session.GetAbortCallback());
     }
 
     [Fact]
