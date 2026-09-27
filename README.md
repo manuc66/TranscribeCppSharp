@@ -214,13 +214,19 @@ in seconds:
 
 Audio longer than one window is split with a 1 s overlap and deduplicated;
 `--chunk` sets the window size in seconds (default 300, lowered automatically if
-the model reports a smaller maximum).
+the model reports a smaller maximum). A window must be longer than the overlap,
+so `--chunk 1` is rejected rather than looping.
 
 Diarization is **on by default** and the default model is `moss-transcribe-diarize`
 (667 MB), which attributes each segment to a speaker. Use `--no-diarize` to turn
-it off. Speaker attribution only happens with a diarization-capable model: on
-other models (Whisper, Parakeet, …) the native library prints a warning and
-every segment is reported as `Speaker 0`.
+it off. The `diarization supported:` line tells you whether the model in use can
+attribute speakers at all: on the other models (Whisper, Parakeet, …) the native
+library prints a warning and every segment is reported as `Speaker 0`. The
+attribution then appears in the merged transcript and, per format, as
+`Speaker N:`, `<v Speaker N>` or `"speaker":N`.
+
+In the library, see [Speaker diarization](#speaker-diarization) for the four
+entry points that can ask for it — and the one that cannot.
 
 ### Audio input
 
@@ -341,13 +347,69 @@ var text = stream.GetCurrentText();
 ```
 <!-- @end streaming-transcription -->
 
+### Speaker diarization
+
+Diarization is a **run-time** toggle, not a model-level setting: you ask for it
+per run, and the model decides whether it can do it. Four entry points:
+
+**1. Check whether the model can attribute speakers.** Do this first — it is the
+only way to know before running:
+
+```csharp
+if (model.Supports(Feature.FeatureDiarization))
+{
+    Console.WriteLine("this model attributes speakers");
+}
+```
+
+**2. Ask for it on a run.** The speakers then land on `Segments[].SpeakerId` and
+in `SpeakerSegments` (speaker turns with their own times, which are a different
+view of the same thing):
+
+```csharp
+var transcript = session.Run(pcm, r => r.WithDiarize(DiarizeMode.DiarizeModeOn));
+foreach (var turn in transcript.SpeakerSegments)
+{
+    Console.WriteLine($"speaker {turn.SpeakerId}: {turn.Start} -> {turn.End}");
+}
+```
+
+`DiarizeModeOff` asks for no attribution, and `DiarizeModeDefault` is the library
+default (OFF for every family). With MOSS, the raw decode keeps the model's
+inline markers (`[0.26][S01] …`) and `FullText` has them stripped, so the
+transcript stays clean either way.
+
+**3. Ask for it in batch.** `Batch.Run` takes the same run-params callback and
+each `BatchResult` carries its own `SpeakerSegments`.
+
+**4. Ask for it from the CLI.** On by default with the diarization model; see
+[Long audio and speaker diarization](#long-audio-and-speaker-diarization).
+
+What you get on a model that cannot: the upstream logs a warning and proceeds
+with the model's default behavior — no exception, and every `SpeakerId` is 0.
+Passing a non-DEFAULT mode to such a model is accepted, not rejected.
+
+**Not available: streaming.** `transcribe_stream_params` has no `diarize`
+field in transcribe.cpp v0.2.4, so the streaming API cannot request speaker
+attribution; we do not invent one. The alias list does contain a streaming
+diarization model (`diar_streaming_sortformer_4spk-v2.1`, whose stream
+extension the wrapper exposes), but we have not verified what its stream
+results contain, and the native stream result carries no speaker rows we can
+read.
+
+Verified end to end with MOSS Transcribe-Diarize Q4_K_M on the JFK sample:
+`Supports` is true, ON attributes speaker 1 on every segment, OFF gives the same
+text with no attribution, batch carries the same speaker segments, and the two
+speakers of a two-voice sample come back as speakers 1 and 2. The tests are in
+`tests/TranscribeCppSharp.Interop.Tests/DiarizationTests.cs` and skip without
+the model (`WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh`).
+
 ## Features
 
 - **Command-Line Tool**: `transcribe` transcribes a file with 72 curated models
   across every family transcribe.cpp supports, on the GPU by default, with
   speaker diarization and plain/WebVTT/JSON export. See
-  [Command-line tool](#command-line-tool).
-- **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Canary, GigaAM, and others — 16 families upstream).
+  [Command-line tool](#command-line-tool).- **Multi-Model**: Loads GGUF models for the model families supported by transcribe.cpp (Whisper, Moonshine, Parakeet, Canary, GigaAM, and others — 16 families upstream).
 - **Hardware Acceleration**: The bundled runtimes include CPU, Vulkan (Windows/Linux) and Metal (macOS) backends. See [Using CUDA](#using-cuda) for NVIDIA GPUs.
 - **Modern .NET**: Uses `LibraryImport` for interop and `SafeHandle` for native resource lifetime.
 - **Flexible APIs**:

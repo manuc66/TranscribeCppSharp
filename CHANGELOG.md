@@ -7,6 +7,47 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 `TranscribeCppSharp.Interop` and `TranscribeCppSharp.Native.*` track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
+## Unreleased
+
+### Command-line tool: first-run robustness and test coverage
+
+`transcribe` is what most people run first, and the paths a new user hits
+before any model is loaded were untested. They are now covered, and five of
+them no longer end in a crash, a hang or a needless download.
+
+Fixed:
+
+- A file that is not audio (a text file named `.wav`, a truncated file) ended
+  the process with a .NET stack trace and exit code 134. It now produces one
+  actionable line.
+- `--out` into a directory that does not exist did the same. The parent
+  directory is now checked while parsing, and a permission failure is reported
+  instead of thrown.
+- `--chunk 1` looped forever: consecutive windows overlap by 1 s, so a 1 s
+  window never advanced. A window that leaves no room for the overlap is now
+  rejected, with the smallest usable value in the message.
+- The model was resolved (and downloaded — 667 MB for the default alias)
+  *before* the input file and the flags were checked. Every check now happens
+  first, so a mistyped filename costs nothing.
+- An unknown option was ignored: `--formt json` silently wrote the plain
+  format. Unknown options, an extra positional argument, an unusable `--chunk`
+  and an empty `--lang` are now reported.
+
+Added:
+
+- Test coverage for the CLI: argument parsing, the window/overlap math, the
+  audio loader, the plain/WebVTT/JSON writers, the model manifest, the command
+  in process, and the real executable end to end. The CLI assembly goes from
+  effectively no coverage to ~80% line coverage (224 -> 339 tests).
+- The README's "All options" block had drifted from `transcribe --help` (it was
+  missing `--backend`, `--device` and `--list-devices`); a test now compares the
+  two.
+- A "Speaker diarization" section in the README: the four ways to ask for it
+  (capability probe, per-run toggle, batch, CLI), verified against the MOSS
+  diarization model, and the one that is not available — the streaming API,
+  whose upstream `transcribe_stream_params` has no `diarize` field in
+  transcribe.cpp v0.2.4.
+
 ## [0.3.1] - wrapper release
 
 Binds to **transcribe.cpp v0.2.4** (was v0.2.3). No C# API change; this is a
