@@ -9,6 +9,60 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Audio loading: peak memory no longer scales with the audio twice over
+
+Two allocations in the audio path each held a second full-size copy of the
+audio alongside the result, and both are on the way in for every transcription.
+
+Fixed:
+
+- The ffmpeg fallback fed the decoded PCM through a pipe into a `MemoryStream`,
+  then converted it to `float[]`. A pipe carries no length, so the whole stream
+  had to be buffered before its size was known, and the `MemoryStream` held up
+  to three full-size copies at once: its growth buffer, the `ToArray()` copy,
+  and the `float[]` being filled next to both. Measured peak RSS of the CLI for
+  30 minutes of audio: **610 MiB**, against 299 MiB for a WAV read directly.
+  ffmpeg now writes to a temporary file, whose length is known before
+  allocating, so the `float[]` is the only large allocation — the same input
+  now peaks at **274 MiB**, within 5 MiB of the direct reader. The temp file is
+  always removed, and a temp directory that cannot be written now reports one
+  line like every other load failure instead of a .NET stack trace.
+- `PcmExtensions.ReadWavToPcm` read the entire data chunk into a `byte[]` and
+  only then converted it, holding the audio twice: once as 16-bit integers, once
+  as floats. For 30 minutes that was **164 MiB allocated for a 109 MiB result**
+  (1.50x, all on the large object heap); it is now **109 MiB for 109 MiB**
+  (1.00x), because the reader converts 64 KiB at a time.
+- The CLI's window loop copied every window into a fresh `float[]` before
+  calling `Session.Run`, which already takes a `ReadOnlySpan<float>`. A 300 s
+  window is 19 MB, so each window was a large object heap allocation that lived
+  only for the call. Peak RSS on 451 s of audio: 516 -> 498 MiB.
+- `StreamSession.Feed` rented a 48-byte scratch struct from `ArrayPool` and
+  pinned it with a `GCHandle` on every call, while `Complete()` and
+  `GetCurrentText()` used `stackalloc` for the same struct. Now consistent
+  (94 ns -> 12 ns per feed). This one is a consistency and allocation fix, not a
+  performance claim: at 100 ms chunks it is 0.0008% of a second of audio.
+
+Corrected:
+
+- The XML doc on `Session.Run` said it returns a `Transcript` with "FullText
+  and DetectedLanguage eagerly loaded" and told the caller to call
+  `ReadSegments()`, `ReadWords()`, `ReadTokens()` for the rest. `ReadResults()`
+  has always populated segments, words, tokens and speaker segments
+  unconditionally, so the doc described an opt-in API that did not exist and
+  invited callers to re-read rows the returned `Transcript` already holds. The
+  doc now says what happens. The eager loading itself is unchanged and intended:
+  it costs 2.0 µs, against seconds of inference.
+- The README did not mention that the ffmpeg fallback now needs a writable
+  temporary directory.
+
+Added:
+
+- Tests for the paths these changes opened up: a WAV payload spanning several
+  conversion chunks (both sides of the boundary, and the stereo downmix stride
+  across one), a truncated data chunk, the ffmpeg path compared sample-for-sample
+  against the WAV reader over 1.28 MB of decoded audio, resample plus stereo
+  downmix, temp-file cleanup, and the new `StackAllocHelper` overload.
+
 ### Command-line tool: first-run robustness and test coverage
 
 `transcribe` is what most people run first, and the paths a new user hits
