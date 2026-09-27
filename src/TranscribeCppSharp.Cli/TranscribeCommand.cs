@@ -181,7 +181,14 @@ internal static class TranscribeCommand
         }
 
         var merged = new StringBuilder();
-        var lines = new List<TranscriptLine>();
+
+        // Only JSON needs the segments kept. The plain and VTT writers emit each
+        // segment as it arrives and their footer ignores the list entirely, so
+        // accumulating it for those two formats retained a list entry and a
+        // string per segment that nothing ever read — one hour of speech is
+        // ~900 segments. JSON writes its whole document once at the end, from
+        // the complete list, so there the list is genuinely required.
+        var lines = options.Format == TranscriptFormat.Json ? new List<TranscriptLine>() : null;
         long lastSegmentEndMs = -WindowPlanner.OverlapMs;
         var overall = Stopwatch.StartNew();
 
@@ -270,7 +277,7 @@ internal static class TranscribeCommand
                     lastSegmentEndMs = (long)end;
                     var text = Fmt.Normalize(seg.Text);
                     var line = new TranscriptLine(start, end, seg.SpeakerId, text);
-                    lines.Add(line);
+                    lines?.Add(line);
 
                     if (outFile is not null)
                     {
@@ -284,7 +291,9 @@ internal static class TranscribeCommand
 
             if (outFile is not null)
             {
-                TranscriptWriter.WriteFooter(outFile, options.Format, options.Language, lines, DateTime.Now);
+                // The plain and VTT footers ignore the segment list, so passing
+                // an empty one is what the non-JSON path now has.
+                TranscriptWriter.WriteFooter(outFile, options.Format, options.Language, lines ?? [], DateTime.Now);
                 stdout.WriteLine($"\ntranscript written to: {options.OutPath} ({FormatName(options.Format)})");
             }
 
