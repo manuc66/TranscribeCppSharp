@@ -151,19 +151,35 @@ public class PcmExtensionsChunkedTests
         // call after it 1.03x, the difference being the 64 KiB pool bucket.
         PcmExtensions.ReadWavToPcm(path);
 
+        // Amortised over several reads on purpose. GetTotalAllocatedBytes counts
+        // every thread in the process, so a single-call measurement picks up
+        // whatever the runtime, the test host or a finalizer allocated in the
+        // same window. That made an earlier version of this test fail roughly one
+        // run in four — a flaky assertion about a real property, which is worse
+        // than no assertion. Dividing by the iteration count makes a fixed
+        // one-off cost vanish while a genuine per-read regression does not: the
+        // old reader's byte[] is frames * 2 bytes on *every* read.
+        const int Iterations = 25;
         long before = GC.GetTotalAllocatedBytes(precise: true);
-        float[] pcm = PcmExtensions.ReadWavToPcm(path);
-        long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+        int length = 0;
+        for (int i = 0; i < Iterations; i++)
+        {
+            length = PcmExtensions.ReadWavToPcm(path).Length;
+        }
 
-        Assert.Equal(frames, pcm.Length);
+        long perRead = (GC.GetTotalAllocatedBytes(precise: true) - before) / Iterations;
 
-        // One float per sample, plus slack for the FileStream buffer and the
-        // header reads. The old reader's byte[] alone was frames * 2 bytes, so
-        // any bound under that catches the regression.
-        long resultBytes = (long)pcm.Length * sizeof(float);
+        Assert.Equal(frames, length);
+
+        // One float per sample, plus the read overhead: measured at 139,756 bytes
+        // per read for a 135,068 byte result, so ~4.7 KB of that is the
+        // FileStream's own buffer and the header reads. The bound allows 12 KB,
+        // which is ~2.5x that overhead and still far below the regression: the
+        // old reader added a byte[] of frames * 2 = 67,534 bytes on every read.
+        long resultBytes = (long)length * sizeof(float);
         Assert.True(
-            allocated < resultBytes + 8192,
-            $"allocated {allocated} bytes for a {resultBytes} byte result");
+            perRead < resultBytes + (12 * 1024),
+            $"allocated {perRead} bytes per read for a {resultBytes} byte result");
     }
 
     // --- helpers ------------------------------------------------------------
