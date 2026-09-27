@@ -128,7 +128,20 @@ public class CliProcessTests
         }
 
         AssertCleanFailure(result);
-        Assert.Contains("16 kHz mono 16-bit WAV", result.Error);
+
+        // Two legitimate messages, depending on the machine: with ffmpeg present
+        // it runs and fails to decode, without it the loader says so. Both are a
+        // single actionable line. Asserting only the first of them made this test
+        // fail on CI runners with no ffmpeg.
+        if (TestConfig.HasFfmpeg())
+        {
+            Assert.Contains("16 kHz mono 16-bit WAV", result.Error);
+        }
+        else
+        {
+            Assert.Contains("ffmpeg", result.Error);
+            Assert.Contains("was not found in PATH", result.Error);
+        }
     }
 
     [Fact]

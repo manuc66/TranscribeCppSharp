@@ -20,22 +20,7 @@ public class AudioLoaderTests
 
     public AudioLoaderTests(ITestOutputHelper output) => _output = output;
 
-    private static bool HasFfmpeg => ResolveFfmpeg() is not null;
-
-    private static string? ResolveFfmpeg()
-    {
-        string name = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
-        string? path = Environment.GetEnvironmentVariable("PATH");
-        if (path is null)
-        {
-            return null;
-        }
-
-        return path
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
-            .Select(dir => Path.Combine(dir, name))
-            .FirstOrDefault(File.Exists);
-    }
+    private static bool HasFfmpeg => TestConfig.HasFfmpeg();
 
     [Fact]
     public void Load_ReadsA16kHzMonoWav()
