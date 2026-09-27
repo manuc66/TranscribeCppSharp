@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
 using System.Text;
@@ -12,6 +13,13 @@ namespace TranscribeCppSharp;
 /// </summary>
 public static class PcmExtensions
 {
+    /// <summary>
+    /// How much of the data chunk is read and converted at a time. Large
+    /// enough that the read syscalls are not the cost, small enough to stay off
+    /// the large object heap and to be reused between calls.
+    /// </summary>
+    private const int ConvertChunkBytes = 64 * 1024;
+
     /// <summary>
     /// Read a 16-bit PCM WAV file and convert to 16 kHz mono float PCM.
     /// Supports mono and stereo; multi-channel audio is downmixed to mono.
@@ -168,65 +176,88 @@ public static class PcmExtensions
 
         fs.Position = dataStart;
         var nSamples = dataSize / (2 * numChannels); // 16-bit = 2 bytes per sample per channel
-        var byteBuf = ReadRawBytes(fs, dataSize);
-
-        // Convert 16-bit LE samples to float, downmix if stereo
-        return numChannels == 1
-            ? ConvertMono(byteBuf, nSamples)
-            : ConvertMultiChannel(byteBuf, nSamples, numChannels);
-    }
-
-    private static byte[] ReadRawBytes(Stream fs, int dataSize)
-    {
-        var byteBuf = new byte[dataSize];
-        int bytesRead = 0;
-        while (bytesRead < dataSize)
-        {
-            int read = fs.Read(byteBuf, bytesRead, dataSize - bytesRead);
-            if (read == 0)
-            {
-                break;
-            }
-
-            bytesRead += read;
-        }
-
-        return byteBuf;
-    }
-
-    private static float[] ConvertMono(byte[] byteBuf, int nSamples)
-    {
         var pcm = new float[nSamples];
-        for (int i = 0; i < nSamples; i++)
+
+        // Read and convert chunk by chunk. Buffering the whole data chunk in a
+        // byte[] first (as this did) held that array alive next to the float[]
+        // for the entire conversion, so a 30-minute file allocated 164 MiB to
+        // produce a 109 MiB result — 1.5x, and all of it on the large object
+        // heap. Here the result is the only large allocation.
+        int frameBytes = 2 * numChannels;
+        int chunkBytes = Math.Max(1, ConvertChunkBytes / frameBytes) * frameBytes;
+        var buf = ArrayPool<byte>.Shared.Rent(chunkBytes);
+        try
         {
-            short s = BitConverter.IsLittleEndian
-                ? (short)(byteBuf[i * 2] | (byteBuf[(i * 2) + 1] << 8))
-                : BinaryPrimitives.ReadInt16BigEndian(byteBuf.AsSpan(i * 2, 2));
-            pcm[i] = s / 32768f;
+            int written = 0;
+            while (written < nSamples)
+            {
+                // A short read is not the end of the chunk, so fill it fully
+                // before converting; only a zero read means the file stopped
+                // short, in which case the remaining samples stay zero exactly
+                // as they did when the reader simply stopped.
+                int filled = 0;
+                while (filled < chunkBytes)
+                {
+                    int read = fs.Read(buf, filled, chunkBytes - filled);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    filled += read;
+                }
+
+                if (filled == 0)
+                {
+                    break;
+                }
+
+                int frames = filled / frameBytes;
+                int max = Math.Min(frames, nSamples - written);
+                Convert(buf, max, frameBytes, numChannels, pcm, written);
+                written += max;
+                if (filled < chunkBytes)
+                {
+                    break; // end of file reached inside this chunk
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
         }
 
         return pcm;
     }
 
-    private static float[] ConvertMultiChannel(byte[] byteBuf, int nSamples, int numChannels)
+    /// <summary>
+    /// Converts <paramref name="frames"/> interleaved 16-bit LE frames from
+    /// <paramref name="buf"/> into <paramref name="dest"/>, downmixing
+    /// <paramref name="numChannels"/> channels to one average.
+    /// </summary>
+    private static void Convert(byte[] buf, int frames, int frameBytes, int numChannels, float[] dest, int destOffset)
     {
-        var pcm = new float[nSamples];
-        for (int i = 0; i < nSamples; i++)
+        if (numChannels == 1)
         {
-            float sum = 0;
+            for (int i = 0; i < frames; i++)
+            {
+                dest[destOffset + i] = BinaryPrimitives.ReadInt16LittleEndian(buf.AsSpan(i * 2, 2)) / 32768f;
+            }
+
+            return;
+        }
+
+        for (int i = 0; i < frames; i++)
+        {
+            int baseOffset = i * frameBytes;
+            int sum = 0;
             for (int ch = 0; ch < numChannels; ch++)
             {
-                int offset = ((i * numChannels) + ch) * 2;
-                short s = BitConverter.IsLittleEndian
-                    ? (short)(byteBuf[offset] | (byteBuf[offset + 1] << 8))
-                    : BinaryPrimitives.ReadInt16BigEndian(byteBuf.AsSpan(offset, 2));
-                sum += s;
+                sum += BinaryPrimitives.ReadInt16LittleEndian(buf.AsSpan(baseOffset + (ch * 2), 2));
             }
 
-            pcm[i] = sum / numChannels / 32768f;
+            dest[destOffset + i] = sum / (float)numChannels / 32768f;
         }
-
-        return pcm;
     }
 
     private readonly record struct WavFormat(short AudioFormat, int NumChannels, int SampleRate, int BitsPerSample);
