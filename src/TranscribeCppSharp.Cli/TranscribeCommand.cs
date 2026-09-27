@@ -138,10 +138,10 @@ internal static class TranscribeCommand
             return 1;
         }
 
-        float[] pcm;
+        PcmSource pcmSource;
         try
         {
-            pcm = AudioLoader.Load(options.AudioPath);
+            pcmSource = AudioLoader.Open(options.AudioPath);
         }
         catch (Exception ex) when (ex is AudioLoadException or IOException or UnauthorizedAccessException)
         {
@@ -151,7 +151,33 @@ internal static class TranscribeCommand
             return 1;
         }
 
-        stdout.WriteLine($"audio : {Fmt.Samples(pcm.Length)} samples = {pcm.Length / (double)WindowPlanner.SampleRate:F1}s @ 16kHz mono");
+        // The audio is read one window at a time and never held whole: an hour
+        // is 219 MiB as a single float[], and none of it is needed at once. The
+        // source owns a temporary file when ffmpeg decoded the input, so it has
+        // to outlive the loop below.
+        using (pcmSource)
+        {
+            return RunWithAudio(stdout, stderr, options, modelPath, choice, pcmSource);
+        }
+    }
+
+    private static int RunWithAudio(
+        TextWriter stdout,
+        TextWriter stderr,
+        CliOptions options,
+        string modelPath,
+        DeviceChoice choice,
+        PcmSource pcmSource)
+    {
+        long totalSamples = pcmSource.LengthSamples;
+        if (totalSamples > int.MaxValue)
+        {
+            stderr.WriteLine(
+                $"the audio is {totalSamples} samples, more than this tool can index. Split it into shorter files.");
+            return 1;
+        }
+
+        stdout.WriteLine($"audio : {Fmt.Samples(totalSamples)} samples = {totalSamples / (double)WindowPlanner.SampleRate:F1}s @ 16kHz mono");
 
         using var model = Model.Load(modelPath, p =>
         {
@@ -174,7 +200,7 @@ internal static class TranscribeCommand
         int windowMs = (int)Math.Min((long)options.ChunkSeconds * 1000, maxWindowMs);
         stdout.WriteLine($"window: {windowMs / 1000}s (model max audio {limits.EffectiveMaxAudioMs / 1000}s)");
 
-        if (!WindowPlanner.TryPlan(pcm.Length, windowMs, out var windows, out var planError))
+        if (!WindowPlanner.TryPlan((int)totalSamples, windowMs, out var windows, out var planError))
         {
             stderr.WriteLine(planError);
             return 1;
@@ -211,24 +237,22 @@ internal static class TranscribeCommand
             {
                 TranscriptWriter.WriteHeader(
                     outFile, options.Format, options.AudioPath,
-                    TimeSpan.FromSeconds(pcm.Length / (double)WindowPlanner.SampleRate),
+                    TimeSpan.FromSeconds(totalSamples / (double)WindowPlanner.SampleRate),
                     modelLabel, options.Language, options.Diarize, windowMs / 1000, DateTime.Now);
             }
 
-            double audioTotalSec = pcm.Length / (double)WindowPlanner.SampleRate;
+            double audioTotalSec = totalSamples / (double)WindowPlanner.SampleRate;
             for (int chunkIndex = 0; chunkIndex < windows.Count; chunkIndex++)
             {
                 AudioWindow window = windows[chunkIndex];
                 int offset = window.OffsetSamples;
                 int len = window.LengthSamples;
 
-                // A view of the window, not a copy of it. This used to allocate
-                // a float[] per window and Array.Copy into it, which is
-                // pointless: Session.Run takes a ReadOnlySpan<float>, so the
-                // slice can be passed straight through. A 300 s window is
-                // 19 MB, and each one was a large object heap allocation for
-                // nothing.
-                var chunk = pcm.AsSpan(offset, len);
+                // This window and nothing else is in memory. The previous code
+                // sliced the whole-file array here, which meant an hour of audio
+                // (219 MiB) was resident from the load until the last window
+                // finished; now the peak is one window, 19 MiB at 300 s.
+                var chunk = pcmSource.ReadWindow(offset, len);
                 long chunkStartMs = window.StartMs;
 
                 stdout.WriteLine($"\n=== window {chunkIndex + 1} @ {Fmt.Ts(chunkStartMs)} ({Fmt.Samples(len)} samples) ===");
@@ -259,7 +283,7 @@ internal static class TranscribeCommand
                 double windowSec = windowSw.Elapsed.TotalSeconds;
                 double audioSec = len / (double)WindowPlanner.SampleRate;
                 double processedSec = (offset + len) / (double)WindowPlanner.SampleRate;
-                double remainingSec = pcm.Length / (double)WindowPlanner.SampleRate - processedSec;
+                double remainingSec = audioTotalSec - processedSec;
                 double rtf = windowSec / audioSec;
                 stdout.WriteLine($"  time   : {Fmt.Dur(windowSec)}/ {audioSec:0.0}s audio (RTF {rtf:0.0}x) | done {Fmt.Dur(processedSec)} / {Fmt.Dur(audioTotalSec)} | ETA ~{Fmt.Dur(remainingSec * rtf)}");
 
