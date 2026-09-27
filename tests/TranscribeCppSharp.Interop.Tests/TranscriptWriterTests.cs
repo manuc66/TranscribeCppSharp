@@ -27,8 +27,38 @@ public class TranscriptWriterTests
     private static string Write(Action<TextWriter> body)
     {
         var writer = new StringWriter();
+        // CRLF on purpose, whatever the platform: the writers must not take their
+        // line endings from the TextWriter they are handed. A Windows CI leg
+        // caught this, and with it the fact that the same audio produced a
+        // different WebVTT file there than on Linux.
+        writer.NewLine = "\r\n";
         body(writer);
         return writer.ToString();
+    }
+
+    [Fact]
+    public void All_Formats_IgnoreTheWritersOwnNewlineConvention()
+    {
+        // The same three shapes through a CRLF writer, asserted on the whole
+        // document: a stray \r anywhere would make the bytes differ per platform.
+        foreach (TranscriptFormat format in new[] { TranscriptFormat.Plain, TranscriptFormat.Vtt, TranscriptFormat.Json })
+        {
+            string content = Write(w =>
+            {
+                TranscriptWriter.WriteHeader(
+                    w, format, "/audio/jfk.wav", TimeSpan.FromSeconds(11),
+                    "whisper/whisper-tiny", "en", DiarizeMode.DiarizeModeOn, 300, Generated);
+                foreach (TranscriptLine line in Lines)
+                {
+                    TranscriptWriter.WriteSegment(w, format, line);
+                }
+
+                TranscriptWriter.WriteFooter(w, format, "en", Lines, Generated);
+            });
+
+            Assert.DoesNotContain("\r", content);
+            Assert.EndsWith("\n", content);
+        }
     }
 
     [Fact]
