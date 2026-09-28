@@ -4,9 +4,9 @@
     "net10.0": {
       "coverlet.msbuild": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "kb5kBe1HioGuH+ZDKysv/oAO9cCUW2yxtrGrRBZp/dIij5f011OfC4XiNMayZ8bGfOv2+n2ocPkaJIGppAZDEg=="
+        "requested": "[10.1.0, )",
+        "resolved": "10.1.0",
+        "contentHash": "iozrXeTbc3mBGSi+2UUL+VVbLzAJZRogo42Zq+rLQL3QiIdXoRtEWmK/BR5HvoYEo2Pam0vjHZwIVTUVmF3zrA=="
       },
       "Microsoft.NET.Test.Sdk": {
         "type": "Direct",
@@ -143,13 +143,13 @@
       "transcribecppsharp": {
         "type": "Project",
         "dependencies": {
-          "TranscribeCppSharp.Interop": "[0.2.3, )"
+          "TranscribeCppSharp.Interop": "[0.2.4, )"
         }
       },
       "transcribecppsharp.cli": {
         "type": "Project",
         "dependencies": {
-          "TranscribeCppSharp": "[0.3.0, )"
+          "TranscribeCppSharp": "[0.3.1, )"
         }
       },
       "transcribecppsharp.interop": {
