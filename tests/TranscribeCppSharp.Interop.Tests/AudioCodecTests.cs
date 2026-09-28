@@ -25,6 +25,13 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// skipped rather than failed: decoding support and encoding support are separate
 /// ffmpeg build options, and a runner without libopus should not be a red build.
 /// </summary>
+/// <remarks>
+/// Non-parallel, and in the same collection as <c>AudioLoaderTests</c>: both
+/// decode through ffmpeg, which stages the decoded audio in the shared system
+/// temp directory, and a test asserting on the files there cannot tell its own
+/// apart from a concurrent class's.
+/// </remarks>
+[Collection("AudioStaging")]
 public class AudioCodecTests
 {
     private readonly ITestOutputHelper _output;

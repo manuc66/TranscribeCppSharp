@@ -14,6 +14,12 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// the tool cannot read produces a one-line AudioLoadException, never a raw
 /// .NET exception that reaches the console as a stack trace (exit code 134).
 /// </summary>
+/// <remarks>
+/// Non-parallel, shared with <c>AudioCodecTests</c>: the ffmpeg path stages the
+/// decoded audio in the system temp directory, so a test asserting on the files
+/// there has to be the only one doing so at the time.
+/// </remarks>
+[Collection("AudioStaging")]
 public class AudioLoaderTests
 {
     private readonly ITestOutputHelper _output;
@@ -237,12 +243,18 @@ public class AudioLoaderTests
         string source = temp.Combine("stereo.wav");
         WriteConstantWav44kStereo(source, frames: 1000, sampleRate: 44_100, value: 0.25f);
 
-        string tempRoot = Path.GetTempPath();
-        string[] before = Directory.GetFiles(tempRoot, "transcribe-*.f32");
+        // Assert on this run's file specifically, not on the count of staging
+        // files in the temp directory. The loader now also sweeps files an
+        // earlier run abandoned, so the count can legitimately go *down*, and an
+        // unrelated crash elsewhere can leave some behind; what matters is that
+        // nothing written during this call survives it.
+        DateTime start = DateTime.UtcNow - TimeSpan.FromSeconds(1);
         _ = AudioLoader.Load(source);
-        string[] after = Directory.GetFiles(tempRoot, "transcribe-*.f32");
 
-        Assert.Equal(before.Length, after.Length);
+        string[] mine = Directory.GetFiles(Path.GetTempPath(), "transcribe-*.f32")
+            .Where(f => File.GetLastWriteTimeUtc(f) >= start)
+            .ToArray();
+        Assert.Empty(mine);
     }
 
     [Fact]

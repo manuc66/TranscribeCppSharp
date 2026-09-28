@@ -100,7 +100,14 @@ internal static class AudioLoader
         // Measured peak RSS for 30 minutes of audio: 610 MiB that way, against
         // 299 MiB for the direct WAV reader. A file gives the length up front and
         // can be read in windows, so the decoded audio never has to be resident.
-        string temp = Path.Combine(Path.GetTempPath(), $"transcribe-{Guid.NewGuid():N}.f32");
+        string temp = TempAudioFile.NewPath();
+
+        // Clear out anything an earlier run could not clean up (a killed process,
+        // an OOM, a power cut) before adding to it. No lock is taken on files
+        // young enough to belong to a running transcription.
+        TempAudioFile.Sweep();
+        TempAudioFile.RegisterCleanup(temp);
+
         try
         {
             // -nostdin: ffmpeg reads stdin by default and stdin is inherited
