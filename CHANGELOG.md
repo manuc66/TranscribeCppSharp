@@ -9,6 +9,41 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Streaming: first measured real-time numbers, and a native crash they expose
+
+The wrapper had no real-time figures at all. `docs/cli.md` omits its timing
+lines by choice, and every streaming test is a `SkippableFact` that returns
+early on `Status.ErrNotImplemented`, so nothing had established whether a stream
+keeps up with live audio. Added `samples/StreamingBench` and
+[docs/streaming-bench.md](docs/streaming-bench.md), which records what it
+measures and, just as importantly, what it does not.
+
+Findings, on one machine, from `moonshine-streaming-tiny-Q8_0`:
+
+- The incremental API behaves as documented: first partial text at 37–74 ms and
+  first committed word at 134–221 ms.
+- The model default does not keep up. Over 66 s of audio on the CPU backend the
+  worst single `Feed()` took **11 248 ms** against a one-second chunk, and RTF
+  was 1.224. A decode interval cut that worst feed to **1614 ms** and RTF to
+  0.783, with an identical transcript; `WithCommitPolicy(StablePrefix)` was
+  similar. Setting one of the two is not optional for a live pipeline.
+- RTF **degrades as a stream grows**: 0.35 at 33 s, 1.280 at 132 s on the same
+  hardware and model, because per-feed cost climbs with accumulated context and
+  never returns to its starting value. A short clip flatters the number.
+- On the CPU backend, **a stream of about 88 s of audio aborts the process**:
+  `GGML_ASSERT(i01 >= 0 && i01 < ne01) failed` in `ggml-cpu/ops.cpp:5015`, an
+  out-of-range KV-cache index. It is an abort inside the native library rather
+  than a status code, so `StreamSession.Feed` never returns and no `try`/`catch`
+  in .NET intercepts it. Reproduced with a decode interval, with
+  `OnFinalize`, and on Vulkan at 132 s; **not** fixed by raising the session
+  context to 16384 or 32768. This is upstream behaviour in transcribe.cpp 0.2.4,
+  not something the wrapper can catch or work around in-process.
+
+Documented rather than changed: the crash and the RTF growth need a fix in
+transcribe.cpp. A live service should isolate the transcriber in a child
+process it can restart. Only the Moonshine family was measured, only at a
+1000 ms chunk, and on tiled rather than real audio — all stated on the page.
+
 ### Audio loading: peak memory no longer scales with the audio twice over
 
 Two allocations in the audio path each held a second full-size copy of the

@@ -92,6 +92,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 | [Long audio and diarization](diarization.md) | windowing, the four diarization entry points, and what is not verified |
 | [Audio input](audio-input.md) | which formats are tested, ffmpeg, and the measured memory behaviour |
 | [Real-time streaming](streaming.md) | `StreamSession`, partial results, its two limits |
+| [Streaming benchmarks](streaming-bench.md) | measured RTF, the decode-interval lever, and the native crash on long streams |
 | [Concurrency](concurrency.md) | blocking calls, thread safety per type, dispose discipline |
 | [Architecture](architecture.md) | the layers, native library resolution, versioning vs. upstream |
 | [Error handling](error-handling.md) | `TranscribeException`, `StatusCode`, the failures you will actually meet |

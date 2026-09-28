@@ -134,6 +134,11 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
   that model's sessions; parallel workers each need their own `Model`. This is an upstream
   0.x limitation, not one this wrapper imposes
   ([Concurrency](docs/concurrency.md#thread-safety)).
+- **A stream is not yet reliable for long sessions.** Measured RTF degrades as a
+  stream grows, and on the CPU backend a stream of ~88 s of audio aborts the
+  process inside ggml — natively, uncatchably. Real numbers, the one knob that
+  helps, and the reproduction are in
+  [Streaming benchmarks](docs/streaming-bench.md).
 - **Streaming cannot attribute speakers.** `transcribe_stream_params` has no `diarize`
   field in transcribe.cpp v0.2.4, so the streaming API cannot request it; we do not
   invent one ([Diarization](docs/diarization.md#not-available-streaming)).

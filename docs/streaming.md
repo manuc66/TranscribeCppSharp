@@ -32,6 +32,20 @@ current text before `Complete()` gives a partial transcript — that is the poin
 the incremental API, and it is the reason the CLI does not expose streaming
 ([what the CLI does not do](cli.md#what-the-cli-does-not-do)).
 
+## Before you build on it
+
+Set a decode interval or a commit policy. With the model default, the worst
+single `Feed()` measured 11 seconds against a one-second chunk — the stream
+re-decodes too often to keep up. `StreamParamsBuilder.WithCommitPolicy` and the
+per-family extension builders are the levers, and
+[Streaming benchmarks](streaming-bench.md) has the measured effect of each.
+
+Also measured, and not what you would hope: RTF degrades as a stream grows
+(0.35 → 1.28 on one machine, purely by lengthening the clip), and on the CPU
+backend a stream of about 88 seconds of audio aborts the process inside ggml.
+That abort is not catchable from .NET. Read the page before assuming a stream
+can run for minutes.
+
 ## Two limits worth knowing
 
 - **No speaker attribution.** `transcribe_stream_params` has no `diarize` field
