@@ -27,6 +27,17 @@ public class ReadmeExamplesTest
         "samples/SmokeTest/Program.cs"
     };
 
+    /// <summary>
+    /// Pages that may quote `transcribe --help` verbatim. The block moved out of
+    /// README.md onto the CLI page when the reference documentation was split out,
+    /// so this check follows it rather than being pinned to one file.
+    /// </summary>
+    private static readonly string[] HelpTextFiles = new[]
+    {
+        "README.md",
+        "docs/cli.md"
+    };
+
     [Fact]
     public void Readme_ShouldExist()
     {
@@ -56,17 +67,39 @@ public class ReadmeExamplesTest
     }
 
     [Fact]
-    public void Readme_AllOptionsBlock_ShouldBeTheRealHelpText()
+    public void HelpTextBlock_ShouldBeTheRealHelpText()
     {
-        // The README quotes `transcribe --help` verbatim. It had drifted: the
-        // compute options were missing from the README but present in the tool.
-        string readme = File.ReadAllText(ReadmePath);
-        string? block = ExtractFencedBlockStartingWith(readme, "$ transcribe --help");
+        // The tool's help text is quoted verbatim, on the CLI page. It had drifted:
+        // the compute options were missing from the quoted block but present in the
+        // tool. Every page that quotes it must match, so moving the block cannot
+        // quietly drop the guarantee.
+        string expected = NormalizeWhitespace(TranscribeCommand.HelpText);
+        int found = 0;
 
-        Assert.NotNull(block);
-        Assert.Equal(
-            NormalizeWhitespace(TranscribeCommand.HelpText),
-            NormalizeWhitespace(block!));
+        foreach (string relative in HelpTextFiles)
+        {
+            string path = Path.Combine(RepoRoot, relative);
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            string? block = ExtractFencedBlockStartingWith(
+                File.ReadAllText(path), "$ transcribe --help");
+
+            if (block is null)
+            {
+                continue;
+            }
+
+            found++;
+            Assert.True(
+                string.Equals(expected, NormalizeWhitespace(block), StringComparison.Ordinal),
+                $"{relative} quotes `transcribe --help` but it does not match " +
+                "TranscribeCommand.HelpText.");
+        }
+
+        Assert.True(found > 0, "No page quotes `transcribe --help` verbatim.");
     }
 
     /// <summary>
