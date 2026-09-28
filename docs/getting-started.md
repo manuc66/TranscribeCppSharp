@@ -1,12 +1,15 @@
 ---
 title: Getting started
-nav_order: 2
+nav_order: 3
 ---
 
 # Getting started
 
 Install the wrapper, point it at a GGUF model and a WAV file, and read the transcript.
 Everything else in this documentation is a refinement of that.
+
+If you would rather not write C# at all, the `transcribe` tool does this from a shell —
+see [Command-line tool](cli.md), which is the first page in the sidebar for that reason.
 
 ## Installation
 

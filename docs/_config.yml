@@ -6,9 +6,9 @@
 # pinned to a release rather than to `main`, so the site cannot change under us.
 title: TranscribeCppSharp
 description: >-
-  .NET bindings and packaging for transcribe.cpp (speech-to-text): load GGUF models and
-  transcribe audio from C#, or use the transcribe command-line tool. The native library
-  is developed by the transcribe.cpp authors.
+  A `transcribe` command-line tool and .NET bindings for transcribe.cpp
+  (speech-to-text): get a transcript from a shell with no code, or load GGUF models
+  from C#. The native library is developed by the transcribe.cpp authors.
 remote_theme: just-the-docs/just-the-docs@v0.12.0
 
 # A project page is served from /<repo>, and just-the-docs' search index is fetched from
@@ -35,6 +35,8 @@ search:
   preview_word_count: 20
 
 aux_links:
+  "All projects":
+    - "https://manuc66.github.io/"
   "Source on GitHub":
     - "https://github.com/manuc66/TranscribeCppSharp"
   "NuGet":

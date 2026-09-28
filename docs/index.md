@@ -6,21 +6,35 @@ nav_order: 1
 
 # TranscribeCppSharp
 
-.NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp): load GGUF speech-to-text models and transcribe audio (16 kHz mono float PCM) from C#.
+A `transcribe` command-line tool and .NET bindings for
+[transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (speech-to-text): get a
+transcript from a shell with no code, or load GGUF models from C#.
 
 This project is a **packaging and binding effort only** — the native library is
 developed by the [transcribe.cpp authors](https://github.com/handy-computer/transcribe.cpp)
 and is not my work. See [Attribution](governance.md#attribution).
 
-Two ways to use it:
+## Transcribe from a shell
 
-- **A command-line tool** — `dotnet tool install -g TranscribeCppSharp.Cli` gives you
-  `transcribe`, which downloads a curated model on first use and prints or exports the
-  transcript. See [Command-line tool](cli.md).
-- **A .NET library** — the `TranscribeCppSharp` wrapper (plus the native runtime package
-  for your platform) for C# code. See [Getting started](getting-started.md).
+```bash
+dotnet tool install -g TranscribeCppSharp.Cli
+transcribe jfk.wav --model whisper-tiny
+```
 
-## Install
+No project file, no C#, and no model to fetch by hand. The model is downloaded from
+HuggingFace on first use (42 MB for that alias), verified by sha256 and cached, so later
+runs are offline. It runs on the GPU when one initializes.
+
+Two things that is not, so the claim stays honest. The tool is a .NET tool, so it needs
+the **.NET 10 runtime** — just not a compiler, a project or any code. And the native
+runtime is embedded in the package, so nothing native is downloaded or built at first
+run. An NVIDIA GPU is the exception: CUDA needs a native build of your own, which is
+[out of scope for this packaging layer](compute.md#using-cuda).
+
+Every option, the export formats and what the tool does not do:
+[Command-line tool](cli.md).
+
+## Or call it from C#
 
 ```bash
 dotnet add package TranscribeCppSharp
@@ -28,9 +42,6 @@ dotnet add package TranscribeCppSharp.Native.linux-x64   # pick your platform
 ```
 
 Or one package that works everywhere: `dotnet add package TranscribeCppSharp.Bundle`.
-The full platform list is under [Installation](getting-started.md#installation).
-
-## The short version
 
 ```csharp
 using var model = Model.Load("model.gguf");
@@ -40,18 +51,9 @@ var transcript = session.Run(pcm);
 Console.WriteLine(transcript.FullText);
 ```
 
-`Model.Load` picks the GPU when one initializes. The longer, explicit and deterministic
+`Model.Load` picks the GPU when one initializes. The full platform list is under
+[Installation](getting-started.md#installation); the longer, explicit and deterministic
 form is on [Getting started](getting-started.md#load-a-model-and-transcribe).
-
-## Try it without writing code
-
-```bash
-dotnet tool install -g TranscribeCppSharp.Cli
-transcribe jfk.wav --model whisper-tiny
-```
-
-The model is fetched from HuggingFace on first use (42 MB for that alias), verified by
-sha256 and cached; later runs are offline. It runs on the GPU by default.
 
 ## What it does not do
 
@@ -82,8 +84,8 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 
 | Page | What is in it |
 |---|---|
-| [Getting started](getting-started.md) | installing, the native packages, load-and-transcribe, batch, streaming, sample code |
 | [Command-line tool](cli.md) | installing `transcribe`, a first run, the full `--help`, and what the tool does not do |
+| [Getting started](getting-started.md) | installing, the native packages, load-and-transcribe, batch, streaming, sample code |
 | [Compute](compute.md) | GPU by default, `--list-devices`, backend and device selection, CUDA |
 | [Models](models.md) | aliases vs. HuggingFace specs, `--list-models`, caching, capabilities, model licences |
 | [Exporting](exporting.md) | `--out`, and the `plain`, WebVTT and JSON formats |
@@ -96,6 +98,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 | [Development](development.md) | building, testing, the checks that keep these docs honest, building from source |
 | [Governance](governance.md) | security, licence, attribution |
 
+[All projects](https://manuc66.github.io/) ·
 [Source on GitHub](https://github.com/manuc66/TranscribeCppSharp) ·
 [NuGet](https://www.nuget.org/packages/TranscribeCppSharp) ·
 [CHANGELOG](https://github.com/manuc66/TranscribeCppSharp/blob/main/CHANGELOG.md) ·
