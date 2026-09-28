@@ -1,0 +1,36 @@
+# GitHub Pages source for https://manuc66.github.io/TranscribeCppSharp/
+#
+# Published straight from this folder: Settings -> Pages -> Source: "Deploy from a
+# branch", branch `main`, folder `/docs`. There is no build step on our side and no
+# workflow to maintain — GitHub's own Jekyll build renders the Markdown. The theme is
+# pinned to a release rather than to `main`, so the site cannot change under us.
+title: TranscribeCppSharp
+description: >-
+  .NET bindings and packaging for transcribe.cpp (speech-to-text): load GGUF models and
+  transcribe audio from C#, or use the transcribe command-line tool. The native library
+  is developed by the transcribe.cpp authors.
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+
+# A project page is served from /<repo>, and just-the-docs' search index is fetched from
+# that same path, so baseurl has to carry the repository name or search 404s.
+url: https://manuc66.github.io
+baseurl: /TranscribeCppSharp
+
+# Page URLs without the .html suffix, so /cli/ resolves as well as /cli.html.
+# This is a global setting in Jekyll: a `permalink` key in a page's front matter is
+# ignored for pages, only documents (posts) read it.
+permalink: pretty
+
+color_scheme: light
+
+search_enabled: true
+search:
+  heading_level: 3
+  previews: 3
+  preview_word_count: 20
+
+aux_links:
+  "Source on GitHub":
+    - "https://github.com/manuc66/TranscribeCppSharp"
+  "NuGet":
+    - "https://www.nuget.org/packages/TranscribeCppSharp"
