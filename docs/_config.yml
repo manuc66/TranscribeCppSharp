@@ -21,7 +21,12 @@ baseurl: /TranscribeCppSharp
 # ignored for pages, only documents (posts) read it.
 permalink: pretty
 
-color_scheme: light
+color_scheme: waveform
+
+# A waveform, because that is the subject. The palette and this logo are the
+# only identity this site has; there is no separate branding to keep in sync.
+site_logo: "/assets/images/waveform.svg"
+logo_alt: "TranscribeCppSharp"
 
 search_enabled: true
 search:

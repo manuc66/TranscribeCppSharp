@@ -1,0 +1,39 @@
+<!-- Included at the end of <head> by just-the-docs' own head.html. -->
+<link rel="icon" href="{{ '/assets/images/waveform.svg' | relative_url }}" type="image/svg+xml">
+
+<style>
+  /* A level-meter rule under the site header. Pure CSS, no animation, and it
+     sits behind the header's own bottom border rather than replacing it, so a
+     browser without `background-clip: text` still gets a plain teal rule. */
+  .site-header {
+    position: relative;
+  }
+
+  .site-header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(
+      to right,
+      #3fd0c9 0%,
+      #3fd0c9 12%,
+      rgba(63, 208, 201, 0.35) 30%,
+      rgba(63, 208, 201, 0.08) 46%,
+      rgba(63, 208, 201, 0.30) 62%,
+      rgba(63, 208, 201, 0.10) 78%,
+      rgba(63, 208, 201, 0.45) 100%
+    );
+    pointer-events: none;
+  }
+
+  /* The logo is a waveform, so give it a little more room than the default
+     square badge and align it with the wordmark. */
+  .site-header .site-logo {
+    width: auto;
+    height: 1.6rem;
+    margin-right: 0.5rem;
+  }
+</style>

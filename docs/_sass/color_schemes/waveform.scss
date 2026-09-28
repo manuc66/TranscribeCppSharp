@@ -1,0 +1,41 @@
+// A "waveform" colour scheme for the TranscribeCppSharp docs.
+//
+// There is no audio-themed Jekyll theme that is worth depending on, so this
+// skins just-the-docs instead. Two reasons not to swap the theme out: the site
+// is published by GitHub's own Jekyll build from `docs/`, so anything needing a
+// Node/Ruby build step would add a pipeline this repository does not have; and
+// this theme is the one that gives working client-side search across the
+// `--help` block and the API pages.
+//
+// The palette is a dark listening-room: a cool near-black ground rather than the
+// theme's warm grey, and one signal-teal accent standing in for a level meter.
+// Only scheme-level variables are overridden — the colour ramps
+// ($grey-*, $blue-*, …) are left alone, because the theme's utility classes and
+// syntax highlighting are built from them.
+
+@import "./color_schemes/dark";
+
+// Ground and surfaces
+$body-background-color: #0b0f14;
+$sidebar-color: #0f141a;
+$feedback-color: #141b23;
+$table-background-color: #111820;
+$search-background-color: #111820;
+$code-background-color: #0d1219;
+$border-color: #1e2731;
+
+// Type
+$body-text-color: #d3dae3;
+$body-heading-color: #eef2f7;
+$code-linenumber-color: #5a6b7a;
+
+// The one accent, used for links, the active nav entry and buttons.
+$link-color: #3fd0c9;
+$nav-child-link-color: #3fd0c9;
+$base-button-color: #3fd0c9;
+$btn-primary-color: #0b0f14;
+$search-result-preview-color: #b9c4d0;
+
+// Prose in these pages is mostly measurements and caveats; a little more
+// leading keeps the parenthetical qualifications readable.
+$content-line-height: 1.7;
