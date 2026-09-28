@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
@@ -36,19 +37,54 @@ internal static class TempAudioFile
 
     private const string Extension = ".f32";
 
+
     /// <summary>
-    /// How old a leftover has to be before a run will touch it.
+    /// Opens a staging file for reading and, on Unix, immediately removes its
+    /// name from the directory.
     /// </summary>
     /// <remarks>
-    /// A live run's file is excluded by age rather than by any lock, because
-    /// there is no portable way to ask "is this process still running" and a
-    /// concurrent run must not have its audio deleted. Twenty-four hours is
-    /// far longer than any plausible transcription, so the cost of being wrong
-    /// in the safe direction (keeping a file) is bounded at one day.
+    /// After this call the data stays reachable through the returned handle, but
+    /// the directory has no entry for it, so **nothing is left behind even if the
+    /// process is killed outright**. That is the part a <c>try/finally</c> and a
+    /// signal handler cannot do: SIGKILL, an OOM kill and a power cut run no
+    /// cleanup code at all, and on Windows an unlink of an open file is not
+    /// possible either.
+    ///
+    /// The exposure that remains is the window between ffmpeg finishing the write
+    /// and this call opening the file — on a long input that is the decode phase,
+    /// so it is not negligible. It is a much smaller window than before, where
+    /// the file stayed named for the whole transcription, but it is not zero.
+    ///
+    /// On Windows the file keeps its name and is removed by <see cref="TryDelete"/>
+    /// on a normal or signalled exit, with <see cref="Sweep"/> covering the rest.
     /// </remarks>
-    private static readonly TimeSpan StaleAfter = TimeSpan.FromHours(24);
+    internal static FileStream OpenForReading(string path)
+    {
+        // FileShare.None: the owner must not be able to delete or rewrite it
+        // underneath the reader, and on Windows it is what makes the file
+        // un-deletable by another process while it is in use, which is how
+        // Sweep tells a live run from an abandoned one.
+        var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None, bufferSize: 1, useAsync: false);
 
-    /// <summary>A new path in the system temp directory for this process's run.</summary>
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Could not unlink; the file keeps its name and the delete-on-exit
+                // path still applies. Not worth failing over.
+            }
+        }
+
+        return stream;
+    }
+
+    /// <summary>
+    /// A new path in the system temp directory for this process's run.
+    /// </summary>
     internal static string NewPath()
         => Path.Combine(Path.GetTempPath(), $"{Prefix}{Environment.ProcessId.ToString(CultureInfo.InvariantCulture)}-{Guid.NewGuid():N}{Extension}");
 
@@ -56,18 +92,34 @@ internal static class TempAudioFile
     /// Removes staging files abandoned by an earlier run that could not clean up
     /// after itself. Best effort: anything that cannot be removed is left alone.
     /// </summary>
+    /// <remarks>
+    /// Decided from the process id in the file name, which is there for this: a
+    /// file whose owning process is gone belongs to a run that died and can be
+    /// removed now, however recent. That is the case a timeout cannot serve — a
+    /// 24-hour threshold means a crash's debris sits for a day.
+    ///
+    /// The lock is a second, independent signal, because process ids get reused:
+    /// a file that cannot be opened exclusively is being read by a live run and is
+    /// never touched, whatever the id says.
+    ///
+    /// The one window neither signal closes is a decode in progress: between
+    /// ffmpeg finishing the write and this run opening the file, it is named but
+    /// unlocked, and the owning process is alive, so the id check protects it. A
+    /// run that is alive but whose id was reused, after a crash, is the residual
+    /// false negative, and it is left for a human — the alternative is deleting a
+    /// live run's audio.
+    /// </remarks>
     /// <returns>How many files were removed.</returns>
     internal static int Sweep()
     {
         int removed = 0;
         try
         {
-            DateTime cutoff = DateTime.UtcNow - StaleAfter;
             foreach (string path in Directory.EnumerateFiles(Path.GetTempPath(), $"{Prefix}*{Extension}"))
             {
                 try
                 {
-                    if (File.GetLastWriteTimeUtc(path) < cutoff)
+                    if (IsAbandoned(path))
                     {
                         File.Delete(path);
                         removed++;
@@ -86,6 +138,66 @@ internal static class TempAudioFile
         }
 
         return removed;
+    }
+
+    private static bool IsAbandoned(string path)
+    {
+        // Live run holds it exclusively: never touch it, whatever else says.
+        try
+        {
+            using var probe = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None, bufferSize: 1, useAsync: false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return !IsOwnerAlive(path);
+    }
+
+    /// <summary>
+    /// Whether the process id in the staging file's name is still running.
+    /// </summary>
+    /// <remarks>
+    /// "Cannot tell" answers as alive, so an inconclusive check keeps the file.
+    /// The error to avoid is deleting a concurrent run's audio; the cost of the
+    /// other mistake is one file a human can remove.
+    /// </remarks>
+    private static bool IsOwnerAlive(string path)
+    {
+        string name = Path.GetFileName(path);
+        int dash = name.IndexOf('-', Prefix.Length);
+        if (dash < 0)
+        {
+            // Not a name this wrote. Leave it alone.
+            return true;
+        }
+
+        if (!int.TryParse(name.AsSpan(Prefix.Length, dash - Prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out int pid))
+        {
+            return true;
+        }
+
+        if (pid <= 0)
+        {
+            return true;
+        }
+
+        try
+        {
+            using Process process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            // No such process: the run that wrote this is gone.
+            return false;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or PlatformNotSupportedException)
+        {
+            // Cannot tell.
+            return true;
+        }
     }
 
     /// <summary>

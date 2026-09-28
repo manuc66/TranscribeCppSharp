@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using TranscribeCppSharp.Cli;
 using Xunit;
@@ -51,31 +53,164 @@ public class TempAudioFileTests
     }
 
     [Fact]
-    public void Sweep_RemovesAnAbandonedFile_AndKeepsAFreshOne()
+    public void Sweep_RemovesAFileWhoseProcessIsGone_HoweverRecentItIs()
     {
-        string abandoned = TempAudioFile.NewPath();
-        string fresh = TempAudioFile.NewPath();
-        File.WriteAllBytes(abandoned, new byte[1024]);
-        File.WriteAllBytes(fresh, new byte[1024]);
-
-        // A file abandoned two days ago is what a killed process leaves.
-        File.SetLastWriteTimeUtc(abandoned, DateTime.UtcNow - TimeSpan.FromDays(2));
+        // This is the crash case, and it is why the sweep reads the process id out
+        // of the name instead of a timestamp: a run killed a second ago must not
+        // sit in the temp directory for a day.
+        string orphan = TempAudioFile.NewPath();
+        File.WriteAllBytes(orphan, new byte[1024]);
+        orphan = RewritePid(orphan, DeadPid);
 
         try
         {
             int removed = TempAudioFile.Sweep();
-            _output.WriteLine($"sweep removed {removed} file(s)");
+            _output.WriteLine($"sweep removed {removed}");
 
-            Assert.False(File.Exists(abandoned));
-            // The fresh one is what a concurrent run is using: a sweep must never
-            // take another run's audio away.
-            Assert.True(File.Exists(fresh));
+            Assert.False(File.Exists(orphan));
         }
         finally
         {
-            File.Delete(abandoned);
-            File.Delete(fresh);
+            File.Delete(orphan);
         }
+    }
+
+    [Fact]
+    public void Sweep_KeepsAFileWhoseProcessIsStillRunning()
+    {
+        // A concurrent run's audio. Deleting this would break a live
+        // transcription, so the conservative answer has to win here.
+        string live = TempAudioFile.NewPath();
+        File.WriteAllBytes(live, new byte[1024]);
+        live = RewritePid(live, Environment.ProcessId);
+
+        try
+        {
+            TempAudioFile.Sweep();
+            Assert.True(File.Exists(live));
+        }
+        finally
+        {
+            File.Delete(live);
+        }
+    }
+
+    [Fact]
+    public void Sweep_KeepsAFileThatIsOpenExclusively_WhateverTheNameSays()
+    {
+        // A dead process id but a file that cannot be opened is being read by
+        // something. Process ids get reused, so the lock is the second,
+        // independent signal and it outranks the id.
+        string held = TempAudioFile.NewPath();
+        File.WriteAllBytes(held, new byte[1024]);
+        held = RewritePid(held, DeadPid);
+
+        try
+        {
+            using var owner = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None);
+            TempAudioFile.Sweep();
+            Assert.True(File.Exists(held));
+        }
+        finally
+        {
+            File.Delete(held);
+        }
+    }
+
+    [Fact]
+    public void Sweep_LeavesAFileWhoseNameItDidNotWrite()
+    {
+        // No parsable process id in the name: not ours to interpret, so not ours
+        // to delete.
+        string odd = Path.Combine(Path.GetTempPath(), $"{TempAudioFile.Prefix}no-pid-here.f32");
+        File.WriteAllBytes(odd, new byte[16]);
+
+        try
+        {
+            TempAudioFile.Sweep();
+            Assert.True(File.Exists(odd));
+        }
+        finally
+        {
+            File.Delete(odd);
+        }
+    }
+
+    [Fact]
+    public void OpenForReading_RemovesTheFilesNameOnUnix()
+    {
+        // The property that makes a SIGKILL harmless: after opening, the data is
+        // still readable through the handle but the directory has no entry, so a
+        // process that dies outright leaves nothing. Verified end to end against
+        // `kill -9` as well, since it is the whole point.
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows cannot unlink an open file, so the name stays and the
+            // delete-on-exit path covers it. Nothing to assert here.
+            return;
+        }
+
+        string path = TempAudioFile.NewPath();
+        File.WriteAllBytes(path, new byte[64]);
+
+        try
+        {
+            using FileStream stream = TempAudioFile.OpenForReading(path);
+
+            Assert.False(File.Exists(path));
+            Assert.Equal(64, stream.Length);
+            stream.Position = 0;
+            Assert.Equal(64, stream.ReadByte() >= 0 ? 64 : 0);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>A process id that is not running, for the "its owner died" case.</summary>
+    private static int DeadPid
+    {
+        get
+        {
+            // Well above any pid the OS is likely to hand out, and confirmed dead
+            // rather than assumed: Process.GetProcessById throws for a pid that
+            // does not exist, which is exactly the signal the sweep uses.
+            for (int pid = 4_000_000; pid > 2_000_000; pid--)
+            {
+                try
+                {
+                    using Process p = Process.GetProcessById(pid);
+                    if (p.HasExited)
+                    {
+                        return pid;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    return pid;
+                }
+            }
+
+            return 4_000_000;
+        }
+    }
+
+    /// <summary>
+    /// Renames a staging file so its name carries <paramref name="pid"/>, and
+    /// returns the new path — the original no longer exists.
+    /// </summary>
+    private static string RewritePid(string path, int pid)
+    {
+        string dir = Path.GetDirectoryName(path)!;
+        string name = Path.GetFileName(path);
+        int dash = name.IndexOf('-', TempAudioFile.Prefix.Length);
+        string guid = dash < 0 ? "00000000000000000000000000000000" : name[(dash + 1)..];
+        string renamed = Path.Combine(
+            dir,
+            $"{TempAudioFile.Prefix}{pid.ToString(CultureInfo.InvariantCulture)}-{guid}");
+        File.Move(path, renamed, overwrite: true);
+        return renamed;
     }
 
     [Fact]

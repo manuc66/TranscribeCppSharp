@@ -200,7 +200,7 @@ internal static class AudioLoader
                 $"{source} decodes to {length / sizeof(float)} samples, which is more than this tool can index.");
         }
 
-        var stream = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1, useAsync: false);
+        var stream = TempAudioFile.OpenForReading(temp);
         return new FfmpegPcmSource(temp, stream, length / sizeof(float));
     }
 
