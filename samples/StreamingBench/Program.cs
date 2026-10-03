@@ -26,14 +26,21 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
 using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
+using StreamingBench;
 
 const int SampleRate = 16000;
 
 // Chunk sizes to try when none are given: sub-second for a responsive UI, and
 // one second to compare against the models' own internal framing.
 var defaultChunks = new List<int> { 200, 500, 1000 };
+
+// Flush every line. One of the things this bench exists to observe is a native
+// abort, and an abort discards whatever the runtime had buffered — without this
+// a crashing run produces an empty log and no evidence at all.
+Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), Encoding.UTF8) { AutoFlush = true });
 
 if (args.Length < 2)
 {
@@ -150,6 +157,8 @@ Console.WriteLine($"model      : {Path.GetFileName(modelPath)}");
 Console.WriteLine($"audio      : {Path.GetFileName(audioPath)} x{repeat} = {audioSeconds:F2}s @ {SampleRate}Hz mono");
 Console.WriteLine($"backend    : {backend ?? "auto"}");
 Console.WriteLine($"min decode : {(minDecodeInterval is null ? "(model default)" : minDecodeInterval + "ms")}");
+Console.WriteLine($"machine    : {Environment.ProcessorCount} logical CPUs, load {LoadAverage()}, utc {DateTime.UtcNow:yyyy-MM-dd HH:mm}");
+Console.WriteLine($"             (a loaded machine inflates every figure below; compare runs only at a similar load)");
 Console.WriteLine();
 
 var swLoad = Stopwatch.StartNew();
@@ -263,6 +272,14 @@ static Result RunOne(Model model, float[] pcm, int chunkMs, int? minDecodeInterv
 
         feeds++;
 
+        // Emit the per-feed latency as it happens rather than at the end. A
+        // native abort discards the rest of the run, and the interesting feed
+        // is the one that aborted — which a trace printed on exit never shows.
+        if (doTrace)
+        {
+            Console.WriteLine($"  feed {feeds,4} @ {offset / SampleRate,5:F1}s  {ms,7:F1} ms");
+        }
+
         // Poll the text the way a live UI would, and record when it first
         // becomes non-empty. Polling costs a native call, so it is part of the
         // cost and is included in the wall time on purpose.
@@ -323,14 +340,27 @@ static Result RunOne(Model model, float[] pcm, int chunkMs, int? minDecodeInterv
 static string Truncate(string s, int n) =>
     s.Length <= n ? s : s[..n] + " ...";
 
-sealed class Result
+// Printed next to the results so a figure can be judged against the load it was
+// taken under. A real-time factor measured on a busy box is not a property of
+// the model, and that is exactly the mistake these numbers exist to prevent.
+static string LoadAverage() =>
+    File.Exists("/proc/loadavg")
+        ? string.Join(" ", File.ReadAllText("/proc/loadavg").Split(' ')[..3])
+        : "unavailable";
+
+// Top-level statements cannot live inside a namespace, so the aggregated result
+// stays at the end of the global statements as the one type this file needs.
+namespace StreamingBench
 {
-    public int Feeds;
-    public double Wall;
-    public double Rtf;
-    public double MaxFeedMs;
-    public bool UnderBudget;
-    public string Verdict = "?";
-    public double FirstTextMs = double.NaN;
-    public double FirstCommitMs = double.NaN;
+    sealed class Result
+    {
+        public int Feeds;
+        public double Wall;
+        public double Rtf;
+        public double MaxFeedMs;
+        public bool UnderBudget;
+        public string Verdict = "?";
+        public double FirstTextMs = double.NaN;
+        public double FirstCommitMs = double.NaN;
+    }
 }
