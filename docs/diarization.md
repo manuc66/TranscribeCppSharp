@@ -69,7 +69,7 @@ Passing a non-DEFAULT mode to such a model is accepted, not rejected.
 
 ## Not available: streaming
 
-`transcribe_stream_params` has no `diarize` field in transcribe.cpp v0.2.4, so
+`transcribe_stream_params` has no `diarize` field in transcribe.cpp v0.3.0, so
 the streaming API cannot request speaker attribution; we do not invent one. The
 alias list does contain a streaming diarization model
 (`diar_streaming_sortformer_4spk-v2.1`, whose stream extension the wrapper

@@ -34,11 +34,11 @@ signatures do not.
 Two version numbers are in play, decoupled on purpose:
 
 - **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper. The user-facing packages **`TranscribeCppSharp.Bundle`** (meta-package) and **`TranscribeCppSharp.Cli`** (the `transcribe` tool) follow the wrapper's version too.
-- **`TranscribeCppSharp.Interop`** and the **`TranscribeCppSharp.Native.*`** runtime packages are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.2.4` = transcribe.cpp v0.2.4). They track the ABI, not the wrapper's API.
+- **`TranscribeCppSharp.Interop`** and the **`TranscribeCppSharp.Native.*`** runtime packages are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.3.0` = transcribe.cpp v0.3.0). They track the ABI, not the wrapper's API.
 
-So `TranscribeCppSharp 0.3.1` depends on `TranscribeCppSharp.Interop 0.2.4`; `TranscribeCppSharp.Bundle 0.3.1` pulls a wrapper and the native runtime packages of the matching upstream version. A later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](https://github.com/manuc66/TranscribeCppSharp/blob/main/CHANGELOG.md).
+So `TranscribeCppSharp 0.3.1` depends on `TranscribeCppSharp.Interop 0.3.0`; `TranscribeCppSharp.Bundle 0.3.1` pulls a wrapper and the native runtime packages of the matching upstream version. A later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](https://github.com/manuc66/TranscribeCppSharp/blob/main/CHANGELOG.md).
 
 This decoupling is why documentation here cites upstream behaviour at a specific
-version — "transcribe.cpp v0.2.4" appears in the streaming, thread-safety and CUDA
+version — "transcribe.cpp v0.3.0" appears in the streaming, thread-safety and CUDA
 sections because those statements are only true of that version, and a later upstream
 release may change them.

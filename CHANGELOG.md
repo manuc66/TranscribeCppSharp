@@ -9,6 +9,44 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Bind transcribe.cpp v0.3.0 (breaking upstream ABI, additive C# API)
+
+The pinned upstream version moves from v0.2.4 to v0.3.0 (released 2026-10-03).
+Everything below is upstream's work; this commit only re-binds the wrapper to
+their release and regenerates the P/Invoke surface from it.
+
+Native ABI change, verified against the two upstream artifacts this project
+mirrors:
+
+- `transcribe_run_params` grows from 72 to 104 bytes: new `vocabulary` +
+  `n_vocabulary`, `prompt` and `prefix` fields (caller-owned strings, copied by
+  the library before the call returns). The regenerated `RunParams` C# struct
+  matches the new layout, offset for offset (checked by the ABI tests).
+- New `Status.ErrOutputRepetition` (19): a greedy decode that started looping
+  on the same token block is stopped early. Result-bearing like
+  `ErrOutputTruncated` (partial transcript readable, `was_truncated()` true);
+  the two codes differ only in why the decode stopped.
+- New `Task.TaskInstruct` (2): offline instruction-following via `prompt`,
+  gated by the model's `FeatureInstruct`.
+- New feature flags `FeatureVocabulary` (7), `FeatureContextPrompt` (8),
+  `FeatureInstruct` (9), `FeatureTranscriptPrefix` (10).
+
+C# changes: all additive — one new status value, one new task value, four new
+feature values, and four new fields on the marshalled `RunParams`. Nothing was
+removed or renamed. Streaming is untouched: `transcribe_stream_params` is
+unchanged between v0.2.4 and v0.3.0, so the documented streaming behaviour and
+its limits are not altered by this bump.
+
+The wrapper does not (yet) expose `vocabulary` / `prompt` / `prefix` as
+`With...` convenience methods; the regenerated struct fields and the enum
+values are available, and the run-params builder still covers the pre-existing
+knobs (`WithSpecKDrafts` and earlier).
+
+`FetchNative` archive names are unchanged in v0.3.0, so the fetch logic needed
+no change; `build/native-sha256.json` gains the v0.3.0 hashes (computed from
+the downloads themselves, matching the values upstream publishes) and keeps the
+older entries so older commits still fetch.
+
 ### Streaming: first measured real-time numbers, and a native crash they expose
 
 The wrapper had no real-time figures at all. `docs/cli.md` omits its timing

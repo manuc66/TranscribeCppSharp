@@ -49,7 +49,7 @@ can run for minutes.
 ## Two limits worth knowing
 
 - **No speaker attribution.** `transcribe_stream_params` has no `diarize` field
-  in transcribe.cpp v0.2.4, so a stream cannot request it; we do not invent one.
+  in transcribe.cpp v0.3.0, so a stream cannot request it; we do not invent one.
   The full reasoning is under [Not available: streaming](diarization.md#not-available-streaming).
 - **Not thread-safe.** A `StreamSession` is a view over a `Session` and shares
   its state — see [Concurrency](concurrency.md#thread-safety).

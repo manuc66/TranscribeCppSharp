@@ -120,10 +120,11 @@ public enum Status
     /// <para>
     /// Returned by transcribe_run when the decode stopped because it hit
     /// the model's context / generation budget BEFORE the model emitted
-    /// end-of-stream — i.e. the transcript is incomplete. This is the
-    /// "started, couldn't finish" counterpart to INPUT_TOO_LONG, and it is
-    /// a hard non-OK status by design: a truncated transcript must not be
-    /// mistaken for a complete one.
+    /// end-of-stream — i.e. the transcript is incomplete. If the partial
+    /// ends in a phrase repeating itself, the repeats are dropped (one
+    /// copy kept). This is the "started, couldn't finish" counterpart to
+    /// INPUT_TOO_LONG, and it is a hard non-OK status by design: a
+    /// truncated transcript must not be mistaken for a complete one.
     /// </para>
     /// <para>
     /// The partial transcript IS preserved and readable through the normal
@@ -148,6 +149,30 @@ public enum Status
     /// </para>
     /// </summary>
     ErrOutputTruncated = 18,
+
+    /// <summary>
+    /// <para>
+    /// Returned by transcribe_run when a greedy decode fell into repeating
+    /// the same block of tokens over and over and was stopped early,
+    /// BEFORE the model emitted end-of-stream. The repeats are dropped
+    /// (one copy kept), but whatever the audio said after the loop was
+    /// never decoded, so the transcript is incomplete.
+    /// </para>
+    /// <para>
+    /// Result-bearing exactly like OUTPUT_TRUNCATED: the partial transcript
+    /// is readable through the normal result accessors, and
+    /// transcribe_was_truncated() is true. The two codes differ only in why
+    /// the decode stopped: the budget ran out (OUTPUT_TRUNCATED) versus the
+    /// output started looping (this code). Re-running the same audio gives
+    /// the same result; splitting it at a different point may not loop.
+    /// </para>
+    /// <para>
+    /// Per-utterance in transcribe_run_batch, like OUTPUT_TRUNCATED. Not
+    /// used by streaming. Set TRANSCRIBE_NO_REPETITION_GUARD=1 to disable
+    /// the check. See docs/input-limits.md.
+    /// </para>
+    /// </summary>
+    ErrOutputRepetition = 19,
 }
 
 /// <summary>
@@ -206,10 +231,17 @@ public enum LogLevel
     LogLevelCont = 5,
 }
 
+/// <summary>
+/// <para>
+/// INSTRUCT: transcribe_run_params::prompt is the instruction and the output
+/// is free text (only full_text / raw_text are guaranteed). Offline only.
+/// </para>
+/// </summary>
 public enum Task
 {
     TaskTranscribe = 0,
     TaskTranslate = 1,
+    TaskInstruct = 2,
 }
 
 /// <summary>
@@ -502,9 +534,10 @@ public enum DeviceType
 /// Feature meanings:
 /// </para>
 /// <para>
-/// INITIAL_PROMPT       The model accepts a free-text or token
-/// prompt to bias decoding. Today: whisper
-/// only; reached via transcribe_whisper_run_ext.
+/// INITIAL_PROMPT       The Whisper run extension's initial_prompt /
+/// prompt_tokens (transcribe_whisper_run_ext).
+/// For portable prompting use the generic
+/// fields and the four bits below.
 /// </para>
 /// <para>
 /// TEMPERATURE_FALLBACK The model runs a multi-tier temperature loop
@@ -550,6 +583,19 @@ public enum DeviceType
 /// a WARN and proceeds.
 /// </para>
 /// <para>
+/// VOCABULARY           transcribe_run_params::vocabulary takes effect.
+/// </para>
+/// <para>
+/// CONTEXT_PROMPT       transcribe_run_params::prompt conditions
+/// TRANSCRIBE / TRANSLATE.
+/// </para>
+/// <para>
+/// INSTRUCT             TRANSCRIBE_TASK_INSTRUCT is available.
+/// </para>
+/// <para>
+/// TRANSCRIPT_PREFIX    transcribe_run_params::prefix is honored.
+/// </para>
+/// <para>
 /// Returns false on NULL model or unknown feature enum.
 /// </para>
 /// </summary>
@@ -562,6 +608,10 @@ public enum Feature
     FeaturePnc = 4,
     FeatureItn = 5,
     FeatureDiarization = 6,
+    FeatureVocabulary = 7,
+    FeatureContextPrompt = 8,
+    FeatureInstruct = 9,
+    FeatureTranscriptPrefix = 10,
 }
 
 /// <summary>
@@ -955,8 +1005,9 @@ public struct SessionParams
 /// (currently reserved) will become observable.
 /// </para>
 /// <para>
-/// task:        TRANSCRIBE or TRANSLATE. The model must declare support
-/// for translate via its capabilities; otherwise the run
+/// task:        TRANSCRIBE, TRANSLATE or INSTRUCT. The model must declare
+/// support for translate via its capabilities, and for
+/// INSTRUCT via TRANSCRIBE_FEATURE_INSTRUCT; otherwise the run
 /// returns TRANSCRIBE_ERR_UNSUPPORTED_TASK.
 /// </para>
 /// <para>
@@ -996,8 +1047,9 @@ public struct SessionParams
 /// target_language: target language for translation tasks, or NULL.
 /// </para>
 /// <para>
-/// String-pointer lifetime (language / target_language): caller-owned, and
-/// the library copies what it needs before the API call returns. This holds
+/// String-pointer lifetime (language / target_language / vocabulary /
+/// prompt / prefix): caller-owned, and the library copies what it needs
+/// before the API call returns. This holds
 /// for transcribe_run / transcribe_run_batch (synchronous) AND for
 /// transcribe_stream_begin: the dispatcher copies these strings into
 /// session-owned storage at begin, so the caller may free its params —
@@ -1029,6 +1081,34 @@ public struct SessionParams
 /// to probe whether the loaded model accepts a given kind
 /// before pointing <c>family</c> at it.
 /// </para>
+/// <para>
+/// spec_k_drafts: speculative-decode draft length for offline runs: -1 is
+/// the model default, 0 disables it, >0 drafts K tokens per
+/// verify pass. Ignored unless the model reports
+/// transcribe_capabilities::supports_spec_decode.
+/// </para>
+/// <para>
+/// Generic prompting (vocabulary, prompt, prefix): NULL / 0 / "" means
+/// unused. Each field is gated by the TRANSCRIBE_FEATURE_* bit in
+/// parentheses; limits are in docs/prompting.md.
+/// </para>
+/// <para>
+/// vocabulary / n_vocabulary: custom terms in priority order, formatted for
+/// the family (VOCABULARY). Ignored with a WARN when
+/// unsupported.
+/// </para>
+/// <para>
+/// prompt:      context text under TRANSCRIBE / TRANSLATE (CONTEXT_PROMPT),
+/// ignored with a WARN when unsupported; the required
+/// instruction under INSTRUCT. Plain text only: control-token
+/// literals are rejected.
+/// </para>
+/// <para>
+/// prefix:      transcript text the model continues from
+/// (TRANSCRIPT_PREFIX). Results hold only the continuation,
+/// except raw_text. An error when unsupported, and under
+/// INSTRUCT, batch or streaming.
+/// </para>
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct RunParams
@@ -1044,33 +1124,11 @@ public struct RunParams
     [MarshalAs(UnmanagedType.I1)]
     public bool keepSpecialTags;
     public IntPtr /* transcribe_ext */ family;
-
-    /// <summary>
-    /// <para>
-    /// spec_k_drafts: n-gram-lookup speculative-decode draft length for the
-    /// offline autoregressive decode step. Family-portable strategy knob;
-    /// the family decides how K maps to its internal verify graph.
-    /// </para>
-    /// <para>
-    /// Convention:
-    /// -1: family default (each family picks its tuned K).
-    /// 0: spec decoding explicitly disabled — standard 1-token-per-step
-    /// autoregression. Use this for byte-equal reproduction of
-    /// pre-spec behavior or when measuring baseline performance.
-    /// >0: draft K tokens per verify pass. Practical range is 1..8;
-    /// optimal K is hardware-dependent (compute-bound hardware
-    /// prefers small K, bandwidth-bound prefers larger K — see
-    /// docs/models/&lt;family>.md for per-family guidance).
-    /// </para>
-    /// <para>
-    /// Families gate this via transcribe_capabilities::supports_spec_decode.
-    /// Setting spec_k_drafts != -1 on a family with
-    /// supports_spec_decode == false is silently ignored (the run proceeds
-    /// as ordinary autoregression). Probe the capability bit if you want
-    /// to know whether the field will take effect.
-    /// </para>
-    /// </summary>
     public int specKDrafts;
+    public IntPtr vocabulary;
+    public int nVocabulary;
+    public IntPtr prompt;
+    public IntPtr prefix;
 }
 
 /// <summary>
@@ -1148,14 +1206,8 @@ public struct Capabilities
 
     /// <summary>
     /// <para>
-    /// supports_spec_decode: gates transcribe_run_params::spec_k_drafts.
-    /// True means the family's offline (transcribe_run / transcribe_run_batch)
-    /// path implements n-gram-lookup speculative decoding. A non-zero
-    /// spec_k_drafts on a model with supports_spec_decode == false is
-    /// silently ignored — the run proceeds as ordinary autoregression. This
-    /// is a soft gate (no error) because spec is purely a performance
-    /// strategy; callers can probe this bit if they want to know whether
-    /// passing K will actually do anything.
+    /// supports_spec_decode: the offline path honors
+    /// transcribe_run_params::spec_k_drafts; elsewhere it is ignored.
     /// </para>
     /// </summary>
     [MarshalAs(UnmanagedType.I1)]
@@ -1724,7 +1776,7 @@ internal static class AbiLayout
         ("DeviceInfo", 64, 8, [("structSize", 0), ("name", 8), ("description", 16), ("kind", 24), ("deviceId", 32), ("memoryTotal", 40), ("memoryFree", 48), ("deviceType", 56)]),
         ("ModelLoadParams", 24, 8, [("structSize", 0), ("backend", 8), ("device", 16)]),
         ("SessionParams", 24, 8, [("structSize", 0), ("nThreads", 8), ("kvType", 12), ("nCtx", 16)]),
-        ("RunParams", 72, 8, [("structSize", 0), ("task", 8), ("timestamps", 12), ("pnc", 16), ("itn", 20), ("diarize", 24), ("language", 32), ("targetLanguage", 40), ("keepSpecialTags", 48), ("family", 56), ("specKDrafts", 64)]),
+        ("RunParams", 104, 8, [("structSize", 0), ("task", 8), ("timestamps", 12), ("pnc", 16), ("itn", 20), ("diarize", 24), ("language", 32), ("targetLanguage", 40), ("keepSpecialTags", 48), ("family", 56), ("specKDrafts", 64), ("vocabulary", 72), ("nVocabulary", 80), ("prompt", 88), ("prefix", 96)]),
         ("Capabilities", 56, 8, [("structSize", 0), ("nativeSampleRate", 8), ("nLanguages", 12), ("languages", 16), ("maxTimestampKind", 24), ("supportsLanguageDetect", 28), ("supportsTranslate", 29), ("supportsStreaming", 30), ("supportsSpecDecode", 31), ("maxAudioMs", 32), ("nTranslateTargetLanguages", 40), ("translateTargetLanguages", 48)]),
         ("SessionLimits", 32, 8, [("structSize", 0), ("effectiveNCtx", 8), ("effectiveMaxAudioMs", 16), ("maxKvBytes", 24)]),
         ("StreamParams", 24, 8, [("structSize", 0), ("family", 8), ("commitPolicy", 16), ("stablePrefixAgreementN", 20)]),
@@ -2413,8 +2465,9 @@ internal static partial class NativeMethods
     /// <summary>
     /// <para>
     /// Supplemental flag for output truncation. True if the most recent decode
-    /// stopped at the model's context / generation cap before end-of-stream,
-    /// leaving the transcript incomplete. The partial transcript is preserved
+    /// stopped before end-of-stream, at the model's context / generation cap or
+    /// because the output started repeating itself, leaving the transcript
+    /// incomplete. The partial transcript is preserved
     /// and readable through the normal result accessors. Reset to false at the
     /// start of each new decode — transcribe_run, transcribe_run_batch, and
     /// transcribe_stream_begin (the same lifecycle as transcribe_was_aborted).
@@ -2427,10 +2480,10 @@ internal static partial class NativeMethods
     /// <item>
     /// <description>
     /// Offline (transcribe_run / transcribe_run_batch): the flag is true
-    /// exactly when the run returned TRANSCRIBE_ERR_OUTPUT_TRUNCATED (or, in
-    /// a batch, when a per-utterance status is OUTPUT_TRUNCATED), so the run
-    /// status is the authoritative signal and this accessor is a convenience
-    /// for a caller that has lost it.
+    /// exactly when the run returned TRANSCRIBE_ERR_OUTPUT_TRUNCATED or
+    /// TRANSCRIBE_ERR_OUTPUT_REPETITION (or, in a batch, when a per-utterance
+    /// status is one of those), so the run status is the authoritative signal
+    /// and this accessor is a convenience for a caller that has lost it.
     /// </description>
     /// </item>
     /// </list>
@@ -2444,7 +2497,9 @@ internal static partial class NativeMethods
     /// reached its absolute position cap (forcing the stream to FAILED would
     /// discard the committed text the caller has been consuming). There, this
     /// flag is the ONLY signal of truncation: a streaming caller must check
-    /// it after finalize.
+    /// it after finalize. A family that re-decodes the stream from the start
+    /// on each feed (moonshine_streaming) sets it from its latest decode, so
+    /// after finalize it describes the final transcript.
     /// </description>
     /// </item>
     /// </list>
