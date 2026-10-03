@@ -6,6 +6,10 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+  # On-demand pre-release: a manual run publishes the -preview NuGets for the
+  # selected branch (usually main) to nuget.org and GitHub Packages. Stable
+  # releases remain the v* tag pushes.
+  workflow_dispatch:
 
 jobs:
   get-version:
@@ -345,7 +349,13 @@ jobs:
           path: nupkgs/*.nupkg
 
   push-nugets:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    # Pre-release packages are published on demand, not on every commit:
+    #  - workflow_dispatch: a manual run of this workflow pushes the -preview
+    #    packages for the selected branch to nuget.org + GitHub Packages.
+    #  - push of a v* tag: stable release (unchanged).
+    # Plain pushes to main only build, test and pack — the .nupkg stay as run
+    # artifacts and nothing is published.
+    if: (github.event_name == 'workflow_dispatch') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     needs: [pack-native, pack-interop, pack-wrapper, pack-bundle, pack-tool]
     runs-on: ubuntu-latest
     permissions:
