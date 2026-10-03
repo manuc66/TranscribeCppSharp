@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+             x:Class="TranscribeCppSharp.Ui.Views.StreamingView"
+             x:DataType="vm:StreamingViewModel">
+
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto">
+    <!-- Model selection -->
+    <StackPanel Grid.Row="0" Margin="0,0,0,8">
+      <TextBlock Text="Model" Margin="0,0,0,4" />
+      <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch" />
+    </StackPanel>
+
+    <!-- Controls -->
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+      <Button Content="Start" Command="{Binding StartStreamingCommand}" IsEnabled="{Binding !IsStreaming}" />
+      <Button Content="Stop" Command="{Binding StopStreamingCommand}" IsEnabled="{Binding IsStreaming}" Margin="8,0,0,0" />
+    </StackPanel>
+
+    <!-- Status -->
+    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Margin="0,0,0,8" />
+
+    <!-- Committed text -->
+    <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+      <ScrollViewer>
+        <TextBlock Text="{Binding CommittedText}" TextWrapping="Wrap" />
+      </ScrollViewer>
+    </Border>
+
+    <!-- Tentative text -->
+    <Border Grid.Row="4" BorderBrush="LightGray" BorderThickness="1" Padding="8" Background="#FFF0F0F0">
+      <ScrollViewer>
+        <TextBlock Text="{Binding TentativeText}" TextWrapping="Wrap" FontStyle="Italic" />
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

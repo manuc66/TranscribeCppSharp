@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+             x:Class="TranscribeCppSharp.Ui.Views.TranscriptionView"
+             x:DataType="vm:TranscriptionViewModel">
+
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+    <!-- Audio file selection -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+      <TextBox Grid.Column="0" Text="{Binding AudioPath}" Watermark="Select audio file..." IsReadOnly="True" />
+      <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseAudioCommand}" Margin="8,0,0,0" />
+    </Grid>
+
+    <!-- Model and language -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,0,0,8">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+        <TextBlock Text="Model" Margin="0,0,0,4" />
+        <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+        <TextBlock Text="Language" Margin="0,0,0,4" />
+        <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding Language}" HorizontalAlignment="Stretch" />
+      </StackPanel>
+    </Grid>
+
+    <!-- Action buttons -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+      <Button Content="Transcribe" Command="{Binding TranscribeCommand}" IsEnabled="{Binding !IsTranscribing}" />
+      <Button Content="Export" Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0" />
+    </StackPanel>
+
+    <!-- Progress -->
+    <ProgressBar Grid.Row="3" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8" />
+
+    <!-- Status -->
+    <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" />
+
+    <!-- Results -->
+    <TabControl Grid.Row="5" IsVisible="{Binding HasResult}">
+      <TabItem Header="Text">
+        <ScrollViewer>
+          <TextBlock Text="{Binding FullText}" TextWrapping="Wrap" />
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Segments">
+        <DataGrid ItemsSource="{Binding Segments}" AutoGenerateColumns="False" IsReadOnly="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
+            <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
+            <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
+            <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="*" />
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+      <TabItem Header="Words">
+        <DataGrid ItemsSource="{Binding Words}" AutoGenerateColumns="False" IsReadOnly="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
+            <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
+            <DataGridTextColumn Header="Word" Binding="{Binding Text}" Width="*" />
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+      <TabItem Header="Speakers">
+        <DataGrid ItemsSource="{Binding SpeakerSegments}" AutoGenerateColumns="False" IsReadOnly="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
+            <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
+            <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
+            <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P0}}" />
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</UserControl>

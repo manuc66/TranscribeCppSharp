@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+        xmlns:views="using:TranscribeCppSharp.Ui.Views"
+        x:Class="TranscribeCppSharp.Ui.Views.MainWindow"
+        Title="{Binding Title}"
+        Width="900" Height="700"
+        WindowStartupLocation="CenterScreen">
+
+  <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+    <TabItem Header="Transcription">
+      <views:TranscriptionView DataContext="{Binding Transcription}" />
+    </TabItem>
+    <TabItem Header="Streaming">
+      <views:StreamingView DataContext="{Binding Streaming}" />
+    </TabItem>
+    <TabItem Header="Batch">
+      <views:BatchView DataContext="{Binding Batch}" />
+    </TabItem>
+    <TabItem Header="Models">
+      <views:ModelManagerView DataContext="{Binding ModelManager}" />
+    </TabItem>
+    <TabItem Header="Settings">
+      <views:SettingsView DataContext="{Binding Settings}" />
+    </TabItem>
+  </TabControl>
+</Window>

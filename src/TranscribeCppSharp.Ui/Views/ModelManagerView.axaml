@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+             x:Class="TranscribeCppSharp.Ui.Views.ModelManagerView"
+             x:DataType="vm:ModelManagerViewModel">
+
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto">
+    <!-- Toolbar -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+      <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+    </StackPanel>
+
+    <!-- Model list -->
+    <DataGrid Grid.Row="1" ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}"
+              AutoGenerateColumns="False" IsReadOnly="True">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="*" />
+        <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" />
+        <DataGridTextColumn Header="Size" Binding="{Binding SizeBytes, StringFormat={}{0:N0} MB}" />
+        <DataGridTextColumn Header="License" Binding="{Binding License}" />
+        <DataGridTemplateColumn Header="Action">
+          <DataTemplate>
+            <Button Content="Download" Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DownloadCommand}"
+                    CommandParameter="{Binding}" IsVisible="{Binding !$parent[DataGrid].((vm:ModelManagerViewModel)DataContext).IsDownloading}" />
+          </DataTemplate>
+        </DataGridTemplateColumn>
+      </DataGrid.Columns>
+    </DataGrid>
+
+    <!-- Status -->
+    <StackPanel Grid.Row="2" Margin="0,8,0,0">
+      <ProgressBar Value="{Binding DownloadProgress}" Maximum="1" IsVisible="{Binding IsDownloading}" />
+      <TextBlock Text="{Binding StatusMessage}" Margin="0,4,0,0" />
+    </StackPanel>
+  </Grid>
+</UserControl>

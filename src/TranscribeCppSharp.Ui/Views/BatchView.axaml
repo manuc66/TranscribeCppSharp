@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+             x:Class="TranscribeCppSharp.Ui.Views.BatchView"
+             x:DataType="vm:BatchViewModel">
+
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+    <!-- Model and language -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,8">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+        <TextBlock Text="Model" Margin="0,0,0,4" />
+        <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+        <TextBlock Text="Language" Margin="0,0,0,4" />
+        <TextBox Text="{Binding Language}" />
+      </StackPanel>
+    </Grid>
+
+    <!-- File list -->
+    <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,0,0,8">
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+        <Button Content="Add Files..." Command="{Binding AddFilesCommand}" />
+        <Button Content="Clear" Command="{Binding ClearFilesCommand}" Margin="8,0,0,0" />
+      </StackPanel>
+      <ListBox Grid.Row="1" ItemsSource="{Binding AudioFiles}" Height="120" />
+    </Grid>
+
+    <!-- Action buttons -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+      <Button Content="Process Batch" Command="{Binding ProcessBatchCommand}" IsEnabled="{Binding !IsProcessing}" />
+      <Button Content="Export Results" Command="{Binding ExportResultsCommand}" IsEnabled="{Binding Results.Count}" Margin="8,0,0,0" />
+    </StackPanel>
+
+    <!-- Progress -->
+    <ProgressBar Grid.Row="3" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsProcessing}" Margin="0,0,0,8" />
+
+    <!-- Status -->
+    <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" Margin="0,0,0,8" />
+
+    <!-- Results -->
+    <DataGrid Grid.Row="5" ItemsSource="{Binding Results}" AutoGenerateColumns="False" IsReadOnly="True">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="File" Binding="{Binding AudioPath}" Width="*" />
+        <DataGridTextColumn Header="Language" Binding="{Binding DetectedLanguage}" />
+        <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
+        <DataGridTextColumn Header="Text" Binding="{Binding FullText}" Width="2*" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </Grid>
+</UserControl>

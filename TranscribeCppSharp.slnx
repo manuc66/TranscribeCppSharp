@@ -3,6 +3,7 @@
     <Project Path="src/Generator/Generator.csproj" />
     <Project Path="src/TranscribeCppSharp/TranscribeCppSharp.csproj" />
     <Project Path="src/TranscribeCppSharp.Cli/TranscribeCppSharp.Cli.csproj" />
+    <Project Path="src/TranscribeCppSharp.Ui/TranscribeCppSharp.Ui.csproj" />
   </Folder>
   <Folder Name="/generated/">
     <Project Path="generated/TranscribeCppSharp.Interop/TranscribeCppSharp.Interop.csproj" />

@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+             x:Class="TranscribeCppSharp.Ui.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*">
+    <!-- Backend -->
+    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+      <TextBlock Text="Backend" FontWeight="Bold" Margin="0,0,0,4" />
+      <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch" />
+    </StackPanel>
+
+    <!-- Cache directory -->
+    <StackPanel Grid.Row="1" Margin="0,0,0,16">
+      <TextBlock Text="Cache Directory" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBox Text="{Binding CacheDirectory}" IsReadOnly="True" />
+    </StackPanel>
+
+    <!-- Backend info -->
+    <StackPanel Grid.Row="2" Margin="0,0,0,16">
+      <TextBlock Text="Backend Version" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock Text="{Binding BackendVersion}" />
+    </StackPanel>
+
+    <!-- Devices -->
+    <StackPanel Grid.Row="3">
+      <TextBlock Text="Available Devices" FontWeight="Bold" Margin="0,0,0,4" />
+      <DataGrid ItemsSource="{Binding Devices}" AutoGenerateColumns="False" IsReadOnly="True">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+          <DataGridTextColumn Header="Type" Binding="{Binding DeviceType}" />
+          <DataGridTextColumn Header="Memory" Binding="{Binding MemoryTotal, StringFormat={}{0:N0} MB}" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </StackPanel>
+  </Grid>
+</UserControl>
