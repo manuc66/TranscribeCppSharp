@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp;
+using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Ui.Models;
 using TranscribeCppSharp.Ui.Services;
@@ -38,7 +39,7 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _fullText = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<TranscribeCppSharp.SegmentResult> _segments = new();
+    private ObservableCollection<MergedSegment> _segments = new();
 
     [ObservableProperty]
     private ObservableCollection<TranscribeCppSharp.WordResult> _words = new();
@@ -194,7 +195,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 AudioPath, ModelAlias, options, progress);
 
             FullText = Result.FullText;
-            Segments = new ObservableCollection<TranscribeCppSharp.SegmentResult>(Result.Segments);
+            Segments = new ObservableCollection<MergedSegment>(Result.Segments);
             Words = new ObservableCollection<TranscribeCppSharp.WordResult>(Result.Words);
             SpeakerSegments = new ObservableCollection<TranscribeCppSharp.SpeakerSegmentResult>(Result.SpeakerSegments);
             HasResult = true;

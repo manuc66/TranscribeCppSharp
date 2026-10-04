@@ -221,7 +221,13 @@ internal static class TranscribeCommand
         // ~900 segments. JSON writes its whole document once at the end, from
         // the complete list, so there the list is genuinely required.
         var lines = options.Format == TranscriptFormat.Json ? new List<TranscriptLine>() : null;
-        long lastSegmentEndMs = -WindowPlanner.OverlapMs;
+
+        // The merger owns the seam bookkeeping (drop what the previous window
+        // already reported, shift timestamps into file time) so the CLI and the
+        // GUI cannot drift apart. It is told not to retain: segments are written
+        // out as each window arrives, and keeping a second copy of ~900
+        // segments an hour of speech produces is what "retain: false" avoids.
+        var merger = new TranscriptMerger(retain: false);
         var overall = Stopwatch.StartNew();
 
         StreamWriter? outFile;
@@ -293,19 +299,11 @@ internal static class TranscribeCommand
                 double rtf = windowSec / audioSec;
                 stdout.WriteLine($"  time   : {Fmt.Dur(windowSec)}/ {audioSec:0.0}s audio (RTF {rtf:0.0}x) | done {Fmt.Dur(processedSec)} / {Fmt.Dur(audioTotalSec)} | ETA ~{Fmt.Dur(remainingSec * rtf)}");
 
-                foreach (var seg in transcript.Segments)
+                foreach (var seg in merger.Add(window, transcript))
                 {
-                    // Drop a segment that starts well before the end of the last
-                    // kept one: it comes from the overlap with the previous window.
-                    var start = seg.Start.TotalMilliseconds + chunkStartMs;
-                    var end = seg.End.TotalMilliseconds + chunkStartMs;
-                    if (start < lastSegmentEndMs - 500)
-                    {
-                        continue;
-                    }
-
-                    lastSegmentEndMs = (long)end;
                     var text = Fmt.Normalize(seg.Text);
+                    var start = (long)seg.Start.TotalMilliseconds;
+                    var end = (long)seg.End.TotalMilliseconds;
                     var line = new TranscriptLine(start, end, seg.SpeakerId, text);
                     lines?.Add(line);
 
