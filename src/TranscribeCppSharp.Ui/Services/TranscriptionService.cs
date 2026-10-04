@@ -81,28 +81,52 @@ public class TranscriptionService : ITranscriptionService
         {
             using var session = model.CreateSession();
             using var stream = session.CreateStream();
+            using var microphone = new MicrophoneCapture();
 
             await System.Threading.Tasks.Task.Run(() => stream.Begin(null, streamConfig =>
             {
                 streamConfig.WithCommitPolicy(options.CommitPolicy);
             }), cancellationToken);
 
-            // Placeholder: yield periodic updates
-            // Real implementation would feed audio chunks from microphone
-            while (!cancellationToken.IsCancellationRequested)
+            microphone.Start();
+
+            try
             {
-                await System.Threading.Tasks.Task.Delay(100, cancellationToken);
-                var text = stream.GetCurrentText();
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    var samples = microphone.ReadAvailable();
+                    if (samples.Length > 0)
+                    {
+                        await System.Threading.Tasks.Task.Run(() => stream.Feed(samples), cancellationToken);
+                    }
+
+                    var text = stream.GetCurrentText();
+                    yield return new TranscribeCppSharp.Ui.Models.StreamUpdate
+                    {
+                        FullText = text.FullText,
+                        CommittedText = text.CommittedText,
+                        TentativeText = text.TentativeText,
+                        IsFinal = false
+                    };
+
+                    await System.Threading.Tasks.Task.Delay(50, cancellationToken);
+                }
+
+                var finalText = stream.GetCurrentText();
                 yield return new TranscribeCppSharp.Ui.Models.StreamUpdate
                 {
-                    FullText = text.FullText,
-                    CommittedText = text.CommittedText,
-                    TentativeText = text.TentativeText,
-                    IsFinal = false
+                    FullText = finalText.FullText,
+                    CommittedText = finalText.CommittedText,
+                    TentativeText = finalText.TentativeText,
+                    IsFinal = true
                 };
-            }
 
-            stream.Complete();
+                stream.Complete();
+            }
+            finally
+            {
+                microphone.Stop();
+            }
         }
         finally
         {
