@@ -30,33 +30,94 @@ public class TranscriptionService : ITranscriptionService
 
             var result = await System.Threading.Tasks.Task.Run(() =>
             {
-                var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
-                return session.Run(samples, builder =>
-                {
-                    builder
-                        .WithLanguage(options.Language)
-                        .WithTimestamps(options.TimestampKind)
-                        .WithDiarize(options.DiarizeMode);
+                var allSegments = new List<TranscribeCppSharp.SegmentResult>();
+                var allWords = new List<TranscribeCppSharp.WordResult>();
+                var allSpeakerSegments = new List<TranscribeCppSharp.SpeakerSegmentResult>();
+                string fullText = string.Empty;
+                string detectedLanguage = string.Empty;
+                bool wasAborted = false;
+                bool wasTruncated = false;
 
-                    if (options.PncMode.HasValue)
-                        builder.WithPnc(options.PncMode.Value);
-                    if (options.ItnMode.HasValue)
-                        builder.WithItn(options.ItnMode.Value);
-                }, cancellationToken);
+                if (WindowPlanner.TryPlan((int)Math.Min(audioSource.LengthSamples, int.MaxValue), options.WindowSeconds, out var windows, out var error))
+                {
+                    int windowIndex = 0;
+                    foreach (var window in windows)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var samples = audioSource.ReadWindow(window.OffsetSamples, window.LengthSamples);
+                        var windowResult = session.Run(samples, builder =>
+                        {
+                            builder
+                                .WithLanguage(options.Language)
+                                .WithTimestamps(options.TimestampKind)
+                                .WithDiarize(options.DiarizeMode);
+
+                            if (options.PncMode.HasValue)
+                                builder.WithPnc(options.PncMode.Value);
+                            if (options.ItnMode.HasValue)
+                                builder.WithItn(options.ItnMode.Value);
+                        }, cancellationToken);
+
+                        // Deduplicate overlap: skip segments that start before the window's start
+                        long windowStartMs = window.StartMs;
+                        foreach (var seg in windowResult.Segments)
+                        {
+                            if (seg.Start.TotalMilliseconds >= windowStartMs)
+                            {
+                                allSegments.Add(seg);
+                            }
+                        }
+                        allWords.AddRange(windowResult.Words);
+                        allSpeakerSegments.AddRange(windowResult.SpeakerSegments);
+                        fullText = windowResult.FullText;
+                        detectedLanguage = windowResult.DetectedLanguage;
+                        wasAborted = windowResult.WasAborted;
+                        wasTruncated = windowResult.WasTruncated;
+
+                        windowIndex++;
+                        progress?.Report((double)windowIndex / windows.Count);
+                    }
+                }
+                else
+                {
+                    // Window too small or audio empty: transcribe whole file at once
+                    var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
+                    var wholeResult = session.Run(samples, builder =>
+                    {
+                        builder
+                            .WithLanguage(options.Language)
+                            .WithTimestamps(options.TimestampKind)
+                            .WithDiarize(options.DiarizeMode);
+
+                        if (options.PncMode.HasValue)
+                            builder.WithPnc(options.PncMode.Value);
+                        if (options.ItnMode.HasValue)
+                            builder.WithItn(options.ItnMode.Value);
+                    }, cancellationToken);
+
+                    allSegments.AddRange(wholeResult.Segments);
+                    allWords.AddRange(wholeResult.Words);
+                    allSpeakerSegments.AddRange(wholeResult.SpeakerSegments);
+                    fullText = wholeResult.FullText;
+                    detectedLanguage = wholeResult.DetectedLanguage;
+                    wasAborted = wholeResult.WasAborted;
+                    wasTruncated = wholeResult.WasTruncated;
+                    progress?.Report(1.0);
+                }
+
+                return new TranscriptionResult
+                {
+                    FullText = fullText,
+                    Segments = allSegments,
+                    Words = allWords,
+                    SpeakerSegments = allSpeakerSegments,
+                    DetectedLanguage = detectedLanguage,
+                    WasAborted = wasAborted,
+                    WasTruncated = wasTruncated
+                };
             }, cancellationToken);
 
-            progress?.Report(1.0);
-
-            return new TranscriptionResult
-            {
-                FullText = result.FullText,
-                Segments = result.Segments.ToList(),
-                Words = result.Words.ToList(),
-                SpeakerSegments = result.SpeakerSegments.ToList(),
-                DetectedLanguage = result.DetectedLanguage,
-                WasAborted = result.WasAborted,
-                WasTruncated = result.WasTruncated
-            };
+            return result;
         }
         finally
         {
