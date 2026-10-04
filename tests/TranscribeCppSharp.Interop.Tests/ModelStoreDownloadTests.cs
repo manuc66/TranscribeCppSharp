@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Text;
 using TranscribeCppSharp.Cli;
+using TranscribeCppSharp.Models;
 using Xunit;
 using Xunit.Abstractions;
 

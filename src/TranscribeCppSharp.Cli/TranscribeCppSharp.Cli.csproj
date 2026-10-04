@@ -32,11 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Known-model manifest (names -> HuggingFace repo/revision/sha256). -->
-    <EmbeddedResource Include="models.json" LogicalName="models.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- DeviceSelection is internal; the tests assert the backend/device
          policy on machines that have no GPU to exercise it on. -->
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />

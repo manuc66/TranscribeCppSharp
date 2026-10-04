@@ -11,6 +11,7 @@ using System.Text;
 using TranscribeCppSharp;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
+using TranscribeCppSharp.Models;
 
 namespace TranscribeCppSharp.Cli;
 

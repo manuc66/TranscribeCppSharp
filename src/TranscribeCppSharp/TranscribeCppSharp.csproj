@@ -24,6 +24,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Known-model manifest (names -> HuggingFace repo/revision/sha256). Lives
+         with ModelStore in the wrapper, not in one front end, so the CLI and the
+         GUI read the same catalogue and share one cache layout. -->
+    <EmbeddedResource Include="models.json" LogicalName="models.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
   </ItemGroup>
 

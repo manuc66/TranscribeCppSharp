@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using TranscribeCppSharp.Cli;
+using TranscribeCppSharp.Models;
 using Xunit;
 using Xunit.Abstractions;
 
