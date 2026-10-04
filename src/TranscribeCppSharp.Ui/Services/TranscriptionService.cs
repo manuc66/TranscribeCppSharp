@@ -64,6 +64,14 @@ public class TranscriptionService : ITranscriptionService
                                 builder.WithPnc(options.PncMode.Value);
                             if (options.ItnMode.HasValue)
                                 builder.WithItn(options.ItnMode.Value);
+                            if (options.Task.HasValue)
+                                builder.WithTask(options.Task.Value);
+                            if (options.TargetLanguage != null)
+                                builder.WithTargetLanguage(options.TargetLanguage);
+                            if (options.SpecKDrafts.HasValue)
+                                builder.WithSpecKDrafts(options.SpecKDrafts.Value);
+                            if (options.KeepSpecialTags.HasValue)
+                                builder.WithKeepSpecialTags(options.KeepSpecialTags.Value);
 
                             if (options.WhisperInitialPrompt != null || options.WhisperTemperature.HasValue)
                             {
@@ -125,6 +133,14 @@ public class TranscriptionService : ITranscriptionService
                             builder.WithPnc(options.PncMode.Value);
                         if (options.ItnMode.HasValue)
                             builder.WithItn(options.ItnMode.Value);
+                        if (options.Task.HasValue)
+                            builder.WithTask(options.Task.Value);
+                        if (options.TargetLanguage != null)
+                            builder.WithTargetLanguage(options.TargetLanguage);
+                        if (options.SpecKDrafts.HasValue)
+                            builder.WithSpecKDrafts(options.SpecKDrafts.Value);
+                        if (options.KeepSpecialTags.HasValue)
+                            builder.WithKeepSpecialTags(options.KeepSpecialTags.Value);
 
                         if (options.WhisperInitialPrompt != null || options.WhisperTemperature.HasValue)
                         {
@@ -205,6 +221,52 @@ public class TranscriptionService : ITranscriptionService
             await System.Threading.Tasks.Task.Run(() => stream.Begin(null, streamConfig =>
             {
                 streamConfig.WithCommitPolicy(options.CommitPolicy);
+
+                if (options.StablePrefixAgreement.HasValue)
+                    streamConfig.WithStablePrefixAgreement(options.StablePrefixAgreement.Value);
+
+                if (options.MoonshineMinDecodeIntervalMs.HasValue)
+                {
+                    var moonshineExt = new MoonshineExtBuilder();
+                    moonshineExt.WithMinDecodeIntervalMs(options.MoonshineMinDecodeIntervalMs.Value);
+                    streamConfig.WithMoonshineExt(moonshineExt);
+                }
+
+                if (options.ParakeetAttContextRight.HasValue)
+                {
+                    var parakeetExt = new ParakeetStreamExtBuilder();
+                    parakeetExt.WithAttContextRight(options.ParakeetAttContextRight.Value);
+                    streamConfig.WithParakeetStreamExt(parakeetExt);
+                }
+
+                if (options.ParakeetLeftMs.HasValue || options.ParakeetChunkMs.HasValue || options.ParakeetRightMs.HasValue)
+                {
+                    var parakeetBuffered = new ParakeetBufferedStreamExtBuilder();
+                    if (options.ParakeetLeftMs.HasValue)
+                        parakeetBuffered.WithLeftMs(options.ParakeetLeftMs.Value);
+                    if (options.ParakeetChunkMs.HasValue)
+                        parakeetBuffered.WithChunkMs(options.ParakeetChunkMs.Value);
+                    if (options.ParakeetRightMs.HasValue)
+                        parakeetBuffered.WithRightMs(options.ParakeetRightMs.Value);
+                    streamConfig.WithParakeetBufferedStreamExt(parakeetBuffered);
+                }
+
+                if (options.SortformerPreset.HasValue)
+                {
+                    var sortformerExt = new SortformerStreamExtBuilder();
+                    sortformerExt.WithPreset(options.SortformerPreset.Value);
+                    streamConfig.WithSortformerExt(sortformerExt);
+                }
+
+                if (options.VoxtralNumDelayTokens.HasValue || options.VoxtralMinDecodeIntervalMs.HasValue)
+                {
+                    var voxtralExt = new VoxtralExtBuilder();
+                    if (options.VoxtralNumDelayTokens.HasValue)
+                        voxtralExt.WithNumDelayTokens(options.VoxtralNumDelayTokens.Value);
+                    if (options.VoxtralMinDecodeIntervalMs.HasValue)
+                        voxtralExt.WithMinDecodeIntervalMs(options.VoxtralMinDecodeIntervalMs.Value);
+                    streamConfig.WithVoxtralExt(voxtralExt);
+                }
             }), cancellationToken);
 
             microphone.Start();
@@ -297,6 +359,15 @@ public class TranscriptionService : ITranscriptionService
                             .WithLanguage(options.Language)
                             .WithTimestamps(options.TimestampKind)
                             .WithDiarize(options.DiarizeMode);
+
+                        if (options.Task.HasValue)
+                            builder.WithTask(options.Task.Value);
+                        if (options.TargetLanguage != null)
+                            builder.WithTargetLanguage(options.TargetLanguage);
+                        if (options.SpecKDrafts.HasValue)
+                            builder.WithSpecKDrafts(options.SpecKDrafts.Value);
+                        if (options.KeepSpecialTags.HasValue)
+                            builder.WithKeepSpecialTags(options.KeepSpecialTags.Value);
 
                         if (options.WhisperInitialPrompt != null || options.WhisperTemperature.HasValue)
                         {

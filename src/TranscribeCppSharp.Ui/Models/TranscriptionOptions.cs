@@ -23,6 +23,16 @@ public class TranscriptionOptions
     public KvType? KvType { get; set; }
     public int? ContextSize { get; set; }
 
+    // Translation
+    public TranscriptionTask? Task { get; set; }
+    public string? TargetLanguage { get; set; }
+
+    // Speculative decoding
+    public int? SpecKDrafts { get; set; }
+
+    // Keep special tags
+    public bool? KeepSpecialTags { get; set; }
+
     // Whisper extensions
     public string? WhisperInitialPrompt { get; set; }
     public float? WhisperTemperature { get; set; }
