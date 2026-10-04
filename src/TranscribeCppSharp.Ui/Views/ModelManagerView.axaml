@@ -1,36 +1,97 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+             xmlns:m="using:TranscribeCppSharp.Ui.Models"
              x:Class="TranscribeCppSharp.Ui.Views.ModelManagerView"
              x:DataType="vm:ModelManagerViewModel">
 
-  <Grid Margin="16" RowDefinitions="Auto,*,Auto">
-    <!-- Toolbar -->
-    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Refresh" Command="{Binding RefreshCommand}" />
-    </StackPanel>
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto,Auto">
 
-    <!-- Model list -->
-    <DataGrid Grid.Row="1" ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}"
-              AutoGenerateColumns="False" IsReadOnly="True">
+    <!-- Search and totals -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
+      <TextBox Grid.Column="0"
+               Text="{Binding Filter, Mode=TwoWay}"
+               Watermark="Filter by alias, repository or license"
+               HorizontalAlignment="Stretch" />
+
+      <TextBlock Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center"
+                 Text="{Binding DownloadedCount, StringFormat='{}{0} downloaded'}" />
+      <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center"
+                 Text="{Binding CacheSizeText, StringFormat='{}{0} on disk'}" />
+
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="12,0,0,0">
+        <Button Content="Refresh" Command="{Binding ReloadCommand}" />
+        <Button Content="Delete all"
+                Command="{Binding DeleteAllCommand}"
+                IsEnabled="{Binding !IsBusy}"
+                Margin="8,0,0,0"
+                ToolTip.Tip="Delete every model currently on disk. Files only; nothing else in the cache folder is touched." />
+      </StackPanel>
+    </Grid>
+
+    <!-- Catalogue -->
+    <DataGrid Grid.Row="1"
+              ItemsSource="{Binding VisibleModels}"
+              SelectedItem="{Binding SelectedModel}"
+              AutoGenerateColumns="False"
+              IsReadOnly="True"
+              CanUserSortColumns="True"
+              GridLinesVisibility="Horizontal">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="*" />
-        <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" />
-        <DataGridTextColumn Header="Size" Binding="{Binding SizeBytes, StringFormat={}{0:N0} MB}" />
-        <DataGridTextColumn Header="License" Binding="{Binding License}" />
-        <DataGridTemplateColumn Header="Action">
-          <DataTemplate>
-            <Button Content="Download" Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DownloadCommand}"
-                    CommandParameter="{Binding}" IsVisible="{Binding !$parent[DataGrid].((vm:ModelManagerViewModel)DataContext).IsDownloading}" />
+        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="200" />
+        <DataGridTextColumn Header="Quant" Binding="{Binding Quant}" Width="70" />
+        <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="80" />
+        <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="120" />
+        <DataGridTextColumn Header="License" Binding="{Binding License}" Width="140" />
+        <DataGridTemplateColumn Header="Action" Width="150">
+          <DataTemplate x:DataType="m:ModelCatalogItem">
+            <StackPanel Orientation="Horizontal">
+              <Button Content="Download"
+                      Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DownloadCommand}"
+                      CommandParameter="{Binding}"
+                      IsEnabled="{Binding !$parent[DataGrid].((vm:ModelManagerViewModel)DataContext).IsBusy}"
+                      ToolTip.Tip="Fetch this model from HuggingFace at the pinned revision. The download is verified against the sha256 in the manifest before it is cached." />
+              <Button Content="Delete"
+                      Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DeleteCommand}"
+                      CommandParameter="{Binding}"
+                      IsEnabled="{Binding IsCached}"
+                      Margin="6,0,0,0"
+                      ToolTip.Tip="Delete this model from disk. It will be downloaded again the next time it is used." />
+            </StackPanel>
           </DataTemplate>
         </DataGridTemplateColumn>
       </DataGrid.Columns>
     </DataGrid>
 
+    <!-- Detail of the selected model -->
+    <Border Grid.Row="2"
+            IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNotNull}}"
+            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+            MaxHeight="220"
+            Padding="10" Margin="0,8,0,0">
+      <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
+        <TextBlock Text="{Binding Alias}" FontWeight="Bold" FontSize="15" />
+        <TextBlock Text="{Binding Repo}" Opacity="0.8" />
+        <TextBlock Text="{Binding Revision, StringFormat='revision {0}'}" Opacity="0.7" FontSize="11" />
+        <TextBlock Opacity="0.8" Margin="0,4,0,0"
+                   Text="{Binding License, StringFormat='License: {0}'}" />
+        <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" />
+        <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
+        <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
+        <TextBlock Opacity="0.8" Text="{Binding LocalPath, StringFormat='Cached at: {0}'}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Sha256, StringFormat='sha256: {0}'}" Opacity="0.6" FontSize="11"
+                   TextWrapping="Wrap" />
+        <TextBlock Text="Non-commercial license: check the terms before any commercial use."
+                   IsVisible="{Binding IsNonCommercialLicense}"
+                   Foreground="#CC4444" Margin="0,4,0,0" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <!-- Download progress -->
+    <ProgressBar Grid.Row="3" Value="{Binding DownloadProgress}" Maximum="1" Minimum="0"
+                 IsVisible="{Binding IsBusy}" Margin="0,8,0,0" />
+
     <!-- Status -->
-    <StackPanel Grid.Row="2" Margin="0,8,0,0">
-      <ProgressBar Value="{Binding DownloadProgress}" Maximum="1" IsVisible="{Binding IsDownloading}" />
-      <TextBlock Text="{Binding StatusMessage}" Margin="0,4,0,0" />
-    </StackPanel>
+    <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,4,0,0" />
   </Grid>
 </UserControl>

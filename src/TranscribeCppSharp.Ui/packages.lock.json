@@ -13,6 +13,16 @@
           "MicroCom.Runtime": "0.11.0"
         }
       },
+      "Avalonia.Controls.DataGrid": {
+        "type": "Direct",
+        "requested": "[11.2.1, )",
+        "resolved": "11.2.1",
+        "contentHash": "UaNQrY86GBqMZqZ/N/5/wLzr4Emh2N405VZI/IgH0I8BoMrjnosNr+++D7BOcahMNce0lUZLOsFyy+OY02PUAw==",
+        "dependencies": {
+          "Avalonia": "11.2.1",
+          "Avalonia.Remote.Protocol": "11.2.1"
+        }
+      },
       "Avalonia.Desktop": {
         "type": "Direct",
         "requested": "[11.2.1, )",
@@ -109,15 +119,6 @@
         "type": "Transitive",
         "resolved": "11.2.1",
         "contentHash": "t8ViFwfIe6jCO5HvzPWOtwGNSMHYNc8XakWp76Rgy1MOiht8tHKry9cU7k40AHEYU6wVjiYBkl0c8zYZyyha1g==",
-        "dependencies": {
-          "Avalonia": "11.2.1",
-          "Avalonia.Remote.Protocol": "11.2.1"
-        }
-      },
-      "Avalonia.Controls.DataGrid": {
-        "type": "Transitive",
-        "resolved": "11.2.1",
-        "contentHash": "UaNQrY86GBqMZqZ/N/5/wLzr4Emh2N405VZI/IgH0I8BoMrjnosNr+++D7BOcahMNce0lUZLOsFyy+OY02PUAw==",
         "dependencies": {
           "Avalonia": "11.2.1",
           "Avalonia.Remote.Protocol": "11.2.1"

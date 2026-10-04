@@ -18,6 +18,11 @@
     <PackageReference Include="Avalonia" Version="11.2.1" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.1" />
+    <!-- DataGrid is a separate package from the core controls. Without it the
+         XAML compiler accepts <DataGrid> but the type does not exist at run
+         time, and the control renders nothing at all: no rows, no headers, no
+         error. Four of the five views use it. -->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.1" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.1" />
     <PackageReference Include="Avalonia.Diagnostics" Version="11.2.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />

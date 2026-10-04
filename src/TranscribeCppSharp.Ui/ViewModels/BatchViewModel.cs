@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
+using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Ui.Models;
 using TranscribeCppSharp.Ui.Services;
 
@@ -11,7 +12,6 @@ namespace TranscribeCppSharp.Ui.ViewModels;
 public partial class BatchViewModel : ObservableObject
 {
     private readonly ITranscriptionService _transcriptionService;
-    private readonly IModelDownloadService _modelDownloadService;
 
     [ObservableProperty]
     private string _modelAlias = "moss-transcribe-diarize";
@@ -47,18 +47,16 @@ public partial class BatchViewModel : ObservableObject
     private static readonly string[] TextPatterns = ["*.txt"];
 
     public BatchViewModel(
-        ITranscriptionService transcriptionService,
-        IModelDownloadService modelDownloadService)
+        ITranscriptionService transcriptionService)
     {
         _transcriptionService = transcriptionService;
-        _modelDownloadService = modelDownloadService;
         LoadModels();
     }
 
     private void LoadModels()
     {
         AvailableModels.Clear();
-        foreach (var model in _modelDownloadService.GetAvailableModels())
+        foreach (var model in ModelStore.Catalog)
         {
             AvailableModels.Add(model.Alias);
         }

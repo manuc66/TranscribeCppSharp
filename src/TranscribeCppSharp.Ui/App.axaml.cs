@@ -34,7 +34,6 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        services.AddSingleton<IModelDownloadService, ModelDownloadService>();
         services.AddSingleton<ITranscriptionService, TranscriptionService>();
 
         services.AddSingleton<MainWindowViewModel>();

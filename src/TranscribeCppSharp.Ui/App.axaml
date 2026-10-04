@@ -4,5 +4,9 @@
              RequestedThemeVariant="Default">
   <Application.Styles>
     <FluentTheme />
+    <!-- The DataGrid template lives in its own package's theme file; FluentTheme
+         does not pull it in. Without this the grid has no template and draws
+         nothing. -->
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
   </Application.Styles>
 </Application>
