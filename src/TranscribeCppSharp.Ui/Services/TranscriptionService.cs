@@ -82,7 +82,10 @@ public class TranscriptionService : ITranscriptionService
             using var session = model.CreateSession();
             using var stream = session.CreateStream();
 
-            await System.Threading.Tasks.Task.Run(() => stream.Begin(), cancellationToken);
+            await System.Threading.Tasks.Task.Run(() => stream.Begin(null, streamConfig =>
+            {
+                streamConfig.WithCommitPolicy(options.CommitPolicy);
+            }), cancellationToken);
 
             // Placeholder: yield periodic updates
             // Real implementation would feed audio chunks from microphone
