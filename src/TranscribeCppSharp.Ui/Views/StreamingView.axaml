@@ -4,31 +4,83 @@
              x:Class="TranscribeCppSharp.Ui.Views.StreamingView"
              x:DataType="vm:StreamingViewModel">
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
     <!-- Model selection -->
     <StackPanel Grid.Row="0" Margin="0,0,0,8">
       <TextBlock Text="Model" Margin="0,0,0,4" />
       <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch" />
     </StackPanel>
 
+    <!-- Commit policy and stable prefix -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,0,0,8">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+        <TextBlock Text="Commit Policy" Margin="0,0,0,4" />
+        <ComboBox ItemsSource="{Binding AvailableCommitPolicies}" SelectedItem="{Binding SelectedCommitPolicy}" HorizontalAlignment="Stretch" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+        <TextBlock Text="Stable Prefix Agreement" Margin="0,0,0,4" />
+        <NumericUpDown Value="{Binding StablePrefixAgreement}" Minimum="0" Maximum="100" Increment="1" />
+      </StackPanel>
+    </Grid>
+
+    <!-- Family-specific streaming extensions -->
+    <Expander Grid.Row="2" Header="Family extensions" Margin="0,0,0,8">
+      <StackPanel Margin="0,8,0,0" Spacing="4">
+        <TextBlock Text="These apply only to the matching model family; other families ignore them." 
+                   FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,4" />
+
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+          <TextBlock Grid.Column="0" Text="Moonshine min decode interval (ms)" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1" Value="{Binding MoonshineMinDecodeIntervalMs}" Minimum="0" Maximum="5000" Increment="50" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+          <TextBlock Grid.Column="0" Text="Parakeet att context right" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1" Value="{Binding ParakeetAttContextRight}" Minimum="0" Maximum="2000" Increment="10" />
+        </Grid>
+
+        <TextBlock Text="Parakeet buffered (left / chunk / right ms)" FontWeight="SemiBold" Margin="0,4,0,2" />
+        <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4">
+          <NumericUpDown Grid.Column="0" Value="{Binding ParakeetLeftMs}" Minimum="0" Maximum="10000" Increment="100" Margin="0,0,4,0" />
+          <NumericUpDown Grid.Column="1" Value="{Binding ParakeetChunkMs}" Minimum="0" Maximum="10000" Increment="100" Margin="0,0,4,0" />
+          <NumericUpDown Grid.Column="2" Value="{Binding ParakeetRightMs}" Minimum="0" Maximum="10000" Increment="100" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+          <TextBlock Grid.Column="0" Text="Sortformer preset" VerticalAlignment="Center" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableSortformerPresets}" SelectedItem="{Binding SelectedSortformerPreset}" HorizontalAlignment="Stretch" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+          <TextBlock Grid.Column="0" Text="Voxtral delay tokens" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1" Value="{Binding VoxtralNumDelayTokens}" Minimum="0" Maximum="100" Increment="1" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+          <TextBlock Grid.Column="0" Text="Voxtral min decode interval (ms)" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1" Value="{Binding VoxtralMinDecodeIntervalMs}" Minimum="0" Maximum="5000" Increment="50" />
+        </Grid>
+      </StackPanel>
+    </Expander>
+
     <!-- Controls -->
-    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
       <Button Content="Start" Command="{Binding StartStreamingCommand}" IsEnabled="{Binding !IsStreaming}" />
       <Button Content="Stop" Command="{Binding StopStreamingCommand}" IsEnabled="{Binding IsStreaming}" Margin="8,0,0,0" />
     </StackPanel>
 
     <!-- Status -->
-    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Margin="0,0,0,8" />
+    <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" Margin="0,0,0,8" />
 
     <!-- Committed text -->
-    <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+    <Border Grid.Row="5" BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,8">
       <ScrollViewer>
         <TextBlock Text="{Binding CommittedText}" TextWrapping="Wrap" />
       </ScrollViewer>
     </Border>
 
     <!-- Tentative text -->
-    <Border Grid.Row="4" BorderBrush="LightGray" BorderThickness="1" Padding="8" Background="#FFF0F0F0">
+    <Border Grid.Row="6" BorderBrush="LightGray" BorderThickness="1" Padding="8" Background="#FFF0F0F0">
       <ScrollViewer>
         <TextBlock Text="{Binding TentativeText}" TextWrapping="Wrap" FontStyle="Italic" />
       </ScrollViewer>

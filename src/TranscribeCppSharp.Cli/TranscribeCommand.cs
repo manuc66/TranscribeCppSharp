@@ -203,6 +203,10 @@ internal static class TranscribeCommand
 
         if (!WindowPlanner.TryPlan((int)totalSamples, windowMs, out var windows, out var planError))
         {
+            // The planner's message names no flag, because the GUI shares it.
+            // --chunk is rejected earlier in CliOptions with its own message, so
+            // reaching here means the audio is empty rather than the window too
+            // short, and no flag advice applies.
             stderr.WriteLine(planError);
             return 1;
         }

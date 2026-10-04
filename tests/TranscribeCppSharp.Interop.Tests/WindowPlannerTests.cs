@@ -1,6 +1,6 @@
 #nullable enable
 
-using TranscribeCppSharp.Cli;
+using TranscribeCppSharp.Audio;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -86,7 +86,12 @@ public class WindowPlannerTests
 
         Assert.Empty(windows);
         Assert.Contains("overlap", error);
-        Assert.Contains("--chunk 2", error);
+
+        // The planner is shared with the GUI, so its message must not name a
+        // CLI flag; TranscribeCommand appends the --chunk spelling. The message
+        // only has to say the window is too short.
+        Assert.DoesNotContain("--chunk", error);
+        Assert.Contains("longer than", error);
     }
 
     [Fact]

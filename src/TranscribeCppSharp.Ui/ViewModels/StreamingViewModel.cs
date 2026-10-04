@@ -33,6 +33,51 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ObservableCollection<string> _availableModels = new();
 
+    [ObservableProperty]
+    private StreamCommitPolicy _selectedCommitPolicy = StreamCommitPolicy.StreamCommitAuto;
+
+    [ObservableProperty]
+    private int? _stablePrefixAgreement;
+
+    [ObservableProperty]
+    private int? _moonshineMinDecodeIntervalMs;
+
+    [ObservableProperty]
+    private int? _parakeetAttContextRight;
+
+    [ObservableProperty]
+    private int? _parakeetLeftMs;
+
+    [ObservableProperty]
+    private int? _parakeetChunkMs;
+
+    [ObservableProperty]
+    private int? _parakeetRightMs;
+
+    [ObservableProperty]
+    private SortformerPreset? _selectedSortformerPreset;
+
+    [ObservableProperty]
+    private int? _voxtralNumDelayTokens;
+
+    [ObservableProperty]
+    private int? _voxtralMinDecodeIntervalMs;
+
+    public ObservableCollection<StreamCommitPolicy> AvailableCommitPolicies { get; } = new()
+    {
+        StreamCommitPolicy.StreamCommitAuto,
+        StreamCommitPolicy.StreamCommitOnFinalize,
+        StreamCommitPolicy.StreamCommitStablePrefix,
+    };
+
+    public ObservableCollection<SortformerPreset> AvailableSortformerPresets { get; } = new()
+    {
+        SortformerPreset.SortformerPresetDefault,
+        SortformerPreset.SortformerPresetVeryHighLatency,
+        SortformerPreset.SortformerPresetHighLatency,
+        SortformerPreset.SortformerPresetLowLatency,
+    };
+
     public StreamingViewModel(
         ITranscriptionService transcriptionService,
         IModelDownloadService modelDownloadService)
@@ -54,15 +99,31 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async System.Threading.Tasks.Task StartStreamingAsync()
     {
+        if (IsStreaming)
+        {
+            return;
+        }
+
         IsStreaming = true;
         StatusMessage = "Streaming...";
+        CommittedText = string.Empty;
+        TentativeText = string.Empty;
         _cts = new CancellationTokenSource();
 
         try
         {
             var options = new StreamOptions
             {
-                CommitPolicy = StreamCommitPolicy.StreamCommitAuto
+                CommitPolicy = SelectedCommitPolicy,
+                StablePrefixAgreement = (uint?)StablePrefixAgreement,
+                MoonshineMinDecodeIntervalMs = MoonshineMinDecodeIntervalMs,
+                ParakeetAttContextRight = ParakeetAttContextRight,
+                ParakeetLeftMs = ParakeetLeftMs,
+                ParakeetChunkMs = ParakeetChunkMs,
+                ParakeetRightMs = ParakeetRightMs,
+                SortformerPreset = SelectedSortformerPreset,
+                VoxtralNumDelayTokens = VoxtralNumDelayTokens,
+                VoxtralMinDecodeIntervalMs = VoxtralMinDecodeIntervalMs,
             };
 
             await foreach (var update in _transcriptionService.StreamTranscribeAsync(
@@ -97,7 +158,11 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
         _cts?.Cancel();
         _cts?.Dispose();

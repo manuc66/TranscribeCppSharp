@@ -77,6 +77,27 @@ public partial class TranscriptionViewModel : ObservableObject
         KvType.KvTypeF16,
     };
 
+    [ObservableProperty]
+    private TranscriptionTask? _selectedTask;
+
+    [ObservableProperty]
+    private string? _targetLanguage;
+
+    [ObservableProperty]
+    private int? _specKDrafts;
+
+    [ObservableProperty]
+    private bool? _keepSpecialTags;
+
+    [ObservableProperty]
+    private int _windowSeconds = 300;
+
+    public ObservableCollection<TranscriptionTask> AvailableTasks { get; } = new()
+    {
+        TranscriptionTask.Transcribe,
+        TranscriptionTask.Translate,
+    };
+
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
@@ -154,7 +175,17 @@ public partial class TranscriptionViewModel : ObservableObject
             {
                 Language = Language,
                 TimestampKind = TimestampKind.TimestampsSegment,
-                DiarizeMode = DiarizeMode.DiarizeModeDefault
+                DiarizeMode = DiarizeMode.DiarizeModeDefault,
+                Threads = Threads,
+                KvType = SelectedKvType,
+                ContextSize = ContextSize,
+                WhisperInitialPrompt = WhisperInitialPrompt,
+                WhisperTemperature = (float?)WhisperTemperature,
+                Task = SelectedTask,
+                TargetLanguage = TargetLanguage,
+                SpecKDrafts = SpecKDrafts,
+                KeepSpecialTags = KeepSpecialTags,
+                WindowSeconds = WindowSeconds,
             };
 
             var progress = new Progress<double>(p => Progress = p);

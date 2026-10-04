@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Cli;
 using TranscribeCppSharp.Interop;
 using Xunit;
@@ -200,10 +201,12 @@ public class TranscribeCommandTests
         using var temp = new TempWorkspace();
         string audio = temp.WriteWav("a.wav", new float[WindowPlanner.SampleRate * 5]);
 
-        // --chunk 1 used to loop forever on the same window.
+        // --chunk 1 used to loop forever on the same window. CliOptions rejects
+        // it before any audio is read, so the message is the option's own.
         Result result = Run(audio, LocalModel() ?? "unused.gguf", "--chunk", "1");
 
         Assert.Equal(1, result.ExitCode);
+        Assert.Contains("invalid --chunk", result.Error);
         Assert.Contains("overlap", result.Error);
         AssertNoCrash(result);
     }

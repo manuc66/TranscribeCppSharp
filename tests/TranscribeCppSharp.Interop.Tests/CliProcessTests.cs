@@ -3,6 +3,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Cli;
 using Xunit;
 using Xunit.Abstractions;

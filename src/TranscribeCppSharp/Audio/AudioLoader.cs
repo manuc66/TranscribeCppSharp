@@ -49,6 +49,22 @@ public static class AudioLoader
         return source.ReadWindow(0, (int)Math.Min(source.LengthSamples, int.MaxValue));
     }
 
+    /// <summary>
+    /// Decodes <paramref name="path"/> with ffmpeg into 16 kHz mono f32 PCM,
+    /// bypassing the direct WAV reader.
+    /// </summary>
+    /// <remarks>
+    /// Public rather than private so tests can drive the decode path directly:
+    /// <see cref="Load"/> short-circuits a 16 kHz mono WAV to the direct reader,
+    /// which is the comparison these tests need and is otherwise unreachable
+    /// from outside this class.
+    /// </remarks>
+    public static float[] DecodeWithFfmpeg(string path)
+    {
+        using FfmpegPcmSource source = DecodeToSourceWithFfmpeg(path);
+        return source.ReadWindow(0, (int)Math.Min(source.LengthSamples, int.MaxValue));
+    }
+
     private static string ResolveTool(string name)
     {
         var candidates = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
