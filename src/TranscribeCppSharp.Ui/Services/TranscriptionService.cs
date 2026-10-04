@@ -25,7 +25,15 @@ public class TranscriptionService : ITranscriptionService
 
         try
         {
-            using var session = model.CreateSession();
+            using var session = model.CreateSession(sessionParams =>
+            {
+                if (options.Threads.HasValue)
+                    sessionParams.WithThreads(options.Threads.Value);
+                if (options.KvType.HasValue)
+                    sessionParams.WithKvType(options.KvType.Value);
+                if (options.ContextSize.HasValue)
+                    sessionParams.WithContextSize(options.ContextSize.Value);
+            });
             using var audioSource = AudioLoader.Open(audioPath);
 
             var result = await System.Threading.Tasks.Task.Run(() =>
@@ -56,9 +64,34 @@ public class TranscriptionService : ITranscriptionService
                                 builder.WithPnc(options.PncMode.Value);
                             if (options.ItnMode.HasValue)
                                 builder.WithItn(options.ItnMode.Value);
+
+                            if (options.WhisperInitialPrompt != null || options.WhisperTemperature.HasValue)
+                            {
+                                var whisperExt = new WhisperExtBuilder();
+                                if (options.WhisperInitialPrompt != null)
+                                    whisperExt.WithInitialPrompt(options.WhisperInitialPrompt);
+                                if (options.WhisperTemperature.HasValue)
+                                    whisperExt.WithTemperature(options.WhisperTemperature.Value);
+                                if (options.WhisperTemperatureInc.HasValue)
+                                    whisperExt.WithTemperatureInc(options.WhisperTemperatureInc.Value);
+                                if (options.WhisperCompressionRatioThold.HasValue)
+                                    whisperExt.WithCompressionRatioThold(options.WhisperCompressionRatioThold.Value);
+                                if (options.WhisperLogprobThold.HasValue)
+                                    whisperExt.WithLogprobThold(options.WhisperLogprobThold.Value);
+                                if (options.WhisperNoSpeechThold.HasValue)
+                                    whisperExt.WithNoSpeechThold(options.WhisperNoSpeechThold.Value);
+                                if (options.WhisperSeed.HasValue)
+                                    whisperExt.WithSeed(options.WhisperSeed.Value);
+                                if (options.WhisperMaxInitialTimestamp.HasValue)
+                                    whisperExt.WithMaxInitialTimestamp(options.WhisperMaxInitialTimestamp.Value);
+                                if (options.WhisperConditionOnPrevTokens)
+                                    whisperExt.WithConditionOnPrevTokens(options.WhisperConditionOnPrevTokens);
+                                if (options.WhisperMaxPrevContextTokens.HasValue)
+                                    whisperExt.WithMaxPrevContextTokens(options.WhisperMaxPrevContextTokens.Value);
+                                builder.WithWhisperExt(whisperExt);
+                            }
                         }, cancellationToken);
 
-                        // Deduplicate overlap: skip segments that start before the window's start
                         long windowStartMs = window.StartMs;
                         foreach (var seg in windowResult.Segments)
                         {
@@ -80,7 +113,6 @@ public class TranscriptionService : ITranscriptionService
                 }
                 else
                 {
-                    // Window too small or audio empty: transcribe whole file at once
                     var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
                     var wholeResult = session.Run(samples, builder =>
                     {
@@ -93,6 +125,32 @@ public class TranscriptionService : ITranscriptionService
                             builder.WithPnc(options.PncMode.Value);
                         if (options.ItnMode.HasValue)
                             builder.WithItn(options.ItnMode.Value);
+
+                        if (options.WhisperInitialPrompt != null || options.WhisperTemperature.HasValue)
+                        {
+                            var whisperExt = new WhisperExtBuilder();
+                            if (options.WhisperInitialPrompt != null)
+                                whisperExt.WithInitialPrompt(options.WhisperInitialPrompt);
+                            if (options.WhisperTemperature.HasValue)
+                                whisperExt.WithTemperature(options.WhisperTemperature.Value);
+                            if (options.WhisperTemperatureInc.HasValue)
+                                whisperExt.WithTemperatureInc(options.WhisperTemperatureInc.Value);
+                            if (options.WhisperCompressionRatioThold.HasValue)
+                                whisperExt.WithCompressionRatioThold(options.WhisperCompressionRatioThold.Value);
+                            if (options.WhisperLogprobThold.HasValue)
+                                whisperExt.WithLogprobThold(options.WhisperLogprobThold.Value);
+                            if (options.WhisperNoSpeechThold.HasValue)
+                                whisperExt.WithNoSpeechThold(options.WhisperNoSpeechThold.Value);
+                            if (options.WhisperSeed.HasValue)
+                                whisperExt.WithSeed(options.WhisperSeed.Value);
+                            if (options.WhisperMaxInitialTimestamp.HasValue)
+                                whisperExt.WithMaxInitialTimestamp(options.WhisperMaxInitialTimestamp.Value);
+                            if (options.WhisperConditionOnPrevTokens)
+                                whisperExt.WithConditionOnPrevTokens(options.WhisperConditionOnPrevTokens);
+                            if (options.WhisperMaxPrevContextTokens.HasValue)
+                                whisperExt.WithMaxPrevContextTokens(options.WhisperMaxPrevContextTokens.Value);
+                            builder.WithWhisperExt(whisperExt);
+                        }
                     }, cancellationToken);
 
                     allSegments.AddRange(wholeResult.Segments);
@@ -212,7 +270,15 @@ public class TranscriptionService : ITranscriptionService
 
         try
         {
-            using var session = model.CreateSession();
+            using var session = model.CreateSession(sessionParams =>
+            {
+                if (options.Threads.HasValue)
+                    sessionParams.WithThreads(options.Threads.Value);
+                if (options.KvType.HasValue)
+                    sessionParams.WithKvType(options.KvType.Value);
+                if (options.ContextSize.HasValue)
+                    sessionParams.WithContextSize(options.ContextSize.Value);
+            });
             var results = new List<BatchItemResult>();
 
             for (int i = 0; i < audioPaths.Count; i++)
@@ -231,6 +297,32 @@ public class TranscriptionService : ITranscriptionService
                             .WithLanguage(options.Language)
                             .WithTimestamps(options.TimestampKind)
                             .WithDiarize(options.DiarizeMode);
+
+                        if (options.WhisperInitialPrompt != null || options.WhisperTemperature.HasValue)
+                        {
+                            var whisperExt = new WhisperExtBuilder();
+                            if (options.WhisperInitialPrompt != null)
+                                whisperExt.WithInitialPrompt(options.WhisperInitialPrompt);
+                            if (options.WhisperTemperature.HasValue)
+                                whisperExt.WithTemperature(options.WhisperTemperature.Value);
+                            if (options.WhisperTemperatureInc.HasValue)
+                                whisperExt.WithTemperatureInc(options.WhisperTemperatureInc.Value);
+                            if (options.WhisperCompressionRatioThold.HasValue)
+                                whisperExt.WithCompressionRatioThold(options.WhisperCompressionRatioThold.Value);
+                            if (options.WhisperLogprobThold.HasValue)
+                                whisperExt.WithLogprobThold(options.WhisperLogprobThold.Value);
+                            if (options.WhisperNoSpeechThold.HasValue)
+                                whisperExt.WithNoSpeechThold(options.WhisperNoSpeechThold.Value);
+                            if (options.WhisperSeed.HasValue)
+                                whisperExt.WithSeed(options.WhisperSeed.Value);
+                            if (options.WhisperMaxInitialTimestamp.HasValue)
+                                whisperExt.WithMaxInitialTimestamp(options.WhisperMaxInitialTimestamp.Value);
+                            if (options.WhisperConditionOnPrevTokens)
+                                whisperExt.WithConditionOnPrevTokens(options.WhisperConditionOnPrevTokens);
+                            if (options.WhisperMaxPrevContextTokens.HasValue)
+                                whisperExt.WithMaxPrevContextTokens(options.WhisperMaxPrevContextTokens.Value);
+                            builder.WithWhisperExt(whisperExt);
+                        }
                     }, cancellationToken);
                 }, cancellationToken);
 

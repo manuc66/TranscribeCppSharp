@@ -17,4 +17,21 @@ public class TranscriptionOptions
     /// is split into overlapping windows (1s overlap) and results are merged.
     /// </summary>
     public int WindowSeconds { get; set; } = 300;
+
+    // Session parameters
+    public int? Threads { get; set; }
+    public KvType? KvType { get; set; }
+    public int? ContextSize { get; set; }
+
+    // Whisper extensions
+    public string? WhisperInitialPrompt { get; set; }
+    public float? WhisperTemperature { get; set; }
+    public float? WhisperTemperatureInc { get; set; }
+    public float? WhisperCompressionRatioThold { get; set; }
+    public float? WhisperLogprobThold { get; set; }
+    public float? WhisperNoSpeechThold { get; set; }
+    public uint? WhisperSeed { get; set; }
+    public float? WhisperMaxInitialTimestamp { get; set; }
+    public bool WhisperConditionOnPrevTokens { get; set; }
+    public int? WhisperMaxPrevContextTokens { get; set; }
 }
