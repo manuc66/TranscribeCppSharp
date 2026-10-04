@@ -18,7 +18,7 @@ effect is on [Audio input](audio-input.md).
 ## Diarization in the tool
 
 Diarization is **on by default** and the default model is `moss-transcribe-diarize`
-(667 MB), which attributes each segment to a speaker. Use `--no-diarize` to turn
+(668 MB), which attributes each segment to a speaker. Use `--no-diarize` to turn
 it off. The `diarization supported:` line tells you whether the model in use can
 attribute speakers at all: on the other models (Whisper, Parakeet, …) the native
 library prints a warning and every segment is reported as `Speaker 0`. The
@@ -84,8 +84,8 @@ text with no attribution, batch carries the same speaker segments, and the two
 speakers of a two-voice sample come back as speakers 1 and 2. The tests are in
 `tests/TranscribeCppSharp.Interop.Tests/DiarizationTests.cs`.
 
-Those tests need the ~617 MB MOSS asset, so they are **opt-in and skipped in
-CI** — a deliberate trade (a 617 MB download per runner, cached but invalidated
+Those tests need the ~668 MB MOSS asset, so they are **opt-in and skipped in
+CI** — a deliberate trade (a 668 MB download per runner, cached but invalidated
 whenever the integration script changes). Run them with:
 
 ```bash

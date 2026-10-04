@@ -148,7 +148,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 - **The MIT license does not cover the models.** They come from different ecosystems,
   some non-commercial, and this project neither bundles nor curates them
   ([Model licenses](docs/models.md#model-licenses)).
-- **Speaker attribution is not verified in CI.** It is covered only when the ~617 MB MOSS
+- **Speaker attribution is not verified in CI.** It is covered only when the ~668 MB MOSS
   asset is fetched with `WITH_DIARIZATION_MODEL=1`. Until then, a regression that emptied
   `SpeakerSegments` would go unnoticed
   ([diarization](docs/diarization.md#what-is-verified-and-what-ci-does-not-run)).

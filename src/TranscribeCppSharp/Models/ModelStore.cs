@@ -244,11 +244,16 @@ public static class ModelStore
     /// <param name="writer">Where the table is written.</param>
     public static void List(TextWriter writer)
     {
-        writer.WriteLine($"{"alias",-40} {"quant",-8} {"license",-16} {"size",8}");
+        writer.WriteLine($"{"alias",-40} {"quant",-8} {"license",-16} {"size",8} unit");
         foreach (ModelDescriptor model in Catalog)
         {
             string license = model.IsNonCommercialLicense ? $"{model.License} !" : model.License;
-            writer.WriteLine($"{model.Alias,-40} {model.Quant,-8} {license,-16} {model.Size / (1024 * 1024),6} MB");
+
+            // The number is padded on its own and the unit follows, so the column
+            // stays aligned while the unit can change per row. Printing "GB" in a
+            // fixed column and padding the whole cell would not.
+            ModelSize size = ModelSizeFormat.Format(model.Size);
+            writer.WriteLine($"{model.Alias,-40} {model.Quant,-8} {license,-16} {size.Number(8)} {size.Unit}");
         }
 
         writer.WriteLine();
@@ -278,7 +283,7 @@ public static class ModelStore
         writer.WriteLine($"  revision   : {model.Revision}");
         writer.WriteLine($"  quant      : {model.Quant}");
         writer.WriteLine($"  file       : {model.File}");
-        writer.WriteLine($"  size       : {model.Size / (1024 * 1024)} MB");
+        writer.WriteLine($"  size       : {ModelSizeFormat.Format(model.Size)}");
         writer.WriteLine($"  license    : {model.License}{(model.IsNonCommercialLicense ? "  (non-commercial!)" : string.Empty)}");
         writer.WriteLine($"  license url: {model.LicenseUrl}");
         return true;
@@ -339,7 +344,7 @@ public static class ModelStore
 
         Directory.CreateDirectory(dir);
         string url = $"https://huggingface.co/{repo}/resolve/{revision}/{file}";
-        error.WriteLine($"Downloading '{file}' ({(size > 0 ? $"{size / (1024 * 1024)} MB, " : string.Empty)}{license}) from HuggingFace...");
+        error.WriteLine($"Downloading '{file}' ({(size > 0 ? $"{ModelSizeFormat.Format(size)}, " : string.Empty)}{license}) from HuggingFace...");
         error.WriteLine($"  {url}");
         if (licenseUrl.Length > 0)
         {

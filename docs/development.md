@@ -19,7 +19,7 @@ dotnet run --project tools/FetchNative
 # Run unit and integration tests
 ./scripts/run-integration-tests.sh
 
-# Opt-in: also fetch the MOSS diarization model (~617 MB) and run the
+# Opt-in: also fetch the MOSS diarization model (~668 MB) and run the
 # speaker-attribution test
 WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
 

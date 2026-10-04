@@ -22,7 +22,7 @@ transcribe jfk.wav --model whisper-tiny
 ```
 
 No project file, no C#, and no model to fetch by hand. The model is downloaded from
-HuggingFace on first use (42 MB for that alias), verified by sha256 and cached, so later
+HuggingFace on first use (42.16 MB for that alias), verified by sha256 and cached, so later
 runs are offline. It runs on the GPU when one initializes.
 
 Two things that is not, so the claim stays honest. The tool is a .NET tool, so it needs
@@ -72,7 +72,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 - **The MIT license does not cover the models.** They come from different ecosystems,
   some non-commercial, and this project neither bundles nor curates them
   ([Model licenses](models.md#model-licenses)).
-- **Speaker attribution is not verified in CI.** It is covered only when the ~617 MB
+- **Speaker attribution is not verified in CI.** It is covered only when the ~668 MB
   MOSS asset is fetched with `WITH_DIARIZATION_MODEL=1`. Until then, a regression that
   emptied `SpeakerSegments` would go unnoticed
   ([diarization](diarization.md#what-is-verified-and-what-ci-does-not-run)).

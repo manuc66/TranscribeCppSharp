@@ -299,7 +299,7 @@ public partial class ModelManagerViewModel : ObservableObject
     public ObservableCollection<ModelCatalogItem> VisibleModels { get; } = new();
 
     /// <summary>Total size of the downloaded models, as display text.</summary>
-    public string CacheSizeText => ModelCatalogItem.HumanSize(DownloadedModels.Sum(m => m.CachedBytes));
+    public string CacheSizeText => ModelSizeFormat.Format(DownloadedModels.Sum(m => m.CachedBytes)).ToString();
 
     /// <summary>Number of aliases in the manifest that are on disk.</summary>
     public int DownloadedCount => DownloadedModels.Count;
@@ -435,7 +435,7 @@ public partial class ModelManagerViewModel : ObservableObject
             Raise(nameof(DownloadedCount));
 
             StatusMessage = removed
-                ? $"Deleted {item.Alias} ({ModelCatalogItem.HumanSize(item.CachedBytes)} freed)."
+                ? $"Deleted {item.Alias} ({ModelSizeFormat.Format(item.CachedBytes)} freed)."
                 : $"{item.Alias} could not be deleted. It may be in use, or the cache may not be writable.";
         }
         finally
@@ -467,7 +467,7 @@ public partial class ModelManagerViewModel : ObservableObject
         Raise(nameof(DownloadedCount));
         StatusMessage = removed == 0
             ? "Nothing to delete."
-            : $"Deleted {removed} model(s), {ModelCatalogItem.HumanSize(freed)} freed.";
+            : $"Deleted {removed} model(s), {ModelSizeFormat.Format(freed)} freed.";
     }
 
     private void ApplyFilter()

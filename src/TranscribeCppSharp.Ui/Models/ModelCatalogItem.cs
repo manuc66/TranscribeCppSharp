@@ -60,13 +60,13 @@ public class ModelCatalogItem
     public bool IsNonCommercialLicense => Descriptor.IsNonCommercialLicense;
 
     /// <summary>Size stated in the manifest, formatted for display.</summary>
-    public string SizeText => HumanSize(Descriptor.Size);
+    public string SizeText => ModelSizeFormat.Format(Descriptor.Size).ToString();
 
     /// <summary>
     /// Size on disk when downloaded, or the manifest size with a marker when
     /// not, so the two are never confused for one another.
     /// </summary>
-    public string OnDiskText => IsCached ? $"{HumanSize(CachedBytes)} on disk" : "not downloaded";
+    public string OnDiskText => IsCached ? $"{ModelSizeFormat.Format(CachedBytes)} on disk" : "not downloaded";
 
     /// <summary>
     /// The timing measured on this machine, when there is one.
@@ -142,31 +142,6 @@ public class ModelCatalogItem
         Raise(nameof(LocalPath));
         Raise(nameof(MeasuredText));
         Raise(nameof(IsMeasured));
-    }
-
-    /// <summary>
-    /// Formats a byte count for display.
-    /// </summary>
-    /// <param name="bytes">The count; 0 or less yields "0 MB".</param>
-    /// <returns>A short human-readable size.</returns>
-    public static string HumanSize(long bytes)
-    {
-        if (bytes <= 0)
-        {
-            return "0 MB";
-        }
-
-        if (bytes < 1024 * 1024)
-        {
-            return $"{bytes / 1024.0:0.#} KB";
-        }
-
-        if (bytes < 1024L * 1024 * 1024)
-        {
-            return $"{bytes / (1024.0 * 1024):0.#} MB";
-        }
-
-        return $"{bytes / (1024.0 * 1024 * 1024):0.##} GB";
     }
 
     private void Raise(string propertyName)

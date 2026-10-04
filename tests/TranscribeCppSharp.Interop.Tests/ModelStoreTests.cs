@@ -24,7 +24,7 @@ public class ModelStoreTests
 
     public ModelStoreTests(ITestOutputHelper output) => _output = output;
 
-    private sealed record AliasRow(string Alias, string Quant, string License, bool NonCommercial, long SizeMb);
+    private sealed record AliasRow(string Alias, string Quant, string License, bool NonCommercial, long SizeBytes);
 
     private static (string Out, string Error) Capture(Action<TextWriter, TextWriter> body)
     {
@@ -34,22 +34,33 @@ public class ModelStoreTests
         return (stdout.ToString(), stderr.ToString());
     }
 
+    /// <summary>
+    /// Parses the --list-models table back into rows.
+    /// </summary>
+    /// <remarks>
+    /// The unit is its own column, so the size can be KB, MB or GB depending on
+    /// the model: "canary-1b  Q5_K_M  cc-by-nc-4.0 !  798.9 MB". Rows are turned
+    /// back into bytes so a test can compare them with the manifest, rather than
+    /// against the same rounding that produced them.
+    /// </remarks>
     private static List<AliasRow> ParseListTable(string output)
     {
-        // "alias  quant  license  size", with a trailing "!" on the license of a
-        // non-commercial model: "canary-1b  Q5_K_M  cc-by-nc-4.0 !  798 MB".
         var rows = new List<AliasRow>();
         foreach (string line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            Match m = Regex.Match(line, @"^(?<alias>\S+)\s+(?<quant>\S+)\s+(?<license>\S+)\s*(?<flag>!)?\s+(?<size>\d+)\s+MB\s*$");
+            Match m = Regex.Match(
+                line,
+                @"^(?<alias>\S+)\s+(?<quant>\S+)\s+(?<license>\S+)\s*(?<flag>!)?\s+(?<size>[\d.]+)\s+(?<unit>KB|MB|GB)\s*$");
             if (m.Success)
             {
+                double value = double.Parse(m.Groups["size"].Value, CultureInfo.InvariantCulture);
+                long scale = m.Groups["unit"].Value switch { "KB" => 1024L, "GB" => 1024L * 1024 * 1024, _ => 1024L * 1024 };
                 rows.Add(new AliasRow(
                     m.Groups["alias"].Value,
                     m.Groups["quant"].Value,
                     m.Groups["license"].Value,
                     m.Groups["flag"].Success,
-                    long.Parse(m.Groups["size"].Value, CultureInfo.InvariantCulture)));
+                    (long)(value * scale)));
             }
         }
 
@@ -115,9 +126,18 @@ public class ModelStoreTests
         (string output, _) = Capture((o, _) => ModelStore.List(o));
 
         // Guards the parser above: if a row is printed in a shape the tests do not
-        // understand, they would silently check fewer aliases than exist.
-        int printed = output.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Count(l => l.Contains(" MB") && !l.Contains("Default quantization"));
+        // understand, they would silently check fewer aliases than exist. The rows
+        // are everything between the header and the blank line that ends the table,
+        // so counting those does not depend on the column shape at all.
+        string[] lines = output.Split('\n');
+        int header = Array.FindIndex(lines, l => l.Contains("alias", StringComparison.Ordinal)
+                                                  && l.Contains("unit", StringComparison.Ordinal));
+        Assert.True(header >= 0, $"no header row in:\n{output}");
+
+        int end = Array.FindIndex(lines, header + 1, l => string.IsNullOrWhiteSpace(l));
+        int printed = end < 0 ? lines.Length - header - 1 : end - header - 1;
+
+        Assert.Equal(ModelStore.Catalog.Count, printed);
         Assert.Equal(printed, ParseListTable(output).Count);
     }
 
@@ -149,7 +169,7 @@ public class ModelStoreTests
             Assert.EndsWith(".gguf", fields["file"]);
             Assert.False(string.IsNullOrWhiteSpace(fields["license"]));
             Assert.StartsWith("https://huggingface.co/", fields["license url"]);
-            Assert.True(row.SizeMb > 0, $"{row.Alias} has no recorded size");
+            Assert.True(row.SizeBytes > 0, $"{row.Alias} has no recorded size");
         });
     }
 

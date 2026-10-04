@@ -22,11 +22,11 @@ flags non-commercial licenses; `--model-info <alias>` gives the full record
 
 ```text
 $ transcribe --list-models
-alias                                    quant    license              size
-breeze-asr-25                            Q5_K_M   apache-2.0         1106 MB
-canary-1b                                Q5_K_M   cc-by-nc-4.0 !      798 MB
-parakeet-tdt-0.6b-v3                     Q5_K_M   cc-by-4.0           523 MB
-whisper-large-v3-turbo                   Q5_K_M   apache-2.0          590 MB
+alias                                    quant    license              size unit
+breeze-asr-25                            Q5_K_M   apache-2.0           1.08 GB
+canary-1b                                Q5_K_M   cc-by-nc-4.0 !     798.89 MB
+parakeet-tdt-0.6b-v3                     Q5_K_M   cc-by-4.0          523.52 MB
+whisper-large-v3-turbo                   Q5_K_M   apache-2.0         590.92 MB
 …
 ! = non-commercial license; verify before any commercial use.
 
@@ -36,10 +36,16 @@ whisper-tiny
   revision   : 2678cc66038359b97c8e6fd6454c56fc9006d571
   quant      : Q5_K_M
   file       : whisper-tiny-Q5_K_M.gguf
-  size       : 42 MB
+  size       : 42.16 MB
   license    : apache-2.0
   license url: https://huggingface.co/handy-computer/whisper-tiny-gguf
 ```
+
+Sizes scale to KB, MB or GB, with the unit in its own column so the numbers stay
+aligned across the range — the catalogue runs from 33 MB to 16 GB. The base is
+1024, so `MB` is what the binary prefix calls MiB. The GUI shows the same
+figures, from the same formatter; it used to round everything to MB and
+disagreed with the terminal about the same model.
 
 ## Alias or spec
 

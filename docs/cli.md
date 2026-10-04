@@ -26,7 +26,7 @@ Each aspect of the tool has its own page, because each has its own failure modes
 transcribe jfk.wav --model whisper-tiny
 ```
 
-The model is fetched from HuggingFace on first use (42 MB for that alias),
+The model is fetched from HuggingFace on first use (42.16 MB for that alias),
 verified by sha256 and cached. Aliases carry a pinned revision, so later runs
 reuse the cache and need no network. Console output below, with the
 `ggml_*`/`load_backend` native log lines and the two timing lines (per-window
