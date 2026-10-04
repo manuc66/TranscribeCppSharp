@@ -5,16 +5,14 @@
              x:Class="TranscribeCppSharp.Ui.Views.ModelManagerView"
              x:DataType="vm:ModelManagerViewModel">
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
 
     <!-- What to look for, and where the weights are -->
     <Border Grid.Row="0" Padding="10" Margin="0,0,0,8"
             Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            ToolTip.Tip="72 models are published by the transcribe.cpp authors. This project publishes no accuracy or speed comparison between them, so there is nothing here to rank them by: pick on size, licence and the parameters the model supports.">
-      <StackPanel Spacing="2">
-        <TextBlock TextWrapping="Wrap"
-                   Text="No model is faster or more accurate than another as far as this project has measured: docs/streaming-bench.md is the only benchmark and it covers Moonshine streaming only. Start with the model marked 'default' below if you have no reason not to, then narrow by size or licence. A model is fetched on first use and cached." />
-      </StackPanel>
+            ToolTip.Tip="72 models are published by the transcribe.cpp authors. This project publishes no accuracy comparison between them, so there is nothing here to rank them by. Pick on size, licence, or measure the ones you have.">
+      <TextBlock TextWrapping="Wrap"
+                 Text="No model is faster or more accurate than another as far as this project has measured: docs/streaming-bench.md is the only benchmark and it covers Moonshine streaming only. Start with the model marked 'default' if you have no reason not to, then narrow by size or licence. A model is fetched on first use and cached." />
     </Border>
 
     <!-- Quick filters -->
@@ -28,7 +26,7 @@
       <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center"
                 Content="On disk only"
                 IsChecked="{Binding DownloadedOnly}"
-                ToolTip.Tip="Show only the models already downloaded. This is the fastest way to see what can be used right now without fetching anything." />
+                ToolTip.Tip="Show only the models already downloaded. The fastest way to see what can be used right now without fetching anything." />
 
       <CheckBox Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center"
                 Content="Commercial licences only"
@@ -53,8 +51,43 @@
               ToolTip.Tip="Turn every filter off and show the whole catalogue." />
     </Grid>
 
+    <!-- Sort and measure -->
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,8">
+      <Button Grid.Column="0" Content="{Binding NameSortText}" Command="{Binding SortByNameCommand}"
+              ToolTip.Tip="Alphabetical order." />
+
+      <Button Grid.Column="1" Margin="8,0,0,0" Content="{Binding SizeSortText}" Command="{Binding SortBySizeCommand}"
+              ToolTip.Tip="Smallest download first." />
+
+      <Button Grid.Column="2" Margin="8,0,0,0" Content="{Binding SpeedSortText}" Command="{Binding SortBySpeedCommand}"
+              ToolTip.Tip="Order by the timing measured on this machine. Click again to reverse it. Models that were never measured cannot be placed in a speed order, so they stay at the bottom in name order." />
+
+      <TextBlock Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
+                 Text="{Binding SortDescription}" />
+
+      <Button Grid.Column="4" Margin="12,0,0,0"
+              Content="{Binding BenchmarkAudioName, StringFormat='Audio: {0}'}"
+              Command="{Binding PickBenchmarkAudioCommand}"
+              ToolTip.Tip="Pick the audio the timings are taken over. A measurement is only meaningful for the audio it was measured on, so this is your own file rather than a bundled clip." />
+
+      <NumericUpDown Grid.Column="5" Margin="8,0,0,0" Width="110"
+                     Value="{Binding BenchmarkExcerptSeconds}" Minimum="5" Maximum="300" Increment="5"
+                     FormatString="0 s"
+                     ToolTip.Tip="How much of the audio each timing run uses. Thirty seconds is a starting point, not a rule: longer is steadier and costs proportionally more time per model." />
+
+      <ComboBox Grid.Column="6" Margin="8,0,0,0" MinWidth="110"
+                ItemsSource="{Binding AvailableBenchmarkBackends}"
+                SelectedItem="{Binding SelectedBenchmarkBackend}"
+                ToolTip.Tip="Compute backend for the timing runs. Timings taken on different backends are not comparable, so the backend is recorded with every result." />
+
+      <Button Grid.Column="7" Margin="8,0,0,0" Content="Measure all on disk"
+              Command="{Binding BenchmarkAllCommand}"
+              IsEnabled="{Binding !IsBusy}"
+              ToolTip.Tip="Time every downloaded model on the chosen audio. Each one is loaded and transcribed three times after a discarded warm-up, so this takes a while for large models. Results are kept for this session only." />
+    </Grid>
+
     <!-- What the filters are doing, said out loud -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
       <TextBlock Grid.Column="0" Text="{Binding ActiveFilterSummary}" FontSize="11" Opacity="0.75"
                  TextWrapping="Wrap" VerticalAlignment="Center" />
 
@@ -67,22 +100,24 @@
     </Grid>
 
     <!-- Catalogue -->
-    <DataGrid Grid.Row="3"
+    <DataGrid Grid.Row="4"
               ItemsSource="{Binding VisibleModels}"
               SelectedItem="{Binding SelectedModel}"
               AutoGenerateColumns="False"
               IsReadOnly="True"
-              CanUserSortColumns="True"
+              CanUserSortColumns="False"
               GridLinesVisibility="Horizontal"
-              HorizontalAlignment="Stretch">
+              HorizontalAlignment="Stretch"
+              Focusable="False"
+              ToolTip.Tip="Speed, not accuracy. See the Measured line in the detail pane below.">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="1.4*" />
-        <DataGridTextColumn Header="Family (from repo)" Binding="{Binding Family}" Width="1.4*" />
-        <DataGridTextColumn Header="Quant" Binding="{Binding Quant}" Width="0.5*" />
+        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="1.3*" />
+        <DataGridTextColumn Header="Family (from repo)" Binding="{Binding Family}" Width="1.3*" />
         <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="0.6*" />
         <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" />
-        <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="1*" />
-        <DataGridTemplateColumn Header="Action" Width="0.9*">
+        <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="0.9*" />
+        <DataGridTextColumn Header="x realtime" Binding="{Binding MeasuredText}" Width="0.6*" />
+        <DataGridTemplateColumn Header="Action" Width="1.1*">
           <DataTemplate x:DataType="m:ModelCatalogItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button Content="Download"
@@ -90,14 +125,16 @@
                       CommandParameter="{Binding}"
                       IsEnabled="{Binding !$parent[DataGrid].((vm:ModelManagerViewModel)DataContext).IsBusy}"
                       ToolTip.Tip="Fetch this model from HuggingFace at the pinned revision. The download is verified against the sha256 in the manifest before it is cached." />
+              <Button Content="Measure"
+                      Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).BenchmarkCommand}"
+                      CommandParameter="{Binding}"
+                      IsEnabled="{Binding IsCached}"
+                      ToolTip.Tip="Load this model and time it on the chosen audio. Three passes after a discarded warm-up; the best is kept, because contention only ever makes a run slower." />
               <Button Content="Delete"
                       Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DeleteCommand}"
                       CommandParameter="{Binding}"
                       IsEnabled="{Binding IsCached}"
                       ToolTip.Tip="Delete this model from disk. It will be downloaded again the next time it is used." />
-              <TextBlock Text="default" VerticalAlignment="Center" FontSize="11" Opacity="0.7"
-                         IsVisible="{Binding IsDefaultModel}"
-                         ToolTip.Tip="The model the transcribe CLI uses when none is given. Marked because it is the one alias here known to work, not because it is better than the rest." />
             </StackPanel>
           </DataTemplate>
         </DataGridTemplateColumn>
@@ -105,10 +142,10 @@
     </DataGrid>
 
     <!-- Detail of the selected model -->
-    <Border Grid.Row="4"
+    <Border Grid.Row="5"
             IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNotNull}}"
             Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            MaxHeight="230"
+            MaxHeight="250"
             Padding="10" Margin="0,8,0,0">
       <ScrollViewer>
         <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
@@ -123,6 +160,12 @@
           <TextBlock Opacity="0.8" Text="{Binding LocalPath, StringFormat='Cached at: {0}'}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Sha256, StringFormat='sha256: {0}'}" Opacity="0.6" FontSize="11"
                      TextWrapping="Wrap" />
+
+          <TextBlock Text="{Binding Benchmark.ConditionsText, StringFormat='Measured: {0}'}"
+                     IsVisible="{Binding IsMeasured}" Margin="0,6,0,0" FontWeight="SemiBold"
+                     TextWrapping="Wrap"
+                     ToolTip.Tip="Speed only. Nothing here knows which model transcribes your speech correctly." />
+
           <TextBlock Text="Non-commercial licence: check the terms before any commercial use."
                      IsVisible="{Binding IsNonCommercialLicense}"
                      Foreground="#CC4444" Margin="0,4,0,0" TextWrapping="Wrap" />
@@ -131,7 +174,7 @@
     </Border>
 
     <!-- Bulk actions -->
-    <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
+    <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0">
       <Button Content="Refresh"
               Command="{Binding ReloadCommand}"
               ToolTip.Tip="Re-read the cache, to pick up a model downloaded by the transcribe CLI or added by hand." />
@@ -142,11 +185,13 @@
               ToolTip.Tip="Delete every model currently on disk. Only the cached model files are touched." />
     </StackPanel>
 
-    <!-- Download progress -->
-    <ProgressBar Grid.Row="6" Value="{Binding DownloadProgress}" Maximum="1" Minimum="0"
-                 IsVisible="{Binding IsBusy}" Margin="0,8,0,0" />
+    <!-- Progress -->
+    <ProgressBar Grid.Row="7" Value="{Binding DownloadProgress}" Maximum="1" Minimum="0"
+                 IsVisible="{Binding IsDownloading}" Margin="0,8,0,0" />
+    <ProgressBar Grid.Row="7" Value="{Binding BenchmarkProgress}" Maximum="1" Minimum="0"
+                 IsVisible="{Binding IsBusy}" IsIndeterminate="False" Margin="0,8,0,0" />
 
     <!-- Status -->
-    <TextBlock Grid.Row="7" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,6,0,0" />
+    <TextBlock Grid.Row="8" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,6,0,0" />
   </Grid>
 </UserControl>

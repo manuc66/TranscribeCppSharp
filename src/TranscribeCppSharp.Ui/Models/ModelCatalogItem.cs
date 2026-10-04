@@ -1,5 +1,6 @@
 using System;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.Performance;
 
 namespace TranscribeCppSharp.Ui.Models;
 
@@ -68,6 +69,22 @@ public class ModelCatalogItem
     public string OnDiskText => IsCached ? $"{HumanSize(CachedBytes)} on disk" : "not downloaded";
 
     /// <summary>
+    /// The timing measured on this machine, when there is one.
+    /// </summary>
+    /// <remarks>
+    /// Set by the view model after a measurement and cleared when the list is
+    /// reloaded. Null means "not measured here", which the grid shows as a dash:
+    /// it is not the same as zero and must not look like a number.
+    /// </remarks>
+    public ModelBenchmark? Benchmark { get; internal set; }
+
+    /// <summary>The measured real-time factor, or a dash when unmeasured.</summary>
+    public string MeasuredText => Benchmark?.RtfText ?? "-";
+
+    /// <summary>Whether this row has a timing from this machine.</summary>
+    public bool IsMeasured => Benchmark is not null;
+
+    /// <summary>
     /// The model family, read off the repository name.
     /// </summary>
     /// <remarks>
@@ -123,6 +140,8 @@ public class ModelCatalogItem
         Raise(nameof(CachedBytes));
         Raise(nameof(OnDiskText));
         Raise(nameof(LocalPath));
+        Raise(nameof(MeasuredText));
+        Raise(nameof(IsMeasured));
     }
 
     /// <summary>

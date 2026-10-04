@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.Performance;
 using TranscribeCppSharp.Ui.Models;
 
 namespace TranscribeCppSharp.Ui.ViewModels;
@@ -34,6 +35,58 @@ public partial class ModelManagerViewModel : ObservableObject
     {
         Reload();
     }
+
+    /// <summary>
+    /// How the list is ordered.
+    /// </summary>
+    public enum ModelSort
+    {
+        /// <summary>Alphabetical by alias.</summary>
+        Alias = 0,
+
+        /// <summary>Smallest download first.</summary>
+        Size = 1,
+
+        /// <summary>Fastest first, by measured real-time factor.</summary>
+        Speed = 2,
+    }
+
+    /// <summary>
+    /// Order applied to <see cref="VisibleModels"/>.
+    /// </summary>
+    /// <remarks>
+    /// Applied by hand rather than through a DataGrid header click: the
+    /// collection the grid binds is rebuilt on every filter change, and a view's
+    /// sort descriptions do not survive that.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SortDescription))]
+    private ModelSort _sort = ModelSort.Alias;
+
+    /// <summary>True when the list is ordered fastest first.</summary>
+    [ObservableProperty]
+    private bool _sortFastestFirst;
+
+    /// <summary>How the current order reads out, for the header.</summary>
+    public string SortDescription => Sort switch
+    {
+        ModelSort.Size => "by size, smallest first",
+        ModelSort.Speed => SortFastestFirst ? "by measured speed, fastest first" : "by measured speed, slowest first",
+        _ => "by name",
+    };
+
+    /// <summary>Label of the name-sort button, marked when it is the active order.</summary>
+    public string NameSortText => Sort == ModelSort.Alias ? "• By name" : "By name";
+
+    /// <summary>Label of the size-sort button, marked when it is the active order.</summary>
+    public string SizeSortText => Sort == ModelSort.Size ? "• By size" : "By size";
+
+    /// <summary>
+    /// Label of the speed-sort button, marked when active, with the direction.
+    /// </summary>
+    public string SpeedSortText => Sort != ModelSort.Speed
+        ? "By speed"
+        : SortFastestFirst ? "• Speed ↑" : "• Speed ↓";
 
     /// <summary>Every alias in the manifest, filtered by <see cref="Filter"/>.</summary>
     public ObservableCollection<ModelCatalogItem> Models { get; } = new();
@@ -87,6 +140,65 @@ public partial class ModelManagerViewModel : ObservableObject
 
     [ObservableProperty]
     private ModelCatalogItem? _selectedModel;
+
+    /// <summary>
+    /// Timings taken this session, by alias.
+    /// </summary>
+    /// <remarks>
+    /// In memory only. Nothing is written to disk, so a result does not outlive
+    /// the session, and there is nothing to invalidate when the machine changes:
+    /// <see cref="MachineKey"/> is carried on each result so a later on-disk
+    /// version could refuse to show a number measured elsewhere.
+    /// </remarks>
+    public Dictionary<string, ModelBenchmark> Benchmarks { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Fingerprint of this machine, used to keep results measured elsewhere out
+    /// of a speed comparison.
+    /// </summary>
+    public string MachineKey { get; } = ModelBenchmarkService.MachineKey();
+
+    /// <summary>The audio the timing runs are taken over.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBenchmarkAudio))]
+    [NotifyPropertyChangedFor(nameof(BenchmarkAudioName))]
+    private string? _benchmarkAudioPath;
+
+    /// <summary>True once an audio file has been chosen.</summary>
+    public bool HasBenchmarkAudio => !string.IsNullOrWhiteSpace(BenchmarkAudioPath);
+
+    /// <summary>Name of the chosen file, for the toolbar.</summary>
+    public string BenchmarkAudioName => HasBenchmarkAudio
+        ? System.IO.Path.GetFileName(BenchmarkAudioPath!)
+        : "no audio chosen";
+
+    /// <summary>How much of the audio each timing run uses, in seconds.</summary>
+    [ObservableProperty]
+    private int _benchmarkExcerptSeconds = ModelBenchmarkService.DefaultExcerptSeconds;
+
+    /// <summary>Session threads for the timing runs, or 0 for the default.</summary>
+    [ObservableProperty]
+    private int _benchmarkThreads;
+
+    /// <summary>Compute backend for the timing runs.</summary>
+    [ObservableProperty]
+    private TranscribeCppSharp.Interop.BackendRequest _selectedBenchmarkBackend
+        = TranscribeCppSharp.Interop.BackendRequest.BackendAuto;
+
+    /// <summary>Backends offered for the timing runs.</summary>
+    public IReadOnlyList<TranscribeCppSharp.Interop.BackendRequest> AvailableBenchmarkBackends { get; } =
+        new[]
+        {
+            TranscribeCppSharp.Interop.BackendRequest.BackendAuto,
+            TranscribeCppSharp.Interop.BackendRequest.BackendCpu,
+            TranscribeCppSharp.Interop.BackendRequest.BackendVulkan,
+            TranscribeCppSharp.Interop.BackendRequest.BackendMetal,
+            TranscribeCppSharp.Interop.BackendRequest.BackendCuda,
+        };
+
+    /// <summary>Progress through the current model's passes, 0 to 1.</summary>
+    [ObservableProperty]
+    private double _benchmarkProgress;
 
     /// <summary>Alias currently downloading or being deleted.</summary>
     [ObservableProperty]
@@ -168,6 +280,13 @@ public partial class ModelManagerViewModel : ObservableObject
     /// <summary>False while a download or delete is in flight.</summary>
     public bool IsBusy => BusyAlias is not null;
 
+    /// <summary>What the busy alias is doing, for the status line.</summary>
+    [ObservableProperty]
+    private string? _busyAction;
+
+    /// <summary>True while a model is being fetched rather than timed.</summary>
+    public bool IsDownloading => string.Equals(BusyAction, "download", StringComparison.Ordinal);
+
     /// <summary>True when the alias currently downloading matches this row.</summary>
     public bool IsBusyAlias(string? alias)
         => alias is not null && string.Equals(alias, BusyAlias, StringComparison.Ordinal);
@@ -222,6 +341,7 @@ public partial class ModelManagerViewModel : ObservableObject
     partial void OnBusyAliasChanged(string? value)
     {
         OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(IsDownloading));
         Raise(nameof(IsBusyAlias));
         Raise(nameof(IsDownloadingAlias));
     }
@@ -250,6 +370,7 @@ public partial class ModelManagerViewModel : ObservableObject
         }
 
         BusyAlias = item.Alias;
+        BusyAction = "download";
         DownloadProgress = 0;
         var log = new System.IO.StringWriter();
         try
@@ -279,6 +400,7 @@ public partial class ModelManagerViewModel : ObservableObject
         finally
         {
             BusyAlias = null;
+            BusyAction = null;
         }
     }
 
@@ -319,6 +441,7 @@ public partial class ModelManagerViewModel : ObservableObject
         finally
         {
             BusyAlias = null;
+            BusyAction = null;
         }
     }
 
@@ -388,6 +511,8 @@ public partial class ModelManagerViewModel : ObservableObject
             VisibleModels.Add(item);
         }
 
+        ApplySort();
+
         // A row the filter just hid cannot stay selected; otherwise the detail
         // pane keeps showing a model that is no longer in the list.
         if (SelectedModel is not null && !VisibleModels.Contains(SelectedModel))
@@ -410,6 +535,208 @@ public partial class ModelManagerViewModel : ObservableObject
         SizeFilter = ModelSizeFilter.Any;
         LicenseFilter = null;
         ApplyFilter();
+    }
+
+    /// <summary>Orders the list alphabetically.</summary>
+    [RelayCommand]
+    private void SortByName()
+    {
+        Sort = ModelSort.Alias;
+        ApplyFilter();
+    }
+
+    /// <summary>Orders the list with the smallest download first.</summary>
+    [RelayCommand]
+    private void SortBySize()
+    {
+        Sort = ModelSort.Size;
+        ApplyFilter();
+    }
+
+    /// <summary>
+    /// Orders the list by measured speed, fastest first, or back to slowest.
+    /// </summary>
+    /// <remarks>
+    /// Only models with a measurement sort into a speed order; the rest keep
+    /// alphabetical order below them. Sorting by an absent number would either
+    /// bury the models that were measured under the ones that were not, or invent
+    /// a position for them, and both mislead.
+    /// </remarks>
+    [RelayCommand]
+    private void SortBySpeed()
+    {
+        if (Sort != ModelSort.Speed)
+        {
+            Sort = ModelSort.Speed;
+            SortFastestFirst = true;
+        }
+        else
+        {
+            SortFastestFirst = !SortFastestFirst;
+        }
+
+        ApplyFilter();
+    }
+
+    /// <summary>
+    /// Picks the audio the timing runs are taken over.
+    /// </summary>
+    /// <remarks>
+    /// The user's own file, because the number is only meaningful for the audio
+    /// it was measured on. No clip is bundled: a synthetic one would not exercise
+    /// the decoder realistically, and shipping a recording of speech in the
+    /// repository is a licensing question this project should not answer by
+    /// picking something at random.
+    /// </remarks>
+    [RelayCommand]
+    private async System.Threading.Tasks.Task PickBenchmarkAudioAsync()
+    {
+        var window = Avalonia.Application.Current?.ApplicationLifetime
+            is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+        if (window?.StorageProvider is null)
+        {
+            StatusMessage = "No window is available to pick a file from.";
+            return;
+        }
+
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Pick audio to measure models on",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("Audio files")
+                {
+                    Patterns = ["*.wav", "*.mp3", "*.flac", "*.ogg", "*.m4a"]
+                }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            BenchmarkAudioPath = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(files[0])
+                ?? string.Empty;
+        }
+    }
+
+    /// <summary>Times the models already measured, most recent last.</summary>
+    [RelayCommand]
+    private async System.Threading.Tasks.Task BenchmarkAllAsync()
+    {
+        if (string.IsNullOrWhiteSpace(BenchmarkAudioPath))
+        {
+            StatusMessage = "Pick an audio file first: a timing is only meaningful for the audio it was taken on.";
+            return;
+        }
+
+        foreach (ModelCatalogItem item in DownloadedModels.ToList())
+        {
+            await BenchmarkOneAsync(item).ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>
+    /// Times one model on this machine and records the result.
+    /// </summary>
+    /// <remarks>
+    /// Runs off the UI thread and reports progress, because loading a large model
+    /// takes long enough to freeze the window otherwise. Results live in memory
+    /// for this session only: there is no on-disk store, so closing the app
+    /// discards them and a re-run starts from nothing.
+    /// </remarks>
+    [RelayCommand]
+    private async System.Threading.Tasks.Task BenchmarkAsync(ModelCatalogItem? item)
+        => await BenchmarkOneAsync(item).ConfigureAwait(true);
+
+    private async System.Threading.Tasks.Task BenchmarkOneAsync(ModelCatalogItem? item)
+    {
+        if (item is null || IsBusy)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BenchmarkAudioPath))
+        {
+            StatusMessage = "Pick an audio file first: a timing is only meaningful for the audio it was taken on.";
+            return;
+        }
+
+        if (!item.IsCached)
+        {
+            StatusMessage = $"{item.Alias} is not on disk; download it before measuring it.";
+            return;
+        }
+
+        BusyAlias = item.Alias;
+        BusyAction = "benchmark";
+        BenchmarkProgress = 0;
+        StatusMessage = $"Measuring {item.Alias}...";
+
+        try
+        {
+            var progress = new Progress<double>(p => BenchmarkProgress = p);
+            string audioPath = BenchmarkAudioPath!;
+            var backend = SelectedBenchmarkBackend;
+            int? threads = BenchmarkThreads > 0 ? BenchmarkThreads : null;
+
+            ModelBenchmark result = await System.Threading.Tasks.Task.Run(
+                () => ModelBenchmarkService.Measure(
+                    item.Descriptor,
+                    audioPath,
+                    BenchmarkExcerptSeconds,
+                    backend,
+                    null,
+                    threads,
+                    progress),
+                System.Threading.CancellationToken.None).ConfigureAwait(true);
+
+            Benchmarks[item.Alias] = result;
+            item.Benchmark = result;
+            item.Refresh();
+            Sort = ModelSort.Speed;
+            SortFastestFirst = true;
+            ApplyFilter();
+
+            StatusMessage = $"{item.Alias}: {result.ConditionsText}";
+        }
+        catch (Exception ex)
+        {
+            // A model that will not fit in memory, or that the backend refuses,
+            // has to be reported rather than swallowed: it is the answer for that
+            // model on this machine.
+            StatusMessage = $"{item.Alias} could not be measured: {ex.Message}";
+        }
+        finally
+        {
+            BusyAlias = null;
+            BusyAction = null;
+        }
+    }
+
+    /// <summary>
+    /// Orders <see cref="VisibleModels"/> in place, per <see cref="Sort"/>.
+    /// </summary>
+    /// <remarks>
+    /// The rules live in <see cref="ModelBenchmarkOrder"/> in the wrapper so they
+    /// can be tested directly; this only rebuilds the bound collection.
+    /// </remarks>
+    private void ApplySort()
+    {
+        List<ModelCatalogItem> ordered = Sort switch
+        {
+            ModelSort.Size => ModelBenchmarkOrder.BySize(VisibleModels, m => m.Alias, m => m.Descriptor.Size),
+            ModelSort.Speed => ModelBenchmarkOrder.BySpeed(
+                VisibleModels, m => m.Alias, Benchmarks, MachineKey, SortFastestFirst),
+            _ => ModelBenchmarkOrder.ByName(VisibleModels, m => m.Alias),
+        };
+
+        VisibleModels.Clear();
+        foreach (ModelCatalogItem item in ordered)
+        {
+            VisibleModels.Add(item);
+        }
     }
 
     /// <summary>
