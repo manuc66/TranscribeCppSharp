@@ -7,25 +7,29 @@
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*">
     <!-- Backend -->
     <StackPanel Grid.Row="0" Margin="0,0,0,16">
-      <TextBlock Text="Backend" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock Text="Backend" FontWeight="Bold" Margin="0,0,0,4"
+                 ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back." />
       <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch" />
     </StackPanel>
 
     <!-- Cache directory -->
     <StackPanel Grid.Row="1" Margin="0,0,0,16">
-      <TextBlock Text="Cache Directory" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock Text="Cache Directory" FontWeight="Bold" Margin="0,0,0,4"
+                 ToolTip.Tip="Where downloaded models are kept. Shared with the transcribe CLI, so a model downloaded in one is available to the other. The Models tab deletes them." />
       <TextBox Text="{Binding CacheDirectory}" IsReadOnly="True" />
     </StackPanel>
 
     <!-- Backend info -->
     <StackPanel Grid.Row="2" Margin="0,0,0,16">
-      <TextBlock Text="Backend Version" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock Text="Backend Version" FontWeight="Bold" Margin="0,0,0,4"
+                 ToolTip.Tip="Version of the native transcribe.cpp library the wrapper is bound to." />
       <TextBlock Text="{Binding BackendVersion}" />
     </StackPanel>
 
     <!-- Devices -->
     <StackPanel Grid.Row="3">
-      <TextBlock Text="Available Devices" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock Text="Available Devices" FontWeight="Bold" Margin="0,0,0,4"
+                 ToolTip.Tip="Compute devices this build and this machine can see." />
       <DataGrid ItemsSource="{Binding Devices}" AutoGenerateColumns="False" IsReadOnly="True">
         <DataGrid.Columns>
           <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
