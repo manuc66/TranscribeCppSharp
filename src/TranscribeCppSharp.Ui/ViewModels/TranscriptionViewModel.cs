@@ -55,6 +55,16 @@ public partial class TranscriptionViewModel : ObservableObject
         "en", "fr", "de", "es", "it", "pt", "ru", "zh", "ja", "ko"
     };
 
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
+    private static readonly string[] AudioPatterns = ["*.wav", "*.mp3", "*.flac", "*.ogg", "*.m4a"];
+    private static readonly string[] TextPatterns = ["*.txt"];
+    private static readonly string[] VttPatterns = ["*.vtt"];
+    private static readonly string[] JsonPatterns = ["*.json"];
+
     public TranscriptionViewModel(
         ITranscriptionService transcriptionService,
         IModelDownloadService modelDownloadService)
@@ -76,17 +86,6 @@ public partial class TranscriptionViewModel : ObservableObject
     [RelayCommand]
     private async System.Threading.Tasks.Task BrowseAudioAsync()
     {
-        var dialog = new Avalonia.Controls.OpenFileDialog
-        {
-            Title = "Select audio file",
-            AllowMultiple = false
-        };
-        dialog.Filters.Add(new Avalonia.Controls.FileDialogFilter
-        {
-            Name = "Audio files",
-            Extensions = { "wav", "mp3", "flac", "ogg", "m4a" }
-        });
-
         var window = Avalonia.Application.Current?.ApplicationLifetime
             is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow
@@ -94,10 +93,22 @@ public partial class TranscriptionViewModel : ObservableObject
 
         if (window == null) return;
 
-        var result = await dialog.ShowAsync(window);
-        if (result?.Length > 0)
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
-            AudioPath = result[0];
+            Title = "Select audio file",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("Audio files")
+                {
+                    Patterns = AudioPatterns
+                }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            AudioPath = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(files[0]) ?? string.Empty;
         }
     }
 
@@ -151,18 +162,6 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         if (Result == null) return;
 
-        var dialog = new Avalonia.Controls.SaveFileDialog
-        {
-            Title = "Export transcript",
-            DefaultExtension = "txt",
-            Filters =
-            {
-                new Avalonia.Controls.FileDialogFilter { Name = "Text", Extensions = { "txt" } },
-                new Avalonia.Controls.FileDialogFilter { Name = "WebVTT", Extensions = { "vtt" } },
-                new Avalonia.Controls.FileDialogFilter { Name = "JSON", Extensions = { "json" } }
-            }
-        };
-
         var window = Avalonia.Application.Current?.ApplicationLifetime
             is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow
@@ -170,7 +169,21 @@ public partial class TranscriptionViewModel : ObservableObject
 
         if (window == null) return;
 
-        var path = await dialog.ShowAsync(window);
+        var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = "Export transcript",
+            DefaultExtension = "txt",
+            FileTypeChoices = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns },
+                new Avalonia.Platform.Storage.FilePickerFileType("WebVTT") { Patterns = VttPatterns },
+                new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns }
+            }
+        });
+
+        if (file == null) return;
+
+        var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
         if (string.IsNullOrWhiteSpace(path)) return;
 
         var ext = Path.GetExtension(path).ToLowerInvariant();
@@ -188,12 +201,12 @@ public partial class TranscriptionViewModel : ObservableObject
     private string ExportAsVtt()
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("WEBVTT");
+        sb.Append("WEBVTT").AppendLine();
         sb.AppendLine();
         foreach (var segment in Segments)
         {
-            sb.AppendLine($"{FormatTime(segment.Start)} --> {FormatTime(segment.End)}");
-            sb.AppendLine(segment.Text);
+            sb.Append(FormatTime(segment.Start)).Append(" --> ").Append(FormatTime(segment.End)).AppendLine();
+            sb.Append(segment.Text).AppendLine();
             sb.AppendLine();
         }
         return sb.ToString();
@@ -201,10 +214,7 @@ public partial class TranscriptionViewModel : ObservableObject
 
     private string ExportAsJson()
     {
-        return System.Text.Json.JsonSerializer.Serialize(Result, new System.Text.Json.JsonSerializerOptions
-        {
-            WriteIndented = true
-        });
+        return System.Text.Json.JsonSerializer.Serialize(Result, JsonOptions);
     }
 
     private static string FormatTime(TimeSpan time)

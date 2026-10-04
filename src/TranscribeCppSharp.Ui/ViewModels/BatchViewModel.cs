@@ -37,6 +37,15 @@ public partial class BatchViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<string> _availableModels = new();
 
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
+    private static readonly string[] AudioPatterns = ["*.wav", "*.mp3", "*.flac", "*.ogg", "*.m4a"];
+    private static readonly string[] JsonPatterns = ["*.json"];
+    private static readonly string[] TextPatterns = ["*.txt"];
+
     public BatchViewModel(
         ITranscriptionService transcriptionService,
         IModelDownloadService modelDownloadService)
@@ -58,17 +67,6 @@ public partial class BatchViewModel : ObservableObject
     [RelayCommand]
     private async System.Threading.Tasks.Task AddFilesAsync()
     {
-        var dialog = new Avalonia.Controls.OpenFileDialog
-        {
-            Title = "Select audio files",
-            AllowMultiple = true
-        };
-        dialog.Filters.Add(new Avalonia.Controls.FileDialogFilter
-        {
-            Name = "Audio files",
-            Extensions = { "wav", "mp3", "flac", "ogg", "m4a" }
-        });
-
         var window = Avalonia.Application.Current?.ApplicationLifetime
             is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow
@@ -76,14 +74,24 @@ public partial class BatchViewModel : ObservableObject
 
         if (window == null) return;
 
-        var result = await dialog.ShowAsync(window);
-        if (result != null)
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
-            foreach (var file in result)
+            Title = "Select audio files",
+            AllowMultiple = true,
+            FileTypeFilter = new[]
             {
-                if (!AudioFiles.Contains(file))
-                    AudioFiles.Add(file);
+                new Avalonia.Platform.Storage.FilePickerFileType("Audio files")
+                {
+                    Patterns = AudioPatterns
+                }
             }
+        });
+
+        foreach (var file in files)
+        {
+            var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
+            if (path != null && !AudioFiles.Contains(path))
+                AudioFiles.Add(path);
         }
     }
 
@@ -151,17 +159,6 @@ public partial class BatchViewModel : ObservableObject
     {
         if (Results.Count == 0) return;
 
-        var dialog = new Avalonia.Controls.SaveFileDialog
-        {
-            Title = "Export batch results",
-            DefaultExtension = "json",
-            Filters =
-            {
-                new Avalonia.Controls.FileDialogFilter { Name = "JSON", Extensions = { "json" } },
-                new Avalonia.Controls.FileDialogFilter { Name = "Text", Extensions = { "txt" } }
-            }
-        };
-
         var window = Avalonia.Application.Current?.ApplicationLifetime
             is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow
@@ -169,16 +166,26 @@ public partial class BatchViewModel : ObservableObject
 
         if (window == null) return;
 
-        var path = await dialog.ShowAsync(window);
+        var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = "Export batch results",
+            DefaultExtension = "json",
+            FileTypeChoices = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
+                new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns }
+            }
+        });
+
+        if (file == null) return;
+
+        var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
         if (string.IsNullOrWhiteSpace(path)) return;
 
         var ext = Path.GetExtension(path).ToLowerInvariant();
         var content = ext switch
         {
-            ".json" => System.Text.Json.JsonSerializer.Serialize(Results, new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = true
-            }),
+            ".json" => System.Text.Json.JsonSerializer.Serialize(Results, JsonOptions),
             _ => string.Join("\n\n", Results.Select(r => $"{Path.GetFileName(r.AudioPath)}:\n{r.FullText}"))
         };
 

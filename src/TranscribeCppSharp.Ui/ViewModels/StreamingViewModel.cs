@@ -8,11 +8,12 @@ using TranscribeCppSharp.Ui.Services;
 
 namespace TranscribeCppSharp.Ui.ViewModels;
 
-public partial class StreamingViewModel : ObservableObject
+public partial class StreamingViewModel : ObservableObject, IDisposable
 {
     private readonly ITranscriptionService _transcriptionService;
     private readonly IModelDownloadService _modelDownloadService;
     private CancellationTokenSource? _cts;
+    private bool _disposed;
 
     [ObservableProperty]
     private string _modelAlias = "moss-transcribe-diarize";
@@ -92,5 +93,14 @@ public partial class StreamingViewModel : ObservableObject
     {
         _cts?.Cancel();
         StatusMessage = "Stopping...";
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
