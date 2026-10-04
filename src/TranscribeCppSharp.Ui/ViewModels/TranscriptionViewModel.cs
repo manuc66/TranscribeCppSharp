@@ -55,6 +55,28 @@ public partial class TranscriptionViewModel : ObservableObject
         "en", "fr", "de", "es", "it", "pt", "ru", "zh", "ja", "ko"
     };
 
+    [ObservableProperty]
+    private int? _threads;
+
+    [ObservableProperty]
+    private KvType? _selectedKvType;
+
+    [ObservableProperty]
+    private int? _contextSize;
+
+    [ObservableProperty]
+    private string? _whisperInitialPrompt;
+
+    [ObservableProperty]
+    private double? _whisperTemperature;
+
+    public ObservableCollection<KvType> KvTypes { get; } = new()
+    {
+        KvType.KvTypeAuto,
+        KvType.KvTypeF32,
+        KvType.KvTypeF16,
+    };
+
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true

@@ -4,7 +4,7 @@
              x:Class="TranscribeCppSharp.Ui.Views.TranscriptionView"
              x:DataType="vm:TranscriptionViewModel">
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
     <!-- Audio file selection -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" Watermark="Select audio file..." IsReadOnly="True" />
@@ -23,20 +23,48 @@
       </StackPanel>
     </Grid>
 
+    <!-- Session parameters -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+        <TextBlock Text="Threads" Margin="0,0,0,4" />
+        <NumericUpDown Value="{Binding Threads}" Minimum="1" Maximum="64" Increment="1" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+        <TextBlock Text="KV Type" Margin="0,0,0,4" />
+        <ComboBox ItemsSource="{Binding KvTypes}" SelectedItem="{Binding SelectedKvType}" HorizontalAlignment="Stretch" />
+      </StackPanel>
+      <StackPanel Grid.Column="2" Margin="8,0,0,0">
+        <TextBlock Text="Context Size" Margin="0,0,0,4" />
+        <NumericUpDown Value="{Binding ContextSize}" Minimum="512" Maximum="32768" Increment="512" />
+      </StackPanel>
+    </Grid>
+
+    <!-- Whisper extensions -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,0,0,8">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+        <TextBlock Text="Initial Prompt" Margin="0,0,0,4" />
+        <TextBox Text="{Binding WhisperInitialPrompt}" Watermark="Optional initial prompt..." />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+        <TextBlock Text="Temperature" Margin="0,0,0,4" />
+        <NumericUpDown Value="{Binding WhisperTemperature}" Minimum="0" Maximum="2" Increment="0.1" />
+      </StackPanel>
+    </Grid>
+
     <!-- Action buttons -->
-    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,8">
       <Button Content="Transcribe" Command="{Binding TranscribeCommand}" IsEnabled="{Binding !IsTranscribing}" />
       <Button Content="Export" Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0" />
     </StackPanel>
 
     <!-- Progress -->
-    <ProgressBar Grid.Row="3" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8" />
+    <ProgressBar Grid.Row="5" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8" />
 
     <!-- Status -->
-    <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" />
+    <TextBlock Grid.Row="6" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" />
 
     <!-- Results -->
-    <TabControl Grid.Row="5" IsVisible="{Binding HasResult}">
+    <TabControl Grid.Row="7" IsVisible="{Binding HasResult}">
       <TabItem Header="Text">
         <ScrollViewer>
           <TextBlock Text="{Binding FullText}" TextWrapping="Wrap" />
