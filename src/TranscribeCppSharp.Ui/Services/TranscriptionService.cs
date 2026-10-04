@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using TranscribeCppSharp;
+using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Ui.Models;
 
@@ -25,18 +26,11 @@ public class TranscriptionService : ITranscriptionService
         try
         {
             using var session = model.CreateSession();
-            var pcm = await File.ReadAllBytesAsync(audioPath, cancellationToken);
-
-            // Convert bytes to float samples (16-bit PCM to float)
-            var samples = new float[pcm.Length / 2];
-            for (int i = 0; i < samples.Length; i++)
-            {
-                short sample = BitConverter.ToInt16(pcm, i * 2);
-                samples[i] = sample / 32768f;
-            }
+            using var audioSource = AudioLoader.Open(audioPath);
 
             var result = await System.Threading.Tasks.Task.Run(() =>
             {
+                var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
                 return session.Run(samples, builder =>
                 {
                     builder
@@ -88,11 +82,10 @@ public class TranscriptionService : ITranscriptionService
             using var session = model.CreateSession();
             using var stream = session.CreateStream();
 
-            // This is a simplified streaming implementation
-            // Real implementation would feed audio chunks from microphone
             await System.Threading.Tasks.Task.Run(() => stream.Begin(), cancellationToken);
 
             // Placeholder: yield periodic updates
+            // Real implementation would feed audio chunks from microphone
             while (!cancellationToken.IsCancellationRequested)
             {
                 await System.Threading.Tasks.Task.Delay(100, cancellationToken);
@@ -139,17 +132,11 @@ public class TranscriptionService : ITranscriptionService
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var audioPath = audioPaths[i];
-                var pcm = await File.ReadAllBytesAsync(audioPath, cancellationToken);
-
-                var samples = new float[pcm.Length / 2];
-                for (int j = 0; j < samples.Length; j++)
-                {
-                    short sample = BitConverter.ToInt16(pcm, j * 2);
-                    samples[j] = sample / 32768f;
-                }
+                using var audioSource = AudioLoader.Open(audioPath);
 
                 var result = await System.Threading.Tasks.Task.Run(() =>
                 {
+                    var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
                     return session.Run(samples, builder =>
                     {
                         builder
