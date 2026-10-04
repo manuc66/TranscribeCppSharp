@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using TranscribeCppSharp;
+using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Ui.Models;
 using TranscribeCppSharp.Ui.Services;
 
@@ -36,13 +38,13 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _fullText = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<SegmentResult> _segments = new();
+    private ObservableCollection<TranscribeCppSharp.SegmentResult> _segments = new();
 
     [ObservableProperty]
-    private ObservableCollection<WordResult> _words = new();
+    private ObservableCollection<TranscribeCppSharp.WordResult> _words = new();
 
     [ObservableProperty]
-    private ObservableCollection<SpeakerSegmentResult> _speakerSegments = new();
+    private ObservableCollection<TranscribeCppSharp.SpeakerSegmentResult> _speakerSegments = new();
 
     [ObservableProperty]
     private bool _hasResult;
@@ -72,7 +74,7 @@ public partial class TranscriptionViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task BrowseAudioAsync()
+    private async System.Threading.Tasks.Task BrowseAudioAsync()
     {
         var dialog = new Avalonia.Controls.OpenFileDialog
         {
@@ -100,7 +102,7 @@ public partial class TranscriptionViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task TranscribeAsync()
+    private async System.Threading.Tasks.Task TranscribeAsync()
     {
         if (string.IsNullOrWhiteSpace(AudioPath) || !File.Exists(AudioPath))
         {
@@ -118,8 +120,8 @@ public partial class TranscriptionViewModel : ObservableObject
             var options = new TranscriptionOptions
             {
                 Language = Language,
-                TimestampKind = TranscribeCppSharp.TimestampKind.Segment,
-                DiarizeMode = TranscribeCppSharp.DiarizeMode.Auto
+                TimestampKind = TimestampKind.TimestampsSegment,
+                DiarizeMode = DiarizeMode.DiarizeModeDefault
             };
 
             var progress = new Progress<double>(p => Progress = p);
@@ -128,9 +130,9 @@ public partial class TranscriptionViewModel : ObservableObject
                 AudioPath, ModelAlias, options, progress);
 
             FullText = Result.FullText;
-            Segments = new ObservableCollection<SegmentResult>(Result.Segments);
-            Words = new ObservableCollection<WordResult>(Result.Words);
-            SpeakerSegments = new ObservableCollection<SpeakerSegmentResult>(Result.SpeakerSegments);
+            Segments = new ObservableCollection<TranscribeCppSharp.SegmentResult>(Result.Segments);
+            Words = new ObservableCollection<TranscribeCppSharp.WordResult>(Result.Words);
+            SpeakerSegments = new ObservableCollection<TranscribeCppSharp.SpeakerSegmentResult>(Result.SpeakerSegments);
             HasResult = true;
             StatusMessage = "Transcription complete.";
         }
@@ -145,7 +147,7 @@ public partial class TranscriptionViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ExportAsync()
+    private async System.Threading.Tasks.Task ExportAsync()
     {
         if (Result == null) return;
 
@@ -205,9 +207,8 @@ public partial class TranscriptionViewModel : ObservableObject
         });
     }
 
-    private static string FormatTime(float seconds)
+    private static string FormatTime(TimeSpan time)
     {
-        var ts = TimeSpan.FromSeconds(seconds);
-        return $"{ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}.{ts.Milliseconds:D3}";
+        return $"{time.Hours:D2}:{time.Minutes:D2}:{time.Seconds:D2}.{time.Milliseconds:D3}";
     }
 }

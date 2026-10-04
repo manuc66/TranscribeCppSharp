@@ -16,7 +16,7 @@ public interface ITranscriptionService
         StreamOptions options,
         CancellationToken cancellationToken = default);
 
-    Task<BatchResult> BatchTranscribeAsync(
+    Task<List<BatchItemResult>> BatchTranscribeAsync(
         IReadOnlyList<string> audioPaths,
         string modelPath,
         TranscriptionOptions options,

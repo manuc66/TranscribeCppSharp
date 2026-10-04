@@ -1,3 +1,5 @@
+using TranscribeCppSharp.Ui.Models;
+
 namespace TranscribeCppSharp.Ui.Services;
 
 public interface IModelDownloadService

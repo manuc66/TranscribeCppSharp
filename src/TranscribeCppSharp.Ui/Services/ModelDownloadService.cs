@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TranscribeCppSharp.Ui.Models;
 
 namespace TranscribeCppSharp.Ui.Services;
 
@@ -19,11 +20,11 @@ public class ModelDownloadService : IModelDownloadService
     public IReadOnlyList<ModelInfo> GetAvailableModels()
     {
         if (!File.Exists(_modelsJsonPath))
-            return Array.Empty<ModelInfo>();
+            return [];
 
         var json = File.ReadAllText(_modelsJsonPath);
         var models = JsonSerializer.Deserialize<List<ModelInfo>>(json);
-        return models ?? Array.Empty<ModelInfo>();
+        return models ?? [];
     }
 
     public async Task DownloadModelAsync(

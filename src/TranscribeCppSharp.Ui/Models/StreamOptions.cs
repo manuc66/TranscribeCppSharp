@@ -1,10 +1,10 @@
-using TranscribeCppSharp;
+using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp.Ui.Models;
 
 public class StreamOptions
 {
-    public StreamCommitPolicy CommitPolicy { get; set; } = StreamCommitPolicy.Auto;
+    public StreamCommitPolicy CommitPolicy { get; set; } = StreamCommitPolicy.StreamCommitAuto;
     public BackendRequest? BackendRequest { get; set; }
     public BackendDevice? Device { get; set; }
 }

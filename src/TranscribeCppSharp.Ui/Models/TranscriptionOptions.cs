@@ -1,12 +1,12 @@
-using TranscribeCppSharp;
+using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp.Ui.Models;
 
 public class TranscriptionOptions
 {
     public string Language { get; set; } = "en";
-    public TimestampKind TimestampKind { get; set; } = TimestampKind.Segment;
-    public DiarizeMode DiarizeMode { get; set; } = DiarizeMode.Auto;
+    public TimestampKind TimestampKind { get; set; } = TimestampKind.TimestampsSegment;
+    public DiarizeMode DiarizeMode { get; set; } = DiarizeMode.DiarizeModeDefault;
     public PncMode? PncMode { get; set; }
     public ItnMode? ItnMode { get; set; }
     public BackendRequest? BackendRequest { get; set; }

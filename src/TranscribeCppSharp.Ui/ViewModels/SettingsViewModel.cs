@@ -1,12 +1,14 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using TranscribeCppSharp;
+using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp.Ui.ViewModels;
 
 public partial class SettingsViewModel : ObservableObject
 {
     [ObservableProperty]
-    private BackendRequest _selectedBackend = BackendRequest.Auto;
+    private BackendRequest _selectedBackend = BackendRequest.BackendAuto;
 
     [ObservableProperty]
     private string _cacheDirectory = string.Empty;
@@ -19,13 +21,13 @@ public partial class SettingsViewModel : ObservableObject
 
     public ObservableCollection<BackendRequest> AvailableBackends { get; } = new()
     {
-        BackendRequest.Auto,
-        BackendRequest.Cpu,
-        BackendRequest.CpuAccel,
-        BackendRequest.Metal,
-        BackendRequest.Vulkan,
-        BackendRequest.Cuda,
-        BackendRequest.Rocm
+        BackendRequest.BackendAuto,
+        BackendRequest.BackendCpu,
+        BackendRequest.BackendCpuAccel,
+        BackendRequest.BackendMetal,
+        BackendRequest.BackendVulkan,
+        BackendRequest.BackendCuda,
+        BackendRequest.BackendRocm
     };
 
     public SettingsViewModel()

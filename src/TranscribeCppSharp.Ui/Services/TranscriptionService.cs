@@ -1,11 +1,13 @@
 using System.Runtime.CompilerServices;
+using TranscribeCppSharp;
+using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Ui.Models;
 
 namespace TranscribeCppSharp.Ui.Services;
 
 public class TranscriptionService : ITranscriptionService
 {
-    public async Task<TranscriptionResult> TranscribeAsync(
+    public async System.Threading.Tasks.Task<TranscriptionResult> TranscribeAsync(
         string audioPath,
         string modelPath,
         TranscriptionOptions options,
@@ -17,7 +19,7 @@ public class TranscriptionService : ITranscriptionService
             if (options.BackendRequest != null)
                 builder.WithBackend(options.BackendRequest.Value);
             if (options.Device != null)
-                builder.WithDevice(options.Device.Value);
+                builder.WithDevice(options.Device);
         });
 
         try
@@ -33,7 +35,7 @@ public class TranscriptionService : ITranscriptionService
                 samples[i] = sample / 32768f;
             }
 
-            var result = await Task.Run(() =>
+            var result = await System.Threading.Tasks.Task.Run(() =>
             {
                 return session.Run(samples, builder =>
                 {
@@ -54,26 +56,9 @@ public class TranscriptionService : ITranscriptionService
             return new TranscriptionResult
             {
                 FullText = result.FullText,
-                Segments = result.Segments.Select(s => new SegmentResult
-                {
-                    Start = s.Start,
-                    End = s.End,
-                    Text = s.Text,
-                    SpeakerId = s.SpeakerId
-                }).ToList(),
-                Words = result.Words.Select(w => new WordResult
-                {
-                    Start = w.Start,
-                    End = w.End,
-                    Text = w.Text
-                }).ToList(),
-                SpeakerSegments = result.SpeakerSegments.Select(s => new SpeakerSegmentResult
-                {
-                    Start = s.Start,
-                    End = s.End,
-                    SpeakerId = s.SpeakerId,
-                    Probability = s.Probability
-                }).ToList(),
+                Segments = result.Segments.ToList(),
+                Words = result.Words.ToList(),
+                SpeakerSegments = result.SpeakerSegments.ToList(),
                 DetectedLanguage = result.DetectedLanguage,
                 WasAborted = result.WasAborted,
                 WasTruncated = result.WasTruncated
@@ -85,7 +70,7 @@ public class TranscriptionService : ITranscriptionService
         }
     }
 
-    public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(
+    public async IAsyncEnumerable<TranscribeCppSharp.Ui.Models.StreamUpdate> StreamTranscribeAsync(
         string modelPath,
         StreamOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -95,27 +80,24 @@ public class TranscriptionService : ITranscriptionService
             if (options.BackendRequest != null)
                 builder.WithBackend(options.BackendRequest.Value);
             if (options.Device != null)
-                builder.WithDevice(options.Device.Value);
+                builder.WithDevice(options.Device);
         });
 
         try
         {
             using var session = model.CreateSession();
-            using var stream = session.CreateStream(builder =>
-            {
-                builder.WithCommitPolicy(options.CommitPolicy);
-            });
+            using var stream = session.CreateStream();
 
             // This is a simplified streaming implementation
             // Real implementation would feed audio chunks from microphone
-            await Task.Run(() => stream.Begin(), cancellationToken);
+            await System.Threading.Tasks.Task.Run(() => stream.Begin(), cancellationToken);
 
             // Placeholder: yield periodic updates
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(100, cancellationToken);
+                await System.Threading.Tasks.Task.Delay(100, cancellationToken);
                 var text = stream.GetCurrentText();
-                yield return new StreamUpdate
+                yield return new TranscribeCppSharp.Ui.Models.StreamUpdate
                 {
                     FullText = text.FullText,
                     CommittedText = text.CommittedText,
@@ -132,7 +114,7 @@ public class TranscriptionService : ITranscriptionService
         }
     }
 
-    public async Task<BatchResult> BatchTranscribeAsync(
+    public async System.Threading.Tasks.Task<List<BatchItemResult>> BatchTranscribeAsync(
         IReadOnlyList<string> audioPaths,
         string modelPath,
         TranscriptionOptions options,
@@ -144,7 +126,7 @@ public class TranscriptionService : ITranscriptionService
             if (options.BackendRequest != null)
                 builder.WithBackend(options.BackendRequest.Value);
             if (options.Device != null)
-                builder.WithDevice(options.Device.Value);
+                builder.WithDevice(options.Device);
         });
 
         try
@@ -166,7 +148,7 @@ public class TranscriptionService : ITranscriptionService
                     samples[j] = sample / 32768f;
                 }
 
-                var result = await Task.Run(() =>
+                var result = await System.Threading.Tasks.Task.Run(() =>
                 {
                     return session.Run(samples, builder =>
                     {
@@ -188,7 +170,7 @@ public class TranscriptionService : ITranscriptionService
                 progress?.Report(i + 1);
             }
 
-            return new BatchResult { Items = results };
+            return results;
         }
         finally
         {

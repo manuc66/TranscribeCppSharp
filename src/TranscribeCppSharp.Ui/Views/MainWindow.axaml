@@ -3,6 +3,7 @@
         xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
         xmlns:views="using:TranscribeCppSharp.Ui.Views"
         x:Class="TranscribeCppSharp.Ui.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
         Width="900" Height="700"
         WindowStartupLocation="CenterScreen">

@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using TranscribeCppSharp;
+using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Ui.Models;
 using TranscribeCppSharp.Ui.Services;
 
@@ -49,7 +51,7 @@ public partial class StreamingViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task StartStreamingAsync()
+    private async System.Threading.Tasks.Task StartStreamingAsync()
     {
         IsStreaming = true;
         StatusMessage = "Streaming...";
@@ -59,7 +61,7 @@ public partial class StreamingViewModel : ObservableObject
         {
             var options = new StreamOptions
             {
-                CommitPolicy = TranscribeCppSharp.StreamCommitPolicy.Auto
+                CommitPolicy = StreamCommitPolicy.StreamCommitAuto
             };
 
             await foreach (var update in _transcriptionService.StreamTranscribeAsync(

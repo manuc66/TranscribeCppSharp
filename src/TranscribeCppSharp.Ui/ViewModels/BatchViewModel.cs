@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using TranscribeCppSharp;
+using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Ui.Models;
 using TranscribeCppSharp.Ui.Services;
 
@@ -54,7 +56,7 @@ public partial class BatchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task AddFilesAsync()
+    private async System.Threading.Tasks.Task AddFilesAsync()
     {
         var dialog = new Avalonia.Controls.OpenFileDialog
         {
@@ -100,7 +102,7 @@ public partial class BatchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ProcessBatchAsync()
+    private async System.Threading.Tasks.Task ProcessBatchAsync()
     {
         if (AudioFiles.Count == 0)
         {
@@ -118,8 +120,8 @@ public partial class BatchViewModel : ObservableObject
             var options = new TranscriptionOptions
             {
                 Language = Language,
-                TimestampKind = TranscribeCppSharp.TimestampKind.Segment,
-                DiarizeMode = TranscribeCppSharp.DiarizeMode.Auto
+                TimestampKind = TimestampKind.TimestampsSegment,
+                DiarizeMode = DiarizeMode.DiarizeModeDefault
             };
 
             var progress = new Progress<int>(p =>
@@ -131,7 +133,7 @@ public partial class BatchViewModel : ObservableObject
             var result = await _transcriptionService.BatchTranscribeAsync(
                 AudioFiles.ToList(), ModelAlias, options, progress);
 
-            Results = new ObservableCollection<BatchItemResult>(result.Items);
+            Results = new ObservableCollection<BatchItemResult>(result);
             StatusMessage = "Batch processing complete.";
         }
         catch (Exception ex)
@@ -145,7 +147,7 @@ public partial class BatchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ExportResultsAsync()
+    private async System.Threading.Tasks.Task ExportResultsAsync()
     {
         if (Results.Count == 0) return;
 
