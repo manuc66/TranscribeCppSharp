@@ -5,47 +5,86 @@
              x:Class="TranscribeCppSharp.Ui.Views.ModelManagerView"
              x:DataType="vm:ModelManagerViewModel">
 
-  <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
 
-    <!-- Search and totals -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
+    <!-- What to look for, and where the weights are -->
+    <Border Grid.Row="0" Padding="10" Margin="0,0,0,8"
+            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+            ToolTip.Tip="72 models are published by the transcribe.cpp authors. This project publishes no accuracy or speed comparison between them, so there is nothing here to rank them by: pick on size, licence and the parameters the model supports.">
+      <StackPanel Spacing="2">
+        <TextBlock TextWrapping="Wrap"
+                   Text="No model is faster or more accurate than another as far as this project has measured: docs/streaming-bench.md is the only benchmark and it covers Moonshine streaming only. Start with the model marked 'default' below if you have no reason not to, then narrow by size or licence. A model is fetched on first use and cached." />
+      </StackPanel>
+    </Border>
+
+    <!-- Quick filters -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,8">
       <TextBox Grid.Column="0"
                Text="{Binding Filter, Mode=TwoWay}"
-               Watermark="Filter by alias, repository or license"
-               HorizontalAlignment="Stretch" />
+               Watermark="Search alias, family, repository or licence"
+               HorizontalAlignment="Stretch"
+               ToolTip.Tip="Free-text over the alias, the family read from the repository name, the repository and the licence." />
 
-      <TextBlock Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center"
+      <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center"
+                Content="On disk only"
+                IsChecked="{Binding DownloadedOnly}"
+                ToolTip.Tip="Show only the models already downloaded. This is the fastest way to see what can be used right now without fetching anything." />
+
+      <CheckBox Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center"
+                Content="Commercial licences only"
+                IsChecked="{Binding HideNonCommercial}"
+                ToolTip.Tip="Hide the models whose licence forbids commercial use. The flag is a text test on the SPDX identifier in the manifest, so check the licence text itself before relying on it." />
+
+      <ComboBox Grid.Column="3" Margin="12,0,0,0" MinWidth="130"
+                ItemsSource="{Binding SizeFilters}"
+                SelectedItem="{Binding SizeFilter}"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="Filter by download size. Smaller models download sooner and use less memory; the manifest ranges from 33 MB to 16 GB." />
+
+      <ComboBox Grid.Column="4" Margin="12,0,0,0" MinWidth="150"
+                ItemsSource="{Binding Licenses}"
+                SelectedItem="{Binding LicenseFilter}"
+                PlaceholderText="Any licence"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="Filter by licence identifier. 'other' means the manifest does not name a standard licence; check the model card." />
+
+      <Button Grid.Column="5" Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="12,0,0,0"
+              IsEnabled="{Binding HasAnyQuickFilter}"
+              ToolTip.Tip="Turn every filter off and show the whole catalogue." />
+    </Grid>
+
+    <!-- What the filters are doing, said out loud -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
+      <TextBlock Grid.Column="0" Text="{Binding ActiveFilterSummary}" FontSize="11" Opacity="0.75"
+                 TextWrapping="Wrap" VerticalAlignment="Center" />
+
+      <TextBlock Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
                  Text="{Binding DownloadedCount, StringFormat='{}{0} downloaded'}" />
-      <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center"
+      <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
                  Text="{Binding CacheSizeText, StringFormat='{}{0} on disk'}" />
-
-      <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="12,0,0,0">
-        <Button Content="Refresh" Command="{Binding ReloadCommand}" />
-        <Button Content="Delete all"
-                Command="{Binding DeleteAllCommand}"
-                IsEnabled="{Binding !IsBusy}"
-                Margin="8,0,0,0"
-                ToolTip.Tip="Delete every model currently on disk. Files only; nothing else in the cache folder is touched." />
-      </StackPanel>
+      <TextBlock Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
+                 Text="{Binding CacheRoot, StringFormat='cached in {0}'}" />
     </Grid>
 
     <!-- Catalogue -->
-    <DataGrid Grid.Row="1"
+    <DataGrid Grid.Row="3"
               ItemsSource="{Binding VisibleModels}"
               SelectedItem="{Binding SelectedModel}"
               AutoGenerateColumns="False"
               IsReadOnly="True"
               CanUserSortColumns="True"
-              GridLinesVisibility="Horizontal">
+              GridLinesVisibility="Horizontal"
+              HorizontalAlignment="Stretch">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="200" />
-        <DataGridTextColumn Header="Quant" Binding="{Binding Quant}" Width="70" />
-        <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="80" />
-        <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="120" />
-        <DataGridTextColumn Header="License" Binding="{Binding License}" Width="140" />
-        <DataGridTemplateColumn Header="Action" Width="150">
+        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="1.4*" />
+        <DataGridTextColumn Header="Family (from repo)" Binding="{Binding Family}" Width="1.4*" />
+        <DataGridTextColumn Header="Quant" Binding="{Binding Quant}" Width="0.5*" />
+        <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="0.6*" />
+        <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" />
+        <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="1*" />
+        <DataGridTemplateColumn Header="Action" Width="0.9*">
           <DataTemplate x:DataType="m:ModelCatalogItem">
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Spacing="6">
               <Button Content="Download"
                       Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DownloadCommand}"
                       CommandParameter="{Binding}"
@@ -55,8 +94,10 @@
                       Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DeleteCommand}"
                       CommandParameter="{Binding}"
                       IsEnabled="{Binding IsCached}"
-                      Margin="6,0,0,0"
                       ToolTip.Tip="Delete this model from disk. It will be downloaded again the next time it is used." />
+              <TextBlock Text="default" VerticalAlignment="Center" FontSize="11" Opacity="0.7"
+                         IsVisible="{Binding IsDefaultModel}"
+                         ToolTip.Tip="The model the transcribe CLI uses when none is given. Marked because it is the one alias here known to work, not because it is better than the rest." />
             </StackPanel>
           </DataTemplate>
         </DataGridTemplateColumn>
@@ -64,34 +105,48 @@
     </DataGrid>
 
     <!-- Detail of the selected model -->
-    <Border Grid.Row="2"
+    <Border Grid.Row="4"
             IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNotNull}}"
             Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            MaxHeight="220"
+            MaxHeight="230"
             Padding="10" Margin="0,8,0,0">
-      <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
-        <TextBlock Text="{Binding Alias}" FontWeight="Bold" FontSize="15" />
-        <TextBlock Text="{Binding Repo}" Opacity="0.8" />
-        <TextBlock Text="{Binding Revision, StringFormat='revision {0}'}" Opacity="0.7" FontSize="11" />
-        <TextBlock Opacity="0.8" Margin="0,4,0,0"
-                   Text="{Binding License, StringFormat='License: {0}'}" />
-        <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" />
-        <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
-        <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
-        <TextBlock Opacity="0.8" Text="{Binding LocalPath, StringFormat='Cached at: {0}'}" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding Sha256, StringFormat='sha256: {0}'}" Opacity="0.6" FontSize="11"
-                   TextWrapping="Wrap" />
-        <TextBlock Text="Non-commercial license: check the terms before any commercial use."
-                   IsVisible="{Binding IsNonCommercialLicense}"
-                   Foreground="#CC4444" Margin="0,4,0,0" TextWrapping="Wrap" />
-      </StackPanel>
+      <ScrollViewer>
+        <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
+          <TextBlock Text="{Binding Alias}" FontWeight="Bold" FontSize="15" />
+          <TextBlock Text="{Binding Repo}" Opacity="0.8" />
+          <TextBlock Text="{Binding Revision, StringFormat='revision {0}'}" Opacity="0.7" FontSize="11" />
+          <TextBlock Opacity="0.8" Margin="0,4,0,0"
+                     Text="{Binding License, StringFormat='Licence: {0}'}" />
+          <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" TextWrapping="Wrap" />
+          <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
+          <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
+          <TextBlock Opacity="0.8" Text="{Binding LocalPath, StringFormat='Cached at: {0}'}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Sha256, StringFormat='sha256: {0}'}" Opacity="0.6" FontSize="11"
+                     TextWrapping="Wrap" />
+          <TextBlock Text="Non-commercial licence: check the terms before any commercial use."
+                     IsVisible="{Binding IsNonCommercialLicense}"
+                     Foreground="#CC4444" Margin="0,4,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+      </ScrollViewer>
     </Border>
 
+    <!-- Bulk actions -->
+    <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
+      <Button Content="Refresh"
+              Command="{Binding ReloadCommand}"
+              ToolTip.Tip="Re-read the cache, to pick up a model downloaded by the transcribe CLI or added by hand." />
+      <Button Content="Delete all downloaded"
+              Command="{Binding DeleteAllCommand}"
+              IsEnabled="{Binding !IsBusy}"
+              Margin="8,0,0,0"
+              ToolTip.Tip="Delete every model currently on disk. Only the cached model files are touched." />
+    </StackPanel>
+
     <!-- Download progress -->
-    <ProgressBar Grid.Row="3" Value="{Binding DownloadProgress}" Maximum="1" Minimum="0"
+    <ProgressBar Grid.Row="6" Value="{Binding DownloadProgress}" Maximum="1" Minimum="0"
                  IsVisible="{Binding IsBusy}" Margin="0,8,0,0" />
 
     <!-- Status -->
-    <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,4,0,0" />
+    <TextBlock Grid.Row="7" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,6,0,0" />
   </Grid>
 </UserControl>

@@ -43,7 +43,47 @@ public partial class ModelManagerViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFilter))]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
     private string? _filter;
+
+    /// <summary>
+    /// Show only models already on disk.
+    /// </summary>
+    /// <remarks>
+    /// The one toggle worth having by default: "which models can I use right
+    /// now, without a download" is the question a returning user actually has.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
+    private bool _downloadedOnly;
+
+    /// <summary>
+    /// Show only models whose licence forbids commercial use.
+    /// </summary>
+    /// <remarks>
+    /// Inverted on purpose. Most entries are permissive, so the useful filter is
+    /// "hide the ones I may not use commercially", not "show the two I may not".
+    /// The flag is a text test on the SPDX id in the manifest, so the row still
+    /// shows the licence and its URL.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
+    private bool _hideNonCommercial;
+
+    /// <summary>Size bucket, or null for every size.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
+    private ModelSizeFilter _sizeFilter = ModelSizeFilter.Any;
+
+    /// <summary>Licence to show, or null for every licence.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
+    private string? _licenseFilter;
 
     [ObservableProperty]
     private ModelCatalogItem? _selectedModel;
@@ -57,6 +97,73 @@ public partial class ModelManagerViewModel : ObservableObject
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
+
+    /// <summary>Size buckets offered as a quick filter.</summary>
+    /// <remarks>
+    /// Built from the manifest rather than picked by feel: the sizes there run
+    /// from 33 MB to 16 GB, so one linear range slider would be useless.
+    /// </remarks>
+    public IReadOnlyList<ModelSizeFilterOption> SizeFilters { get; } = new[]
+    {
+        new ModelSizeFilterOption(ModelSizeFilter.Any, "Any size"),
+        new ModelSizeFilterOption(ModelSizeFilter.Small, "Under 500 MB"),
+        new ModelSizeFilterOption(ModelSizeFilter.Medium, "500 MB - 1.5 GB"),
+        new ModelSizeFilterOption(ModelSizeFilter.Large, "Over 1.5 GB"),
+    };
+
+    /// <summary>Licences present in the manifest, for the licence filter.</summary>
+    public IReadOnlyList<string> Licenses { get; } =
+        ModelStore.Catalog
+            .Select(m => m.License)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(l => l, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>True when any quick filter is narrowing the list.</summary>
+    public bool HasAnyQuickFilter => DownloadedOnly || HideNonCommercial || SizeFilter != ModelSizeFilter.Any;
+
+    /// <summary>
+    /// The quick filters in force, as one line, or empty when none are.
+    /// </summary>
+    /// <remarks>
+    /// Said out loud because a filter that silently hides rows is how a user
+    /// ends up convinced a model is missing from the catalogue.
+    /// </remarks>
+    public string ActiveFilterSummary
+    {
+        get
+        {
+            var parts = new List<string>(3);
+            if (DownloadedOnly)
+            {
+                parts.Add("downloaded only");
+            }
+
+            if (HideNonCommercial)
+            {
+                parts.Add("commercial licences only");
+            }
+
+            if (SizeFilter != ModelSizeFilter.Any)
+            {
+                parts.Add(SizeFilters.First(o => o.Value == SizeFilter).Label.ToLowerInvariant());
+            }
+
+            if (!string.IsNullOrEmpty(LicenseFilter))
+            {
+                parts.Add($"licence {LicenseFilter}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(Filter))
+            {
+                parts.Add($"matching \"{Filter.Trim()}\"");
+            }
+
+            return parts.Count == 0
+                ? string.Empty
+                : $"Filtered by: {string.Join(", ", parts)}. {VisibleModels.Count} shown.";
+        }
+    }
 
     /// <summary>False while a download or delete is in flight.</summary>
     public bool IsBusy => BusyAlias is not null;
@@ -103,6 +210,14 @@ public partial class ModelManagerViewModel : ObservableObject
     }
 
     partial void OnFilterChanged(string? value) => ApplyFilter();
+
+    partial void OnDownloadedOnlyChanged(bool value) => ApplyFilter();
+
+    partial void OnHideNonCommercialChanged(bool value) => ApplyFilter();
+
+    partial void OnSizeFilterChanged(ModelSizeFilter value) => ApplyFilter();
+
+    partial void OnLicenseFilterChanged(string? value) => ApplyFilter();
 
     partial void OnBusyAliasChanged(string? value)
     {
@@ -235,17 +350,42 @@ public partial class ModelManagerViewModel : ObservableObject
     private void ApplyFilter()
     {
         string? needle = Filter?.Trim();
+        ModelSizeFilterOption band = SizeFilters.First(o => o.Value == SizeFilter);
 
         VisibleModels.Clear();
         foreach (ModelCatalogItem item in Models)
         {
-            if (string.IsNullOrEmpty(needle)
-                || item.Alias.Contains(needle, StringComparison.OrdinalIgnoreCase)
-                || item.Repo.Contains(needle, StringComparison.OrdinalIgnoreCase)
-                || item.License.Contains(needle, StringComparison.OrdinalIgnoreCase))
+            if (DownloadedOnly && !item.IsCached)
             {
-                VisibleModels.Add(item);
+                continue;
             }
+
+            if (HideNonCommercial && item.IsNonCommercialLicense)
+            {
+                continue;
+            }
+
+            if (!band.Contains(item.Descriptor.Size))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(LicenseFilter)
+                && !string.Equals(item.License, LicenseFilter, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(needle)
+                && !item.Alias.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                && !item.Repo.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                && !item.Family.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                && !item.License.Contains(needle, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            VisibleModels.Add(item);
         }
 
         // A row the filter just hid cannot stay selected; otherwise the detail
@@ -256,6 +396,20 @@ public partial class ModelManagerViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(HasFilter));
+        OnPropertyChanged(nameof(HasAnyQuickFilter));
+        OnPropertyChanged(nameof(ActiveFilterSummary));
+    }
+
+    /// <summary>Turns every quick filter off.</summary>
+    [RelayCommand]
+    private void ClearFilters()
+    {
+        Filter = null;
+        DownloadedOnly = false;
+        HideNonCommercial = false;
+        SizeFilter = ModelSizeFilter.Any;
+        LicenseFilter = null;
+        ApplyFilter();
     }
 
     /// <summary>

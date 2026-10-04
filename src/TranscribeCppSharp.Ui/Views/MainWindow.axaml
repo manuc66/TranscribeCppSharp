@@ -5,24 +5,45 @@
         x:Class="TranscribeCppSharp.Ui.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
-        Width="900" Height="700"
+        Width="1100" Height="720"
+        MinWidth="640" MinHeight="420"
         WindowStartupLocation="CenterScreen">
 
-  <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+  <!-- Vertical scrolling only, and deliberately not horizontal.
+
+       The scroll is there so a window shorter than a view can be shrunk to fit
+       instead of the content setting a floor the window cannot go below.
+
+       Horizontal is disabled on purpose: a horizontally scrollable ScrollViewer
+       offers its child an infinite width, and a DataGrid asked to lay out in
+       infinite width gives its star-sized columns no width at all — the grid
+       collapses and the window shrink-wraps to its minimum. Measuring against
+       the viewport width is what lets those columns share the space. -->
+  <TabControl SelectedIndex="{Binding SelectedTabIndex}" Padding="0">
     <TabItem Header="Transcription">
-      <views:TranscriptionView DataContext="{Binding Transcription}" />
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:TranscriptionView DataContext="{Binding Transcription}" />
+      </ScrollViewer>
     </TabItem>
     <TabItem Header="Streaming">
-      <views:StreamingView DataContext="{Binding Streaming}" />
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:StreamingView DataContext="{Binding Streaming}" />
+      </ScrollViewer>
     </TabItem>
     <TabItem Header="Batch">
-      <views:BatchView DataContext="{Binding Batch}" />
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:BatchView DataContext="{Binding Batch}" />
+      </ScrollViewer>
     </TabItem>
     <TabItem Header="Models">
-      <views:ModelManagerView DataContext="{Binding ModelManager}" />
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:ModelManagerView DataContext="{Binding ModelManager}" />
+      </ScrollViewer>
     </TabItem>
     <TabItem Header="Settings">
-      <views:SettingsView DataContext="{Binding Settings}" />
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:SettingsView DataContext="{Binding Settings}" />
+      </ScrollViewer>
     </TabItem>
   </TabControl>
 </Window>

@@ -67,6 +67,53 @@ public class ModelCatalogItem
     /// </summary>
     public string OnDiskText => IsCached ? $"{HumanSize(CachedBytes)} on disk" : "not downloaded";
 
+    /// <summary>
+    /// The model family, read off the repository name.
+    /// </summary>
+    /// <remarks>
+    /// Derived, not declared: the manifest has no family field, and the native
+    /// library reports what a model supports through <c>Model.Supports</c>,
+    /// which needs the model loaded — asking all 72 would mean downloading tens
+    /// of gigabytes just to fill a column. The repositories are named after
+    /// their family ("whisper-tiny-gguf", "parakeet-rnnt-0.6b-gguf"), so the
+    /// name is the best signal available, but it is a guess and the column
+    /// header says so.
+    /// </remarks>
+    public string Family => DeriveFamily(Descriptor.Repo);
+
+    /// <summary>
+    /// Whether this is the model the CLI defaults to.
+    /// </summary>
+    /// <remarks>
+    /// Marked because it is the one alias here known to work: the CLI picks it
+    /// when no model is given. It is not a claim about quality — this project
+    /// publishes no accuracy or speed comparison between the models.
+    /// </remarks>
+    public bool IsDefaultModel => string.Equals(Alias, DefaultAlias, StringComparison.Ordinal);
+
+    /// <summary>The alias the CLI uses when none is given.</summary>
+    public const string DefaultAlias = "moss-transcribe-diarize";
+
+    /// <summary>
+    /// Pulls the family out of a repository name.
+    /// </summary>
+    /// <param name="repo">Repository as "owner/name", usually "owner/name-gguf".</param>
+    /// <returns>The name without a trailing "-gguf".</returns>
+    /// <remarks>
+    /// A display convenience, not a classification. "whisper-large-v3-turbo"
+    /// and "whisper-tiny" both yield "whisper", which is what a reader wants to
+    /// see; "granite-speech-5.0-470m-turboctc" yields the whole string, which
+    /// is unhelpful but not wrong. Nothing cleverer is attempted without a field
+    /// in the manifest to be clever from.
+    /// </remarks>
+    private static string DeriveFamily(string repo)
+    {
+        string name = repo.Contains('/') ? repo[(repo.LastIndexOf('/') + 1)..] : repo;
+        return name.EndsWith("-gguf", StringComparison.OrdinalIgnoreCase)
+            ? name[..^"-gguf".Length]
+            : name;
+    }
+
     /// <summary>Re-reads the cache state. Called after a download or a delete.</summary>
     public void Refresh()
     {
