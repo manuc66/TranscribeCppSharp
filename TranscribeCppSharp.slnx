@@ -10,6 +10,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TranscribeCppSharp.Interop.Tests/TranscribeCppSharp.Interop.Tests.csproj" />
+    <Project Path="tests/TranscribeCppSharp.Ui.Tests/TranscribeCppSharp.Ui.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SmokeTest/SmokeTest.csproj" />
