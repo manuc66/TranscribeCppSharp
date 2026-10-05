@@ -80,7 +80,7 @@ public partial class TranscriptionViewModel : ObservableObject
     private int? _threads;
 
     [ObservableProperty]
-    private KvType? _selectedKvType;
+    private KvType? _selectedKvType = KvType.KvTypeAuto;
 
     [ObservableProperty]
     private int? _contextSize;

@@ -1,8 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TranscribeCppSharp.Ui.ViewModels"
+             xmlns:c="using:TranscribeCppSharp.Ui.Converters"
              x:Class="TranscribeCppSharp.Ui.Views.TranscriptionView"
              x:DataType="vm:TranscriptionViewModel">
+
+  <UserControl.Resources>
+    <c:KvTypeNameConverter x:Key="KvTypeName" />
+  </UserControl.Resources>
 
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
     <!-- Audio file selection -->
@@ -53,7 +58,13 @@
                    ToolTip.Tip="Data type of the key/value cache, used for flash attention. Auto lets the library pick. F32 keeps the most precision and uses the most memory; F16 halves the cache. Some models only support one of them." />
         <ComboBox ItemsSource="{Binding KvTypes}" SelectedItem="{Binding SelectedKvType}" HorizontalAlignment="Stretch"
                   AutomationProperties.AutomationId="transcription-kv-type"
-                  AutomationProperties.Name="KV type" />
+                  AutomationProperties.Name="KV type">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Converter={StaticResource KvTypeName}}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
       </StackPanel>
       <StackPanel Grid.Column="2" Margin="8,0,0,0">
         <TextBlock Text="Context Size" Margin="0,0,0,4"
