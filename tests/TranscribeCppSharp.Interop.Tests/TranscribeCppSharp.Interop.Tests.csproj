@@ -60,4 +60,12 @@
     <ProjectReference Include="..\..\src\TranscribeCppSharp.Cli\TranscribeCppSharp.Cli.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- xUnit only reads this when it is copied next to the test assembly; the
+         SDK does not copy a JSON file on its own. maxParallelThreads caps how
+         many collections transcribe at once, which is what bounds the suite's
+         memory. See the file for the measurement behind the number. -->
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
