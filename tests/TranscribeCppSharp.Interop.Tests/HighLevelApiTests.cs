@@ -29,6 +29,12 @@ public class HighLevelApiTests : IDisposable
 
     private static bool IsIntegrationEnv => TestConfig.IsIntegrationTestEnvironment();
 
+    // CA1861: these two were inline literals, so every call allocated a fresh array.
+    // WithPromptTokens copies out of the array into unmanaged memory (Marshal.Copy)
+    // and keeps no reference to it, so one shared instance per test is safe.
+    private static readonly int[] PromptTokens = { 101, 2023, 102 };
+    private static readonly int[] PromptTokensForDisposedCall = { 1, 2, 3 };
+
     [SkippableFact]
     public void PcmExtensions_ReadWavToPcm_ShouldLoadTestWav()
     {
@@ -438,7 +444,7 @@ public class HighLevelApiTests : IDisposable
     public void WhisperExtBuilder_WithPromptTokens_ShouldSetTokens()
     {
         using var builder = new WhisperExtBuilder();
-        builder.WithPromptTokens(new[] { 101, 2023, 102 });
+        builder.WithPromptTokens(PromptTokens);
 
         var p = Marshal.PtrToStructure<WhisperRunExt>(builder.Build());
         Assert.NotEqual(IntPtr.Zero, p.promptTokens);
@@ -1349,7 +1355,7 @@ public class HighLevelApiTests : IDisposable
     {
         var builder = new WhisperExtBuilder();
         builder.Dispose();
-        Assert.Throws<ObjectDisposedException>(() => builder.WithPromptTokens(new[] { 1, 2, 3 }));
+        Assert.Throws<ObjectDisposedException>(() => builder.WithPromptTokens(PromptTokensForDisposedCall));
     }
 
     [Fact]
