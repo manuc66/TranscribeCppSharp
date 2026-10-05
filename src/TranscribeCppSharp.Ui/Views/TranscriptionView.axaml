@@ -8,8 +8,12 @@
     <!-- Audio file selection -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
+               AutomationProperties.AutomationId="transcription-audio-path"
+               AutomationProperties.Name="Audio file path"
                ToolTip.Tip="A 16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, ...) is decoded with ffmpeg, which must be installed and on PATH." />
       <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseAudioCommand}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="transcription-browse-audio"
+              AutomationProperties.Name="Browse for audio file"
               ToolTip.Tip="Pick an audio file to transcribe." />
     </Grid>
 
@@ -18,12 +22,16 @@
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Model" Margin="0,0,0,4"
                    ToolTip.Tip="Which speech-to-text model to run. Downloaded from HuggingFace on first use and cached, so the first run of a model needs a network connection. The Models tab shows what is already on disk and deletes it." />
-        <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch" />
+        <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="transcription-model"
+                  AutomationProperties.Name="Model" />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Language" Margin="0,0,0,4"
                    ToolTip.Tip="Language code for the decoder (default: en). This is the code the model assumes the audio is in; leave the default unless the audio is not English. Only Whisper-family models detect the language themselves." />
-        <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding Language}" HorizontalAlignment="Stretch" />
+        <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding Language}" HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="transcription-language"
+                  AutomationProperties.Name="Language" />
       </StackPanel>
     </Grid>
 
@@ -32,17 +40,23 @@
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Threads" Margin="0,0,0,4"
                    ToolTip.Tip="CPU threads the decoder may use. Leave empty for the library default. Not a benchmarked recommendation: raising it past the core count usually makes it slower, not faster." />
-        <NumericUpDown Value="{Binding Threads}" Minimum="1" Maximum="64" Increment="1" />
+        <NumericUpDown Value="{Binding Threads}" Minimum="1" Maximum="64" Increment="1"
+                       AutomationProperties.AutomationId="transcription-threads"
+                       AutomationProperties.Name="Threads" />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="KV Type" Margin="0,0,0,4"
                    ToolTip.Tip="Data type of the key/value cache, used for flash attention. Auto lets the library pick. F32 keeps the most precision and uses the most memory; F16 halves the cache. Some models only support one of them." />
-        <ComboBox ItemsSource="{Binding KvTypes}" SelectedItem="{Binding SelectedKvType}" HorizontalAlignment="Stretch" />
+        <ComboBox ItemsSource="{Binding KvTypes}" SelectedItem="{Binding SelectedKvType}" HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="transcription-kv-type"
+                  AutomationProperties.Name="KV type" />
       </StackPanel>
       <StackPanel Grid.Column="2" Margin="8,0,0,0">
         <TextBlock Text="Context Size" Margin="0,0,0,4"
                    ToolTip.Tip="Upper bound on the decoder context window, in tokens. Lower values use less memory; too low a value truncates long passages. Leave empty for the model's maximum." />
-        <NumericUpDown Value="{Binding ContextSize}" Minimum="512" Maximum="32768" Increment="512" />
+        <NumericUpDown Value="{Binding ContextSize}" Minimum="512" Maximum="32768" Increment="512"
+                       AutomationProperties.AutomationId="transcription-context-size"
+                       AutomationProperties.Name="Context size" />
       </StackPanel>
     </Grid>
 
@@ -51,12 +65,16 @@
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Initial Prompt" Margin="0,0,0,4"
                    ToolTip.Tip="Text given to the decoder before the audio, to steer vocabulary and punctuation. Useful for names and jargon the model would otherwise misspell. Whisper models only; other families ignore it." />
-        <TextBox Text="{Binding WhisperInitialPrompt}" PlaceholderText="Optional initial prompt..." />
+        <TextBox Text="{Binding WhisperInitialPrompt}" PlaceholderText="Optional initial prompt..."
+                 AutomationProperties.AutomationId="transcription-whisper-prompt"
+                 AutomationProperties.Name="Whisper initial prompt" />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Temperature" Margin="0,0,0,4"
                    ToolTip.Tip="Sampling temperature for the decoder. 0 is greedy decoding, which is the usual choice; higher values add randomness. Whisper models only." />
-        <NumericUpDown Value="{Binding WhisperTemperature}" Minimum="0" Maximum="2" Increment="0.1" />
+        <NumericUpDown Value="{Binding WhisperTemperature}" Minimum="0" Maximum="2" Increment="0.1"
+                       AutomationProperties.AutomationId="transcription-whisper-temperature"
+                       AutomationProperties.Name="Whisper temperature" />
       </StackPanel>
     </Grid>
 
@@ -65,17 +83,23 @@
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Task" Margin="0,0,0,4"
                    ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
-        <ComboBox ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding SelectedTask}" HorizontalAlignment="Stretch" />
+        <ComboBox ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding SelectedTask}" HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="transcription-task"
+                  AutomationProperties.Name="Task" />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Target Language" Margin="0,0,0,4"
                    ToolTip.Tip="Language code to translate into, for the models that support it. Left empty, the model's own default is used." />
-        <TextBox Text="{Binding TargetLanguage}" PlaceholderText="For translation (e.g. en)" />
+        <TextBox Text="{Binding TargetLanguage}" PlaceholderText="For translation (e.g. en)"
+                 AutomationProperties.AutomationId="transcription-target-language"
+                 AutomationProperties.Name="Target language" />
       </StackPanel>
       <StackPanel Grid.Column="2" Margin="8,0,0,0">
         <TextBlock Text="Window (sec)" Margin="0,0,0,4"
                    ToolTip.Tip="Longest audio passed to the model in one call, in seconds. Longer audio is split into windows of this size overlapping by 1 s, and the results are merged with the overlap removed. Raise it if the model supports more than 300 s; lower it if the windows are too large for the available memory." />
-        <NumericUpDown Value="{Binding WindowSeconds}" Minimum="2" Maximum="3600" Increment="10" />
+        <NumericUpDown Value="{Binding WindowSeconds}" Minimum="2" Maximum="3600" Increment="10"
+                       AutomationProperties.AutomationId="transcription-window-seconds"
+                       AutomationProperties.Name="Window seconds" />
       </StackPanel>
     </Grid>
 
@@ -84,29 +108,43 @@
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Spec-K Drafts" Margin="0,0,0,4"
                    ToolTip.Tip="Number of speculative decoding drafts, 0 to disable. A draft is proposed and then verified, which can cut decoding time on some models. Whether it helps is unverified here: measure your own audio before trusting a speed claim." />
-        <NumericUpDown Value="{Binding SpecKDrafts}" Minimum="0" Maximum="10" Increment="1" />
+        <NumericUpDown Value="{Binding SpecKDrafts}" Minimum="0" Maximum="10" Increment="1"
+                       AutomationProperties.AutomationId="transcription-spec-k-drafts"
+                       AutomationProperties.Name="Speculative decoding drafts" />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Bottom">
         <CheckBox Content="Keep special tags" IsChecked="{Binding KeepSpecialTags}"
+                  AutomationProperties.AutomationId="transcription-keep-special-tags"
+                  AutomationProperties.Name="Keep special tags"
                   ToolTip.Tip="Leave markers such as &lt;|notimestamps|&gt; in the output instead of stripping them. Off, they are removed from the text you get." />
       </StackPanel>
     </Grid>
 
     <!-- Action buttons -->
     <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Transcribe" Command="{Binding TranscribeCommand}" IsEnabled="{Binding !IsTranscribing}" />
+      <Button Content="Transcribe" Command="{Binding TranscribeCommand}" IsEnabled="{Binding !IsTranscribing}"
+              AutomationProperties.AutomationId="transcription-run"
+              AutomationProperties.Name="Transcribe" />
       <Button Content="Export" Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="transcription-export"
+              AutomationProperties.Name="Export transcript"
               ToolTip.Tip="Write the transcript to a text file." />
     </StackPanel>
 
     <!-- Progress -->
-    <ProgressBar Grid.Row="7" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8" />
+    <ProgressBar Grid.Row="7" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8"
+                 AutomationProperties.AutomationId="transcription-progress"
+                 AutomationProperties.Name="Transcription progress" />
 
     <!-- Status -->
-    <TextBlock Grid.Row="8" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap" />
+    <TextBlock Grid.Row="8" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap"
+               AutomationProperties.AutomationId="transcription-status"
+               AutomationProperties.Name="Status" />
 
     <!-- Results -->
-    <TabControl Grid.Row="9" IsVisible="{Binding HasResult}">
+    <TabControl Grid.Row="9" IsVisible="{Binding HasResult}"
+                AutomationProperties.AutomationId="transcription-results"
+                AutomationProperties.Name="Transcription results">
       <TabItem Header="Text">
         <ScrollViewer>
           <TextBlock Text="{Binding FullText}" TextWrapping="Wrap" />

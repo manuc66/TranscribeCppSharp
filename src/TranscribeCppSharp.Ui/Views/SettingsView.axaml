@@ -10,7 +10,9 @@
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Backend" FontWeight="Bold" Margin="0,0,0,4"
                    ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back." />
-        <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch" />
+        <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="settings-backend"
+                  AutomationProperties.Name="Backend" />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Device" FontWeight="Bold" Margin="0,0,0,4"
@@ -18,7 +20,9 @@
         <ComboBox ItemsSource="{Binding Devices}"
                   SelectedItem="{Binding SelectedDevice}"
                   PlaceholderText="Let the backend choose"
-                  HorizontalAlignment="Stretch" />
+                  HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="settings-device"
+                  AutomationProperties.Name="Device" />
       </StackPanel>
     </Grid>
 
@@ -26,15 +30,21 @@
     <StackPanel Grid.Row="1" Margin="0,0,0,16">
       <TextBlock Text="Cache Directory" FontWeight="Bold" Margin="0,0,0,4"
                  ToolTip.Tip="Where downloaded models are kept. Shared with the transcribe CLI, so a model downloaded in one is available to the other. The Models tab deletes them." />
-      <TextBox Text="{Binding CacheDirectory}" IsReadOnly="True" />
+      <TextBox Text="{Binding CacheDirectory}" IsReadOnly="True"
+               AutomationProperties.AutomationId="settings-cache-directory"
+               AutomationProperties.Name="Cache directory" />
     </StackPanel>
 
     <!-- Backend info -->
     <StackPanel Grid.Row="2" Margin="0,0,0,16">
       <TextBlock Text="Backend Version" FontWeight="Bold" Margin="0,0,0,4"
                  ToolTip.Tip="Version of the native transcribe.cpp library the wrapper is bound to." />
-      <TextBlock Text="{Binding BackendVersion}" />
+      <TextBlock Text="{Binding BackendVersion}"
+                 AutomationProperties.AutomationId="settings-backend-version"
+                 AutomationProperties.Name="Backend version" />
       <TextBlock Text="{Binding BackendError}" Foreground="#CC4444" TextWrapping="Wrap" Margin="0,4,0,0"
+                 AutomationProperties.AutomationId="settings-backend-error"
+                 AutomationProperties.Name="Backend error"
                  IsVisible="{Binding BackendError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
 
@@ -42,7 +52,9 @@
     <StackPanel Grid.Row="3">
       <TextBlock Text="Available Devices" FontWeight="Bold" Margin="0,0,0,4"
                  ToolTip.Tip="Compute devices this build and this machine can see." />
-      <DataGrid ItemsSource="{Binding Devices}" AutoGenerateColumns="False" IsReadOnly="True">
+      <DataGrid ItemsSource="{Binding Devices}" AutoGenerateColumns="False" IsReadOnly="True"
+                AutomationProperties.AutomationId="settings-devices"
+                AutomationProperties.Name="Available devices">
         <DataGrid.Columns>
           <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
           <DataGridTextColumn Header="Type" Binding="{Binding DeviceType}" />
