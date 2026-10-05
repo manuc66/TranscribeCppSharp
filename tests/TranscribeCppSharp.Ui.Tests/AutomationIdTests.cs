@@ -23,6 +23,7 @@ public class AutomationIdTests
         "transcription-audio-path",
         "transcription-browse-audio",
         "transcription-model",
+        "transcription-capability-status",
         "transcription-language",
         "transcription-threads",
         "transcription-kv-type",

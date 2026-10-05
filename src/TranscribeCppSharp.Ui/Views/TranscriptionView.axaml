@@ -25,6 +25,10 @@
         <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch"
                   AutomationProperties.AutomationId="transcription-model"
                   AutomationProperties.Name="Model" />
+        <TextBlock Text="{Binding CapabilityStatus}" FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,4,0,0"
+                   IsVisible="{Binding CapabilityStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   AutomationProperties.AutomationId="transcription-capability-status"
+                   AutomationProperties.Name="Model capabilities status" />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Language" Margin="0,0,0,4"
@@ -61,7 +65,7 @@
     </Grid>
 
     <!-- Whisper extensions -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,0,0,8">
+    <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,0,0,8" IsVisible="{Binding ShowWhisperExtensions}">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Initial Prompt" Margin="0,0,0,4"
                    ToolTip.Tip="Text given to the decoder before the audio, to steer vocabulary and punctuation. Useful for names and jargon the model would otherwise misspell. Whisper models only; other families ignore it." />
@@ -80,14 +84,14 @@
 
     <!-- Task, target language, window size -->
     <Grid Grid.Row="4" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowTranslate}">
         <TextBlock Text="Task" Margin="0,0,0,4"
                    ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
         <ComboBox ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding SelectedTask}" HorizontalAlignment="Stretch"
                   AutomationProperties.AutomationId="transcription-task"
                   AutomationProperties.Name="Task" />
       </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+      <StackPanel Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding ShowTranslate}">
         <TextBlock Text="Target Language" Margin="0,0,0,4"
                    ToolTip.Tip="Language code to translate into, for the models that support it. Left empty, the model's own default is used." />
         <TextBox Text="{Binding TargetLanguage}" PlaceholderText="For translation (e.g. en)"
@@ -105,7 +109,7 @@
 
     <!-- Speculative decoding, keep special tags -->
     <Grid Grid.Row="5" ColumnDefinitions="*,*" Margin="0,0,0,8">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowSpeculativeDecoding}">
         <TextBlock Text="Spec-K Drafts" Margin="0,0,0,4"
                    ToolTip.Tip="Number of speculative decoding drafts, 0 to disable. A draft is proposed and then verified, which can cut decoding time on some models. Whether it helps is unverified here: measure your own audio before trusting a speed claim." />
         <NumericUpDown Value="{Binding SpecKDrafts}" Minimum="0" Maximum="10" Increment="1"
@@ -122,7 +126,7 @@
 
     <!-- Action buttons -->
     <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Transcribe" Command="{Binding TranscribeCommand}" IsEnabled="{Binding !IsTranscribing}"
+      <Button Content="Transcribe" Command="{Binding TranscribeCommand}" IsEnabled="{Binding CanTranscribe}"
               AutomationProperties.AutomationId="transcription-run"
               AutomationProperties.Name="Transcribe" />
       <Button Content="Export" Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"

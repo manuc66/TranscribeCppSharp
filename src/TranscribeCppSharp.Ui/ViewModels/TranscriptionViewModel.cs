@@ -16,6 +16,14 @@ public partial class TranscriptionViewModel : ObservableObject
 
     private readonly SettingsViewModel _settings;
 
+    private readonly Dictionary<string, ModelCapabilitySnapshot> _capabilityCache = new(StringComparer.Ordinal);
+
+    private ModelCapabilitySnapshot? _selectedCapabilities;
+
+    private bool _probing;
+
+    private string? _pendingProbeAlias;
+
     [ObservableProperty]
     private string _audioPath = string.Empty;
 
@@ -26,6 +34,7 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _language = "en";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     private bool _isTranscribing;
 
     [ObservableProperty]
@@ -33,6 +42,15 @@ public partial class TranscriptionViewModel : ObservableObject
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
+
+    /// <summary>True while the selected model is being loaded to read its capabilities.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTranscribe))]
+    private bool _isCheckingCapabilities;
+
+    /// <summary>What the capability check is doing, or why options are unfiltered.</summary>
+    [ObservableProperty]
+    private string _capabilityStatus = string.Empty;
 
     [ObservableProperty]
     private TranscriptionResult? _result;
@@ -101,6 +119,18 @@ public partial class TranscriptionViewModel : ObservableObject
         TranscriptionTask.Translate,
     };
 
+    /// <summary>Whether the Whisper-only controls apply to the selected model.</summary>
+    public bool ShowWhisperExtensions => ModelOptionVisibility.ShowWhisperExtensions(_selectedCapabilities);
+
+    /// <summary>Whether the translation controls apply to the selected model.</summary>
+    public bool ShowTranslate => ModelOptionVisibility.ShowTranslate(_selectedCapabilities);
+
+    /// <summary>Whether speculative decoding applies to the selected model.</summary>
+    public bool ShowSpeculativeDecoding => ModelOptionVisibility.ShowSpeculativeDecoding(_selectedCapabilities);
+
+    /// <summary>False while a transcription or a capability check is running.</summary>
+    public bool CanTranscribe => !IsTranscribing && !IsCheckingCapabilities;
+
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
@@ -118,6 +148,10 @@ public partial class TranscriptionViewModel : ObservableObject
         _transcriptionService = transcriptionService;
         _settings = settings;
         LoadModels();
+        // The default alias is a fixed one (MOSS, ~700 MB), so this bounds the
+        // startup probe to a single known model. It runs off the UI thread; a
+        // model that is not on disk is not loaded and the options stay unfiltered.
+        RequestCapabilityProbe(ModelAlias);
     }
 
     private void LoadModels()
@@ -127,6 +161,97 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             AvailableModels.Add(model.Alias);
         }
+    }
+
+    partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
+
+    /// <summary>
+    /// Reads the capabilities of the selected model, once per alias.
+    /// </summary>
+    /// <remarks>
+    /// Only a model that is on disk can be loaded, and loading is the only way
+    /// the native library answers — the manifest declares no capabilities. When
+    /// there is nothing to check, the options stay unfiltered and
+    /// <see cref="CapabilityStatus"/> says why rather than hiding them on a
+    /// guess.
+    /// </remarks>
+    private void RequestCapabilityProbe(string alias)
+    {
+        if (_capabilityCache.TryGetValue(alias, out ModelCapabilitySnapshot? cached))
+        {
+            ApplyCapabilities(cached);
+            CapabilityStatus = string.Empty;
+            return;
+        }
+
+        ModelDescriptor? descriptor = ModelStore.Catalog.FirstOrDefault(m => m.Alias == alias);
+        if (descriptor is null || !ModelStore.IsCached(descriptor))
+        {
+            ApplyCapabilities(null);
+            CapabilityStatus = descriptor is null
+                ? string.Empty
+                : $"{alias} is not downloaded, so its capabilities are unknown. Every option is shown until it is checked.";
+            return;
+        }
+
+        if (_probing)
+        {
+            // One load at a time: the setter fires as the user moves through the
+            // list, and stacking loads would fight for memory. The last choice
+            // wins once the current load returns.
+            _pendingProbeAlias = alias;
+            return;
+        }
+
+        _ = ProbeAsync(alias, descriptor);
+    }
+
+    private async System.Threading.Tasks.Task ProbeAsync(string alias, ModelDescriptor descriptor)
+    {
+        _probing = true;
+        IsCheckingCapabilities = true;
+        CapabilityStatus = $"Checking what {alias} supports...";
+        try
+        {
+            string path = ModelStore.CachedPath(descriptor);
+            ModelCapabilitySnapshot snapshot = await System.Threading.Tasks.Task.Run(
+                () => ModelCapabilityProbe.Probe(path)).ConfigureAwait(true);
+
+            _capabilityCache[alias] = snapshot;
+            if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
+            {
+                ApplyCapabilities(snapshot);
+                CapabilityStatus = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
+            {
+                ApplyCapabilities(null);
+                CapabilityStatus = $"Could not check {alias}: {ex.Message}. Every option is shown.";
+            }
+        }
+        finally
+        {
+            _probing = false;
+            IsCheckingCapabilities = false;
+
+            string? pending = _pendingProbeAlias;
+            _pendingProbeAlias = null;
+            if (pending is not null && !string.Equals(pending, alias, StringComparison.Ordinal))
+            {
+                RequestCapabilityProbe(pending);
+            }
+        }
+    }
+
+    private void ApplyCapabilities(ModelCapabilitySnapshot? capabilities)
+    {
+        _selectedCapabilities = capabilities;
+        OnPropertyChanged(nameof(ShowWhisperExtensions));
+        OnPropertyChanged(nameof(ShowTranslate));
+        OnPropertyChanged(nameof(ShowSpeculativeDecoding));
     }
 
     [RelayCommand]
