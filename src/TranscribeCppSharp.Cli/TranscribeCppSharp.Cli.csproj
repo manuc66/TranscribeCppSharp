@@ -50,26 +50,9 @@
           Link="%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- Local dev convenience: when no RID is set (plain `dotnet run`), copy the
-       native libs from native-packages/ (fetched with tools/FetchNative) into the
-       output so the DllImportResolver finds them via AppContext.BaseDirectory. -->
-  <Target Name="CopyNativeLib" AfterTargets="Build" Condition="'$(RuntimeIdentifier)' == ''">
-    <ItemGroup>
-      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.so"
-                 Condition="!$([MSBuild]::IsOSPlatform('Windows')) And !$([MSBuild]::IsOSPlatform('OSX'))" />
-      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.dylib"
-                 Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
-      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/transcribe.dll"
-                 Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libggml*.so"
-                 Condition="!$([MSBuild]::IsOSPlatform('Windows')) And !$([MSBuild]::IsOSPlatform('OSX'))" />
-      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libggml*.dylib"
-                 Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
-      <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/ggml*.dll"
-                 Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    </ItemGroup>
-    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true"
-          Condition="@(NativeLib) != ''" />
-  </Target>
+  <!-- The native runtime is copied into the output for local builds by a shared
+       target, so this project and the GUI load the same build. See the target for
+       why that matters: a mismatched native fails at run time, not build time. -->
+  <Import Project="../../build/CopyNativeLib.targets" />
 
 </Project>

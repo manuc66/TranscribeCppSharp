@@ -33,4 +33,10 @@
   <ItemGroup>
     <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
   </ItemGroup>
+  <!-- Without this the GUI resolved transcribe.cpp through the NuGet package,
+       which is older than the checked-in Interop: 90 of the 99 entry points it
+       declares are missing from it, transcribe_device_count among them, so every
+       device call threw. See build/CopyNativeLib.targets. -->
+  <Import Project="../../build/CopyNativeLib.targets" />
+
 </Project>

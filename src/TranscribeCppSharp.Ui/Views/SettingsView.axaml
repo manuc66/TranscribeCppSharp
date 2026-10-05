@@ -24,6 +24,8 @@
       <TextBlock Text="Backend Version" FontWeight="Bold" Margin="0,0,0,4"
                  ToolTip.Tip="Version of the native transcribe.cpp library the wrapper is bound to." />
       <TextBlock Text="{Binding BackendVersion}" />
+      <TextBlock Text="{Binding BackendError}" Foreground="#CC4444" TextWrapping="Wrap" Margin="0,4,0,0"
+                 IsVisible="{Binding BackendError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
 
     <!-- Devices -->

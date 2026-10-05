@@ -1,0 +1,42 @@
+<!-- Copies the native transcribe.cpp runtime into a project's output directory.
+
+     Shared by every front end on purpose. Each executable has to load the same
+     native build: the wrapper's Interop assembly declares entry points by name,
+     so a front end that resolves an older libtranscribe fails at run time rather
+     than at build time, with EntryPointNotFoundException on whichever call
+     happens to be missing.
+
+     That is not hypothetical. The CLI has always had this target and the Avalonia
+     GUI did not, so the GUI silently fell back to the TranscribeCppSharp.Native
+     NuGet package — 90 of the 99 entry points the Interop declares — and
+     transcribe_device_count was one of the absent ones. Every device call in the
+     GUI's settings pane threw.
+
+     The native is fetched into native-packages/<rid>/ by tools/FetchNative and
+     is the build that matches the checked-in Interop. The NuGet package is a
+     distribution convenience and can lag behind it.
+
+     Only runs for a local build (no RuntimeIdentifier). Packing a RID-specific
+     tool embeds the native as content, which the RID-specific inner pack handles
+     and which must not be overridden here. -->
+
+<Project>
+  <Target Name="CopyNativeLib" AfterTargets="Build" Condition="'$(RuntimeIdentifier)' == ''">
+    <ItemGroup>
+      <NativeLib Include="$(MSBuildThisFileDirectory)../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.so"
+                 Condition="!$([MSBuild]::IsOSPlatform('Windows')) And !$([MSBuild]::IsOSPlatform('OSX'))" />
+      <NativeLib Include="$(MSBuildThisFileDirectory)../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.dylib"
+                 Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+      <NativeLib Include="$(MSBuildThisFileDirectory)../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/transcribe.dll"
+                 Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+      <NativeLib Include="$(MSBuildThisFileDirectory)../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libggml*.so"
+                 Condition="!$([MSBuild]::IsOSPlatform('Windows')) And !$([MSBuild]::IsOSPlatform('OSX'))" />
+      <NativeLib Include="$(MSBuildThisFileDirectory)../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libggml*.dylib"
+                 Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+      <NativeLib Include="$(MSBuildThisFileDirectory)../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/ggml*.dll"
+                 Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true"
+          Condition="@(NativeLib) != ''" />
+  </Target>
+</Project>
