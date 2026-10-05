@@ -5,12 +5,22 @@
              x:DataType="vm:SettingsViewModel">
 
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*">
-    <!-- Backend -->
-    <StackPanel Grid.Row="0" Margin="0,0,0,16">
-      <TextBlock Text="Backend" FontWeight="Bold" Margin="0,0,0,4"
-                 ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back." />
-      <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch" />
-    </StackPanel>
+    <!-- Backend and device -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,16">
+      <StackPanel Grid.Column="0" Margin="0,0,8,0">
+        <TextBlock Text="Backend" FontWeight="Bold" Margin="0,0,0,4"
+                   ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back." />
+        <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+        <TextBlock Text="Device" FontWeight="Bold" Margin="0,0,0,4"
+                   ToolTip.Tip="Pin transcription to one exact device. Stricter than a backend: it never falls back to another device, so a model that will not fit fails instead of quietly running elsewhere. Leave unselected to let the backend resolve one." />
+        <ComboBox ItemsSource="{Binding Devices}"
+                  SelectedItem="{Binding SelectedDevice}"
+                  PlaceholderText="Let the backend choose"
+                  HorizontalAlignment="Stretch" />
+      </StackPanel>
+    </Grid>
 
     <!-- Cache directory -->
     <StackPanel Grid.Row="1" Margin="0,0,0,16">

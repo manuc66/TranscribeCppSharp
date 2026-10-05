@@ -12,6 +12,8 @@ namespace TranscribeCppSharp.Ui.ViewModels;
 public partial class StreamingViewModel : ObservableObject, IDisposable
 {
     private readonly ITranscriptionService _transcriptionService;
+
+    private readonly SettingsViewModel _settings;
     private CancellationTokenSource? _cts;
     private bool _disposed;
 
@@ -79,9 +81,11 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     };
 
     public StreamingViewModel(
-        ITranscriptionService transcriptionService)
+        ITranscriptionService transcriptionService,
+        SettingsViewModel settings)
     {
         _transcriptionService = transcriptionService;
+        _settings = settings;
         LoadModels();
     }
 
@@ -112,6 +116,10 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         {
             var options = new StreamOptions
             {
+                // The backend and device chosen in Settings. These were
+                // displayed but read by nothing, so the pickers did nothing.
+                BackendRequest = _settings.SelectedBackend,
+                Device = _settings.SelectedDevice,
                 CommitPolicy = SelectedCommitPolicy,
                 StablePrefixAgreement = (uint?)StablePrefixAgreement,
                 MoonshineMinDecodeIntervalMs = MoonshineMinDecodeIntervalMs,

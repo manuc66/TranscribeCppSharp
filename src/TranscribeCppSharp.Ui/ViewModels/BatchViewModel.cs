@@ -13,6 +13,8 @@ public partial class BatchViewModel : ObservableObject
 {
     private readonly ITranscriptionService _transcriptionService;
 
+    private readonly SettingsViewModel _settings;
+
     [ObservableProperty]
     private string _modelAlias = "moss-transcribe-diarize";
 
@@ -47,9 +49,11 @@ public partial class BatchViewModel : ObservableObject
     private static readonly string[] TextPatterns = ["*.txt"];
 
     public BatchViewModel(
-        ITranscriptionService transcriptionService)
+        ITranscriptionService transcriptionService,
+        SettingsViewModel settings)
     {
         _transcriptionService = transcriptionService;
+        _settings = settings;
         LoadModels();
     }
 
@@ -125,6 +129,10 @@ public partial class BatchViewModel : ObservableObject
         {
             var options = new TranscriptionOptions
             {
+                // The backend and device chosen in Settings. These were
+                // displayed but read by nothing, so the pickers did nothing.
+                BackendRequest = _settings.SelectedBackend,
+                Device = _settings.SelectedDevice,
                 Language = Language,
                 TimestampKind = TimestampKind.TimestampsSegment,
                 DiarizeMode = DiarizeMode.DiarizeModeDefault

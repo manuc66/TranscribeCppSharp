@@ -14,6 +14,8 @@ public partial class TranscriptionViewModel : ObservableObject
 {
     private readonly ITranscriptionService _transcriptionService;
 
+    private readonly SettingsViewModel _settings;
+
     [ObservableProperty]
     private string _audioPath = string.Empty;
 
@@ -110,9 +112,11 @@ public partial class TranscriptionViewModel : ObservableObject
     private static readonly string[] JsonPatterns = ["*.json"];
 
     public TranscriptionViewModel(
-        ITranscriptionService transcriptionService)
+        ITranscriptionService transcriptionService,
+        SettingsViewModel settings)
     {
         _transcriptionService = transcriptionService;
+        _settings = settings;
         LoadModels();
     }
 
@@ -172,6 +176,10 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             var options = new TranscriptionOptions
             {
+                // The backend and device chosen in Settings. These were
+                // displayed but read by nothing, so the pickers did nothing.
+                BackendRequest = _settings.SelectedBackend,
+                Device = _settings.SelectedDevice,
                 Language = Language,
                 TimestampKind = TimestampKind.TimestampsSegment,
                 DiarizeMode = DiarizeMode.DiarizeModeDefault,

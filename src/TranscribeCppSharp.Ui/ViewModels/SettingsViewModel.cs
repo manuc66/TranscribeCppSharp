@@ -11,6 +11,17 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private BackendRequest _selectedBackend = BackendRequest.BackendAuto;
 
+    /// <summary>
+    /// The compute device to pin, or null to let the backend resolve one.
+    /// </summary>
+    /// <remarks>
+    /// A device is a stricter choice than a backend: it never falls back. Left
+    /// null, which is what an unset picker means, the backend decides — Auto
+    /// probing discrete GPUs before integrated ones.
+    /// </remarks>
+    [ObservableProperty]
+    private BackendDevice? _selectedDevice;
+
     [ObservableProperty]
     private string _cacheDirectory = string.Empty;
 
