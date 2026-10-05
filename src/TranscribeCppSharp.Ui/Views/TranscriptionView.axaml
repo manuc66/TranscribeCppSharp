@@ -7,7 +7,7 @@
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
     <!-- Audio file selection -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-      <TextBox Grid.Column="0" Text="{Binding AudioPath}" Watermark="Select audio file..." IsReadOnly="True"
+      <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
                ToolTip.Tip="A 16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, ...) is decoded with ffmpeg, which must be installed and on PATH." />
       <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseAudioCommand}" Margin="8,0,0,0"
               ToolTip.Tip="Pick an audio file to transcribe." />
@@ -51,7 +51,7 @@
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Initial Prompt" Margin="0,0,0,4"
                    ToolTip.Tip="Text given to the decoder before the audio, to steer vocabulary and punctuation. Useful for names and jargon the model would otherwise misspell. Whisper models only; other families ignore it." />
-        <TextBox Text="{Binding WhisperInitialPrompt}" Watermark="Optional initial prompt..." />
+        <TextBox Text="{Binding WhisperInitialPrompt}" PlaceholderText="Optional initial prompt..." />
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Temperature" Margin="0,0,0,4"
@@ -70,7 +70,7 @@
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Target Language" Margin="0,0,0,4"
                    ToolTip.Tip="Language code to translate into, for the models that support it. Left empty, the model's own default is used." />
-        <TextBox Text="{Binding TargetLanguage}" Watermark="For translation (e.g. en)" />
+        <TextBox Text="{Binding TargetLanguage}" PlaceholderText="For translation (e.g. en)" />
       </StackPanel>
       <StackPanel Grid.Column="2" Margin="8,0,0,0">
         <TextBlock Text="Window (sec)" Margin="0,0,0,4"
