@@ -104,6 +104,7 @@ public class AutomationIdTests
         "models-detail",
         "models-refresh",
         "models-delete-all",
+        "models-check-diarization",
     ];
 
     [AvaloniaFact]

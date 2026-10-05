@@ -13,7 +13,7 @@ namespace TranscribeCppSharp.Ui.Models;
 /// The manifest fields are the same for every user; only the cache state and the
 /// display formatting change, and those are the ones a view binds to.
 /// </remarks>
-public class ModelCatalogItem
+public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
 {
     public ModelCatalogItem(ModelDescriptor descriptor)
     {
@@ -85,6 +85,65 @@ public class ModelCatalogItem
     public bool IsMeasured => Benchmark is not null;
 
     /// <summary>
+    /// What is known about speaker diarization for this model.
+    /// </summary>
+    /// <remarks>
+    /// The manifest declares no capabilities, and the native library only answers
+    /// <c>Model.Supports(Feature.FeatureDiarization)</c> once a model is loaded.
+    /// So this stays <see cref="DiarizationSupport.Unknown"/> until the weights
+    /// are on disk and the row has been checked; it is never guessed from the
+    /// alias. See <see cref="DiarizationDetail"/> for what one cell cannot say.
+    /// </remarks>
+    public DiarizationSupport Diarization { get; private set; } = DiarizationSupport.Unknown;
+
+    /// <summary>Result of asking a loaded model whether it attributes speakers.</summary>
+    public enum DiarizationSupport
+    {
+        /// <summary>Never checked, or the weights are not on disk.</summary>
+        Unknown,
+
+        /// <summary>A check is in flight.</summary>
+        Checking,
+
+        /// <summary><c>Supports(FeatureDiarization)</c> returned true.</summary>
+        Supported,
+
+        /// <summary><c>Supports(FeatureDiarization)</c> returned false.</summary>
+        Unsupported,
+
+        /// <summary>The model could not be loaded, so nothing was learned.</summary>
+        LoadFailed,
+    }
+
+    /// <summary>Short cell text for the diarization column.</summary>
+    public string DiarizationText => Diarization switch
+    {
+        DiarizationSupport.Checking => "checking…",
+        DiarizationSupport.Supported => "yes",
+        DiarizationSupport.Unsupported => "no",
+        _ => "?",
+    };
+
+    /// <summary>One-line explanation for the detail pane.</summary>
+    public string DiarizationDetail => Diarization switch
+    {
+        DiarizationSupport.Checking => "checking…",
+        DiarizationSupport.Supported => "yes (checked on this machine)",
+        DiarizationSupport.Unsupported => "no (checked on this machine)",
+        DiarizationSupport.LoadFailed => "unknown, the model could not be loaded",
+        _ => IsCached ? "unknown, not checked yet" : "unknown, not downloaded",
+    };
+
+    /// <summary>Records a check result and tells the grid about it.</summary>
+    public void SetDiarization(DiarizationSupport value)
+    {
+        Diarization = value;
+        Raise(nameof(Diarization));
+        Raise(nameof(DiarizationText));
+        Raise(nameof(DiarizationDetail));
+    }
+
+    /// <summary>
     /// The model family, read off the repository name.
     /// </summary>
     /// <remarks>
@@ -142,6 +201,8 @@ public class ModelCatalogItem
         Raise(nameof(LocalPath));
         Raise(nameof(MeasuredText));
         Raise(nameof(IsMeasured));
+        Raise(nameof(DiarizationText));
+        Raise(nameof(DiarizationDetail));
     }
 
     private void Raise(string propertyName)

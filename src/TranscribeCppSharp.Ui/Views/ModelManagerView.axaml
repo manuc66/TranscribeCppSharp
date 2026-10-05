@@ -152,6 +152,7 @@
         <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" />
         <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="0.9*" />
         <DataGridTextColumn Header="x realtime" Binding="{Binding MeasuredText}" Width="0.6*" />
+        <DataGridTextColumn Header="Diarization" Binding="{Binding DiarizationText}" Width="0.7*" />
         <DataGridTemplateColumn Header="Action" Width="1.1*">
           <DataTemplate x:DataType="m:ModelCatalogItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -200,6 +201,10 @@
           <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" TextWrapping="Wrap" />
           <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
           <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
+          <TextBlock Opacity="0.8"
+                     Text="{Binding DiarizationDetail, StringFormat='Diarization: {0}'}"
+                     TextWrapping="Wrap"
+                     ToolTip.Tip="Only known for a model checked on this machine. The manifest declares no capabilities, and the native library only answers once the model is loaded." />
           <TextBlock Opacity="0.8" Text="{Binding LocalPath, StringFormat='Cached at: {0}'}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Sha256, StringFormat='sha256: {0}'}" Opacity="0.6" FontSize="11"
                      TextWrapping="Wrap" />
@@ -230,6 +235,13 @@
               AutomationProperties.AutomationId="models-delete-all"
               AutomationProperties.Name="Delete all downloaded models"
               ToolTip.Tip="Delete every model currently on disk. Only the cached model files are touched." />
+      <Button Content="Check diarization"
+              Command="{Binding CheckDiarizationCommand}"
+              IsEnabled="{Binding !IsBusy}"
+              Margin="8,0,0,0"
+              AutomationProperties.AutomationId="models-check-diarization"
+              AutomationProperties.Name="Check diarization for downloaded models"
+              ToolTip.Tip="Load every downloaded model once and ask whether it can attribute speakers. The manifest declares no capabilities, so a model not on disk stays unknown (?)." />
     </StackPanel>
 
     <!-- Progress -->

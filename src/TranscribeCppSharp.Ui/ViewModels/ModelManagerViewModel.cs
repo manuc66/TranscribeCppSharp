@@ -158,6 +158,18 @@ public partial class ModelManagerViewModel : ObservableObject
     /// </summary>
     public string MachineKey { get; } = ModelBenchmarkService.MachineKey();
 
+    /// <summary>
+    /// Diarization answers from this session, by alias.
+    /// </summary>
+    /// <remarks>
+    /// Kept across reloads: re-filtering the list should not reload a model just
+    /// to re-ask a question whose answer cannot change while the app is running.
+    /// </remarks>
+    private readonly Dictionary<string, ModelCatalogItem.DiarizationSupport> _diarizationResults = new(StringComparer.Ordinal);
+
+    /// <summary>True while <see cref="CheckDiarizationAsync"/> is walking the disk.</summary>
+    private bool _checkingDiarization;
+
     /// <summary>The audio the timing runs are taken over.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasBenchmarkAudio))]
@@ -313,6 +325,11 @@ public partial class ModelManagerViewModel : ObservableObject
         foreach (ModelDescriptor descriptor in ModelStore.Catalog)
         {
             var item = new ModelCatalogItem(descriptor);
+            if (_diarizationResults.TryGetValue(item.Alias, out ModelCatalogItem.DiarizationSupport diarization))
+            {
+                item.SetDiarization(diarization);
+            }
+
             Models.Add(item);
             if (item.IsCached)
             {
@@ -358,7 +375,7 @@ public partial class ModelManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task DownloadAsync(ModelCatalogItem? item)
     {
-        if (item is null || IsBusyAlias(item.Alias))
+        if (item is null || IsBusyAlias(item.Alias) || _checkingDiarization)
         {
             return;
         }
@@ -415,7 +432,7 @@ public partial class ModelManagerViewModel : ObservableObject
     [RelayCommand]
     private void Delete(ModelCatalogItem? item)
     {
-        if (item is null || IsBusyAlias(item.Alias))
+        if (item is null || IsBusyAlias(item.Alias) || _checkingDiarization)
         {
             return;
         }
@@ -449,6 +466,12 @@ public partial class ModelManagerViewModel : ObservableObject
     [RelayCommand]
     private void DeleteAll()
     {
+        if (_checkingDiarization)
+        {
+            StatusMessage = "Wait for the diarization check to finish first.";
+            return;
+        }
+
         int removed = 0;
         long freed = 0;
         foreach (ModelCatalogItem item in DownloadedModels.ToList())
@@ -468,6 +491,88 @@ public partial class ModelManagerViewModel : ObservableObject
         StatusMessage = removed == 0
             ? "Nothing to delete."
             : $"Deleted {removed} model(s), {ModelSizeFormat.Format(freed)} freed.";
+    }
+
+    /// <summary>
+    /// Loads each downloaded model once and asks it whether it attributes
+    /// speakers, filling the Diarization column.
+    /// </summary>
+    /// <remarks>
+    /// A button rather than automatic on load: the only way to answer is
+    /// <c>Model.Supports(FeatureDiarization)</c>, which needs the weights loaded,
+    /// and loading tens of gigabytes unprompted when the window opens would be a
+    /// surprise. Rows that are not on disk, or not checked, stay "?" — the
+    /// manifest declares no capability and it is never guessed from the alias.
+    /// The load is on the CPU so it does not take the GPU from a run.
+    /// </remarks>
+    [RelayCommand]
+    private async Task CheckDiarizationAsync()
+    {
+        if (_checkingDiarization)
+        {
+            return;
+        }
+
+        if (IsBusy)
+        {
+            StatusMessage = "Wait for the current download or measurement to finish first.";
+            return;
+        }
+
+        List<ModelCatalogItem> targets = DownloadedModels.ToList();
+        if (targets.Count == 0)
+        {
+            StatusMessage = "No downloaded models to check. Download one first.";
+            return;
+        }
+
+        _checkingDiarization = true;
+        int done = 0;
+        int failed = 0;
+        try
+        {
+            for (int i = 0; i < targets.Count; i++)
+            {
+                ModelCatalogItem item = targets[i];
+                item.SetDiarization(ModelCatalogItem.DiarizationSupport.Checking);
+                StatusMessage = $"Checking diarization for {item.Alias} ({i + 1}/{targets.Count})...";
+
+                try
+                {
+                    string path = item.LocalPath;
+                    bool supported = await System.Threading.Tasks.Task.Run(() =>
+                    {
+                        using var model = Model.Load(path, p => p.WithBackend(TranscribeCppSharp.Interop.BackendRequest.BackendCpu));
+                        return model.Supports(TranscribeCppSharp.Interop.Feature.FeatureDiarization);
+                    }).ConfigureAwait(true);
+
+                    ModelCatalogItem.DiarizationSupport state = supported
+                        ? ModelCatalogItem.DiarizationSupport.Supported
+                        : ModelCatalogItem.DiarizationSupport.Unsupported;
+                    _diarizationResults[item.Alias] = state;
+                    item.SetDiarization(state);
+                }
+                catch (Exception ex)
+                {
+                    // A model that will not load cannot be classified: the cell
+                    // shows "?" and the status names the reason, rather than
+                    // answering "no" for a question that was never put.
+                    item.SetDiarization(ModelCatalogItem.DiarizationSupport.LoadFailed);
+                    failed++;
+                    StatusMessage = $"Could not check {item.Alias}: {ex.Message}";
+                }
+
+                done++;
+            }
+
+            StatusMessage = failed == 0
+                ? $"Checked diarization for {done} downloaded model(s)."
+                : $"Checked diarization for {done - failed} of {done} downloaded model(s); {failed} could not be loaded.";
+        }
+        finally
+        {
+            _checkingDiarization = false;
+        }
     }
 
     private void ApplyFilter()
@@ -652,7 +757,7 @@ public partial class ModelManagerViewModel : ObservableObject
 
     private async System.Threading.Tasks.Task BenchmarkOneAsync(ModelCatalogItem? item)
     {
-        if (item is null || IsBusy)
+        if (item is null || IsBusy || _checkingDiarization)
         {
             return;
         }
