@@ -12,6 +12,10 @@
       <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch"
                 AutomationProperties.AutomationId="streaming-model"
                 AutomationProperties.Name="Model" />
+      <TextBlock Text="{Binding CapabilityStatus}" FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,4,0,0"
+                 IsVisible="{Binding CapabilityStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                 AutomationProperties.AutomationId="streaming-capability-status"
+                 AutomationProperties.Name="Model capabilities status" />
     </StackPanel>
 
     <!-- Commit policy and stable prefix -->
@@ -34,6 +38,7 @@
 
     <!-- Family-specific streaming extensions -->
     <Expander Grid.Row="2" Header="Family extensions" Margin="0,0,0,8"
+              IsVisible="{Binding ShowFamilyExtensions}"
               AutomationProperties.AutomationId="streaming-family-extensions"
               AutomationProperties.Name="Family extensions"
               ToolTip.Tip="These are passed only to the model family they belong to; every other family ignores them. Only Moonshine has been measured in this project's benchmark: see docs/streaming-bench.md, which lists what is still unverified.">
@@ -41,7 +46,7 @@
         <TextBlock Text="These apply only to the matching model family; other families ignore them."
                    FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,4" />
 
-        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowMoonshineExtensions}">
           <TextBlock Grid.Column="0" Text="Moonshine min decode interval (ms)" VerticalAlignment="Center"
                      ToolTip.Tip="Minimum delay between two decode passes, in milliseconds. Raising it decodes less often. Moonshine is the only streaming family measured in this project; see docs/streaming-bench.md." />
           <NumericUpDown Grid.Column="1" Value="{Binding MoonshineMinDecodeIntervalMs}" Minimum="0" Maximum="5000" Increment="50"
@@ -49,7 +54,7 @@
                          AutomationProperties.Name="Moonshine minimum decode interval" />
         </Grid>
 
-        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowParakeetExtensions}">
           <TextBlock Grid.Column="0" Text="Parakeet att context right" VerticalAlignment="Center"
                      ToolTip.Tip="Right-hand context the Parakeet streaming model attends over. The exact effect depends on the model build and has not been measured here." />
           <NumericUpDown Grid.Column="1" Value="{Binding ParakeetAttContextRight}" Minimum="0" Maximum="2000" Increment="10"
@@ -58,8 +63,9 @@
         </Grid>
 
         <TextBlock Text="Parakeet buffered (left / chunk / right ms)" FontWeight="SemiBold" Margin="0,4,0,2"
+                   IsVisible="{Binding ShowParakeetExtensions}"
                    ToolTip.Tip="How the Parakeet streaming model buffers audio before decoding it: how much past audio to keep, how much to decode at a time, and how much upcoming audio to include. Not measured here." />
-        <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4">
+        <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4" IsVisible="{Binding ShowParakeetExtensions}">
           <NumericUpDown Grid.Column="0" Value="{Binding ParakeetLeftMs}" Minimum="0" Maximum="10000" Increment="100" Margin="0,0,4,0"
                          AutomationProperties.AutomationId="streaming-parakeet-left"
                          AutomationProperties.Name="Parakeet left context"
@@ -74,7 +80,7 @@
                          ToolTip.Tip="Milliseconds of not-yet-spoken audio included as right context, at the cost of latency." />
         </Grid>
 
-        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowSortformerExtensions}">
           <TextBlock Grid.Column="0" Text="Sortformer preset" VerticalAlignment="Center"
                      ToolTip.Tip="Latency against quality, as named by the upstream preset. Higher latency is the more accurate end. The numeric values are the upstream preset ids; no measurement of the trade-off is included here." />
           <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableSortformerPresets}" SelectedItem="{Binding SelectedSortformerPreset}" HorizontalAlignment="Stretch"
@@ -82,7 +88,7 @@
                     AutomationProperties.Name="Sortformer preset" />
         </Grid>
 
-        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowVoxtralExtensions}">
           <TextBlock Grid.Column="0" Text="Voxtral delay tokens" VerticalAlignment="Center"
                      ToolTip.Tip="Number of delay tokens the Voxtral realtime stream allows before producing text. Not measured here." />
           <NumericUpDown Grid.Column="1" Value="{Binding VoxtralNumDelayTokens}" Minimum="0" Maximum="100" Increment="1"
@@ -90,7 +96,7 @@
                          AutomationProperties.Name="Voxtral delay tokens" />
         </Grid>
 
-        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4">
+        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowVoxtralExtensions}">
           <TextBlock Grid.Column="0" Text="Voxtral min decode interval (ms)" VerticalAlignment="Center"
                      ToolTip.Tip="Minimum delay between two decode passes, in milliseconds. Not measured here." />
           <NumericUpDown Grid.Column="1" Value="{Binding VoxtralMinDecodeIntervalMs}" Minimum="0" Maximum="5000" Increment="50"
@@ -102,7 +108,7 @@
 
     <!-- Controls -->
     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Start" Command="{Binding StartStreamingCommand}" IsEnabled="{Binding !IsStreaming}"
+      <Button Content="Start" Command="{Binding StartStreamingCommand}" IsEnabled="{Binding CanStartStreaming}"
               AutomationProperties.AutomationId="streaming-start"
               AutomationProperties.Name="Start streaming"
               ToolTip.Tip="Start capturing the microphone and transcribing it live. The first run of a model needs a network connection to download it." />

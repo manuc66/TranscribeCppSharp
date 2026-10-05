@@ -87,4 +87,47 @@ public static class ModelOptionVisibility
     /// <summary>Speculative decoding drafts, only for models that do it.</summary>
     public static bool ShowSpeculativeDecoding(ModelCapabilitySnapshot? capabilities)
         => capabilities is null || capabilities.SupportsSpecDecode;
+
+    /// <summary>
+    /// Whether the whole family-extensions group applies: a streaming model
+    /// whose architecture has one of the extension builders.
+    /// </summary>
+    public static bool ShowStreamingExtensions(ModelCapabilitySnapshot? capabilities)
+        => capabilities is null
+        || (capabilities.SupportsStreaming && IsKnownStreamingArchitecture(capabilities.Architecture));
+
+    /// <summary>Moonshine's decode-interval extension.</summary>
+    public static bool ShowMoonshineExtensions(ModelCapabilitySnapshot? capabilities)
+        => IsStreamingFamily(capabilities, "moonshine_streaming");
+
+    /// <summary>Parakeet's streaming extensions.</summary>
+    public static bool ShowParakeetExtensions(ModelCapabilitySnapshot? capabilities)
+        => IsStreamingFamily(capabilities, "parakeet");
+
+    /// <summary>Sortformer's preset extension.</summary>
+    public static bool ShowSortformerExtensions(ModelCapabilitySnapshot? capabilities)
+        => IsStreamingFamily(capabilities, "sortformer");
+
+    /// <summary>Voxtral's realtime extensions.</summary>
+    public static bool ShowVoxtralExtensions(ModelCapabilitySnapshot? capabilities)
+        => IsStreamingFamily(capabilities, "voxtral_realtime");
+
+    /// <summary>
+    /// A family extension applies only to a model that both streams and has
+    /// that architecture. The architecture alone is not enough: an offline
+    /// Parakeet and a streaming Parakeet share <c>parakeet</c>, but only the
+    /// streaming one has the buffered-streaming extension.
+    /// </summary>
+    private static bool IsStreamingFamily(ModelCapabilitySnapshot? capabilities, string architecture)
+        => capabilities is null
+        || (capabilities.SupportsStreaming
+            && string.Equals(capabilities.Architecture, architecture, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Architecture strings read from the <c>general.architecture</c> GGUF
+    /// metadata of the published models (not guessed): the four that have a
+    /// stream extension builder in the wrapper.
+    /// </summary>
+    private static bool IsKnownStreamingArchitecture(string architecture)
+        => architecture is "moonshine_streaming" or "parakeet" or "sortformer" or "voxtral_realtime";
 }

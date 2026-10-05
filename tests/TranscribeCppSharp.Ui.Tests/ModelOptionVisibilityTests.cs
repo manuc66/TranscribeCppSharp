@@ -11,13 +11,15 @@ public class ModelOptionVisibilityTests
     private static ModelCapabilitySnapshot Snapshot(
         bool translate = false,
         bool specDecode = false,
+        string architecture = "test",
+        bool streaming = false,
         params Feature[] features)
         => new(
-            Architecture: "test",
+            Architecture: architecture,
             Variant: "test",
             SupportsTranslate: translate,
             SupportsLanguageDetect: false,
-            SupportsStreaming: false,
+            SupportsStreaming: streaming,
             SupportsSpecDecode: specDecode,
             Features: features.ToHashSet());
 
@@ -61,5 +63,42 @@ public class ModelOptionVisibilityTests
 
         Assert.True(snapshot.Supports(Feature.FeatureDiarization));
         Assert.False(snapshot.Supports(Feature.FeatureInitialPrompt));
+    }
+
+    [Fact]
+    public void UnknownStreamingCapabilitiesHideNothing()
+    {
+        Assert.True(ModelOptionVisibility.ShowStreamingExtensions(null));
+        Assert.True(ModelOptionVisibility.ShowMoonshineExtensions(null));
+        Assert.True(ModelOptionVisibility.ShowParakeetExtensions(null));
+        Assert.True(ModelOptionVisibility.ShowSortformerExtensions(null));
+        Assert.True(ModelOptionVisibility.ShowVoxtralExtensions(null));
+    }
+
+    [Fact]
+    public void StreamingExtensionsFollowArchitectureAndStreaming()
+    {
+        ModelCapabilitySnapshot moonshine = Snapshot(architecture: "moonshine_streaming", streaming: true);
+        Assert.True(ModelOptionVisibility.ShowStreamingExtensions(moonshine));
+        Assert.True(ModelOptionVisibility.ShowMoonshineExtensions(moonshine));
+        Assert.False(ModelOptionVisibility.ShowParakeetExtensions(moonshine));
+
+        // Offline and streaming Parakeet share an architecture; only the
+        // streaming one has the buffered-streaming extension.
+        ModelCapabilitySnapshot offlineParakeet = Snapshot(architecture: "parakeet");
+        Assert.False(ModelOptionVisibility.ShowStreamingExtensions(offlineParakeet));
+        Assert.False(ModelOptionVisibility.ShowParakeetExtensions(offlineParakeet));
+
+        ModelCapabilitySnapshot streamingParakeet = Snapshot(architecture: "parakeet", streaming: true);
+        Assert.True(ModelOptionVisibility.ShowParakeetExtensions(streamingParakeet));
+        Assert.False(ModelOptionVisibility.ShowMoonshineExtensions(streamingParakeet));
+
+        ModelCapabilitySnapshot sortformer = Snapshot(architecture: "sortformer", streaming: true);
+        Assert.True(ModelOptionVisibility.ShowSortformerExtensions(sortformer));
+
+        // Non-realtime Voxtral has a different architecture and does not stream.
+        ModelCapabilitySnapshot voxtralRealtime = Snapshot(architecture: "voxtral_realtime", streaming: true);
+        Assert.True(ModelOptionVisibility.ShowVoxtralExtensions(voxtralRealtime));
+        Assert.False(ModelOptionVisibility.ShowVoxtralExtensions(Snapshot(architecture: "voxtral")));
     }
 }

@@ -45,6 +45,7 @@ public class AutomationIdTests
     private static readonly string[] StreamingIds =
     [
         "streaming-model",
+        "streaming-capability-status",
         "streaming-commit-policy",
         "streaming-stable-prefix-agreement",
         "streaming-family-extensions",
