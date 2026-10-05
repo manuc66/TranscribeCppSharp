@@ -105,6 +105,12 @@
           "NAudio.WinMM": "2.2.1"
         }
       },
+      "Tmds.DBus.Protocol": {
+        "type": "Direct",
+        "requested": "[0.21.3, )",
+        "resolved": "0.21.3",
+        "contentHash": "hDwB8WsQoyALQKqIbwzS68UKdlnafDm4T/DkO/JrA/YIneP/rKv96SxYPVXeh3FP4i/SXfShrYftKLtciJAIlw=="
+      },
       "Avalonia.Angle.Windows.Natives": {
         "type": "Transitive",
         "resolved": "2.1.22045.20230930",
@@ -315,11 +321,6 @@
         "type": "Transitive",
         "resolved": "10.0.12",
         "contentHash": "jDix4bBMYnpZdSPcnY+KDV6ik3SRMzpMKby/bZl/XUwIiflwRNAFZ0oOl61R/pSaveIJ8t1gs2BUlrGsPs/bcg=="
-      },
-      "Tmds.DBus.Protocol": {
-        "type": "Transitive",
-        "resolved": "0.20.0",
-        "contentHash": "2gkt2kuYPhDKd8gtl34jZSJOnn4nRJfFngCDcTZT/uySbK++ua0YQx2418l9Rn1Y4dE5XNq6zG9ZsE5ltLlNNw=="
       },
       "transcribecppsharp": {
         "type": "Project",

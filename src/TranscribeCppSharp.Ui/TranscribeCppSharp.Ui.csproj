@@ -28,6 +28,22 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <!-- Not used directly: this arrives transitively through Avalonia.FreeDesktop,
+         which asks for 0.20.0. That version is affected by GHSA-xrw6-gwf8-vvr9
+         (CVE-2026-39959): a peer on the same bus can spoof signals by claiming a
+         well-known name, exhaust file descriptors, or crash the process on a
+         malformed body. Fixed in 0.21.3, which satisfies Avalonia's >= 0.20.0
+         constraint. Do not move to 0.22.0: that whole range stays vulnerable
+         until 0.92.0. Do not move to 0.92.0 either: it drops Variant, and
+         0.94.1 also drops Address, ClientConnectionOptions, Connection,
+         ConnectionOptions, DBusException and IMethodHandler, all of which
+         Avalonia.FreeDesktop 11.2.x references from its IL. Checked against the
+         signatures, the IL member refs and the IL type refs Avalonia 11.2.1 uses:
+         0.21.3 resolves all of them. Remove this reference once
+         Avalonia.FreeDesktop itself asks for a patched version, which means
+         leaving Avalonia 11.2.x, since its last release (11.2.8, 2025-04-20)
+         predates the advisory and the whole line still asks for 0.20.0. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
 
   <ItemGroup>
