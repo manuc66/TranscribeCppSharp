@@ -21,7 +21,9 @@ public sealed record ModelCapabilitySnapshot(
     bool SupportsLanguageDetect,
     bool SupportsStreaming,
     bool SupportsSpecDecode,
-    IReadOnlySet<Feature> Features)
+    IReadOnlySet<Feature> Features,
+    IReadOnlyList<string> Languages,
+    IReadOnlyList<string> TranslateTargetLanguages)
 {
     /// <summary>Whether the model reports a given feature.</summary>
     public bool Supports(Feature feature) => Features.Contains(feature);
@@ -59,7 +61,9 @@ public static class ModelCapabilityProbe
             SupportsLanguageDetect: capabilities.SupportsLanguageDetect,
             SupportsStreaming: capabilities.SupportsStreaming,
             SupportsSpecDecode: capabilities.SupportsSpecDecode,
-            Features: features);
+            Features: features,
+            Languages: capabilities.Languages,
+            TranslateTargetLanguages: capabilities.TranslateTargetLanguages);
     }
 }
 

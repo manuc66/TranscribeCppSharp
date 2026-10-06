@@ -71,10 +71,7 @@ public partial class TranscriptionViewModel : ObservableObject
     private bool _hasResult;
 
     public ObservableCollection<string> AvailableModels { get; } = new();
-    public ObservableCollection<string> AvailableLanguages { get; } = new()
-    {
-        "en", "fr", "de", "es", "it", "pt", "ru", "zh", "ja", "ko"
-    };
+    public ObservableCollection<string> AvailableLanguages { get; } = new();
 
     [ObservableProperty]
     private int? _threads;
@@ -252,6 +249,46 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowWhisperExtensions));
         OnPropertyChanged(nameof(ShowTranslate));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
+        UpdateAvailableLanguages(capabilities);
+    }
+
+    private void UpdateAvailableLanguages(ModelCapabilitySnapshot? capabilities)
+    {
+        AvailableLanguages.Clear();
+        if (capabilities == null)
+        {
+            AvailableLanguages.Add("en");
+            AvailableLanguages.Add("fr");
+            AvailableLanguages.Add("de");
+            AvailableLanguages.Add("es");
+            AvailableLanguages.Add("it");
+            AvailableLanguages.Add("pt");
+            AvailableLanguages.Add("ru");
+            AvailableLanguages.Add("zh");
+            AvailableLanguages.Add("ja");
+            AvailableLanguages.Add("ko");
+            return;
+        }
+
+        if (capabilities.SupportsLanguageDetect)
+        {
+            AvailableLanguages.Add("auto");
+        }
+
+        foreach (var lang in capabilities.Languages.Where(l => !string.IsNullOrEmpty(l) && !AvailableLanguages.Contains(l)))
+        {
+            AvailableLanguages.Add(lang);
+        }
+
+        if (AvailableLanguages.Count == 0)
+        {
+            AvailableLanguages.Add("en");
+        }
+
+        if (!AvailableLanguages.Contains(Language))
+        {
+            Language = AvailableLanguages.First();
+        }
     }
 
     [RelayCommand]

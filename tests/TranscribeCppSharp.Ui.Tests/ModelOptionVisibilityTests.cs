@@ -13,15 +13,18 @@ public class ModelOptionVisibilityTests
         bool specDecode = false,
         string architecture = "test",
         bool streaming = false,
+        bool languageDetect = false,
         params Feature[] features)
         => new(
             Architecture: architecture,
             Variant: "test",
             SupportsTranslate: translate,
-            SupportsLanguageDetect: false,
+            SupportsLanguageDetect: languageDetect,
             SupportsStreaming: streaming,
             SupportsSpecDecode: specDecode,
-            Features: features.ToHashSet());
+            Features: features.ToHashSet(),
+            Languages: Array.Empty<string>(),
+            TranslateTargetLanguages: Array.Empty<string>());
 
     [Fact]
     public void AnUnloadedModelHidesNothing()
