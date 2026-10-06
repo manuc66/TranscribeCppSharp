@@ -255,9 +255,11 @@ public class TranscriptionService : ITranscriptionService
     private static void Configure(RunParamsBuilder builder, TranscriptionOptions options)
     {
         builder
-            .WithLanguage(options.Language)
             .WithTimestamps(options.TimestampKind)
             .WithDiarize(options.DiarizeMode);
+
+        if (options.Language != "auto")
+            builder.WithLanguage(options.Language);
 
         if (options.PncMode.HasValue)
             builder.WithPnc(options.PncMode.Value);
