@@ -152,7 +152,10 @@ Five tabs, one per job:
 Three things worth knowing before you rely on it:
 
 - **It shares the model cache with the `transcribe` CLI.** A model downloaded in one is
-  there for the other, and the Models tab can delete what the CLI fetched.
+  there for the other, and the Models tab can delete what the CLI fetched. The three tabs
+  that run a model list **only what is on disk**, so a model fetched by the CLI appears in
+  them without you having to fetch it again; under each picker a count and a `Get more…`
+  button say how to get the rest.
 - **It asks the model what it can do, instead of guessing from the name.** Loading is the
   only way the native library answers — the manifest declares no capabilities — so a model
   that is not on disk keeps every option visible and the app says so underneath the picker.

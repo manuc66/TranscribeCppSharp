@@ -57,6 +57,26 @@ are the wrapper's: the [thread-safety rule](concurrency.md#thread-safety) and th
 [native abort on long streams](streaming-bench.md) apply unchanged. What each tab does:
 [Desktop app](ui.md).
 
+## What the model pickers offer
+
+The three tabs that run a model — Transcription, Streaming and Batch — list **only the
+aliases already on disk**, so an entry means you can run it now rather than that picking it
+will start a download. With a fresh cache the list is empty and the button is disabled.
+
+Under every one of those pickers sits a count and a **Get more…** button:
+
+```
+1 of 72 on disk — the Models tab downloads more.    [Get more…]
+```
+
+The button is always there, not only when the list has run out: a picker with a single entry
+does not tell you the other 71 exist. It switches to the Models tab, and the list is re-read
+on every tab change — otherwise the guidance would point at a download that never appears,
+because the pickers are built once when the window opens.
+
+Which models those 72 are, and what the Models tab does with them:
+[Desktop app — Models](ui.md#models).
+
 ## Or call it from C#
 
 ```bash

@@ -49,6 +49,15 @@ counts whatever it has fetched. Regenerate them with:
 dotnet run --project samples/UiScreenshot           # writes into docs/assets/images
 ```
 
+**What the three model pickers offer.** Transcription, Streaming and Batch list only the
+aliases already on disk, so an entry means you can run it now — with a fresh cache the list
+is empty and the button that starts a run is disabled. Under each picker sits a count and a
+`Get more…` button that switches to the Models tab, always visible rather than only once the
+list has run out: a picker with one entry does not tell you the other 71 exist. The list is
+re-read on every tab change, because downloads happen in Models while the pickers are built
+once when the window opens — without that, the guidance would point at a download that never
+appears.
+
 ### Transcription
 
 ![The Transcription tab.]({{ '/assets/images/ui-transcription.png' | relative_url }})
