@@ -72,10 +72,22 @@ internal static class Program
 
         window.Show();
 
+        // Wait for the startup capability probes before the first frame. Without
+        // this the picture is taken mid-load: on a machine where the default model
+        // is already downloaded, the language picker is still empty because the
+        // list only arrives once the model has answered. Settled is the honest
+        // state to show, and a transient blank field would not be.
+        if (!SettleProbes(window, models))
+        {
+            Console.Error.WriteLine(
+                "warning: capability probes still running after " + ProbeTimeout +
+                "; capturing the window as it is.");
+        }
+
         foreach (string tab in Tabs)
         {
             models.SelectedTabIndex = Array.IndexOf(Tabs, tab);
-            Settle(window);
+            Layout(window);
 
             string path = Path.Combine(outputDirectory, $"ui-{tab}.png");
             WriteableBitmap? frame = window.CaptureRenderedFrame();
@@ -91,15 +103,52 @@ internal static class Program
         lifetime.Shutdown();
     }
 
+    /// <summary>How long to wait for the model probes before giving up.</summary>
+    private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(60);
+
     /// <summary>
-    /// Lets the tab change be laid out before the frame is taken.
+    /// Pumps the dispatcher until both tabs have finished reading what their model
+    /// can do.
+    /// </summary>
+    /// <returns>True when they finished, false when <see cref="ProbeTimeout"/> ran out.</returns>
+    /// <remarks>
+    /// The probes load the model on a worker thread and post back to the UI thread,
+    /// so this has to sleep between pumps: an empty loop would starve the load. The
+    /// dispatcher is never left to run on its own, because nothing here drives a
+    /// message loop.
+    /// </remarks>
+    private static bool SettleProbes(Window window, MainWindowViewModel models)
+    {
+        var deadline = DateTime.UtcNow + ProbeTimeout;
+        do
+        {
+            Layout(window);
+            if (!IsProbing(models))
+            {
+                return true;
+            }
+
+            Thread.Sleep(50);
+        }
+        while (DateTime.UtcNow < deadline);
+
+        Layout(window);
+        return !IsProbing(models);
+    }
+
+    private static bool IsProbing(MainWindowViewModel models)
+        => models.Transcription.IsCheckingCapabilities
+            || models.Streaming.IsCheckingCapabilities;
+
+    /// <summary>
+    /// Lets a change be laid out before the frame is taken.
     /// </summary>
     /// <remarks>
     /// Setting SelectedTabIndex and capturing in one pass photographs the previous
     /// tab: the binding has not been through a layout yet. Draining the dispatcher
     /// and then measuring is what makes the new tab the thing in the picture.
     /// </remarks>
-    private static void Settle(Window window)
+    private static void Layout(Window window)
     {
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();

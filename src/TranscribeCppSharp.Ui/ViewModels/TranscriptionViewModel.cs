@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
@@ -62,10 +61,10 @@ public partial class TranscriptionViewModel : ObservableObject
     private ObservableCollection<MergedSegment> _segments = new();
 
     [ObservableProperty]
-    private ObservableCollection<TranscribeCppSharp.WordResult> _words = new();
+    private ObservableCollection<WordResult> _words = new();
 
     [ObservableProperty]
-    private ObservableCollection<TranscribeCppSharp.SpeakerSegmentResult> _speakerSegments = new();
+    private ObservableCollection<SpeakerSegmentResult> _speakerSegments = new();
 
     [ObservableProperty]
     private bool _hasResult;
@@ -148,6 +147,11 @@ public partial class TranscriptionViewModel : ObservableObject
         // The default alias is a fixed one (MOSS, ~700 MB), so this bounds the
         // startup probe to a single known model. It runs off the UI thread; a
         // model that is not on disk is not loaded and the options stay unfiltered.
+        //
+        // The language list is seeded before the probe rather than left empty: the
+        // view is created once the window's DataContext is set, and a picker bound
+        // to an empty list has nothing to match against.
+        AddFallbackLanguages();
         RequestCapabilityProbe(ModelAlias);
     }
 
@@ -243,7 +247,15 @@ public partial class TranscriptionViewModel : ObservableObject
         }
     }
 
-    private void ApplyCapabilities(ModelCapabilitySnapshot? capabilities)
+    /// <summary>
+    /// Applies what a probe reported, including rebuilding the language list.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private so the tests can hand it a model report without
+    /// downloading one: that is the path where the lists change while the view is
+    /// already bound, which is the one the constructor cannot reproduce.
+    /// </remarks>
+    internal void ApplyCapabilities(ModelCapabilitySnapshot? capabilities)
     {
         _selectedCapabilities = capabilities;
         OnPropertyChanged(nameof(ShowWhisperExtensions));
@@ -252,21 +264,25 @@ public partial class TranscriptionViewModel : ObservableObject
         UpdateAvailableLanguages(capabilities);
     }
 
+    /// <summary>
+    /// Rebuilds the language list from what a model reports, or fills the fallback
+    /// when there is nothing to report.
+    /// </summary>
+    /// <remarks>
+    /// The invariant is that the list must never be empty while the view is bound:
+    /// a picker with no items cannot match <c>Language</c>, so it drops its own
+    /// selection, and once it is empty in the view model too the assignment below
+    /// cannot repair a control it never re-pushes to. The constructor seeds the
+    /// fallback before the window's DataContext is set for exactly that reason; this
+    /// method clears and refills it, and the selection it drops writes back an empty
+    /// value, which is what makes <see cref="Language"/> fire again.
+    /// </remarks>
     private void UpdateAvailableLanguages(ModelCapabilitySnapshot? capabilities)
     {
         AvailableLanguages.Clear();
         if (capabilities == null)
         {
-            AvailableLanguages.Add("en");
-            AvailableLanguages.Add("fr");
-            AvailableLanguages.Add("de");
-            AvailableLanguages.Add("es");
-            AvailableLanguages.Add("it");
-            AvailableLanguages.Add("pt");
-            AvailableLanguages.Add("ru");
-            AvailableLanguages.Add("zh");
-            AvailableLanguages.Add("ja");
-            AvailableLanguages.Add("ko");
+            AddFallbackLanguages();
             return;
         }
 
@@ -289,6 +305,29 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             Language = AvailableLanguages.First();
         }
+    }
+
+    /// <summary>
+    /// The languages offered before a model has answered.
+    /// </summary>
+    /// <remarks>
+    /// Called twice: once in the constructor, so the picker has items before the
+    /// window's DataContext is set, and again when a model cannot be probed — not
+    /// downloaded, or the probe failed. It is a fixed list because nothing has said
+    /// otherwise yet; once a model reports, its own languages replace it.
+    /// </remarks>
+    private void AddFallbackLanguages()
+    {
+        AvailableLanguages.Add("en");
+        AvailableLanguages.Add("fr");
+        AvailableLanguages.Add("de");
+        AvailableLanguages.Add("es");
+        AvailableLanguages.Add("it");
+        AvailableLanguages.Add("pt");
+        AvailableLanguages.Add("ru");
+        AvailableLanguages.Add("zh");
+        AvailableLanguages.Add("ja");
+        AvailableLanguages.Add("ko");
     }
 
     [RelayCommand]
@@ -364,8 +403,8 @@ public partial class TranscriptionViewModel : ObservableObject
 
             FullText = Result.FullText;
             Segments = new ObservableCollection<MergedSegment>(Result.Segments);
-            Words = new ObservableCollection<TranscribeCppSharp.WordResult>(Result.Words);
-            SpeakerSegments = new ObservableCollection<TranscribeCppSharp.SpeakerSegmentResult>(Result.SpeakerSegments);
+            Words = new ObservableCollection<WordResult>(Result.Words);
+            SpeakerSegments = new ObservableCollection<SpeakerSegmentResult>(Result.SpeakerSegments);
             HasResult = true;
             StatusMessage = "Transcription complete.";
         }

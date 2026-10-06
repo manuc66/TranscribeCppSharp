@@ -62,7 +62,7 @@ is decoded with `ffmpeg`, which has to be installed and on `PATH` — see
 | Setting | Default | Notes |
 |---|---|---|
 | Model | the CLI's default alias | Downloaded on first use and cached |
-| Language | `en` | The code the model *assumes* the audio is in. The picker offers ten codes; only Whisper-family models detect the language themselves |
+| Language | `en`, then whatever the model allows | Before the model is probed, the picker falls back to ten codes (`en`, `fr`, `de`, `es`, `it`, `pt`, `ru`, `zh`, `ja`, `ko`). Once a model has been probed the list is what *it* declares, with `auto` added when it reports language detection, and `auto` means no language is passed at all so the model decides for itself. If the current choice is not in the new list, the picker takes the first entry instead of keeping an unavailable one |
 | Threads | library default | Left empty on purpose. This is not a benchmarked recommendation — raising it past the core count usually makes it slower |
 | KV type | Auto | `F32` keeps the most precision and the most memory; `F16` halves the cache |
 | Context size | model maximum | Lower uses less memory; too low truncates long passages |
@@ -179,6 +179,10 @@ Two consequences worth knowing:
   picker says why. Hiding an option on a guess would hide one that would have worked.
 - **The probe loads on the CPU**, so checking a model's capabilities does not take the GPU
   away from a run already using it.
+
+The language picker works the same way: ten codes stand in while nothing has been probed,
+and a probed model replaces that list with the languages it actually reports. The UI used to
+offer languages a model could not handle, and no way to ask for auto-detection at all.
 
 Capabilities are cached per alias for the session.
 

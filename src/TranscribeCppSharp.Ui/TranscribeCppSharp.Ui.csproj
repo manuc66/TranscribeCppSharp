@@ -41,6 +41,14 @@
   <ItemGroup>
     <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- The tests drive ApplyCapabilities directly: that is the path where a model
+         report rebuilds the option lists while the view is already bound, which is
+         the one case a constructor-driven test cannot reach without downloading a
+         real model. -->
+    <InternalsVisibleTo Include="TranscribeCppSharp.Ui.Tests" />
+  </ItemGroup>
   <!-- Without this the GUI resolved transcribe.cpp through the NuGet package,
        which is older than the checked-in Interop: 90 of the 99 entry points it
        declares are missing from it, transcribe_device_count among them, so every
