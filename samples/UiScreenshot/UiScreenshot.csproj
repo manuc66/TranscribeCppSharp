@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RootNamespace>TranscribeCppSharp.UiScreenshot</RootNamespace>
+    <AssemblyName>UiScreenshot</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same Avalonia as the app it renders: a screenshot drawn by a different
+         version is not a screenshot of this app. The Headless package supplies
+         the platform; UseHeadlessDrawing = false is what switches it from
+         "draw nothing" to the real Skia renderer, so the PNGs are what the app
+         actually draws rather than an empty window. -->
+    <PackageReference Include="Avalonia.Headless" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The app itself, so the window is the real MainWindow with the real view
+         models behind it and nothing is re-wired to suit the picture. -->
+    <ProjectReference Include="..\..\src\TranscribeCppSharp.Ui\TranscribeCppSharp.Ui.csproj" />
+  </ItemGroup>
+
+  <!-- Same target the app imports, for the same reason: the Settings view model
+       initializes the compute backends in its constructor, so this process loads
+       the native library too. Without the copy it resolves nothing and the window
+       never opens. -->
+  <Import Project="../../build/CopyNativeLib.targets" />
+</Project>

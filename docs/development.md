@@ -29,10 +29,21 @@ dotnet run --project samples/SmokeTest -- model.gguf audio.wav
 # Run the CLI from source (see "Command-line tool" for the installed tool).
 # WAV is read directly; other formats (ogg, mp3, …) are decoded with ffmpeg.
 dotnet run --project src/TranscribeCppSharp.Cli -- audio.ogg
+
+# Regenerate the desktop-app screenshots in docs/assets/images/ui-*.png
+dotnet run --project samples/UiScreenshot
 ```
 
-Both need `tools/FetchNative` to have run first, so the native libraries are in
-the output directory.
+Every command above needs `tools/FetchNative` to have run first, so the native
+libraries are in the output directory. The screenshot generator does too — it
+opens the real window, which initializes the compute backends.
+
+The screenshots are byte-identical across runs **on one machine**, which is what
+makes regenerating them safe: on that machine, a changed PNG means something in
+the UI changed. They are **not** reproducible between machines. The fonts, the
+compute devices on the Settings tab and the cache counts on the Models tab all
+come from the machine that drew them, so those pixels change when the machine
+does.
 
 ## Tests that keep the documentation honest
 

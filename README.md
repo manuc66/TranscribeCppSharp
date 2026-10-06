@@ -166,6 +166,8 @@ The tab that carries the library's limits is Streaming: the app calls the same
 `StreamSession` the CLI and the library do, so the native abort documented in
 [Streaming benchmarks](docs/streaming-bench.md) applies here too and is not a GUI bug.
 
+Per-tab detail, and what the app does not do: [Desktop app](docs/ui.md).
+
 ## What it does not do
 
 Stated plainly, so nothing is implied. Each item has its own page with the detail.

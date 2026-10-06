@@ -6,9 +6,9 @@ nav_order: 1
 
 # TranscribeCppSharp
 
-A `transcribe` command-line tool and .NET bindings for
+A `transcribe` command-line tool, a desktop app and .NET bindings for
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (speech-to-text): get a
-transcript from a shell with no code, or load GGUF models from C#.
+transcript from a shell with no code, from a window, or load GGUF models from C#.
 
 This project is a **packaging and binding effort only** — the native library is
 developed by the [transcribe.cpp authors](https://github.com/handy-computer/transcribe.cpp)
@@ -33,6 +33,29 @@ run. An NVIDIA GPU is the exception: CUDA needs a native build of your own, whic
 
 Every option, the export formats and what the tool does not do:
 [Command-line tool](cli.md).
+
+## Or use the desktop app
+
+`TranscribeCppSharp.Ui` is an Avalonia GUI over the same wrapper: five tabs for
+transcribing a file, streaming the microphone, a batch, the model catalogue and the
+compute settings. It is **not distributed as a package** — there is no installer and no
+NuGet package for it, so you run it from a clone:
+
+```bash
+dotnet run --project tools/FetchNative            # once: the native library the app loads
+dotnet run --project src/TranscribeCppSharp.Ui
+```
+
+![The Transcription tab: an audio path, a model, the language and the decoder settings, with Transcribe and Export below.]({{ '/assets/images/ui-transcription.png' | relative_url }})
+
+<sub>The Transcription tab, with nothing picked and nothing run. The picture is
+generated from the app itself, not drawn by hand; see
+[Desktop app](ui.md#the-five-tabs) for the other four.</sub>
+
+Because it is a front end over the wrapper rather than a second implementation, its limits
+are the wrapper's: the [thread-safety rule](concurrency.md#thread-safety) and the
+[native abort on long streams](streaming-bench.md) apply unchanged. What each tab does:
+[Desktop app](ui.md).
 
 ## Or call it from C#
 
@@ -85,6 +108,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 | Page | What is in it |
 |---|---|
 | [Command-line tool](cli.md) | installing `transcribe`, a first run, the full `--help`, and what the tool does not do |
+| [Desktop app](ui.md) | the Avalonia GUI: the five tabs, running it from source, and what it does not do |
 | [Getting started](getting-started.md) | installing, the native packages, load-and-transcribe, batch, streaming, sample code |
 | [Compute](compute.md) | GPU by default, `--list-devices`, backend and device selection, CUDA |
 | [Models](models.md) | aliases vs. HuggingFace specs, `--list-models`, caching, capabilities, model licences |

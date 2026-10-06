@@ -6,9 +6,9 @@
 # pinned to a release rather than to `main`, so the site cannot change under us.
 title: TranscribeCppSharp
 description: >-
-  A `transcribe` command-line tool and .NET bindings for transcribe.cpp
-  (speech-to-text): get a transcript from a shell with no code, or load GGUF models
-  from C#. The native library is developed by the transcribe.cpp authors.
+  A `transcribe` command-line tool, a desktop app and .NET bindings for transcribe.cpp
+  (speech-to-text): get a transcript from a shell with no code, from a window, or load
+  GGUF models from C#. The native library is developed by the transcribe.cpp authors.
 remote_theme: just-the-docs/just-the-docs@v0.12.0
 
 # A project page is served from /<repo>, and just-the-docs' search index is fetched from

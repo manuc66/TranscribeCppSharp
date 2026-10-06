@@ -15,5 +15,6 @@
   <Folder Name="/samples/">
     <Project Path="samples/SmokeTest/SmokeTest.csproj" />
     <Project Path="samples/StreamingBench/StreamingBench.csproj" />
+    <Project Path="samples/UiScreenshot/UiScreenshot.csproj" />
   </Folder>
 </Solution>
