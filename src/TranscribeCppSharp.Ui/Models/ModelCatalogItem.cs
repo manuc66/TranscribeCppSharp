@@ -1,4 +1,3 @@
-using System;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Performance;
 
@@ -158,12 +157,13 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     public string Family => DeriveFamily(Descriptor.Repo);
 
     /// <summary>
-    /// Whether this is the model the CLI defaults to.
+    /// Whether this is the alias the CLI defaults to.
     /// </summary>
     /// <remarks>
-    /// Marked because it is the one alias here known to work: the CLI picks it
-    /// when no model is given. It is not a claim about quality — this project
-    /// publishes no accuracy or speed comparison between the models.
+    /// Marked on the grid because the Models tab banner sends the reader to the
+    /// model marked 'default'. The marking says which alias a command with no
+    /// <c>--model</c> ends up using; it is not a claim about quality or speed,
+    /// because this project publishes no comparison between the models.
     /// </remarks>
     public bool IsDefaultModel => string.Equals(Alias, DefaultAlias, StringComparison.Ordinal);
 

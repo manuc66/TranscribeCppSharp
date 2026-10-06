@@ -146,7 +146,23 @@
               AutomationProperties.Name="Model catalogue"
               ToolTip.Tip="Speed, not accuracy. See the Measured line in the detail pane below.">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="1.3*" />
+        <!-- Alias, with the CLI's default marked on the row.
+
+             The banner above sends the reader to the model marked 'default',
+             so the marking has to be on the row itself. IsDefaultModel was
+             written for this and bound to nothing, so the banner pointed at a
+             mark no one could see. Template rather than a plain text column so
+             the alias stays clean and the mark reads as an aside. -->
+        <DataGridTemplateColumn Header="Alias" Width="1.3*">
+          <DataTemplate x:DataType="m:ModelCatalogItem">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Alias}" />
+              <TextBlock Text="default" Opacity="0.7"
+                         IsVisible="{Binding IsDefaultModel}"
+                         ToolTip.Tip="The alias the transcribe CLI uses when none is given. Not a claim about quality or speed: this project publishes no comparison between the models." />
+            </StackPanel>
+          </DataTemplate>
+        </DataGridTemplateColumn>
         <DataGridTextColumn Header="Family (from repo)" Binding="{Binding Family}" Width="1.3*" />
         <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="0.6*" />
         <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" />
