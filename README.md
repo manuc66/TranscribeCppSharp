@@ -13,10 +13,11 @@
 
 .NET bindings for [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp): load GGUF speech-to-text models and transcribe audio (16 kHz mono float PCM) from C#.
 
-Two ways to use it:
+Three ways to use it:
 
 - **A command-line tool** — `dotnet tool install -g TranscribeCppSharp.Cli` gives you `transcribe`, which downloads a curated model on first use and prints or exports the transcript. See [Command-line tool](docs/cli.md).
 - **A .NET library** — the `TranscribeCppSharp` wrapper (plus the native runtime package for your platform) for C# code. See [Getting started](docs/getting-started.md).
+- **A desktop app** — `TranscribeCppSharp.Ui`, an Avalonia GUI over the same wrapper. It is **not distributed as a package**: there is no installer and no NuGet package for it, so you run it from a clone. See [Desktop app](#desktop-app).
 
 📖 **[Full documentation →](https://manuc66.github.io/TranscribeCppSharp/)** — the guide, the reference, and the measured limits with the method behind each one. Published from [`docs/`](docs/); this README is the short version and the details are delegated to those pages.
 
@@ -126,6 +127,45 @@ var caps = model.GetCapabilities();
 
 Speaker attribution, long audio and windowing: [Long audio and diarization](docs/diarization.md).
 
+## Desktop app
+
+`TranscribeCppSharp.Ui` is an [Avalonia](https://avaloniaui.net/) app on .NET 10 that drives
+the same wrapper and the same native library — it adds no transcription logic of its own, and
+its limits are the library's. It is built in CI on Linux, macOS and Windows. As noted above
+it is distributed as source, so it runs from a clone:
+
+```bash
+dotnet run --project tools/FetchNative            # once: the native library the app loads
+dotnet run --project src/TranscribeCppSharp.Ui
+```
+
+Five tabs, one per job:
+
+| Tab | What it does |
+|---|---|
+| **Transcription** | Pick a file, a model and the decoder settings (language, threads, KV type, context size, window length, and the knobs that only some model families have). The result comes back as text, as segments, as words, or as speaker-attributed segments, and exports to `.txt`, `.vtt` or `.json`. |
+| **Streaming** | Transcribe the microphone live, with committed text on the left and the tentative part the model may still revise on the right. The commit policy and the family-specific knobs are there. |
+| **Batch** | Queue several files and run them one after another against one loaded model, then export the results as `.txt` or `.json`. |
+| **Models** | The 72 curated aliases, filterable by alias, family, size, licence, or what is already on disk, with per-row download, measure and delete. It can also time a model on audio you choose, on your machine, for this session only. |
+| **Settings** | Backend and device selection, the cache directory, the native library's version, and the compute devices this build can see. |
+
+Three things worth knowing before you rely on it:
+
+- **It shares the model cache with the `transcribe` CLI.** A model downloaded in one is
+  there for the other, and the Models tab can delete what the CLI fetched.
+- **It asks the model what it can do, instead of guessing from the name.** Loading is the
+  only way the native library answers — the manifest declares no capabilities — so a model
+  that is not on disk keeps every option visible and the app says so underneath the picker.
+  Options are hidden only once a loaded model has said it lacks the feature.
+- **It does not rank models by accuracy.** This project publishes no accuracy comparison
+  between them, so the app does not pretend to have one; `Measure` times a model, and speed
+  is all it tells you. See [Streaming benchmarks](docs/streaming-bench.md) for the one
+  benchmark the project does have, and what it does not cover.
+
+The tab that carries the library's limits is Streaming: the app calls the same
+`StreamSession` the CLI and the library do, so the native abort documented in
+[Streaming benchmarks](docs/streaming-bench.md) applies here too and is not a GUI bug.
+
 ## What it does not do
 
 Stated plainly, so nothing is implied. Each item has its own page with the detail.
@@ -155,6 +195,10 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 - **There is no GPU in CI.** The tool is tested end to end on the CPU, but GPU selection
   itself is covered by policy tests, not by a real run
   ([what the CLI does not do](docs/cli.md#what-the-cli-does-not-do)).
+- **The desktop app is not distributed.** It is built and its headless tests run in CI on
+  all three platforms, but there is no installer, no published binary and no NuGet package
+  for it — only the source in `src/TranscribeCppSharp.Ui`
+  ([Desktop app](#desktop-app)).
 
 The formats the decoder is *verified* to read are listed, with the tests that cover them,
 on [Audio input](docs/audio-input.md).
@@ -181,6 +225,9 @@ dotnet run --project tools/FetchNative
 
 # Run unit and integration tests
 ./scripts/run-integration-tests.sh
+
+# Run the desktop app (also needs FetchNative; see Desktop app)
+dotnet run --project src/TranscribeCppSharp.Ui
 ```
 
 Prerequisites, the opt-in diarization run, the checks that keep this documentation
