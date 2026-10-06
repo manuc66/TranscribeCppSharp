@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Ui.Models;
@@ -22,6 +21,7 @@ public partial class BatchViewModel : ObservableObject
     private string _language = "en";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanProcessBatch))]
     private bool _isProcessing;
 
     [ObservableProperty]
@@ -57,14 +57,61 @@ public partial class BatchViewModel : ObservableObject
         LoadModels();
     }
 
+    /// <summary>Whether a batch can start at all: a model on disk, and no batch running.</summary>
+    public bool CanProcessBatch => HasDownloadedModels && !IsProcessing;
+
+    /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
+    public bool HasDownloadedModels => AvailableModels.Count > 0;
+
+    /// <summary>
+    /// What sits under the model picker. Present even when the list is full: the
+    /// route to the other models should not appear only once you have run out.
+    /// </summary>
+    public string ModelPickerHint
+        => DownloadedModelCatalog.Hint(AvailableModels.Count, ModelStore.Catalog.Count);
+
+    /// <summary>Raised when the reader asks to go and fetch more models.</summary>
+    public event Action? OpenModelManagerRequested;
+
+    /// <summary>The button under the picker. The window decides which tab that means.</summary>
+    [RelayCommand]
+    private void OpenModelManager() => OpenModelManagerRequested?.Invoke();
+
+    /// <summary>
+    /// Rebuilds the picker from what is on disk and repairs the selection.
+    /// </summary>
+    /// <remarks>
+    /// The selection has to be repaired rather than left alone: the picker only
+    /// offers downloaded models, so an alias that was deleted would show as no
+    /// selection while still running a batch against a file that is not there.
+    /// </remarks>
     private void LoadModels()
     {
         AvailableModels.Clear();
-        foreach (var model in ModelStore.Catalog)
+        foreach (string alias in DownloadedModelCatalog.Aliases())
         {
-            AvailableModels.Add(model.Alias);
+            AvailableModels.Add(alias);
         }
+
+        if (AvailableModels.Count == 0)
+        {
+            ModelAlias = string.Empty;
+        }
+        else if (!AvailableModels.Contains(ModelAlias))
+        {
+            ModelAlias = AvailableModels[0];
+        }
+
+        OnPropertyChanged(nameof(ModelPickerHint));
+        OnPropertyChanged(nameof(HasDownloadedModels));
+        OnPropertyChanged(nameof(CanProcessBatch));
     }
+
+    /// <summary>
+    /// Re-reads the cache. Called when the reader comes back from the Models tab,
+    /// which is where a download or a delete happens.
+    /// </summary>
+    public void RefreshModels() => LoadModels();
 
     [RelayCommand]
     private async System.Threading.Tasks.Task AddFilesAsync()

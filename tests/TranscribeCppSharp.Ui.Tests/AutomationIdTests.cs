@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -23,6 +21,8 @@ public class AutomationIdTests
         "transcription-audio-path",
         "transcription-browse-audio",
         "transcription-model",
+        "transcription-model-hint",
+        "transcription-get-models",
         "transcription-capability-status",
         "transcription-language",
         "transcription-threads",
@@ -45,6 +45,8 @@ public class AutomationIdTests
     private static readonly string[] StreamingIds =
     [
         "streaming-model",
+        "streaming-model-hint",
+        "streaming-get-models",
         "streaming-capability-status",
         "streaming-commit-policy",
         "streaming-stable-prefix-agreement",
@@ -67,6 +69,8 @@ public class AutomationIdTests
     private static readonly string[] BatchIds =
     [
         "batch-model",
+        "batch-model-hint",
+        "batch-get-models",
         "batch-language",
         "batch-add-files",
         "batch-clear",
@@ -149,8 +153,8 @@ public class AutomationIdTests
             .Cast<string>()
             .ToList();
 
-        var downloadIds = ids.Where(id => id.StartsWith("models-download-", System.StringComparison.Ordinal)).ToList();
-        var measureIds = ids.Where(id => id.StartsWith("models-measure-", System.StringComparison.Ordinal)).ToList();
+        var downloadIds = ids.Where(id => id.StartsWith("models-download-", StringComparison.Ordinal)).ToList();
+        var measureIds = ids.Where(id => id.StartsWith("models-measure-", StringComparison.Ordinal)).ToList();
 
         Assert.NotEmpty(downloadIds);
         Assert.NotEmpty(measureIds);

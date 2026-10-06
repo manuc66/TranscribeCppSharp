@@ -13,6 +13,18 @@
         <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch"
                   AutomationProperties.AutomationId="batch-model"
                   AutomationProperties.Name="Model" />
+        <!-- The list holds what is on disk, so it has to say where the rest went. -->
+        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+          <TextBlock Grid.Column="0" Text="{Binding ModelPickerHint}" FontSize="11" Opacity="0.7"
+                     TextWrapping="Wrap" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="batch-model-hint"
+                     AutomationProperties.Name="Model availability" />
+          <Button Grid.Column="1" Content="Get more…" Command="{Binding OpenModelManagerCommand}"
+                  Padding="8,2" Margin="8,0,0,0"
+                  AutomationProperties.AutomationId="batch-get-models"
+                  AutomationProperties.Name="Get more models"
+                  ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A model is fetched on first use and cached." />
+        </Grid>
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Language" Margin="0,0,0,4"
@@ -40,7 +52,7 @@
 
     <!-- Action buttons -->
     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Process Batch" Command="{Binding ProcessBatchCommand}" IsEnabled="{Binding !IsProcessing}"
+      <Button Content="Process Batch" Command="{Binding ProcessBatchCommand}" IsEnabled="{Binding CanProcessBatch}"
               AutomationProperties.AutomationId="batch-run"
               AutomationProperties.Name="Process batch"
               ToolTip.Tip="Transcribe every file in the queue, one after the other." />

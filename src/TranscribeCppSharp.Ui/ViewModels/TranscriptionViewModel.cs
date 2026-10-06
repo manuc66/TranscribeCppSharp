@@ -125,7 +125,29 @@ public partial class TranscriptionViewModel : ObservableObject
     public bool ShowSpeculativeDecoding => ModelOptionVisibility.ShowSpeculativeDecoding(_selectedCapabilities);
 
     /// <summary>False while a transcription or a capability check is running.</summary>
-    public bool CanTranscribe => !IsTranscribing && !IsCheckingCapabilities;
+    public bool CanTranscribe
+        => HasDownloadedModels && !IsTranscribing && !IsCheckingCapabilities;
+
+    /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
+    public bool HasDownloadedModels => AvailableModels.Count > 0;
+
+    /// <summary>
+    /// What sits under the model picker.
+    /// </summary>
+    /// <remarks>
+    /// Present even when the list is full: a picker offering one model does not tell
+    /// you the other 71 exist, so the route to them is always on screen rather than
+    /// only when the list is empty.
+    /// </remarks>
+    public string ModelPickerHint
+        => DownloadedModelCatalog.Hint(AvailableModels.Count, ModelStore.Catalog.Count);
+
+    /// <summary>Raised when the reader asks to go and fetch more models.</summary>
+    public event Action? OpenModelManagerRequested;
+
+    /// <summary>The button under the picker. The window decides which tab that means.</summary>
+    [RelayCommand]
+    private void OpenModelManager() => OpenModelManagerRequested?.Invoke();
 
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
@@ -143,26 +165,57 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         _transcriptionService = transcriptionService;
         _settings = settings;
+
+        // The language list is seeded first, before LoadModels: that call can start
+        // the capability probe, and a probe on a cache with nothing in it answers
+        // synchronously by clearing this list and refilling it. Seeding afterwards
+        // would append a second copy of every code.
+        AddFallbackLanguages();
+
         LoadModels();
         // The default alias is a fixed one (MOSS, ~700 MB), so this bounds the
         // startup probe to a single known model. It runs off the UI thread; a
         // model that is not on disk is not loaded and the options stay unfiltered.
-        //
-        // The language list is seeded before the probe rather than left empty: the
-        // view is created once the window's DataContext is set, and a picker bound
-        // to an empty list has nothing to match against.
-        AddFallbackLanguages();
         RequestCapabilityProbe(ModelAlias);
     }
 
+    /// <summary>
+    /// Rebuilds the picker from what is on disk and repairs the selection.
+    /// </summary>
+    /// <remarks>
+    /// The selection has to be repaired rather than left alone: the picker only
+    /// offers downloaded models, so an alias that was deleted (or never fetched)
+    /// would show as no selection while still letting a run start against a file
+    /// that is not there. With nothing on disk the alias is emptied, which is what
+    /// disables the button.
+    /// </remarks>
     private void LoadModels()
     {
         AvailableModels.Clear();
-        foreach (var model in ModelStore.Catalog)
+        foreach (string alias in DownloadedModelCatalog.Aliases())
         {
-            AvailableModels.Add(model.Alias);
+            AvailableModels.Add(alias);
         }
+
+        if (AvailableModels.Count == 0)
+        {
+            ModelAlias = string.Empty;
+        }
+        else if (!AvailableModels.Contains(ModelAlias))
+        {
+            ModelAlias = AvailableModels[0];
+        }
+
+        OnPropertyChanged(nameof(ModelPickerHint));
+        OnPropertyChanged(nameof(HasDownloadedModels));
+        OnPropertyChanged(nameof(CanTranscribe));
     }
+
+    /// <summary>
+    /// Re-reads the cache. Called when the reader comes back from the Models tab,
+    /// which is where a download or a delete happens.
+    /// </summary>
+    public void RefreshModels() => LoadModels();
 
     partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
 
