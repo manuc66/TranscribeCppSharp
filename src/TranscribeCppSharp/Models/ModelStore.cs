@@ -298,7 +298,8 @@ public static class ModelStore
             entry.Quant,
             entry.File,
             entry.Sha256,
-            entry.Size);
+            entry.Size,
+            entry.Languages);
 
     private static string CacheDirectory(string repo, string revision)
         => Path.Combine(CacheRoot(), repo.Replace('/', '_'), revision);
@@ -501,6 +502,9 @@ public static class ModelStore
         public string Sha256 { get; set; } = string.Empty;
 
         public long Size { get; set; }
+
+        /// <summary>Languages the model card declares, or null when it declares none.</summary>
+        public string[]? Languages { get; set; }
     }
 
     private sealed record HfFile(string Path, string Sha256, long Size);

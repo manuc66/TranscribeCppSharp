@@ -143,6 +143,13 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
 - **The default model is marked.** The alias the CLI uses when no `--model` is given is
   shown as `default` in the Alias column. It is a mark of which alias a command ends up
   using, not a claim about quality or speed.
+- **Licence and languages come from the model card.** The grid's Languages column
+  shows the first four codes and counts the rest, because some models declare 99;
+  the detail pane below carries the whole list and names where it came from. Every
+  one of the 72 entries states its languages — the manifest is filled in by
+  [`tools/UpdateModelManifest`](../tools/UpdateModelManifest), whose
+  `--languages-only` mode reads `cardData.language` and rewrites nothing else, so
+  adding the column cannot re-pin a revision or a checksum.
 - **Diarization is a third state.** A model that is on disk can be loaded, which is the only
   way to learn whether it can attribute speakers; until then the column says `?`, and
   *Check diarization* loads each downloaded model once to find out. See

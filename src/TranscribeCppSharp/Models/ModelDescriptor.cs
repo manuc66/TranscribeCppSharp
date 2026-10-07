@@ -15,6 +15,13 @@ namespace TranscribeCppSharp.Models;
 /// <param name="File">File name inside <paramref name="Repo"/>.</param>
 /// <param name="Sha256">Expected checksum of the downloaded file.</param>
 /// <param name="Size">Size in bytes, or 0 when the manifest does not state it.</param>
+/// <param name="Languages">
+/// Languages the model card declares, or null when the manifest has none. This is
+/// what the model's own card says about it, so it is documentation rather than a
+/// guarantee: what the model accepts is answered by the loaded model, through
+/// <c>Model.GetCapabilities</c>. Kept for display before a download, when there is
+/// no model to ask.
+/// </param>
 public sealed record ModelDescriptor(
     string Alias,
     string Repo,
@@ -24,7 +31,8 @@ public sealed record ModelDescriptor(
     string Quant,
     string File,
     string Sha256,
-    long Size)
+    long Size,
+    string[]? Languages = null)
 {
     /// <summary>
     /// The URL the file is downloaded from. Pinned to <see cref="Revision"/>, so

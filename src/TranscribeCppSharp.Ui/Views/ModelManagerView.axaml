@@ -167,6 +167,9 @@
         <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="0.6*" />
         <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" />
         <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="0.9*" />
+        <!-- What the model card says it covers. Compact form only: some models
+             declare 99 languages and the detail pane below carries the list. -->
+        <DataGridTextColumn Header="Languages" Binding="{Binding LanguagesText}" Width="1.1*" />
         <DataGridTextColumn Header="x realtime" Binding="{Binding MeasuredText}" Width="0.6*" />
         <DataGridTextColumn Header="Diarization" Binding="{Binding DiarizationText}" Width="0.7*" />
         <DataGridTemplateColumn Header="Action" Width="1.1*">
@@ -215,6 +218,8 @@
           <TextBlock Opacity="0.8" Margin="0,4,0,0"
                      Text="{Binding License, StringFormat='Licence: {0}'}" />
           <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" TextWrapping="Wrap" />
+        <TextBlock Opacity="0.8" Text="{Binding LanguagesDetail}" TextWrapping="Wrap"
+                   ToolTip.Tip="From the model card on HuggingFace, not from the model itself: the loaded model is what answers whether it accepts a language, and the manifest only tells you this before you download." />
           <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
           <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
           <TextBlock Opacity="0.8"

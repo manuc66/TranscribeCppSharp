@@ -39,6 +39,52 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
 
     public string DownloadUrl => Descriptor.DownloadUrl;
 
+    /// <summary>
+    /// The languages the model card declares, short enough for a column.
+    /// </summary>
+    /// <remarks>
+    /// A column cannot hold 99 codes, so it shows the first four and counts the rest;
+    /// the detail pane below the grid carries the whole list. What is shown is what
+    /// the card says, not what the model has been asked — the loaded model is the
+    /// answer to that, and the manifest only tells a reader something before they
+    /// download. A missing list renders as a dash, matching how an unmeasured timing
+    /// renders, rather than as an empty cell that reads as a bug.
+    /// </remarks>
+    public string LanguagesText
+    {
+        get
+        {
+            string[]? languages = Descriptor.Languages;
+            if (languages is null || languages.Length == 0)
+            {
+                return "-";
+            }
+
+            const int shown = 4;
+            return languages.Length <= shown
+                ? string.Join(", ", languages)
+                : $"{string.Join(", ", languages[..shown])} +{languages.Length - shown}";
+        }
+    }
+
+    /// <summary>
+    /// The full list for the detail pane, named with its provenance.
+    /// </summary>
+    /// <remarks>
+    /// Prefixed with the source because the manifest and the model can disagree, and
+    /// a reader of the pane has no other way to tell which one they are looking at.
+    /// </remarks>
+    public string LanguagesDetail
+    {
+        get
+        {
+            string[]? languages = Descriptor.Languages;
+            return languages is null || languages.Length == 0
+                ? "Languages: not stated in the model card."
+                : $"Languages per the model card ({languages.Length}): {string.Join(", ", languages)}";
+        }
+    }
+
     /// <summary>True when the weights are on disk and verified.</summary>
     public bool IsCached { get; private set; }
 

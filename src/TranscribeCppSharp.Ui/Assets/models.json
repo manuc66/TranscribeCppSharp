@@ -9,7 +9,11 @@
       "quant": "Q5_K_M",
       "file": "Breeze-ASR-25-Q5_K_M.gguf",
       "sha256": "c871fc811b33a16a5607c4d4166cfa2c0a1d359f7796e3da255e3e922f59139b",
-      "size": 1160366080
+      "size": 1160366080,
+      "languages": [
+        "zh",
+        "en"
+      ]
     },
     "canary-180m-flash": {
       "repo": "handy-computer/canary-180m-flash-gguf",
@@ -19,7 +23,13 @@
       "quant": "Q5_K_M",
       "file": "canary-180m-flash-Q5_K_M.gguf",
       "sha256": "a87992d84aea5329fa5d70f2eb440d3ae4fe47bd774875374ec381472d348299",
-      "size": 158704320
+      "size": 158704320,
+      "languages": [
+        "en",
+        "de",
+        "es",
+        "fr"
+      ]
     },
     "canary-1b": {
       "repo": "handy-computer/canary-1b-gguf",
@@ -29,7 +39,13 @@
       "quant": "Q5_K_M",
       "file": "canary-1b-Q5_K_M.gguf",
       "sha256": "1139f01aad4ed4208d2c0532cfc25939cbc26cea1e160084c83f40d5b6eaed35",
-      "size": 837694272
+      "size": 837694272,
+      "languages": [
+        "en",
+        "de",
+        "es",
+        "fr"
+      ]
     },
     "canary-1b-flash": {
       "repo": "handy-computer/canary-1b-flash-gguf",
@@ -39,7 +55,13 @@
       "quant": "Q5_K_M",
       "file": "canary-1b-flash-Q5_K_M.gguf",
       "sha256": "7eed3cac92f255a4adbd518c58663d3fbf65984d2619189e593f2d374b05c601",
-      "size": 769563424
+      "size": 769563424,
+      "languages": [
+        "en",
+        "de",
+        "es",
+        "fr"
+      ]
     },
     "canary-1b-v2": {
       "repo": "handy-computer/canary-1b-v2-gguf",
@@ -49,7 +71,34 @@
       "quant": "Q5_K_M",
       "file": "canary-1b-v2-Q5_K_M.gguf",
       "sha256": "9c3a893c93795438baf9b4b1c853c39b60316c3a0d259a3ba6e284712f5ddb71",
-      "size": 836664032
+      "size": 836664032,
+      "languages": [
+        "bg",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "et",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hu",
+        "it",
+        "lv",
+        "lt",
+        "mt",
+        "pl",
+        "pt",
+        "ro",
+        "sk",
+        "sl",
+        "es",
+        "sv",
+        "ru",
+        "uk"
+      ]
     },
     "canary-qwen-2.5b": {
       "repo": "handy-computer/canary-qwen-2.5b-gguf",
@@ -59,7 +108,10 @@
       "quant": "Q5_K_M",
       "file": "canary-qwen-2.5b-Q5_K_M.gguf",
       "sha256": "d71b1d9ae442dc538665ed4df63a69520eb9be769ec0bc78c7d2f40040928306",
-      "size": 1983729024
+      "size": 1983729024,
+      "languages": [
+        "en"
+      ]
     },
     "cohere-transcribe-03-2026": {
       "repo": "handy-computer/cohere-transcribe-03-2026-gguf",
@@ -69,7 +121,23 @@
       "quant": "Q5_K_M",
       "file": "cohere-transcribe-03-2026-Q5_K_M.gguf",
       "sha256": "14d02f1ad6dd77b3a60f82639879012c3adb4fe25c50a5a47a2c4c661daf1558",
-      "size": 1770270208
+      "size": 1770270208,
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt",
+        "nl",
+        "pl",
+        "el",
+        "ar",
+        "ja",
+        "zh",
+        "vi",
+        "ko"
+      ]
     },
     "cohere-transcribe-arabic-07-2026": {
       "repo": "handy-computer/cohere-transcribe-arabic-07-2026-gguf",
@@ -79,7 +147,11 @@
       "quant": "Q5_K_M",
       "file": "cohere-transcribe-arabic-07-2026-Q5_K_M.gguf",
       "sha256": "55e61c9b047e36f0e084d367f6b0bfecc71a6a0527da6eea4f0c687f3584775f",
-      "size": 1770270112
+      "size": 1770270112,
+      "languages": [
+        "en",
+        "ar"
+      ]
     },
     "diar_streaming_sortformer_4spk-v2.1": {
       "repo": "handy-computer/diar_streaming_sortformer_4spk-v2.1-gguf",
@@ -89,7 +161,10 @@
       "quant": "Q8_0",
       "file": "diar_streaming_sortformer_4spk-v2.1-Q8_0.gguf",
       "sha256": "a5dacdc650790266c7a362e54e6bf51952015487edaa606c4e11632bc32442a9",
-      "size": 139310336
+      "size": 139310336,
+      "languages": [
+        "en"
+      ]
     },
     "fun-asr-mlt-nano-2512": {
       "repo": "handy-computer/Fun-ASR-MLT-Nano-2512-gguf",
@@ -99,7 +174,40 @@
       "quant": "Q5_K_M",
       "file": "Fun-ASR-MLT-Nano-2512-Q5_K_M.gguf",
       "sha256": "5906267c6067d254a2681f40d9eac70c4291ae14fb58ffea4c4cd22a307517ec",
-      "size": 631129152
+      "size": 631129152,
+      "languages": [
+        "zh",
+        "en",
+        "yue",
+        "ja",
+        "ko",
+        "vi",
+        "id",
+        "th",
+        "ms",
+        "tl",
+        "ar",
+        "hi",
+        "bg",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "et",
+        "fi",
+        "el",
+        "hu",
+        "ga",
+        "lv",
+        "lt",
+        "mt",
+        "pl",
+        "pt",
+        "ro",
+        "sk",
+        "sl",
+        "sv"
+      ]
     },
     "fun-asr-nano-2512": {
       "repo": "handy-computer/Fun-ASR-Nano-2512-gguf",
@@ -109,7 +217,12 @@
       "quant": "Q5_K_M",
       "file": "Fun-ASR-Nano-2512-Q5_K_M.gguf",
       "sha256": "68de7b48ba46b739254fb57486edf7023943cb0af63767ab795d58d6e482096c",
-      "size": 631128832
+      "size": 631128832,
+      "languages": [
+        "zh",
+        "en",
+        "ja"
+      ]
     },
     "gigaam-v3-ctc": {
       "repo": "handy-computer/gigaam-v3-ctc-gguf",
@@ -119,7 +232,10 @@
       "quant": "Q5_K_M",
       "file": "gigaam-v3-ctc-Q5_K_M.gguf",
       "sha256": "2002cd7603b99c318b52a88047d6676e69218083014f19b11c84da0223fb2023",
-      "size": 204563392
+      "size": 204563392,
+      "languages": [
+        "ru"
+      ]
     },
     "gigaam-v3-e2e-ctc": {
       "repo": "handy-computer/gigaam-v3-e2e-ctc-gguf",
@@ -129,7 +245,10 @@
       "quant": "Q5_K_M",
       "file": "gigaam-v3-e2e-ctc-Q5_K_M.gguf",
       "sha256": "d7c6a729f9bae8714d05cb7e66149e662c5098fe10b66206b70f4917f4f84004",
-      "size": 204911200
+      "size": 204911200,
+      "languages": [
+        "ru"
+      ]
     },
     "gigaam-v3-e2e-rnnt": {
       "repo": "handy-computer/gigaam-v3-e2e-rnnt-gguf",
@@ -139,7 +258,10 @@
       "quant": "Q5_K_M",
       "file": "gigaam-v3-e2e-rnnt-Q5_K_M.gguf",
       "sha256": "0f5969b05f7e196e8922e243c64963132025a5ae7ec2f83d028ae120d201594f",
-      "size": 206392736
+      "size": 206392736,
+      "languages": [
+        "ru"
+      ]
     },
     "gigaam-v3-rnnt": {
       "repo": "handy-computer/gigaam-v3-rnnt-gguf",
@@ -149,7 +271,10 @@
       "quant": "Q5_K_M",
       "file": "gigaam-v3-rnnt-Q5_K_M.gguf",
       "sha256": "3541b4e6b2c3909e99254bcb7c61565137038f24db5651a779885d0c08257348",
-      "size": 205690784
+      "size": 205690784,
+      "languages": [
+        "ru"
+      ]
     },
     "granite-4.0-1b-speech": {
       "repo": "handy-computer/granite-4.0-1b-speech-gguf",
@@ -159,7 +284,15 @@
       "quant": "Q5_K_M",
       "file": "granite-4.0-1b-speech-Q5_K_M.gguf",
       "sha256": "f5e371d2a894e5b30dce793d573df2a965d7705488750b4ef5a6cad1069e2572",
-      "size": 1829704544
+      "size": 1829704544,
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "pt",
+        "ja"
+      ]
     },
     "granite-speech-4.1-2b": {
       "repo": "handy-computer/granite-speech-4.1-2b-gguf",
@@ -169,7 +302,15 @@
       "quant": "Q5_K_M",
       "file": "granite-speech-4.1-2b-Q5_K_M.gguf",
       "sha256": "63e0d3a82fa6f0f4688af0b7d7ee784864d271b7be820f4ea43c8298c59b0ac5",
-      "size": 1829704544
+      "size": 1829704544,
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "pt",
+        "ja"
+      ]
     },
     "granite-speech-4.1-2b-nar": {
       "repo": "handy-computer/granite-speech-4.1-2b-nar-gguf",
@@ -179,7 +320,14 @@
       "quant": "Q5_K_M",
       "file": "granite-speech-4.1-2b-nar-Q5_K_M.gguf",
       "sha256": "88d7c7b5b8b59c95bb6580a1e7d5d81cae63943cef71405ff477527b0bb69fca",
-      "size": 1782089344
+      "size": 1782089344,
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "pt"
+      ]
     },
     "granite-speech-4.1-2b-plus": {
       "repo": "handy-computer/granite-speech-4.1-2b-plus-gguf",
@@ -189,7 +337,14 @@
       "quant": "Q5_K_M",
       "file": "granite-speech-4.1-2b-plus-Q5_K_M.gguf",
       "sha256": "3415f2c2d5979ded038dc012e5a875d77602fa5a0699cc75ee7fa47991f42530",
-      "size": 1691297088
+      "size": 1691297088,
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "pt"
+      ]
     },
     "granite-speech-5.0-470m-turboctc": {
       "repo": "handy-computer/granite-speech-5.0-470m-turboctc-gguf",
@@ -199,7 +354,10 @@
       "quant": "Q5_K_M",
       "file": "granite-speech-5.0-470m-turboctc-Q5_K_M.gguf",
       "sha256": "a18c6882ff9dbcefbe674ccb8f8653578ed7dbc3fa9a955f036f3617b9627cce",
-      "size": 335737184
+      "size": 335737184,
+      "languages": [
+        "en"
+      ]
     },
     "granite-speech-5.0-470m-turboctc-nc": {
       "repo": "handy-computer/granite-speech-5.0-470m-turboctc-nc-gguf",
@@ -209,7 +367,10 @@
       "quant": "Q5_K_M",
       "file": "granite-speech-5.0-470m-turboctc-nc-Q5_K_M.gguf",
       "sha256": "0ad269ed1cacab002b4cc26fa4c12d134e7a90b395e6ddcb4ca0cba3bb710973",
-      "size": 336016544
+      "size": 336016544,
+      "languages": [
+        "en"
+      ]
     },
     "medasr": {
       "repo": "handy-computer/medasr-gguf",
@@ -219,7 +380,10 @@
       "quant": "Q5_K_M",
       "file": "medasr-Q5_K_M.gguf",
       "sha256": "873c90a9a78d98446b5e02506073108496df6ff2d062d26f5f7b90f6f1368f1f",
-      "size": 94239936
+      "size": 94239936,
+      "languages": [
+        "en"
+      ]
     },
     "moonshine-base": {
       "repo": "handy-computer/moonshine-base-gguf",
@@ -229,7 +393,10 @@
       "quant": "Q8_0",
       "file": "moonshine-base-Q8_0.gguf",
       "sha256": "7f0027dfd857d310b63a85ef57cadf183da712cc374f85a648f8bc18aaa2efc8",
-      "size": 77476480
+      "size": 77476480,
+      "languages": [
+        "en"
+      ]
     },
     "moonshine-base-ar": {
       "repo": "handy-computer/moonshine-base-ar-gguf",
@@ -239,7 +406,10 @@
       "quant": "Q8_0",
       "file": "moonshine-base-ar-Q8_0.gguf",
       "sha256": "1a5b34653dfff0917d5bc7de1aeafca674162a5efa674472358d1b7f1644cf73",
-      "size": 77476480
+      "size": 77476480,
+      "languages": [
+        "ar"
+      ]
     },
     "moonshine-base-ja": {
       "repo": "handy-computer/moonshine-base-ja-gguf",
@@ -249,7 +419,10 @@
       "quant": "Q8_0",
       "file": "moonshine-base-ja-Q8_0.gguf",
       "sha256": "8ee6e9d7c9df69a3ea654af77659f1c0c08bf90998c2e2a269826096ffafc4f0",
-      "size": 77476480
+      "size": 77476480,
+      "languages": [
+        "ja"
+      ]
     },
     "moonshine-base-ko": {
       "repo": "handy-computer/moonshine-base-ko-gguf",
@@ -259,7 +432,10 @@
       "quant": "Q8_0",
       "file": "moonshine-base-ko-Q8_0.gguf",
       "sha256": "b430672cfdde98b894bd98adf1a8b3470308fea39ad1e6bb0f54d8fc9e114471",
-      "size": 77476480
+      "size": 77476480,
+      "languages": [
+        "ko"
+      ]
     },
     "moonshine-base-uk": {
       "repo": "handy-computer/moonshine-base-uk-gguf",
@@ -269,7 +445,10 @@
       "quant": "Q8_0",
       "file": "moonshine-base-uk-Q8_0.gguf",
       "sha256": "6dcac8c3905706e8c8416f531a479eccaa38cdaf1eae439f776fda4d4faa88d3",
-      "size": 77476512
+      "size": 77476512,
+      "languages": [
+        "uk"
+      ]
     },
     "moonshine-base-vi": {
       "repo": "handy-computer/moonshine-base-vi-gguf",
@@ -279,7 +458,10 @@
       "quant": "Q8_0",
       "file": "moonshine-base-vi-Q8_0.gguf",
       "sha256": "d382ec7ac6aa821d25b921ab982bf1bf29da591cad73372b65209c6a74decb36",
-      "size": 77476512
+      "size": 77476512,
+      "languages": [
+        "vi"
+      ]
     },
     "moonshine-base-zh": {
       "repo": "handy-computer/moonshine-base-zh-gguf",
@@ -289,7 +471,10 @@
       "quant": "Q8_0",
       "file": "moonshine-base-zh-Q8_0.gguf",
       "sha256": "1bae1d753b29b0c34038585b576d28e4f262ed10c6c7217e023fa5d624dc15ad",
-      "size": 77476480
+      "size": 77476480,
+      "languages": [
+        "zh"
+      ]
     },
     "moonshine-streaming-medium": {
       "repo": "handy-computer/moonshine-streaming-medium-gguf",
@@ -299,7 +484,10 @@
       "quant": "Q8_0",
       "file": "moonshine-streaming-medium-Q8_0.gguf",
       "sha256": "f7c9564249b508f6012927ec4f9e536087da53a7047f858ca9975bea5f75299e",
-      "size": 295793568
+      "size": 295793568,
+      "languages": [
+        "en"
+      ]
     },
     "moonshine-streaming-small": {
       "repo": "handy-computer/moonshine-streaming-small-gguf",
@@ -309,7 +497,10 @@
       "quant": "Q8_0",
       "file": "moonshine-streaming-small-Q8_0.gguf",
       "sha256": "d03670f69629b649085d0f44a63d97668b4119117cc9611a4e4ad94341713dfc",
-      "size": 198506848
+      "size": 198506848,
+      "languages": [
+        "en"
+      ]
     },
     "moonshine-streaming-tiny": {
       "repo": "handy-computer/moonshine-streaming-tiny-gguf",
@@ -319,7 +510,10 @@
       "quant": "Q8_0",
       "file": "moonshine-streaming-tiny-Q8_0.gguf",
       "sha256": "930e4622ad3a24158b91406c30c977fa6a26b34cb32d6ac3e57cfb23383a869e",
-      "size": 50462816
+      "size": 50462816,
+      "languages": [
+        "en"
+      ]
     },
     "moonshine-tiny": {
       "repo": "handy-computer/moonshine-tiny-gguf",
@@ -329,7 +523,10 @@
       "quant": "Q8_0",
       "file": "moonshine-tiny-Q8_0.gguf",
       "sha256": "2fd348d7b38f97d309cc3ec6848f3f57f537b80244950f07d2637e463f95a3a1",
-      "size": 35466912
+      "size": 35466912,
+      "languages": [
+        "en"
+      ]
     },
     "moonshine-tiny-ar": {
       "repo": "handy-computer/moonshine-tiny-ar-gguf",
@@ -339,7 +536,10 @@
       "quant": "Q8_0",
       "file": "moonshine-tiny-ar-Q8_0.gguf",
       "sha256": "e0bfa7c3aad2fe7acce022566daa1bb6140b6b263ba79655241acec7f7e0000b",
-      "size": 35466944
+      "size": 35466944,
+      "languages": [
+        "ar"
+      ]
     },
     "moonshine-tiny-ja": {
       "repo": "handy-computer/moonshine-tiny-ja-gguf",
@@ -349,7 +549,10 @@
       "quant": "Q8_0",
       "file": "moonshine-tiny-ja-Q8_0.gguf",
       "sha256": "b47da12b2238cd176d9deebf31d49803c9eb4e99de5fd3abf672b4c0e2773c26",
-      "size": 35466944
+      "size": 35466944,
+      "languages": [
+        "ja"
+      ]
     },
     "moonshine-tiny-ko": {
       "repo": "handy-computer/moonshine-tiny-ko-gguf",
@@ -359,7 +562,10 @@
       "quant": "Q8_0",
       "file": "moonshine-tiny-ko-Q8_0.gguf",
       "sha256": "3ffe3340ceed10843789e2f7bf580097213c97a3537cae7031dbfe2a409b36b7",
-      "size": 35466944
+      "size": 35466944,
+      "languages": [
+        "ko"
+      ]
     },
     "moonshine-tiny-uk": {
       "repo": "handy-computer/moonshine-tiny-uk-gguf",
@@ -369,7 +575,10 @@
       "quant": "Q8_0",
       "file": "moonshine-tiny-uk-Q8_0.gguf",
       "sha256": "61c372f6d99cce6c7b7c45626a51a6c935217368e715d9c4e036ce85f4496338",
-      "size": 35466944
+      "size": 35466944,
+      "languages": [
+        "uk"
+      ]
     },
     "moonshine-tiny-vi": {
       "repo": "handy-computer/moonshine-tiny-vi-gguf",
@@ -379,7 +588,10 @@
       "quant": "Q8_0",
       "file": "moonshine-tiny-vi-Q8_0.gguf",
       "sha256": "a42a80ef2e3636104aa2aff87cdde3e251e319e7d0d1acb3fb594cc601d8b95f",
-      "size": 35466944
+      "size": 35466944,
+      "languages": [
+        "vi"
+      ]
     },
     "moonshine-tiny-zh": {
       "repo": "handy-computer/moonshine-tiny-zh-gguf",
@@ -389,7 +601,10 @@
       "quant": "Q8_0",
       "file": "moonshine-tiny-zh-Q8_0.gguf",
       "sha256": "95387abe90625410f8e2bcec43faaaadc0d92ef1e721117eb8a69cd31a7ef692",
-      "size": 35466944
+      "size": 35466944,
+      "languages": [
+        "zh"
+      ]
     },
     "moss-transcribe-diarize": {
       "repo": "handy-computer/moss-transcribe-diarize-gguf",
@@ -399,7 +614,11 @@
       "quant": "Q5_K_M",
       "file": "MOSS-Transcribe-Diarize-Q5_K_M.gguf",
       "sha256": "52deaeff931272f3d49eb437f0f4916e42fce9f42e68db250047408241cf473c",
-      "size": 700313760
+      "size": 700313760,
+      "languages": [
+        "en",
+        "zh"
+      ]
     },
     "multitalker-parakeet-streaming-0.6b-v1": {
       "repo": "handy-computer/multitalker-parakeet-streaming-0.6b-v1-gguf",
@@ -409,7 +628,10 @@
       "quant": "Q5_K_M",
       "file": "bundle/multitalker-parakeet-streaming-0.6b-v1-Q5_K_M.gguf",
       "sha256": "38c98bc0715ee95b4271952630661050a8c3c37f64b8b178c62b8b699668cbdb",
-      "size": 681209984
+      "size": 681209984,
+      "languages": [
+        "en"
+      ]
     },
     "nemotron-3.5-asr-streaming-0.6b": {
       "repo": "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf",
@@ -419,7 +641,37 @@
       "quant": "Q5_K_M",
       "file": "nemotron-3.5-asr-streaming-0.6b-Q5_K_M.gguf",
       "sha256": "86429e8c4f7fdcf9b3312269ad1ca6669478ba7805331c4aea7a2e33e9910d65",
-      "size": 559647200
+      "size": 559647200,
+      "languages": [
+        "en",
+        "es",
+        "fr",
+        "it",
+        "pt",
+        "nl",
+        "de",
+        "tr",
+        "ru",
+        "ar",
+        "hi",
+        "ja",
+        "ko",
+        "vi",
+        "uk",
+        "pl",
+        "sv",
+        "cs",
+        "nb",
+        "da",
+        "bg",
+        "fi",
+        "hr",
+        "sk",
+        "zh",
+        "hu",
+        "ro",
+        "et"
+      ]
     },
     "nemotron-speech-streaming-en-0.6b": {
       "repo": "handy-computer/nemotron-speech-streaming-en-0.6b-gguf",
@@ -429,7 +681,10 @@
       "quant": "Q5_K_M",
       "file": "nemotron-speech-streaming-en-0.6b-Q5_K_M.gguf",
       "sha256": "d6b8b36f9aca6a751779d064a29f6583f3e82c0c15646904383c8436a25c1489",
-      "size": 538989568
+      "size": 538989568,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-ctc-0.6b": {
       "repo": "handy-computer/parakeet-ctc-0.6b-gguf",
@@ -439,7 +694,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-ctc-0.6b-Q5_K_M.gguf",
       "sha256": "8837b9489682f870dae15e126940956d4c0a03fbe884d82edcd8b8c8b1dc0f22",
-      "size": 532544704
+      "size": 532544704,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-ctc-1.1b": {
       "repo": "handy-computer/parakeet-ctc-1.1b-gguf",
@@ -449,7 +707,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-ctc-1.1b-Q5_K_M.gguf",
       "sha256": "8b38f60bb1c56b518953a39703068adc09991993b5aab52782e038a86a6c04cc",
-      "size": 928584736
+      "size": 928584736,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-primeline": {
       "repo": "handy-computer/parakeet-primeline-gguf",
@@ -459,7 +720,34 @@
       "quant": "Q5_K_M",
       "file": "parakeet-primeline-Q5_K_M.gguf",
       "sha256": "a1dd12b7f374c33d5e33a61c8a852035d27064cefe53f8cdfc3410cddf3b31c8",
-      "size": 548946336
+      "size": 548946336,
+      "languages": [
+        "bg",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "et",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hu",
+        "it",
+        "lv",
+        "lt",
+        "mt",
+        "pl",
+        "pt",
+        "ro",
+        "ru",
+        "sk",
+        "sl",
+        "es",
+        "sv",
+        "uk"
+      ]
     },
     "parakeet-rnnt-0.6b": {
       "repo": "handy-computer/parakeet-rnnt-0.6b-gguf",
@@ -469,7 +757,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-rnnt-0.6b-Q5_K_M.gguf",
       "sha256": "b2910e4f81f35cc99ce830847040ac469c07aa27d289e9e517d6b73b47a4d7d5",
-      "size": 539714976
+      "size": 539714976,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-rnnt-1.1b": {
       "repo": "handy-computer/parakeet-rnnt-1.1b-gguf",
@@ -479,7 +770,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-rnnt-1.1b-Q5_K_M.gguf",
       "sha256": "8ee2ead0c30773440743591cd8a9f8ac180c27f450c9b053805b2bab6bf352cb",
-      "size": 935755008
+      "size": 935755008,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-tdt-0.6b-v2": {
       "repo": "handy-computer/parakeet-tdt-0.6b-v2-gguf",
@@ -489,7 +783,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-tdt-0.6b-v2-Q5_K_M.gguf",
       "sha256": "dfa904520b95451599683613fea47766c378c5fdf5d8cddf48151226b6eaec85",
-      "size": 539012608
+      "size": 539012608,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-tdt-0.6b-v3": {
       "repo": "handy-computer/parakeet-tdt-0.6b-v3-gguf",
@@ -499,7 +796,34 @@
       "quant": "Q5_K_M",
       "file": "parakeet-tdt-0.6b-v3-Q5_K_M.gguf",
       "sha256": "cc722e76adc1a629fc0b2535de879d99b8160d07ad4c0215e2ca7d7ea0ae4b8f",
-      "size": 548946272
+      "size": 548946272,
+      "languages": [
+        "bg",
+        "hr",
+        "cs",
+        "da",
+        "nl",
+        "en",
+        "et",
+        "fi",
+        "fr",
+        "de",
+        "el",
+        "hu",
+        "it",
+        "lv",
+        "lt",
+        "mt",
+        "pl",
+        "pt",
+        "ro",
+        "ru",
+        "sk",
+        "sl",
+        "es",
+        "sv",
+        "uk"
+      ]
     },
     "parakeet-tdt-1.1b": {
       "repo": "handy-computer/parakeet-tdt-1.1b-gguf",
@@ -509,7 +833,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-tdt-1.1b-Q5_K_M.gguf",
       "sha256": "18c22888fed10676fde72fdd5b833fab9175a6abf4e0cb390eb0a59b0b107cd3",
-      "size": 935758496
+      "size": 935758496,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-tdt_ctc-1.1b": {
       "repo": "handy-computer/parakeet-tdt_ctc-1.1b-gguf",
@@ -519,7 +846,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-tdt_ctc-1.1b-Q5_K_M.gguf",
       "sha256": "da23eb8c78fe3813b88f616db85e8191cfbfffdbc2b8bb8bd74a94eb8987caee",
-      "size": 935758080
+      "size": 935758080,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-tdt_ctc-110m": {
       "repo": "handy-computer/parakeet-tdt_ctc-110m-gguf",
@@ -529,7 +859,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-tdt_ctc-110m-Q5_K_M.gguf",
       "sha256": "1552e707fddb59e3741b66ea917fc91a9381e336a4730739b1d2d448cb013a2e",
-      "size": 101335520
+      "size": 101335520,
+      "languages": [
+        "en"
+      ]
     },
     "parakeet-unified-en-0.6b": {
       "repo": "handy-computer/parakeet-unified-en-0.6b-gguf",
@@ -539,7 +872,10 @@
       "quant": "Q5_K_M",
       "file": "parakeet-unified-en-0.6b-Q5_K_M.gguf",
       "sha256": "f9def6f9b4e83ab7d006df3e1b676dfa1f973a3b6da232a9c99fcaa66bcd2836",
-      "size": 540795264
+      "size": 540795264,
+      "languages": [
+        "en"
+      ]
     },
     "qwen3-asr-0.6b": {
       "repo": "handy-computer/Qwen3-ASR-0.6B-gguf",
@@ -549,7 +885,39 @@
       "quant": "Q5_K_M",
       "file": "Qwen3-ASR-0.6B-Q5_K_M.gguf",
       "sha256": "062a7bcb18675c2fe5ffd0e8b354eac6a1ceada9b2af9ef7168746ae16b54358",
-      "size": 645356192
+      "size": 645356192,
+      "languages": [
+        "zh",
+        "en",
+        "yue",
+        "ar",
+        "de",
+        "fr",
+        "es",
+        "pt",
+        "id",
+        "it",
+        "ko",
+        "ru",
+        "th",
+        "vi",
+        "ja",
+        "tr",
+        "hi",
+        "ms",
+        "nl",
+        "sv",
+        "da",
+        "fi",
+        "pl",
+        "cs",
+        "fil",
+        "fa",
+        "el",
+        "ro",
+        "hu",
+        "mk"
+      ]
     },
     "qwen3-asr-1.7b": {
       "repo": "handy-computer/Qwen3-ASR-1.7B-gguf",
@@ -559,7 +927,39 @@
       "quant": "Q5_K_M",
       "file": "Qwen3-ASR-1.7B-Q5_K_M.gguf",
       "sha256": "034c557fe92ff8fcd9a9c041cbdaad347be0a86a58d3a348f63cf3f0180879d0",
-      "size": 1517290464
+      "size": 1517290464,
+      "languages": [
+        "zh",
+        "en",
+        "yue",
+        "ar",
+        "de",
+        "fr",
+        "es",
+        "pt",
+        "id",
+        "it",
+        "ko",
+        "ru",
+        "th",
+        "vi",
+        "ja",
+        "tr",
+        "hi",
+        "ms",
+        "nl",
+        "sv",
+        "da",
+        "fi",
+        "pl",
+        "cs",
+        "fil",
+        "fa",
+        "el",
+        "ro",
+        "hu",
+        "mk"
+      ]
     },
     "sensevoicesmall": {
       "repo": "handy-computer/SenseVoiceSmall-gguf",
@@ -569,7 +969,14 @@
       "quant": "Q5_K_M",
       "file": "SenseVoiceSmall-Q5_K_M.gguf",
       "sha256": "622a819ef9b37dc5506f0079ddedca6ec22e272bb9b4fe950d8f13422d1ccd0b",
-      "size": 172474880
+      "size": 172474880,
+      "languages": [
+        "zh",
+        "yue",
+        "en",
+        "ja",
+        "ko"
+      ]
     },
     "voxtral-mini-3b-2507": {
       "repo": "handy-computer/Voxtral-Mini-3B-2507-gguf",
@@ -579,7 +986,17 @@
       "quant": "Q5_K_M",
       "file": "Voxtral-Mini-3B-2507-Q5_K_M.gguf",
       "sha256": "9ea2eb85359f7771270715849dc2b0e80381a59dab09d9c5d85352ab9c53f675",
-      "size": 3464182432
+      "size": 3464182432,
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt",
+        "nl",
+        "hi"
+      ]
     },
     "voxtral-mini-4b-realtime-2602": {
       "repo": "handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf",
@@ -589,7 +1006,22 @@
       "quant": "Q5_K_M",
       "file": "Voxtral-Mini-4B-Realtime-2602-Q5_K_M.gguf",
       "sha256": "e20a7582c5cf8159454c909b7f57b184b287cb3d7c3ec85744727a2cec51b08f",
-      "size": 3281439008
+      "size": 3281439008,
+      "languages": [
+        "en",
+        "fr",
+        "es",
+        "de",
+        "ru",
+        "zh",
+        "ja",
+        "it",
+        "pt",
+        "nl",
+        "ar",
+        "hi",
+        "ko"
+      ]
     },
     "voxtral-small-24b-2507": {
       "repo": "handy-computer/Voxtral-Small-24B-2507-gguf",
@@ -599,7 +1031,17 @@
       "quant": "Q5_K_M",
       "file": "Voxtral-Small-24B-2507-Q5_K_M.gguf",
       "sha256": "a53f73a5f63b7663fe155977616a636acac567dac898f6ef82ca519017e8b6e7",
-      "size": 17138659808
+      "size": 17138659808,
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt",
+        "nl",
+        "hi"
+      ]
     },
     "whisper-base": {
       "repo": "handy-computer/whisper-base-gguf",
@@ -609,7 +1051,108 @@
       "quant": "Q5_K_M",
       "file": "whisper-base-Q5_K_M.gguf",
       "sha256": "8e0feb7bc35780353cf31821018e601bb7b7cff6c9a0e17ada5a5db23f4db867",
-      "size": 63786048
+      "size": 63786048,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "zh"
+      ]
     },
     "whisper-base.en": {
       "repo": "handy-computer/whisper-base.en-gguf",
@@ -619,7 +1162,10 @@
       "quant": "Q5_K_M",
       "file": "whisper-base.en-Q5_K_M.gguf",
       "sha256": "549e6e991588cd748dc6bf53b8fe47629dc08ed9038b8955270ee98fbc5e4c54",
-      "size": 63709472
+      "size": 63709472,
+      "languages": [
+        "en"
+      ]
     },
     "whisper-large": {
       "repo": "handy-computer/whisper-large-gguf",
@@ -629,7 +1175,108 @@
       "quant": "Q5_K_M",
       "file": "whisper-large-Q5_K_M.gguf",
       "sha256": "b1dfb9fa0e9b0574d8c822f51662b8e59915831e1a3ca0d191f18ff8ba742639",
-      "size": 1160366048
+      "size": 1160366048,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "zh"
+      ]
     },
     "whisper-large-v2": {
       "repo": "handy-computer/whisper-large-v2-gguf",
@@ -639,7 +1286,108 @@
       "quant": "Q5_K_M",
       "file": "whisper-large-v2-Q5_K_M.gguf",
       "sha256": "94fab1289a98d26bf375174a8daa00f44c7b16a9944726dde05361e5a8bd07ff",
-      "size": 1160366080
+      "size": 1160366080,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "zh"
+      ]
     },
     "whisper-large-v3": {
       "repo": "handy-computer/whisper-large-v3-gguf",
@@ -649,7 +1397,109 @@
       "quant": "Q5_K_M",
       "file": "whisper-large-v3-Q5_K_M.gguf",
       "sha256": "6053d0fd69a0fd48b8fea5ea7a52b9e0cde389343566fa30e453a1b2b258dc38",
-      "size": 1161143008
+      "size": 1161143008,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "yue",
+        "zh"
+      ]
     },
     "whisper-large-v3-turbo": {
       "repo": "handy-computer/whisper-large-v3-turbo-gguf",
@@ -659,7 +1509,109 @@
       "quant": "Q5_K_M",
       "file": "whisper-large-v3-turbo-Q5_K_M.gguf",
       "sha256": "977b5db4e004349dffd1ab9caa10ba5aaba3fc3edd3ba72cadb84328a3203e36",
-      "size": 619628128
+      "size": 619628128,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "yue",
+        "zh"
+      ]
     },
     "whisper-medium": {
       "repo": "handy-computer/whisper-medium-gguf",
@@ -669,7 +1621,108 @@
       "quant": "Q5_K_M",
       "file": "whisper-medium-Q5_K_M.gguf",
       "sha256": "4e2a8904a866b3aa7ef70d7640ec6abc5f0a05524cd950ea4b66ace12122bf53",
-      "size": 582746048
+      "size": 582746048,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "zh"
+      ]
     },
     "whisper-medium.en": {
       "repo": "handy-computer/whisper-medium.en-gguf",
@@ -679,7 +1732,10 @@
       "quant": "Q5_K_M",
       "file": "whisper-medium.en-Q5_K_M.gguf",
       "sha256": "8c90b55725036f1362fc5a583432a4e63370304dbf0f96b6245685f8a588174f",
-      "size": 582669056
+      "size": 582669056,
+      "languages": [
+        "en"
+      ]
     },
     "whisper-small": {
       "repo": "handy-computer/whisper-small-gguf",
@@ -689,7 +1745,108 @@
       "quant": "Q5_K_M",
       "file": "whisper-small-Q5_K_M.gguf",
       "sha256": "326cd00c3e7217c751667c7c1600eaf7e0de174e186ca2c16b4bf590251c3c3b",
-      "size": 193749056
+      "size": 193749056,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "zh"
+      ]
     },
     "whisper-small.en": {
       "repo": "handy-computer/whisper-small.en-gguf",
@@ -699,7 +1856,10 @@
       "quant": "Q5_K_M",
       "file": "whisper-small.en-Q5_K_M.gguf",
       "sha256": "e96a679e57d36f80bb26512f3893185d219ddd8880cdac4c433e5af13a001b47",
-      "size": 193672256
+      "size": 193672256,
+      "languages": [
+        "en"
+      ]
     },
     "whisper-tiny": {
       "repo": "handy-computer/whisper-tiny-gguf",
@@ -709,7 +1869,108 @@
       "quant": "Q5_K_M",
       "file": "whisper-tiny-Q5_K_M.gguf",
       "sha256": "72cfa8ee436a635a5b6fb373cc056a828b9efe96d32d6eb8769ed3cc5b429719",
-      "size": 44211616
+      "size": 44211616,
+      "languages": [
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fo",
+        "fr",
+        "gl",
+        "gu",
+        "haw",
+        "ha",
+        "he",
+        "hi",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "jw",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "la",
+        "lb",
+        "ln",
+        "lo",
+        "lt",
+        "lv",
+        "mg",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "ne",
+        "nl",
+        "nn",
+        "no",
+        "oc",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "ro",
+        "ru",
+        "sa",
+        "sd",
+        "si",
+        "sk",
+        "sl",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "tk",
+        "tl",
+        "tr",
+        "tt",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "yi",
+        "yo",
+        "zh"
+      ]
     },
     "whisper-tiny.en": {
       "repo": "handy-computer/whisper-tiny.en-gguf",
@@ -719,7 +1980,10 @@
       "quant": "Q5_K_M",
       "file": "whisper-tiny.en-Q5_K_M.gguf",
       "sha256": "610a75700023ffd74df1ab538353525d0a82a3e35702b923e955e69422519740",
-      "size": 44135072
+      "size": 44135072,
+      "languages": [
+        "en"
+      ]
     }
   }
 }
