@@ -79,7 +79,8 @@ is decoded with `ffmpeg`, which has to be installed and on `PATH` — see
 | Keep special tags | off | Off removes markers such as `<|notimestamps|>` from the text |
 
 Three settings appear only for models that have them: the Whisper initial prompt and
-temperature, the task and target language, and the speculative-decoding draft count. They are
+temperature, the task and the target-language picker, and the speculative-decoding
+draft count. They are
 hidden based on what the model reports, not on what its name suggests — see
 [Asking the model](#asking-the-model) below.
 
@@ -143,6 +144,11 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
 - **The default model is marked.** The alias the CLI uses when no `--model` is given is
   shown as `default` in the Alias column. It is a mark of which alias a command ends up
   using, not a claim about quality or speed.
+- **Filter by language.** The picker beside the licence and size filters narrows the
+  grid to the models whose card declares a language — codes, as the cards state them.
+  A model that declares nothing is hidden while a language is selected, because
+  unknown is not the same as yes. The free-text search reaches the codes too, so
+  typing one filters the same way, and *Clear* turns all of them off at once.
 - **Licence and languages come from the model card.** The grid's Languages column
   shows the first four codes and counts the rest, because some models declare 99;
   the detail pane below carries the whole list and names where it came from. Every

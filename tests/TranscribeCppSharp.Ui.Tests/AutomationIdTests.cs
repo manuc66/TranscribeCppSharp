@@ -98,6 +98,7 @@ public class AutomationIdTests
         "models-commercial-only",
         "models-size-filter",
         "models-license-filter",
+        "models-language-filter",
         "models-clear-filters",
         "models-sort-name",
         "models-sort-size",

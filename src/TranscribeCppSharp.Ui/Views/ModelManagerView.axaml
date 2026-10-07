@@ -23,30 +23,32 @@
     </Border>
 
     <!-- Quick filters -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,8">
-      <TextBox Grid.Column="0"
-               Text="{Binding Filter, Mode=TwoWay}"
-               PlaceholderText="Search alias, family, repository or licence"
+    <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+      <!-- Width of its own: a WrapPanel measures children against infinite width,
+           so a star-sized TextBox here would collapse to its padding instead of
+           sharing a row. -->
+      <TextBox Width="300" Text="{Binding Filter, Mode=TwoWay}"
+               PlaceholderText="Search alias, family, repository, licence or language"
                HorizontalAlignment="Stretch"
                AutomationProperties.AutomationId="models-filter"
                AutomationProperties.Name="Filter models"
-               ToolTip.Tip="Free-text over the alias, the family read from the repository name, the repository and the licence." />
+               ToolTip.Tip="Free-text over the alias, the family read from the repository name, the repository, the licence and the languages the model card declares. Typing a language code searches them the same way the picker below filters on them." />
 
-      <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center"
+      <CheckBox Margin="12,0,0,0" VerticalAlignment="Center"
                 Content="On disk only"
                 IsChecked="{Binding DownloadedOnly}"
                 AutomationProperties.AutomationId="models-downloaded-only"
                 AutomationProperties.Name="Downloaded models only"
                 ToolTip.Tip="Show only the models already downloaded. The fastest way to see what can be used right now without fetching anything." />
 
-      <CheckBox Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center"
+      <CheckBox Margin="12,0,0,0" VerticalAlignment="Center"
                 Content="Commercial licences only"
                 IsChecked="{Binding HideNonCommercial}"
                 AutomationProperties.AutomationId="models-commercial-only"
                 AutomationProperties.Name="Commercial licences only"
                 ToolTip.Tip="Hide the models whose licence forbids commercial use. The flag is a text test on the SPDX identifier in the manifest, so check the licence text itself before relying on it." />
 
-      <ComboBox Grid.Column="3" Margin="12,0,0,0" MinWidth="130"
+      <ComboBox Margin="12,0,0,0" MinWidth="130"
                 ItemsSource="{Binding SizeFilters}"
                 SelectedItem="{Binding SizeFilter}"
                 HorizontalAlignment="Stretch"
@@ -54,7 +56,7 @@
                 AutomationProperties.Name="Size filter"
                 ToolTip.Tip="Filter by download size. Smaller models download sooner and use less memory; the manifest ranges from 33 MB to 16 GB." />
 
-      <ComboBox Grid.Column="4" Margin="12,0,0,0" MinWidth="150"
+      <ComboBox Margin="12,0,0,0" MinWidth="150"
                 ItemsSource="{Binding Licenses}"
                 SelectedItem="{Binding LicenseFilter}"
                 PlaceholderText="Any licence"
@@ -63,61 +65,70 @@
                 AutomationProperties.Name="Licence filter"
                 ToolTip.Tip="Filter by licence identifier. 'other' means the manifest does not name a standard licence; check the model card." />
 
-      <Button Grid.Column="5" Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="12,0,0,0"
+      <ComboBox Margin="12,0,0,0" MinWidth="110"
+                ItemsSource="{Binding Languages}"
+                SelectedItem="{Binding LanguageFilter}"
+                PlaceholderText="Any language"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.AutomationId="models-language-filter"
+                AutomationProperties.Name="Language filter"
+                ToolTip.Tip="Show only the models whose model card declares this language. Codes, as the cards state them. A model that declares no languages is hidden while this is set — unknown is not the same as yes." />
+
+      <Button Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="12,0,0,0"
               IsEnabled="{Binding HasAnyQuickFilter}"
               AutomationProperties.AutomationId="models-clear-filters"
               AutomationProperties.Name="Clear filters"
               ToolTip.Tip="Turn every filter off and show the whole catalogue." />
-    </Grid>
+    </WrapPanel>
 
     <!-- Sort and measure -->
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,8">
-      <Button Grid.Column="0" Content="{Binding NameSortText}" Command="{Binding SortByNameCommand}"
+    <WrapPanel Grid.Row="2" Margin="0,0,0,8">
+      <Button Content="{Binding NameSortText}" Command="{Binding SortByNameCommand}"
               AutomationProperties.AutomationId="models-sort-name"
               AutomationProperties.Name="Sort by name"
               ToolTip.Tip="Alphabetical order." />
 
-      <Button Grid.Column="1" Margin="8,0,0,0" Content="{Binding SizeSortText}" Command="{Binding SortBySizeCommand}"
+      <Button Margin="8,0,0,0" Content="{Binding SizeSortText}" Command="{Binding SortBySizeCommand}"
               AutomationProperties.AutomationId="models-sort-size"
               AutomationProperties.Name="Sort by size"
               ToolTip.Tip="Smallest download first." />
 
-      <Button Grid.Column="2" Margin="8,0,0,0" Content="{Binding SpeedSortText}" Command="{Binding SortBySpeedCommand}"
+      <Button Margin="8,0,0,0" Content="{Binding SpeedSortText}" Command="{Binding SortBySpeedCommand}"
               AutomationProperties.AutomationId="models-sort-speed"
               AutomationProperties.Name="Sort by speed"
               ToolTip.Tip="Order by the timing measured on this machine. Click again to reverse it. Models that were never measured cannot be placed in a speed order, so they stay at the bottom in name order." />
 
-      <TextBlock Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
+      <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
                  Text="{Binding SortDescription}" />
 
-      <Button Grid.Column="4" Margin="12,0,0,0"
+      <Button Margin="12,0,0,0"
               Content="{Binding BenchmarkAudioName, StringFormat='Audio: {0}'}"
               Command="{Binding PickBenchmarkAudioCommand}"
               AutomationProperties.AutomationId="models-benchmark-audio"
               AutomationProperties.Name="Benchmark audio"
               ToolTip.Tip="Pick the audio the timings are taken over. A measurement is only meaningful for the audio it was measured on, so this is your own file rather than a bundled clip." />
 
-      <NumericUpDown Grid.Column="5" Margin="8,0,0,0" Width="110"
+      <NumericUpDown Margin="8,0,0,0" Width="110"
                      Value="{Binding BenchmarkExcerptSeconds}" Minimum="5" Maximum="300" Increment="5"
                      FormatString="0 s"
                      AutomationProperties.AutomationId="models-benchmark-seconds"
                      AutomationProperties.Name="Benchmark excerpt seconds"
                      ToolTip.Tip="How much of the audio each timing run uses. Thirty seconds is a starting point, not a rule: longer is steadier and costs proportionally more time per model." />
 
-      <ComboBox Grid.Column="6" Margin="8,0,0,0" MinWidth="110"
+      <ComboBox Margin="8,0,0,0" MinWidth="110"
                 ItemsSource="{Binding AvailableBenchmarkBackends}"
                 SelectedItem="{Binding SelectedBenchmarkBackend}"
                 AutomationProperties.AutomationId="models-benchmark-backend"
                 AutomationProperties.Name="Benchmark backend"
                 ToolTip.Tip="Compute backend for the timing runs. Timings taken on different backends are not comparable, so the backend is recorded with every result." />
 
-      <Button Grid.Column="7" Margin="8,0,0,0" Content="Measure all on disk"
+      <Button Margin="8,0,0,0" Content="Measure all on disk"
               Command="{Binding BenchmarkAllCommand}"
               IsEnabled="{Binding !IsBusy}"
               AutomationProperties.AutomationId="models-benchmark-all"
               AutomationProperties.Name="Measure all downloaded models"
               ToolTip.Tip="Time every downloaded model on the chosen audio. Each one is loaded and transcribed three times after a discarded warm-up, so this takes a while for large models. Results are kept for this session only." />
-    </Grid>
+    </WrapPanel>
 
     <!-- What the filters are doing, said out loud -->
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">

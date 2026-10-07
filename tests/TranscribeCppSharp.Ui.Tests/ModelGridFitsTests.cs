@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
@@ -97,6 +98,71 @@ public class ModelGridFitsTests
         {
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
+        }
+    }
+
+    /// <summary>
+    /// Nothing the reader can press or open may sit outside the window.
+    /// </summary>
+    /// <remarks>
+    /// The filter row above the grid takes a control each time a filter is added, and
+    /// the row is measured in autos, so one more is not obviously free: it pushes the
+    /// Clear button out the same way Action was pushed out. This is the guard for
+    /// adding controls to that row at all.
+    /// </remarks>
+    [AvaloniaFact]
+    public void EveryControlInTheModelsViewIsReachable()
+    {
+        string previous = ModelStore.CacheRootOverride ?? string.Empty;
+        bool hadOverride = ModelStore.CacheRootOverride is not null;
+        try
+        {
+            ModelStore.CacheRootOverride = Path.Combine(
+                Path.GetTempPath(), "tcsharp-ui-tests-view-fits");
+
+            var view = new ModelManagerView { DataContext = new ModelManagerViewModel() };
+            var window = new Window { Content = view, Width = 1100, Height = 720 };
+            window.Show();
+            DispatcherPump(window);
+
+            List<Control> controls = window.GetVisualDescendants()
+                .OfType<Control>()
+                .Where(c => c.IsVisible
+                    && c.DataContext is ModelManagerViewModel
+                    && (c is Button || c is ComboBox || c is TextBox || c is CheckBox))
+                .ToList();
+            Assert.NotEmpty(controls);
+
+            var outside = new List<string>();
+            foreach (Control control in controls)
+            {
+                Point? right = control.TranslatePoint(
+                    new Point(control.Bounds.Width, 0), window);
+                if (right is null || right.Value.X > window.Bounds.Width)
+                {
+                    string id = AutomationProperties.GetAutomationId(control);
+                    string what = !string.IsNullOrEmpty(id) ? id
+                        : control is Button b ? $"button {b.Content}"
+                        : control.GetType().Name;
+                    outside.Add($"{what} at x={right?.X:F0}");
+                }
+            }
+
+            Assert.True(outside.Count == 0,
+                $"{outside.Count} control(s) beyond the {window.Bounds.Width:F0}px window: " +
+                string.Join(", ", outside));
+
+            // Reachable but collapsed would be the other way to lose a control: a
+            // WrapPanel measures against infinite width, so the search box can end up
+            // sized to its padding alone.
+            Control search = controls.First(c =>
+                AutomationProperties.GetAutomationId(c) == "models-filter");
+            Assert.True(search.Bounds.Width >= 250,
+                $"the search box is {search.Bounds.Width:F0}px wide, too narrow to type into");
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = hadOverride ? previous : null;
         }
     }
 }

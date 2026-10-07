@@ -135,6 +135,18 @@ public partial class ModelManagerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
     private string? _licenseFilter;
 
+    /// <summary>Language to show, or null for every language.</summary>
+    /// <remarks>
+    /// Codes, not names: the manifest stores what the model card states, which is
+    /// codes, and inventing a name table beside it would be a second source to keep
+    /// in step. The free-text search matches codes too, so a reader who knows the
+    /// name can still search by the code it corresponds to.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
+    private string? _languageFilter;
+
     [ObservableProperty]
     private ModelCatalogItem? _selectedModel;
 
@@ -240,8 +252,34 @@ public partial class ModelManagerViewModel : ObservableObject
             .OrderBy(l => l, StringComparer.Ordinal)
             .ToList();
 
+    /// <summary>
+    /// Every language any entry of the catalogue declares, in code order.
+    /// </summary>
+    /// <remarks>
+    /// Built from the manifest rather than from a list somewhere else, so a model
+    /// cannot be selectable by a language no row claims, and a language nobody
+    /// claims cannot appear as a filter that returns nothing.
+    /// </remarks>
+    public IReadOnlyList<string> Languages { get; } =
+        ModelStore.Catalog
+            .Where(m => m.Languages is not null)
+            .SelectMany(m => m.Languages!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(l => l, StringComparer.Ordinal)
+            .ToList();
+
     /// <summary>True when any quick filter is narrowing the list.</summary>
-    public bool HasAnyQuickFilter => DownloadedOnly || HideNonCommercial || SizeFilter != ModelSizeFilter.Any;
+    /// <remarks>
+    /// The licence and language filters belong here too: the Clear button is bound to
+    /// this, so with only a licence filter active it used to read as "nothing to
+    /// clear" and leave a narrowed list with no way back.
+    /// </remarks>
+    public bool HasAnyQuickFilter
+        => DownloadedOnly
+        || HideNonCommercial
+        || SizeFilter != ModelSizeFilter.Any
+        || !string.IsNullOrEmpty(LicenseFilter)
+        || !string.IsNullOrEmpty(LanguageFilter);
 
     /// <summary>
     /// The quick filters in force, as one line, or empty when none are.
@@ -273,6 +311,11 @@ public partial class ModelManagerViewModel : ObservableObject
             if (!string.IsNullOrEmpty(LicenseFilter))
             {
                 parts.Add($"licence {LicenseFilter}");
+            }
+
+            if (!string.IsNullOrEmpty(LanguageFilter))
+            {
+                parts.Add($"language {LanguageFilter}");
             }
 
             if (!string.IsNullOrWhiteSpace(Filter))
@@ -351,6 +394,8 @@ public partial class ModelManagerViewModel : ObservableObject
     partial void OnSizeFilterChanged(ModelSizeFilter value) => ApplyFilter();
 
     partial void OnLicenseFilterChanged(string? value) => ApplyFilter();
+
+    partial void OnLanguageFilterChanged(string? value) => ApplyFilter();
 
     partial void OnBusyAliasChanged(string? value)
     {
@@ -601,11 +646,22 @@ public partial class ModelManagerViewModel : ObservableObject
                 continue;
             }
 
+            // A row that declares no languages cannot be shown to have them: with a
+            // language selected, "unknown" is hidden rather than assumed to match.
+            if (!string.IsNullOrEmpty(LanguageFilter)
+                && (item.Descriptor.Languages is null
+                    || !item.Descriptor.Languages.Contains(LanguageFilter, StringComparer.Ordinal)))
+            {
+                continue;
+            }
+
             if (!string.IsNullOrEmpty(needle)
                 && !item.Alias.Contains(needle, StringComparison.OrdinalIgnoreCase)
                 && !item.Repo.Contains(needle, StringComparison.OrdinalIgnoreCase)
                 && !item.Family.Contains(needle, StringComparison.OrdinalIgnoreCase)
-                && !item.License.Contains(needle, StringComparison.OrdinalIgnoreCase))
+                && !item.License.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                && item.Descriptor.Languages is not null
+                    && !item.Descriptor.Languages.Any(l => l.Contains(needle, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -636,6 +692,7 @@ public partial class ModelManagerViewModel : ObservableObject
         HideNonCommercial = false;
         SizeFilter = ModelSizeFilter.Any;
         LicenseFilter = null;
+        LanguageFilter = null;
         ApplyFilter();
     }
 
