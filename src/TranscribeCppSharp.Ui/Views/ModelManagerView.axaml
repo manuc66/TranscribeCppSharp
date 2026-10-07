@@ -142,6 +142,7 @@
               GridLinesVisibility="Horizontal"
               HorizontalAlignment="Stretch"
               Focusable="False"
+              HorizontalScrollBarVisibility="Auto"
               AutomationProperties.AutomationId="models-grid"
               AutomationProperties.Name="Model catalogue"
               ToolTip.Tip="Speed, not accuracy. See the Measured line in the detail pane below.">
@@ -172,7 +173,13 @@
         <DataGridTextColumn Header="Languages" Binding="{Binding LanguagesText}" Width="1.1*" />
         <DataGridTextColumn Header="x realtime" Binding="{Binding MeasuredText}" Width="0.6*" />
         <DataGridTextColumn Header="Diarization" Binding="{Binding DiarizationText}" Width="0.7*" />
-        <DataGridTemplateColumn Header="Action" Width="1.1*">
+        <!-- Fixed, not a share of the row: the three buttons need ~380px, and a
+             star share at the default window gives them 140. Star-sizing the
+             actions is what put Delete outside the window. A fixed width also
+             means the actions stay reachable when the window is narrowed — the
+             columns beside them truncate instead, which is visible, unlike a
+             button that is simply gone. -->
+        <DataGridTemplateColumn Header="Action" Width="390">
           <DataTemplate x:DataType="m:ModelCatalogItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button Content="Download"
