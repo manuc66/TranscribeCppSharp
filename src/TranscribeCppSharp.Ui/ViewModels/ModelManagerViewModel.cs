@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Performance;
+using TranscribeCppSharp.Shared;
 using TranscribeCppSharp.Ui.Models;
 
 namespace TranscribeCppSharp.Ui.ViewModels;
@@ -158,6 +159,20 @@ public partial class ModelManagerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
     private string? _licenseFilter;
 
+    /// <summary>
+    /// Capability to show, or null for all of them.
+    /// </summary>
+    /// <remarks>
+    /// Strings, like the licence and language filters: the items are what upstream
+    /// calls the capability and the value is the same string, so there is no
+    /// record/enum mismatch for the binding to silently fail on — which is what
+    /// made the size picker inert until it was found.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
+    private string? _featureFilter;
+
     /// <summary>Language to show, or null for every language.</summary>
     /// <remarks>
     /// Codes, not names: the manifest stores what the model card states, which is
@@ -267,6 +282,16 @@ public partial class ModelManagerViewModel : ObservableObject
         new ModelSizeFilterOption(ModelSizeFilter.Large, "Over 1.5 GB"),
     };
 
+    /// <summary>
+    /// Capabilities any model in the catalog records, for the feature filter.
+    /// </summary>
+    /// <remarks>
+    /// Taken from upstream's records rather than written here: every one of them is
+    /// declared by at least one model, so no choice can return an empty grid for
+    /// want of a model that ever had it.
+    /// </remarks>
+    public IReadOnlyList<string> Features { get; } = UpstreamCatalog.FeatureKeys;
+
     /// <summary>Licences present in the manifest, for the licence filter.</summary>
     public IReadOnlyList<string> Licenses { get; } =
         ModelStore.Catalog
@@ -302,7 +327,8 @@ public partial class ModelManagerViewModel : ObservableObject
         || HideNonCommercial
         || SizeFilter != ModelSizeFilter.Any
         || !string.IsNullOrEmpty(LicenseFilter)
-        || !string.IsNullOrEmpty(LanguageFilter);
+        || !string.IsNullOrEmpty(LanguageFilter)
+        || !string.IsNullOrEmpty(FeatureFilter);
 
     /// <summary>
     /// The quick filters in force, as one line, or empty when none are.
@@ -339,6 +365,11 @@ public partial class ModelManagerViewModel : ObservableObject
             if (!string.IsNullOrEmpty(LanguageFilter))
             {
                 parts.Add($"language {LanguageFilter}");
+            }
+
+            if (!string.IsNullOrEmpty(FeatureFilter))
+            {
+                parts.Add($"capability {FeatureFilter}");
             }
 
             if (!string.IsNullOrWhiteSpace(Filter))
@@ -419,6 +450,8 @@ public partial class ModelManagerViewModel : ObservableObject
     partial void OnLicenseFilterChanged(string? value) => ApplyFilter();
 
     partial void OnLanguageFilterChanged(string? value) => ApplyFilter();
+
+    partial void OnFeatureFilterChanged(string? value) => ApplyFilter();
 
     partial void OnBusyAliasChanged(string? value)
     {
@@ -678,6 +711,13 @@ public partial class ModelManagerViewModel : ObservableObject
                 continue;
             }
 
+            // A model with no record is not a model that has the feature: unknown
+            // is not yes, which is the same rule the language filter applies.
+            if (!string.IsNullOrEmpty(FeatureFilter) && !item.Supports(FeatureFilter))
+            {
+                continue;
+            }
+
             if (!string.IsNullOrEmpty(needle)
                 && !item.Alias.Contains(needle, StringComparison.OrdinalIgnoreCase)
                 && !item.Repo.Contains(needle, StringComparison.OrdinalIgnoreCase)
@@ -716,6 +756,7 @@ public partial class ModelManagerViewModel : ObservableObject
         SizeFilter = ModelSizeFilter.Any;
         LicenseFilter = null;
         LanguageFilter = null;
+        FeatureFilter = null;
         ApplyFilter();
     }
 

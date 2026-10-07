@@ -84,12 +84,18 @@ public class ModelGridLayoutTests
 
         Assert.True(grid.Bounds.Height > 0, "the grid did not lay out");
 
-        // Its own height against the rows it carries: taller than the window means
-        // the window is what has to move to see the bottom of it.
-        bool tallerThanWindow = grid.Bounds.Height > window.Bounds.Height;
-        Assert.False(tallerThanWindow,
+        // Taller than the window means the window is what moves, and the header
+        // goes with it.
+        Assert.False(grid.Bounds.Height > window.Bounds.Height,
             $"the grid is {grid.Bounds.Height:F0}px tall in a {window.Bounds.Height:F0}px window, " +
             "so its header scrolls away with the page");
+
+        // And a floor, because "not taller than the window" is satisfied by a grid
+        // one row high. The detail pane shares this space, so a regression that
+        // gives it everything shows up here rather than as a blank master list.
+        Assert.True(grid.Bounds.Height >= 120,
+            $"the grid is only {grid.Bounds.Height:F0}px tall with a row selected — " +
+            "too short to choose another row from");
     }
 
     /// <summary>

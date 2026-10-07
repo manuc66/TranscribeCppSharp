@@ -314,6 +314,19 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Whether upstream records this capability as supported for this model.
+    /// </summary>
+    /// <param name="capability">The key, e.g. "streaming" or "diarize".</param>
+    /// <returns>
+    /// False both when the model does not support it and when there is no record to
+    /// say — the filter is on what is known, and an unknown model is not a model
+    /// that has the feature.
+    /// </returns>
+    public bool Supports(string capability)
+        => Upstream?.Capabilities?.TryGetValue(capability, out UpstreamCatalog.Capability? cap) == true
+        && cap.Supported;
+
     /// <summary>True when the weights are on disk and verified.</summary>
     public bool IsCached { get; private set; }
 

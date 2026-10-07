@@ -12,7 +12,13 @@
     <c:RowIdConverter x:Key="DeleteId"   Prefix="models-delete" />
   </UserControl.Resources>
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
+  <!-- The grid and the detail pane are both stars: they share what is left
+       once the fixed rows have taken theirs, so neither can starve the other.
+       The pane used to be a fixed 250px Auto row, and a 97px banner plus a
+       filter row that wraps after gaining a picker were enough to take the
+       whole window and collapse the grid to zero — a master-detail where the
+       master disappears when you pick a row. -->
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto,Auto">
 
     <!-- What to look for, and where the weights are -->
     <Border Grid.Row="0" Padding="10" Margin="0,0,0,8"
@@ -48,9 +54,14 @@
                 AutomationProperties.Name="Commercial licences only"
                 ToolTip.Tip="Hide the models whose licence forbids commercial use. The flag is a text test on the SPDX identifier in the manifest, so check the licence text itself before relying on it." />
 
+      <!-- SelectedValue, not SelectedItem: the items are ModelSizeFilterOption
+           records and the filter is a ModelSizeFilter enum, so SelectedItem never
+           matches one and the picker sat blank while doing nothing. SelectedValue
+           with a Value binding is what maps item to filter. -->
       <ComboBox Margin="12,0,0,0" MinWidth="130"
                 ItemsSource="{Binding SizeFilters}"
-                SelectedItem="{Binding SizeFilter}"
+                SelectedValueBinding="{Binding Value}"
+                SelectedValue="{Binding SizeFilter}"
                 HorizontalAlignment="Stretch"
                 AutomationProperties.AutomationId="models-size-filter"
                 AutomationProperties.Name="Size filter"
@@ -73,6 +84,15 @@
                 AutomationProperties.AutomationId="models-language-filter"
                 AutomationProperties.Name="Language filter"
                 ToolTip.Tip="Show only the models whose model card declares this language. Codes, as the cards state them. A model that declares no languages is hidden while this is set — unknown is not the same as yes." />
+
+      <ComboBox Margin="12,0,0,0" MinWidth="130"
+                ItemsSource="{Binding Features}"
+                SelectedItem="{Binding FeatureFilter}"
+                PlaceholderText="Any capability"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.AutomationId="models-feature-filter"
+                AutomationProperties.Name="Capability filter"
+                ToolTip.Tip="Show only the models transcribe.cpp records as supporting this capability — streaming, diarize, translate, timestamps, and the rest. The names are theirs, not translated. A model with no record is hidden while this is set, because unknown is not the same as yes." />
 
       <Button Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="12,0,0,0"
               IsEnabled="{Binding HasAnyQuickFilter}"
@@ -253,7 +273,6 @@
     <Border Grid.Row="5"
             IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNotNull}}"
             Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            MaxHeight="250"
             Padding="10" Margin="0,8,0,0"
             AutomationProperties.AutomationId="models-detail"
             AutomationProperties.Name="Selected model details">

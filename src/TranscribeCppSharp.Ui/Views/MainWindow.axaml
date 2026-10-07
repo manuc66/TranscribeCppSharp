@@ -5,9 +5,20 @@
         x:Class="TranscribeCppSharp.Ui.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
-        Width="1100" Height="720"
-        MinWidth="640" MinHeight="420"
+        Width="1100" Height="880"
+        MinWidth="640" MinHeight="640"
         WindowStartupLocation="CenterScreen">
+
+  <!-- The height is not a taste: the Models tab's fixed rows — a banner carrying a
+       caveat, a filter row that wraps, a sort row that wraps, a summary, its buttons
+       and a status line — measure 368px together, and the master grid and its detail
+       pane split what is left between them. At the old 720 the leftover was 222px
+       (111 each, and 0 once a row was selected and the pane took its 250). 880
+       leaves each of them ~190px; 640 is the floor below which the Models tab cannot
+       show enough rows to be used.
+
+       The floor is the Models tab's, not the others': the four scrolled tabs are
+       long forms and shrink to fit whatever height they are given. -->
 
   <!-- Vertical scrolling only, and deliberately not horizontal.
 

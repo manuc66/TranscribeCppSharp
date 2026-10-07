@@ -57,6 +57,15 @@ column headers off the top and leaving the detail pane four screens down. Withou
 grid takes the space that is left, scrolls inside itself with its header in place, and the
 detail pane appears by shrinking it.
 
+**And both star, not one.** The grid and the detail pane are two `*` rows, so they split
+what the fixed rows leave rather than competing for it. The fixed rows measure 368 px — the
+banner carrying a caveat, the filter row and the sort row both wrapping, a summary, the
+buttons and a status line — so at the old 720 px window only 222 px were left: 111 px each,
+and **zero for the grid** once a row was selected and the pane took its fixed 250. That is a
+master-detail whose master disappears when you pick a row, which is what the test that
+asserts a floor now guards. The window opens at 880 px and will not shrink below 640 px,
+which is where the Models tab stops being usable.
+
 **What the three model pickers offer.** Transcription, Streaming and Batch list only the
 aliases already on disk, so an entry means you can run it now — with a fresh cache the list
 is empty and the button that starts a run is disabled. Under each picker sits a count and a
@@ -166,6 +175,15 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   A model that declares nothing is hidden while a language is selected, because
   unknown is not the same as yes. The free-text search reaches the codes too, so
   typing one filters the same way, and *Clear* turns all of them off at once.
+- **Filter by capability.** The picker beside the language filter lists every capability
+  transcribe.cpp records — `streaming`, `diarize`, `translate`, `timestamps`,
+  `lang_detect`, `batching` and the rest. The names are theirs, taken from their catalog
+  rather than written here, so every choice has at least one model behind it; a model with
+  no record is hidden while one is set, which is the rule the language filter applies too.
+  **It selects one at a time.** For a model that both streams *and* diarizes — there are
+  two: `diar_streaming_sortformer_4spk-v2.1` and `multitalker-parakeet-streaming-0.6b-v1` —
+  filter by `streaming` and read the Diarization column, which now answers for nine models
+  rather than waiting for a download.
 - **The detail pane quotes upstream.** Below the grid, the selected model shows what
   [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) itself records:
   the parameter count and the checkpoint it was converted from, every quantization they

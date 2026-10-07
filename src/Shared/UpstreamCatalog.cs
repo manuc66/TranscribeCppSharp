@@ -78,6 +78,23 @@ internal static class UpstreamCatalog
     }
 
     /// <summary>
+    /// Every capability key any model records, alphabetically.
+    /// </summary>
+    /// <remarks>
+    /// Built from the records rather than written out, so a key upstream adds cannot
+    /// be filtered on by name we never learned, and one we name that nothing declares
+    /// would appear as a choice returning an empty grid. The keys are theirs
+    /// (<c>lang_detect</c>, <c>diarize</c>), not translated: the filter is over their
+    /// catalog and a renamed label would be ours to keep in step.
+    /// </remarks>
+    public static IReadOnlyList<string> FeatureKeys { get; } =
+        Records.Value
+            .SelectMany(r => r.Value.Capabilities?.Keys ?? (IEnumerable<string>)Array.Empty<string>())
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
     /// Upstream's record for one model, or null when it has none.
     /// </summary>
     /// <remarks>
