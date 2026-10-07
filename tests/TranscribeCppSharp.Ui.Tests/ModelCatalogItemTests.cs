@@ -71,4 +71,24 @@ public class ModelCatalogItemTests
         Assert.Contains(nameof(ModelCatalogItem.DiarizationText), raised);
         Assert.Contains(nameof(ModelCatalogItem.DiarizationDetail), raised);
     }
+
+    /// <summary>
+    /// The family is upstream's record, not a derivation from the repository name.
+    /// </summary>
+    /// <remarks>
+    /// <c>SenseVoiceSmall-gguf</c> is the case that shows why: derived, the name
+    /// collapses to <c>sensevoicesmall</c> and there is no family in it to read.
+    /// Upstream records the variant as <c>sensevoice</c>, which is the answer the
+    /// column used to guess at.
+    /// </remarks>
+    [Fact]
+    public void TheFamilyComesFromTheManifestNotFromTheRepositoryName()
+    {
+        ModelDescriptor? descriptor = ModelStore.Find("sensevoicesmall");
+        Assert.NotNull(descriptor);
+        Assert.Equal("sensevoice", descriptor!.Family);
+
+        var item = new ModelCatalogItem(descriptor);
+        Assert.Equal("sensevoice", item.Family);
+    }
 }

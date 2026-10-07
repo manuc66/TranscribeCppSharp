@@ -140,7 +140,7 @@ public class ModelGridFitsTests
                     new Point(control.Bounds.Width, 0), window);
                 if (right is null || right.Value.X > window.Bounds.Width)
                 {
-                    string id = AutomationProperties.GetAutomationId(control);
+                    string? id = AutomationProperties.GetAutomationId(control);
                     string what = !string.IsNullOrEmpty(id) ? id
                         : control is Button b ? $"button {b.Content}"
                         : control.GetType().Name;

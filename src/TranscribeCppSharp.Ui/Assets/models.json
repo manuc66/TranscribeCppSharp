@@ -13,7 +13,11 @@
       "languages": [
         "zh",
         "en"
-      ]
+      ],
+      "family": "whisper",
+      "params": 1543321440,
+      "upstreamRepo": "MediaTek-Research/Breeze-ASR-25",
+      "upstreamCommit": "cffe7cc"
     },
     "canary-180m-flash": {
       "repo": "handy-computer/canary-180m-flash-gguf",
@@ -29,7 +33,11 @@
         "de",
         "es",
         "fr"
-      ]
+      ],
+      "family": "canary",
+      "params": 189083776,
+      "upstreamRepo": "nvidia/canary-180m-flash",
+      "upstreamCommit": "b12ab41"
     },
     "canary-1b": {
       "repo": "handy-computer/canary-1b-gguf",
@@ -45,7 +53,11 @@
         "de",
         "es",
         "fr"
-      ]
+      ],
+      "family": "canary",
+      "params": 1021477920,
+      "upstreamRepo": "nvidia/canary-1b",
+      "upstreamCommit": "1698acf"
     },
     "canary-1b-flash": {
       "repo": "handy-computer/canary-1b-flash-gguf",
@@ -61,7 +73,11 @@
         "de",
         "es",
         "fr"
-      ]
+      ],
+      "family": "canary",
+      "params": 890042496,
+      "upstreamRepo": "nvidia/canary-1b-flash",
+      "upstreamCommit": "a9a55e0"
     },
     "canary-1b-v2": {
       "repo": "handy-computer/canary-1b-v2-gguf",
@@ -98,7 +114,11 @@
         "sv",
         "ru",
         "uk"
-      ]
+      ],
+      "family": "canary",
+      "params": 980046848,
+      "upstreamRepo": "nvidia/canary-1b-v2",
+      "upstreamCommit": "87bc526"
     },
     "canary-qwen-2.5b": {
       "repo": "handy-computer/canary-qwen-2.5b-gguf",
@@ -111,7 +131,11 @@
       "size": 1983729024,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "canary_qwen",
+      "params": 2533757456,
+      "upstreamRepo": "nvidia/canary-qwen-2.5b",
+      "upstreamCommit": "b1469e1"
     },
     "cohere-transcribe-03-2026": {
       "repo": "handy-computer/cohere-transcribe-03-2026-gguf",
@@ -137,7 +161,11 @@
         "zh",
         "vi",
         "ko"
-      ]
+      ],
+      "family": "cohere_asr",
+      "params": 2049026832,
+      "upstreamRepo": "CohereLabs/cohere-transcribe-03-2026",
+      "upstreamCommit": "76b8b23"
     },
     "cohere-transcribe-arabic-07-2026": {
       "repo": "handy-computer/cohere-transcribe-arabic-07-2026-gguf",
@@ -151,7 +179,11 @@
       "languages": [
         "en",
         "ar"
-      ]
+      ],
+      "family": "cohere_asr",
+      "params": 2049026832,
+      "upstreamRepo": "CohereLabs/cohere-transcribe-arabic-07-2026",
+      "upstreamCommit": "0a8193c"
     },
     "diar_streaming_sortformer_4spk-v2.1": {
       "repo": "handy-computer/diar_streaming_sortformer_4spk-v2.1-gguf",
@@ -164,7 +196,11 @@
       "size": 139310336,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "sortformer",
+      "params": 117711368,
+      "upstreamRepo": "nvidia/diar_streaming_sortformer_4spk-v2.1",
+      "upstreamCommit": "fafaab5"
     },
     "fun-asr-mlt-nano-2512": {
       "repo": "handy-computer/Fun-ASR-MLT-Nano-2512-gguf",
@@ -207,7 +243,11 @@
         "sk",
         "sl",
         "sv"
-      ]
+      ],
+      "family": "funasr_nano",
+      "params": 829791840,
+      "upstreamRepo": "FunAudioLLM/Fun-ASR-MLT-Nano-2512",
+      "upstreamCommit": "cf67a93"
     },
     "fun-asr-nano-2512": {
       "repo": "handy-computer/Fun-ASR-Nano-2512-gguf",
@@ -222,7 +262,11 @@
         "zh",
         "en",
         "ja"
-      ]
+      ],
+      "family": "funasr_nano",
+      "params": 829791840,
+      "upstreamRepo": "FunAudioLLM/Fun-ASR-Nano-2512",
+      "upstreamCommit": "a7088d6"
     },
     "gigaam-v3-ctc": {
       "repo": "handy-computer/gigaam-v3-ctc-gguf",
@@ -235,7 +279,11 @@
       "size": 204563392,
       "languages": [
         "ru"
-      ]
+      ],
+      "family": "gigaam",
+      "params": 220718498,
+      "upstreamRepo": "ai-sage/GigaAM-v3",
+      "upstreamCommit": "15ef3b5"
     },
     "gigaam-v3-e2e-ctc": {
       "repo": "handy-computer/gigaam-v3-e2e-ctc-gguf",
@@ -248,7 +296,11 @@
       "size": 204911200,
       "languages": [
         "ru"
-      ]
+      ],
+      "family": "gigaam",
+      "params": 220889985,
+      "upstreamRepo": "ai-sage/GigaAM-v3",
+      "upstreamCommit": "cec030b"
     },
     "gigaam-v3-e2e-rnnt": {
       "repo": "handy-computer/gigaam-v3-e2e-rnnt-gguf",
@@ -261,7 +313,11 @@
       "size": 206392736,
       "languages": [
         "ru"
-      ]
+      ],
+      "family": "gigaam",
+      "params": 222518657,
+      "upstreamRepo": "ai-sage/GigaAM-v3",
+      "upstreamCommit": "ec1dc1f"
     },
     "gigaam-v3-rnnt": {
       "repo": "handy-computer/gigaam-v3-rnnt-gguf",
@@ -274,7 +330,11 @@
       "size": 205690784,
       "languages": [
         "ru"
-      ]
+      ],
+      "family": "gigaam",
+      "params": 221883426,
+      "upstreamRepo": "ai-sage/GigaAM-v3",
+      "upstreamCommit": "c7f128b"
     },
     "granite-4.0-1b-speech": {
       "repo": "handy-computer/granite-4.0-1b-speech-gguf",
@@ -292,7 +352,11 @@
         "es",
         "pt",
         "ja"
-      ]
+      ],
+      "family": "granite_speech",
+      "params": 2313228092,
+      "upstreamRepo": "ibm-granite/granite-4.0-1b-speech",
+      "upstreamCommit": "bd87ab8"
     },
     "granite-speech-4.1-2b": {
       "repo": "handy-computer/granite-speech-4.1-2b-gguf",
@@ -310,7 +374,11 @@
         "es",
         "pt",
         "ja"
-      ]
+      ],
+      "family": "granite_speech",
+      "params": 2313228092,
+      "upstreamRepo": "ibm-granite/granite-speech-4.1-2b",
+      "upstreamCommit": "8f4bb5f"
     },
     "granite-speech-4.1-2b-nar": {
       "repo": "handy-computer/granite-speech-4.1-2b-nar-gguf",
@@ -327,7 +395,11 @@
         "de",
         "es",
         "pt"
-      ]
+      ],
+      "family": "granite_speech_nar",
+      "params": 2254656316,
+      "upstreamRepo": "ibm-granite/granite-speech-4.1-2b-nar",
+      "upstreamCommit": "99a4df9"
     },
     "granite-speech-4.1-2b-plus": {
       "repo": "handy-computer/granite-speech-4.1-2b-plus-gguf",
@@ -344,7 +416,11 @@
         "de",
         "es",
         "pt"
-      ]
+      ],
+      "family": "granite_speech",
+      "params": 2111899452,
+      "upstreamRepo": "ibm-granite/granite-speech-4.1-2b-plus",
+      "upstreamCommit": "edd3bf5"
     },
     "granite-speech-5.0-470m-turboctc": {
       "repo": "handy-computer/granite-speech-5.0-470m-turboctc-gguf",
@@ -357,7 +433,11 @@
       "size": 335737184,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "granite5_ctc",
+      "params": 473014752,
+      "upstreamRepo": "ibm-granite/granite-speech-5.0-470m-turboctc",
+      "upstreamCommit": "18ca3c1"
     },
     "granite-speech-5.0-470m-turboctc-nc": {
       "repo": "handy-computer/granite-speech-5.0-470m-turboctc-nc-gguf",
@@ -370,7 +450,11 @@
       "size": 336016544,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "granite5_ctc",
+      "params": 473014752,
+      "upstreamRepo": "ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+      "upstreamCommit": "0eb7b4f"
     },
     "medasr": {
       "repo": "handy-computer/medasr-gguf",
@@ -383,7 +467,11 @@
       "size": 94239936,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "medasr",
+      "params": 105316112,
+      "upstreamRepo": "google/medasr",
+      "upstreamCommit": "ae1e484"
     },
     "moonshine-base": {
       "repo": "handy-computer/moonshine-base-gguf",
@@ -396,7 +484,11 @@
       "size": 77476480,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 61513920,
+      "upstreamRepo": "UsefulSensors/moonshine-base",
+      "upstreamCommit": "7a73d8d"
     },
     "moonshine-base-ar": {
       "repo": "handy-computer/moonshine-base-ar-gguf",
@@ -409,7 +501,11 @@
       "size": 77476480,
       "languages": [
         "ar"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 61513920,
+      "upstreamRepo": "UsefulSensors/moonshine-base-ar",
+      "upstreamCommit": "264cc18"
     },
     "moonshine-base-ja": {
       "repo": "handy-computer/moonshine-base-ja-gguf",
@@ -422,7 +518,11 @@
       "size": 77476480,
       "languages": [
         "ja"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 61513920,
+      "upstreamRepo": "UsefulSensors/moonshine-base-ja",
+      "upstreamCommit": "f9d4e6a"
     },
     "moonshine-base-ko": {
       "repo": "handy-computer/moonshine-base-ko-gguf",
@@ -435,7 +535,11 @@
       "size": 77476480,
       "languages": [
         "ko"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 61513920,
+      "upstreamRepo": "UsefulSensors/moonshine-base-ko",
+      "upstreamCommit": "fff6035"
     },
     "moonshine-base-uk": {
       "repo": "handy-computer/moonshine-base-uk-gguf",
@@ -448,7 +552,11 @@
       "size": 77476512,
       "languages": [
         "uk"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 61513920,
+      "upstreamRepo": "UsefulSensors/moonshine-base-uk",
+      "upstreamCommit": "a52b2e9"
     },
     "moonshine-base-vi": {
       "repo": "handy-computer/moonshine-base-vi-gguf",
@@ -461,7 +569,11 @@
       "size": 77476512,
       "languages": [
         "vi"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 61513920,
+      "upstreamRepo": "UsefulSensors/moonshine-base-vi",
+      "upstreamCommit": "0ee9ce9"
     },
     "moonshine-base-zh": {
       "repo": "handy-computer/moonshine-base-zh-gguf",
@@ -474,7 +586,11 @@
       "size": 77476480,
       "languages": [
         "zh"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 61513920,
+      "upstreamRepo": "UsefulSensors/moonshine-base-zh",
+      "upstreamCommit": "1df4f95"
     },
     "moonshine-streaming-medium": {
       "repo": "handy-computer/moonshine-streaming-medium-gguf",
@@ -487,7 +603,11 @@
       "size": 295793568,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "moonshine_streaming",
+      "params": 265898113,
+      "upstreamRepo": "UsefulSensors/moonshine-streaming-medium",
+      "upstreamCommit": "57b8436"
     },
     "moonshine-streaming-small": {
       "repo": "handy-computer/moonshine-streaming-small-gguf",
@@ -500,7 +620,11 @@
       "size": 198506848,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "moonshine_streaming",
+      "params": 140135225,
+      "upstreamRepo": "UsefulSensors/moonshine-streaming-small",
+      "upstreamCommit": "2c03650"
     },
     "moonshine-streaming-tiny": {
       "repo": "handy-computer/moonshine-streaming-tiny-gguf",
@@ -513,7 +637,11 @@
       "size": 50462816,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "moonshine_streaming",
+      "params": 44054721,
+      "upstreamRepo": "UsefulSensors/moonshine-streaming-tiny",
+      "upstreamCommit": "f8e9dfd"
     },
     "moonshine-tiny": {
       "repo": "handy-computer/moonshine-tiny-gguf",
@@ -526,7 +654,11 @@
       "size": 35466912,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 27092736,
+      "upstreamRepo": "UsefulSensors/moonshine-tiny",
+      "upstreamCommit": "390624e"
     },
     "moonshine-tiny-ar": {
       "repo": "handy-computer/moonshine-tiny-ar-gguf",
@@ -539,7 +671,11 @@
       "size": 35466944,
       "languages": [
         "ar"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 27092736,
+      "upstreamRepo": "UsefulSensors/moonshine-tiny-ar",
+      "upstreamCommit": "99e7fee"
     },
     "moonshine-tiny-ja": {
       "repo": "handy-computer/moonshine-tiny-ja-gguf",
@@ -552,7 +688,11 @@
       "size": 35466944,
       "languages": [
         "ja"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 27092736,
+      "upstreamRepo": "UsefulSensors/moonshine-tiny-ja",
+      "upstreamCommit": "02ca41b"
     },
     "moonshine-tiny-ko": {
       "repo": "handy-computer/moonshine-tiny-ko-gguf",
@@ -565,7 +705,11 @@
       "size": 35466944,
       "languages": [
         "ko"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 27092736,
+      "upstreamRepo": "UsefulSensors/moonshine-tiny-ko",
+      "upstreamCommit": "80995f0"
     },
     "moonshine-tiny-uk": {
       "repo": "handy-computer/moonshine-tiny-uk-gguf",
@@ -578,7 +722,11 @@
       "size": 35466944,
       "languages": [
         "uk"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 27092736,
+      "upstreamRepo": "UsefulSensors/moonshine-tiny-uk",
+      "upstreamCommit": "8cf70f4"
     },
     "moonshine-tiny-vi": {
       "repo": "handy-computer/moonshine-tiny-vi-gguf",
@@ -591,7 +739,11 @@
       "size": 35466944,
       "languages": [
         "vi"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 27092736,
+      "upstreamRepo": "UsefulSensors/moonshine-tiny-vi",
+      "upstreamCommit": "d4d20da"
     },
     "moonshine-tiny-zh": {
       "repo": "handy-computer/moonshine-tiny-zh-gguf",
@@ -604,7 +756,11 @@
       "size": 35466944,
       "languages": [
         "zh"
-      ]
+      ],
+      "family": "moonshine",
+      "params": 27092736,
+      "upstreamRepo": "UsefulSensors/moonshine-tiny-zh",
+      "upstreamCommit": "3306270"
     },
     "moss-transcribe-diarize": {
       "repo": "handy-computer/moss-transcribe-diarize-gguf",
@@ -618,7 +774,11 @@
       "languages": [
         "en",
         "zh"
-      ]
+      ],
+      "family": "moss",
+      "params": 908529760,
+      "upstreamRepo": "OpenMOSS-Team/MOSS-Transcribe-Diarize",
+      "upstreamCommit": "d7231bb"
     },
     "multitalker-parakeet-streaming-0.6b-v1": {
       "repo": "handy-computer/multitalker-parakeet-streaming-0.6b-v1-gguf",
@@ -631,7 +791,11 @@
       "size": 681209984,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 739989513,
+      "upstreamRepo": "nvidia/multitalker-parakeet-streaming-0.6b-v1",
+      "upstreamCommit": "8749fc7"
     },
     "nemotron-3.5-asr-streaming-0.6b": {
       "repo": "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf",
@@ -671,7 +835,11 @@
         "hu",
         "ro",
         "et"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 637991968,
+      "upstreamRepo": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+      "upstreamCommit": "24b151a"
     },
     "nemotron-speech-streaming-en-0.6b": {
       "repo": "handy-computer/nemotron-speech-streaming-en-0.6b-gguf",
@@ -684,7 +852,11 @@
       "size": 538989568,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 618079745,
+      "upstreamRepo": "nvidia/nemotron-speech-streaming-en-0.6b",
+      "upstreamCommit": "ef3bf40"
     },
     "parakeet-ctc-0.6b": {
       "repo": "handy-computer/parakeet-ctc-0.6b-gguf",
@@ -697,7 +869,11 @@
       "size": 532544704,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 608848897,
+      "upstreamRepo": "nvidia/parakeet-ctc-0.6b",
+      "upstreamCommit": "ad09ba1"
     },
     "parakeet-ctc-1.1b": {
       "repo": "handy-computer/parakeet-ctc-1.1b-gguf",
@@ -710,7 +886,11 @@
       "size": 928584736,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 1062626305,
+      "upstreamRepo": "nvidia/parakeet-ctc-1.1b",
+      "upstreamCommit": "a707e81"
     },
     "parakeet-primeline": {
       "repo": "handy-computer/parakeet-primeline-gguf",
@@ -747,7 +927,11 @@
         "es",
         "sv",
         "uk"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 627052166,
+      "upstreamRepo": "primeline/parakeet-primeline",
+      "upstreamCommit": "3f1a9bc"
     },
     "parakeet-rnnt-0.6b": {
       "repo": "handy-computer/parakeet-rnnt-0.6b-gguf",
@@ -760,7 +944,11 @@
       "size": 539714976,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 616736257,
+      "upstreamRepo": "nvidia/parakeet-rnnt-0.6b",
+      "upstreamCommit": "c0c1f09"
     },
     "parakeet-rnnt-1.1b": {
       "repo": "handy-computer/parakeet-rnnt-1.1b-gguf",
@@ -773,7 +961,11 @@
       "size": 935755008,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 1070513665,
+      "upstreamRepo": "nvidia/parakeet-rnnt-1.1b",
+      "upstreamCommit": "a07b19e"
     },
     "parakeet-tdt-0.6b-v2": {
       "repo": "handy-computer/parakeet-tdt-0.6b-v2-gguf",
@@ -786,7 +978,11 @@
       "size": 539012608,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 617869958,
+      "upstreamRepo": "nvidia/parakeet-tdt-0.6b-v2",
+      "upstreamCommit": "1b149a3"
     },
     "parakeet-tdt-0.6b-v3": {
       "repo": "handy-computer/parakeet-tdt-0.6b-v3-gguf",
@@ -823,7 +1019,11 @@
         "es",
         "sv",
         "uk"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 627052166,
+      "upstreamRepo": "nvidia/parakeet-tdt-0.6b-v3",
+      "upstreamCommit": "6d590f7"
     },
     "parakeet-tdt-1.1b": {
       "repo": "handy-computer/parakeet-tdt-1.1b-gguf",
@@ -836,7 +1036,11 @@
       "size": 935758496,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 1070516870,
+      "upstreamRepo": "nvidia/parakeet-tdt-1.1b",
+      "upstreamCommit": "53276c6"
     },
     "parakeet-tdt_ctc-1.1b": {
       "repo": "handy-computer/parakeet-tdt_ctc-1.1b-gguf",
@@ -849,7 +1053,11 @@
       "size": 935758080,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 1070516870,
+      "upstreamRepo": "nvidia/parakeet-tdt_ctc-1.1b",
+      "upstreamCommit": "675e786"
     },
     "parakeet-tdt_ctc-110m": {
       "repo": "handy-computer/parakeet-tdt_ctc-110m-gguf",
@@ -862,7 +1070,11 @@
       "size": 101335520,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 114113670,
+      "upstreamRepo": "nvidia/parakeet-tdt_ctc-110m",
+      "upstreamCommit": "431a349"
     },
     "parakeet-unified-en-0.6b": {
       "repo": "handy-computer/parakeet-unified-en-0.6b-gguf",
@@ -875,7 +1087,11 @@
       "size": 540795264,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "parakeet",
+      "params": 618309121,
+      "upstreamRepo": "nvidia/parakeet-unified-en-0.6b",
+      "upstreamCommit": "d4ac992"
     },
     "qwen3-asr-0.6b": {
       "repo": "handy-computer/Qwen3-ASR-0.6B-gguf",
@@ -917,7 +1133,11 @@
         "ro",
         "hu",
         "mk"
-      ]
+      ],
+      "family": "qwen3_asr",
+      "params": 782452240,
+      "upstreamRepo": "Qwen/Qwen3-ASR-0.6B",
+      "upstreamCommit": "5eb1441"
     },
     "qwen3-asr-1.7b": {
       "repo": "handy-computer/Qwen3-ASR-1.7B-gguf",
@@ -959,7 +1179,11 @@
         "ro",
         "hu",
         "mk"
-      ]
+      ],
+      "family": "qwen3_asr",
+      "params": 2038078608,
+      "upstreamRepo": "Qwen/Qwen3-ASR-1.7B",
+      "upstreamCommit": "7278e1e"
     },
     "sensevoicesmall": {
       "repo": "handy-computer/SenseVoiceSmall-gguf",
@@ -976,7 +1200,11 @@
         "en",
         "ja",
         "ko"
-      ]
+      ],
+      "family": "sensevoice",
+      "params": 234000287,
+      "upstreamRepo": "FunAudioLLM/SenseVoiceSmall",
+      "upstreamCommit": "3eb3b4e"
     },
     "voxtral-mini-3b-2507": {
       "repo": "handy-computer/Voxtral-Mini-3B-2507-gguf",
@@ -996,7 +1224,11 @@
         "pt",
         "nl",
         "hi"
-      ]
+      ],
+      "family": "voxtral",
+      "params": 4676297232,
+      "upstreamRepo": "mistralai/Voxtral-Mini-3B-2507",
+      "upstreamCommit": "3060fe3"
     },
     "voxtral-mini-4b-realtime-2602": {
       "repo": "handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf",
@@ -1021,7 +1253,11 @@
         "ar",
         "hi",
         "ko"
-      ]
+      ],
+      "family": "voxtral_realtime",
+      "params": 4429707024,
+      "upstreamRepo": "mistralai/Voxtral-Mini-4B-Realtime-2602",
+      "upstreamCommit": "2769294"
     },
     "voxtral-small-24b-2507": {
       "repo": "handy-computer/Voxtral-Small-24B-2507-gguf",
@@ -1041,7 +1277,11 @@
         "pt",
         "nl",
         "hi"
-      ]
+      ],
+      "family": "voxtral",
+      "params": 24261827088,
+      "upstreamRepo": "mistralai/Voxtral-Small-24B-2507",
+      "upstreamCommit": "da5b424"
     },
     "whisper-base": {
       "repo": "handy-computer/whisper-base-gguf",
@@ -1152,7 +1392,11 @@
         "yi",
         "yo",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 72610400,
+      "upstreamRepo": "openai/whisper-base",
+      "upstreamCommit": "e37978b"
     },
     "whisper-base.en": {
       "repo": "handy-computer/whisper-base.en-gguf",
@@ -1165,7 +1409,11 @@
       "size": 63709472,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "whisper",
+      "params": 72609888,
+      "upstreamRepo": "openai/whisper-base.en",
+      "upstreamCommit": "911407f"
     },
     "whisper-large": {
       "repo": "handy-computer/whisper-large-gguf",
@@ -1276,7 +1524,11 @@
         "yi",
         "yo",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 1543321440,
+      "upstreamRepo": "openai/whisper-large",
+      "upstreamCommit": "4ef9b41"
     },
     "whisper-large-v2": {
       "repo": "handy-computer/whisper-large-v2-gguf",
@@ -1387,7 +1639,11 @@
         "yi",
         "yo",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 1543321440,
+      "upstreamRepo": "openai/whisper-large-v2",
+      "upstreamCommit": "ae46427"
     },
     "whisper-large-v3": {
       "repo": "handy-computer/whisper-large-v3-gguf",
@@ -1499,7 +1755,11 @@
         "yo",
         "yue",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 1543516688,
+      "upstreamRepo": "openai/whisper-large-v3",
+      "upstreamCommit": "06f233f"
     },
     "whisper-large-v3-turbo": {
       "repo": "handy-computer/whisper-large-v3-turbo-gguf",
@@ -1611,7 +1871,11 @@
         "yo",
         "yue",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 808904208,
+      "upstreamRepo": "openai/whisper-large-v3-turbo",
+      "upstreamCommit": "41f01f3"
     },
     "whisper-medium": {
       "repo": "handy-computer/whisper-medium-gguf",
@@ -1722,7 +1986,11 @@
         "yi",
         "yo",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 763874400,
+      "upstreamRepo": "openai/whisper-medium",
+      "upstreamCommit": "abdf7c3"
     },
     "whisper-medium.en": {
       "repo": "handy-computer/whisper-medium.en-gguf",
@@ -1735,7 +2003,11 @@
       "size": 582669056,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "whisper",
+      "params": 763873376,
+      "upstreamRepo": "openai/whisper-medium.en",
+      "upstreamCommit": "2e98eb6"
     },
     "whisper-small": {
       "repo": "handy-computer/whisper-small-gguf",
@@ -1846,7 +2118,11 @@
         "yi",
         "yo",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 241751392,
+      "upstreamRepo": "openai/whisper-small",
+      "upstreamCommit": "973afd2"
     },
     "whisper-small.en": {
       "repo": "handy-computer/whisper-small.en-gguf",
@@ -1859,7 +2135,11 @@
       "size": 193672256,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "whisper",
+      "params": 241750624,
+      "upstreamRepo": "openai/whisper-small.en",
+      "upstreamCommit": "e872752"
     },
     "whisper-tiny": {
       "repo": "handy-computer/whisper-tiny-gguf",
@@ -1970,7 +2250,11 @@
         "yi",
         "yo",
         "zh"
-      ]
+      ],
+      "family": "whisper",
+      "params": 37777120,
+      "upstreamRepo": "openai/whisper-tiny",
+      "upstreamCommit": "169d4a4"
     },
     "whisper-tiny.en": {
       "repo": "handy-computer/whisper-tiny.en-gguf",
@@ -1983,7 +2267,11 @@
       "size": 44135072,
       "languages": [
         "en"
-      ]
+      ],
+      "family": "whisper",
+      "params": 37776736,
+      "upstreamRepo": "openai/whisper-tiny.en",
+      "upstreamCommit": "87c7102"
     }
   }
 }

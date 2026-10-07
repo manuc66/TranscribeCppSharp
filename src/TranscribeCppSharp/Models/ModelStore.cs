@@ -278,6 +278,21 @@ public static class ModelStore
         }
 
         writer.WriteLine(alias);
+        if (model.Family is not null)
+        {
+            writer.WriteLine($"  family     : {model.Family}");
+        }
+
+        if (model.Params > 0)
+        {
+            writer.WriteLine($"  params     : {model.Params:N0}");
+        }
+
+        if (model.UpstreamRepo is not null)
+        {
+            writer.WriteLine($"  upstream   : {model.UpstreamRepo} @ {model.UpstreamCommit}");
+        }
+
         writer.WriteLine($"  repo       : {model.Repo}");
         writer.WriteLine($"  revision   : {model.Revision}");
         writer.WriteLine($"  quant      : {model.Quant}");
@@ -299,7 +314,11 @@ public static class ModelStore
             entry.File,
             entry.Sha256,
             entry.Size,
-            entry.Languages);
+            entry.Languages,
+            entry.Family,
+            entry.Params,
+            entry.UpstreamRepo,
+            entry.UpstreamCommit);
 
     private static string CacheDirectory(string repo, string revision)
         => Path.Combine(CacheRoot(), repo.Replace('/', '_'), revision);
@@ -505,6 +524,18 @@ public static class ModelStore
 
         /// <summary>Languages the model card declares, or null when it declares none.</summary>
         public string[]? Languages { get; set; }
+
+        /// <summary>Model family as upstream records it, or null.</summary>
+        public string? Family { get; set; }
+
+        /// <summary>Parameter count as upstream records it, or 0.</summary>
+        public long Params { get; set; }
+
+        /// <summary>Checkpoint the GGUF was converted from.</summary>
+        public string? UpstreamRepo { get; set; }
+
+        /// <summary>Exact commit of that checkpoint.</summary>
+        public string? UpstreamCommit { get; set; }
     }
 
     private sealed record HfFile(string Path, string Sha256, long Size);

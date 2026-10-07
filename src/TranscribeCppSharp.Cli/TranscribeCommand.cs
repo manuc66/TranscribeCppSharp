@@ -41,7 +41,7 @@ internal static class TranscribeCommand
           --quant <q>    quantization for a known alias (e.g. Q4_K_M, Q5_K_M,
                          Q8_0, F16); default is per model (see --list-models)
           --list-models  list the known model aliases and exit
-          --model-info <alias>  show details (revision, size, license) for one alias
+          --model-info <alias>  show details (family, params, revision, size, license)
           --backend <b>  compute backend: auto (default), cpu, cpu-accel,
                          metal, vulkan, cuda, rocm. 'auto' runs on the GPU
                          when one initializes (every discrete GPU is probed

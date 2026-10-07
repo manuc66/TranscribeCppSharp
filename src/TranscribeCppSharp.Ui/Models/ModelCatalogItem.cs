@@ -189,10 +189,15 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     }
 
     /// <summary>
-    /// The model family, read off the repository name.
+    /// The model family as upstream records it, falling back to the repository name.
     /// </summary>
     /// <remarks>
-    /// Derived, not declared: the manifest has no family field, and the native
+    /// Prefers the manifest, which upstream populates from their own source of
+    /// truth, over deriving it from the repository name: deriving gives no family
+    /// at all for SenseVoiceSmall-gguf, and is a guess even when it works. The
+    /// derived path stays for an entry whose manifest predates the field.
+    /// The original reasoning, now historical: the manifest had no family field,
+    /// and the native
     /// library reports what a model supports through <c>Model.Supports</c>,
     /// which needs the model loaded — asking all 72 would mean downloading tens
     /// of gigabytes just to fill a column. The repositories are named after
@@ -200,7 +205,7 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     /// name is the best signal available, but it is a guess and the column
     /// header says so.
     /// </remarks>
-    public string Family => DeriveFamily(Descriptor.Repo);
+    public string Family => Descriptor.Family ?? DeriveFamily(Descriptor.Repo);
 
     /// <summary>
     /// Whether this is the alias the CLI defaults to.

@@ -15,6 +15,10 @@ namespace TranscribeCppSharp.Models;
 /// <param name="File">File name inside <paramref name="Repo"/>.</param>
 /// <param name="Sha256">Expected checksum of the downloaded file.</param>
 /// <param name="Size">Size in bytes, or 0 when the manifest does not state it.</param>
+/// <param name="Family">Model family as upstream records it, or null when the manifest has none.</param>
+/// <param name="Params">Parameter count as upstream records it, or 0 when not stated.</param>
+/// <param name="UpstreamRepo">Checkpoint the GGUF was converted from.</param>
+/// <param name="UpstreamCommit">Exact commit of that checkpoint.</param>
 /// <param name="Languages">
 /// Languages the model card declares, or null when the manifest has none. This is
 /// what the model's own card says about it, so it is documentation rather than a
@@ -32,7 +36,11 @@ public sealed record ModelDescriptor(
     string File,
     string Sha256,
     long Size,
-    string[]? Languages = null)
+    string[]? Languages = null,
+    string? Family = null,
+    long Params = 0,
+    string? UpstreamRepo = null,
+    string? UpstreamCommit = null)
 {
     /// <summary>
     /// The URL the file is downloaded from. Pinned to <see cref="Revision"/>, so

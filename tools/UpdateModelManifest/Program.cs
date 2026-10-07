@@ -5,9 +5,11 @@
 // upstream license reported by the model card.
 //
 // Usage: dotnet run --project tools/UpdateModelManifest [-- --author <org>] [--quant <Q>] [--out <path>]
+//        dotnet run --project tools/UpdateModelManifest -- --from-catalog <path> --zip <catalog.zip>
 //        dotnet run --project tools/UpdateModelManifest -- --languages-only <path>
 // BCL only (HttpClient + System.Text.Json).
 
+using System.IO.Compression;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,6 +21,16 @@ string outPath = ArgAfter("--out") ?? Path.Combine(FindRepoRoot(), "src", "Trans
 
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
 http.DefaultRequestHeaders.UserAgent.ParseAdd("TranscribeCppSharp.UpdateModelManifest/1.0");
+
+// Identity fields from upstream's own catalog come first, for the same reason:
+// re-listing the catalogue to add columns would re-pin every revision, size and
+// checksum. This reads an existing manifest and writes back only what it names.
+string? fromCatalog = ArgAfter("--from-catalog");
+if (fromCatalog is not null)
+{
+    await EnrichFromCatalogAsync(ArgAfter("--zip")!, fromCatalog);
+    return;
+}
 
 // Languages first, because they are a separate question from the catalogue: the
 // pins, the sizes and the checksums are what a manifest exists for, and re-listing
@@ -157,6 +169,67 @@ static HfFile? Pick(List<HfFile> files, string preferredQuant)
 
     return files[0];
 }
+
+/// <summary>
+/// Adds the identity fields upstream records for each model, and nothing else.
+/// </summary>
+/// <remarks>
+/// Read from their pinned catalog rather than derived from the repository name,
+/// which is what the family field did before this and got wrong for at least one
+/// model: SenseVoiceSmall-gguf yields "sensvoicesmall" and no family at all.
+/// Matching is by alias, with the one name this project derives differently
+/// spelled out rather than guessed at every call site.
+/// </remarks>
+static async Task EnrichFromCatalogAsync(string zipPath, string outPath)
+{
+    Manifest existing = JsonSerializer.Deserialize<Manifest>(
+        await File.ReadAllTextAsync(outPath), ManifestJson.Read)
+        ?? throw new InvalidDataException($"{outPath} is not a model manifest.");
+
+    var records = new Dictionary<string, CatalogEntry>(StringComparer.Ordinal);
+    using (ZipArchive zip = ZipFile.OpenRead(zipPath))
+    {
+        foreach (ZipArchiveEntry entry in zip.Entries.Where(e => !string.IsNullOrEmpty(e.Name)))
+        {
+            using StreamReader reader = new(entry.Open());
+            CatalogEntry? record = JsonSerializer.Deserialize<CatalogEntry>(
+                await reader.ReadToEndAsync(), ManifestJson.ReadCatalog);
+            if (record is not null)
+            {
+                records[entry.Name[..^".json".Length]] = record;
+            }
+        }
+    }
+
+    Console.Error.WriteLine($"Read {records.Count} catalog records from {zipPath}.");
+
+    var ordinal = new SortedDictionary<string, ModelEntry>(StringComparer.Ordinal);
+    int matched = 0;
+    foreach (KeyValuePair<string, ModelEntry> pair in existing.Models)
+    {
+        ordinal[pair.Key] = pair.Value;
+        if (!records.TryGetValue(UpstreamName(pair.Key), out CatalogEntry? record))
+        {
+            continue;
+        }
+
+        matched++;
+        pair.Value.Family = record.Family;
+        pair.Value.Params = record.Params;
+        pair.Value.UpstreamRepo = record.UpstreamRepo;
+        pair.Value.UpstreamCommit = record.UpstreamCommit;
+    }
+
+    await WriteManifestAsync(outPath,
+        new Manifest { DefaultQuant = existing.DefaultQuant, Models = ordinal });
+    await Console.Error.WriteLineAsync(
+        $"Wrote {existing.Models.Count} models to {outPath} ({matched} enriched from upstream).");
+}
+
+/// <summary>Our alias, as upstream spells it. Only one of the seventy-two differs.</summary>
+static string UpstreamName(string alias)
+    => alias == "sensevoicesmall" ? "sensevoice-small" : alias;
+
 
 /// <summary>
 /// Reads a model card's <c>language</c> list out of an existing manifest.
@@ -299,6 +372,18 @@ namespace TranscribeCppSharp.Tools.UpdateModelManifest
     {
         public static readonly JsonSerializerOptions Read = new() { PropertyNameCaseInsensitive = true };
 
+        /// <summary>
+        /// Their records are snake_case (upstream_repo, upstream_commit), ours are
+        /// camelCase. Case-insensitivity alone does not bridge an underscore, and the
+        /// two fields silently arriving null — then vanishing under
+        /// WhenWritingNull — is how that mistake passes unnoticed.
+        /// </summary>
+        public static readonly JsonSerializerOptions ReadCatalog = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        };
+
         public static readonly JsonSerializerOptions Write = new()
         {
             WriteIndented = true,
@@ -334,6 +419,30 @@ namespace TranscribeCppSharp.Tools.UpdateModelManifest
 
         /// <summary>Languages the model card declares, or null when it declares none.</summary>
         public string[]? Languages { get; set; }
+
+        /// <summary>Model family, from upstream's catalog — not derived from the repo name.</summary>
+        public string? Family { get; set; }
+
+        /// <summary>Parameter count, from upstream's catalog. 0 when not stated.</summary>
+        public long Params { get; set; }
+
+        /// <summary>Checkpoint the GGUF was converted from.</summary>
+        public string? UpstreamRepo { get; set; }
+
+        /// <summary>Exact commit of that checkpoint.</summary>
+        public string? UpstreamCommit { get; set; }
+    }
+
+    /// <summary>Just the fields this reads; their records carry far more.</summary>
+    internal sealed class CatalogEntry
+    {
+        public string? Family { get; set; }
+
+        public long Params { get; set; }
+
+        public string? UpstreamRepo { get; set; }
+
+        public string? UpstreamCommit { get; set; }
     }
 
     internal sealed record HfFile(string Path, string Sha256, long Size)
