@@ -1,13 +1,6 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Text;
 using TranscribeCppSharp.Cli;
@@ -319,7 +312,7 @@ public class ModelStoreDownloadTests : IDisposable
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             }));
 
-        protected override System.Threading.Tasks.Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             string url = request.RequestUri!.ToString();
             Requests.Add(url);

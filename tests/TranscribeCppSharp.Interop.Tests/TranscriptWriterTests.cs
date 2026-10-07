@@ -1,10 +1,8 @@
 #nullable enable
 
-using System;
 using System.Globalization;
 using System.Text.Json;
 using TranscribeCppSharp.Cli;
-using TranscribeCppSharp.Interop;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;

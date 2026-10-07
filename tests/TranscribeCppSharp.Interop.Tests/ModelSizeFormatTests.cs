@@ -93,6 +93,6 @@ public class ModelSizeFormatTests
         string formatted = ModelSizeFormat.Format(Bytes).ToString();
 
         Assert.Equal("1.08 GB", formatted);
-        Assert.DoesNotContain("1106", formatted, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("1106", formatted, StringComparison.Ordinal);
     }
 }

@@ -42,8 +42,8 @@ public sealed class RunParamsBuilder : IDisposable
     {
         @params.task = task switch
         {
-            TranscriptionTask.Transcribe => Interop.Task.TaskTranscribe,
-            TranscriptionTask.Translate => Interop.Task.TaskTranslate,
+            TranscriptionTask.Transcribe => Task.TaskTranscribe,
+            TranscriptionTask.Translate => Task.TaskTranslate,
             _ => throw new ArgumentOutOfRangeException(nameof(task)),
         };
         return this;

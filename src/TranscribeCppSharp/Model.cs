@@ -145,7 +145,7 @@ public sealed class Model : IDisposable
                 throw new TranscribeException(status, nameof(NativeMethods.ModelGetCapabilities));
             }
 
-            var caps = Marshal.PtrToStructure<Interop.Capabilities>(ptr);
+            var caps = Marshal.PtrToStructure<Capabilities>(ptr);
 
             // The language pointers are borrowed from the model, so they are
             // copied out here rather than borrowed into the result: a

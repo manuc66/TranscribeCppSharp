@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 

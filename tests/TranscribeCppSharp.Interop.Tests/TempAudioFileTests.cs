@@ -1,10 +1,7 @@
 #nullable enable
 
-using System;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
-using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Cli;
 using Xunit;
 using Xunit.Abstractions;

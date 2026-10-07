@@ -73,7 +73,7 @@ public static class ModelBenchmarkService
         }
 
         var loadWatch = Stopwatch.StartNew();
-        using TranscribeCppSharp.Model model = TranscribeCppSharp.Model.Load(modelPath, builder =>
+        using Model model = Model.Load(modelPath, builder =>
         {
             if (backend != null)
             {
@@ -92,7 +92,7 @@ public static class ModelBenchmarkService
         // would be wrong.
         BackendDevice? resolved = model.Device;
 
-        using TranscribeCppSharp.Session session = model.CreateSession(sessionParams =>
+        using Session session = model.CreateSession(sessionParams =>
         {
             if (threads.HasValue)
             {
@@ -113,7 +113,7 @@ public static class ModelBenchmarkService
             cancellationToken.ThrowIfCancellationRequested();
 
             var watch = Stopwatch.StartNew();
-            TranscribeCppSharp.Transcript transcript = session.Run(pcm, null, cancellationToken);
+            Transcript transcript = session.Run(pcm, null, cancellationToken);
             watch.Stop();
 
             double rtf = watch.Elapsed.TotalSeconds / audioSeconds;
@@ -188,7 +188,7 @@ public static class ModelBenchmarkService
     public static string MachineKey()
     {
         string os = RuntimeInformation.OSDescription;
-        int cores = System.Environment.ProcessorCount;
+        int cores = Environment.ProcessorCount;
         return $"{os}|{cores}|{TryBackendVersion()}";
     }
 

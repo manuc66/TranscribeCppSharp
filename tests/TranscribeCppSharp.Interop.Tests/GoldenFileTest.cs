@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
 using TranscribeCppSharp.Generator;
 using Xunit;
 

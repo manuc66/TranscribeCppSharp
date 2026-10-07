@@ -1,9 +1,7 @@
 #nullable enable
 
-using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using TranscribeCppSharp.Interop;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;

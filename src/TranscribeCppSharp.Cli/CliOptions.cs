@@ -6,7 +6,6 @@
 // flags are read once here instead of being re-scanned while transcribing.
 
 using System.Diagnostics.CodeAnalysis;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 

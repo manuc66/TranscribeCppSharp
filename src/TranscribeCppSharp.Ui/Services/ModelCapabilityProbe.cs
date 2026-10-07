@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp.Ui.Services;

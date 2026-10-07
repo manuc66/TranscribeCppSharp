@@ -1,11 +1,8 @@
 #nullable enable
 
-using System;
-using System.IO;
 using System.Text.Json;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Cli;
-using TranscribeCppSharp.Interop;
 using Xunit;
 using Xunit.Abstractions;
 

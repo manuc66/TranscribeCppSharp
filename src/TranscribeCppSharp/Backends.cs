@@ -151,7 +151,7 @@ public static class Backends
 
     private static BackendDevice ConvertDevice(IntPtr handle, IntPtr devicePtr)
     {
-        var d = Marshal.PtrToStructure<Interop.DeviceInfo>(devicePtr);
+        var d = Marshal.PtrToStructure<DeviceInfo>(devicePtr);
         var name = PtrToStringOrEmpty(d.name);
         var description = PtrToStringOrEmpty(d.description);
         var kind = PtrToStringOrEmpty(d.kind);

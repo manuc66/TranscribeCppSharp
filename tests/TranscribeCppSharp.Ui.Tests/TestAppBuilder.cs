@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Headless;
-using TranscribeCppSharp.Ui;
 
 [assembly: AvaloniaTestApplication(typeof(TranscribeCppSharp.Ui.Tests.TestAppBuilder))]
 

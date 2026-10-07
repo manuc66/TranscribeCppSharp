@@ -1,8 +1,5 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
-using TranscribeCppSharp.Interop;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -74,8 +71,8 @@ public class ResultRecordTests
     [Fact]
     public void BackendDevice_IsPositionalWithValueEquality()
     {
-        var a = new TranscribeCppSharp.BackendDevice("cpu", "CPU", "cpu", "0", 1024UL, 512UL, DeviceType.DeviceTypeCpu);
-        var b = new TranscribeCppSharp.BackendDevice("cpu", "CPU", "cpu", "0", 1024UL, 512UL, DeviceType.DeviceTypeCpu);
+        var a = new BackendDevice("cpu", "CPU", "cpu", "0", 1024UL, 512UL, DeviceType.DeviceTypeCpu);
+        var b = new BackendDevice("cpu", "CPU", "cpu", "0", 1024UL, 512UL, DeviceType.DeviceTypeCpu);
 
         Assert.Equal(a, b);
         Assert.Equal("cpu", a.Name);

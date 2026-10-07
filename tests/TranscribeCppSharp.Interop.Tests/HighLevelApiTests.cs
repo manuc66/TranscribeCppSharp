@@ -1,9 +1,6 @@
 #nullable enable
 
-using System;
-using System.IO;
 using System.Runtime.InteropServices;
-using TranscribeCppSharp.Interop;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -14,7 +11,7 @@ public class HighLevelApiTests : IDisposable
     {
         try
         {
-            TranscribeCppSharp.Backends.InitDefault();
+            Backends.InitDefault();
         }
         catch
         {
@@ -39,7 +36,7 @@ public class HighLevelApiTests : IDisposable
     public void PcmExtensions_ReadWavToPcm_ShouldLoadTestWav()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
 
         Assert.NotNull(pcm);
         Assert.True(pcm.Length > 0);
@@ -54,7 +51,7 @@ public class HighLevelApiTests : IDisposable
 
         try
         {
-            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(invalidPath));
+            Assert.Throws<InvalidDataException>(() => PcmExtensions.ReadWavToPcm(invalidPath));
         }
         finally
         {
@@ -89,7 +86,7 @@ public class HighLevelApiTests : IDisposable
             }
             File.WriteAllBytes(path, ms.ToArray());
 
-            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+            Assert.Throws<InvalidDataException>(() => PcmExtensions.ReadWavToPcm(path));
         }
         finally
         {
@@ -104,7 +101,7 @@ public class HighLevelApiTests : IDisposable
 
         try
         {
-            var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path);
+            var pcm = PcmExtensions.ReadWavToPcm(path);
             Assert.Equal(3, pcm.Length);
             Assert.Equal(1000f / 32768f, pcm[0], 4);
             Assert.Equal(-1000f / 32768f, pcm[1], 4);
@@ -125,7 +122,7 @@ public class HighLevelApiTests : IDisposable
 
         try
         {
-            var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path);
+            var pcm = PcmExtensions.ReadWavToPcm(path);
             Assert.Equal(2, pcm.Length);
             Assert.Equal(2000f / 32768f, pcm[0], 4);
             Assert.Equal(4000f / 32768f, pcm[1], 4);
@@ -143,7 +140,7 @@ public class HighLevelApiTests : IDisposable
 
         try
         {
-            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+            Assert.Throws<InvalidDataException>(() => PcmExtensions.ReadWavToPcm(path));
         }
         finally
         {
@@ -312,7 +309,7 @@ public class HighLevelApiTests : IDisposable
         builder.WithTask(TranscriptionTask.Transcribe);
 
         var p = Marshal.PtrToStructure<RunParams>(builder.Build());
-        Assert.Equal(Interop.Task.TaskTranscribe, p.task);
+        Assert.Equal(Task.TaskTranscribe, p.task);
     }
 
     [Fact]
@@ -684,14 +681,14 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Backends_Version_ShouldReturnNonEmpty()
     {
-        var version = TranscribeCppSharp.Backends.Version;
+        var version = Backends.Version;
         Assert.False(string.IsNullOrWhiteSpace(version));
     }
 
     [Fact]
     public void Backends_VersionCommit_ShouldReturnNonEmpty()
     {
-        var commit = TranscribeCppSharp.Backends.VersionCommit;
+        var commit = Backends.VersionCommit;
         Assert.False(string.IsNullOrWhiteSpace(commit));
     }
 
@@ -699,14 +696,14 @@ public class HighLevelApiTests : IDisposable
     public void Backends_BackendAvailable_ReportsRegisteredBackends()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        TranscribeCppSharp.Backends.InitDefault();
+        Backends.InitDefault();
 
         // CPU is always present; AUTO whenever any device exists.
-        Assert.True(TranscribeCppSharp.Backends.BackendAvailable(BackendRequest.BackendAuto));
-        Assert.True(TranscribeCppSharp.Backends.BackendAvailable(BackendRequest.BackendCpu));
+        Assert.True(Backends.BackendAvailable(BackendRequest.BackendAuto));
+        Assert.True(Backends.BackendAvailable(BackendRequest.BackendCpu));
 
         // Unknown request values answer false, never an error (per upstream doc).
-        Assert.False(TranscribeCppSharp.Backends.BackendAvailable((BackendRequest)999));
+        Assert.False(Backends.BackendAvailable((BackendRequest)999));
     }
 
     [Fact]
@@ -740,7 +737,7 @@ public class HighLevelApiTests : IDisposable
     public void ModelLoad_ValidModel_ShouldSucceed()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.NotNull(model);
     }
 
@@ -766,9 +763,9 @@ public class HighLevelApiTests : IDisposable
     public void Session_ReadSegments_ShouldReturnSegments()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         session.Run(pcm);
 
         var segments = session.ReadSegments();
@@ -780,9 +777,9 @@ public class HighLevelApiTests : IDisposable
     public void Session_ReadWords_ShouldReturnWords()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         try
         {
             session.Run(pcm, p => p.WithTimestamps(TimestampKind.TimestampsWord));
@@ -799,9 +796,9 @@ public class HighLevelApiTests : IDisposable
     public void Session_ReadTokens_ShouldReturnTokens()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         try
         {
             session.Run(pcm, p => p.WithTimestamps(TimestampKind.TimestampsSegment));
@@ -852,7 +849,7 @@ public class HighLevelApiTests : IDisposable
     public void StreamSession_Dispose_ShouldResetNativeState()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var stream = session.CreateStream();
         try
@@ -872,7 +869,7 @@ public class HighLevelApiTests : IDisposable
     public void StreamSession_DoubleDispose_ShouldNotThrow()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         var stream = session.CreateStream();
         var ex = Record.Exception(() =>
@@ -895,7 +892,7 @@ public class HighLevelApiTests : IDisposable
     public void StreamSession_Begin_WithConfig_ShouldSucceed()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         using var stream = session.CreateStream();
         try
@@ -915,7 +912,7 @@ public class HighLevelApiTests : IDisposable
     public void Backends_EnumerateDevices_ShouldReturnList()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        var devices = TranscribeCppSharp.Backends.EnumerateDevices();
+        var devices = Backends.EnumerateDevices();
         Assert.NotNull(devices);
         // On CPU-only CI, there should be at least one device (CPU)
         Assert.True(devices.Count > 0);
@@ -925,14 +922,14 @@ public class HighLevelApiTests : IDisposable
     public void Backends_EnumerateDevices_ShouldReturnRuntimeHandles()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        TranscribeCppSharp.Backends.InitDefault();
-        var devices = TranscribeCppSharp.Backends.EnumerateDevices();
+        Backends.InitDefault();
+        var devices = Backends.EnumerateDevices();
         Assert.True(devices.Count > 0);
         Assert.All(devices, d => Assert.NotEqual(IntPtr.Zero, d.Handle));
 
         // Handles round-trip through GetDeviceInfo.
         var first = devices[0];
-        var resolved = TranscribeCppSharp.Backends.GetDeviceInfo(first.Handle);
+        var resolved = Backends.GetDeviceInfo(first.Handle);
         Assert.NotNull(resolved);
         Assert.Equal(first.Name, resolved.Name);
         Assert.Equal(first.Handle, resolved.Handle);
@@ -942,8 +939,8 @@ public class HighLevelApiTests : IDisposable
     public void Model_Load_WithExactDevice_ShouldSucceed()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        TranscribeCppSharp.Backends.InitDefault();
-        var devices = TranscribeCppSharp.Backends.EnumerateDevices();
+        Backends.InitDefault();
+        var devices = Backends.EnumerateDevices();
         var cpu = devices.FirstOrDefault(d => d.Kind == "cpu");
         Assert.NotNull(cpu);
 
@@ -970,7 +967,7 @@ public class HighLevelApiTests : IDisposable
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var transcript = session.Run(pcm);
 
         Assert.False(string.IsNullOrEmpty(transcript.FullText));
@@ -1028,7 +1025,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Backends_GetDeviceInfo_ZeroHandle_ReturnsNull()
     {
-        Assert.Null(TranscribeCppSharp.Backends.GetDeviceInfo(IntPtr.Zero));
+        Assert.Null(Backends.GetDeviceInfo(IntPtr.Zero));
     }
 
     [SkippableFact]
@@ -1046,7 +1043,7 @@ public class HighLevelApiTests : IDisposable
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var transcript = session.Run(pcm);
 
         // Whisper emits timestamp tags (<|0.00|>) that post-processing strips:
@@ -1062,7 +1059,7 @@ public class HighLevelApiTests : IDisposable
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var baseline = session.Run(pcm);
 
         // Non-default diarize against a model without FeatureDiarization emits
@@ -1088,7 +1085,7 @@ public class HighLevelApiTests : IDisposable
         Assert.True(model.Supports(Feature.FeatureDiarization));
 
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var transcript = session.Run(pcm, r => r.WithDiarize(DiarizeMode.DiarizeModeOn));
 
         Assert.NotEmpty(transcript.FullText);
@@ -1105,7 +1102,7 @@ public class HighLevelApiTests : IDisposable
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
         var artifactDir = Path.GetDirectoryName(typeof(HighLevelApiTests).Assembly.Location)!;
-        Assert.Null(Record.Exception(() => TranscribeCppSharp.Backends.Init(artifactDir)));
+        Assert.Null(Record.Exception(() => Backends.Init(artifactDir)));
     }
 
     [SkippableFact]
@@ -1139,11 +1136,11 @@ public class HighLevelApiTests : IDisposable
     public void Model_MultipleSessions_SerializedRuns_ShouldWork()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session1 = model.CreateSession();
         using var session2 = model.CreateSession();
 
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
 
         // Runs are serialized (never concurrent): upstream 0.x allows at most one
         // compute in flight per model, so we alternate sequentially across sessions.
@@ -1163,7 +1160,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_MultipleSessions_IndependentMetadata()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session1 = model.CreateSession();
         using var session2 = model.CreateSession();
 
@@ -1171,7 +1168,7 @@ public class HighLevelApiTests : IDisposable
         // one session must not affect the other's counters.
         Assert.Equal(session1.SegmentCount, session2.SegmentCount);
 
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         _ = session1.Run(pcm);
 
         // session2 was never run, so it has no result yet; session1 does.
@@ -1183,11 +1180,11 @@ public class HighLevelApiTests : IDisposable
     public void Model_MultipleSessions_OneDisposed_OtherStillWorks()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var session1 = model.CreateSession();
         using var session2 = model.CreateSession();
 
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         session1.Dispose();
 
         // session2 must still work after session1 is disposed.
@@ -1200,7 +1197,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_ShouldReturnTokens()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var tokens = model.Tokenize("Hello world");
 
         Assert.NotNull(tokens);
@@ -1211,7 +1208,7 @@ public class HighLevelApiTests : IDisposable
     public void Session_SetAbortCallback_ShouldAllowCancellation()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
 
         bool callbackInvoked = false;
@@ -1221,7 +1218,7 @@ public class HighLevelApiTests : IDisposable
             return false;
         });
 
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         session.Run(pcm);
 
         Assert.True(callbackInvoked);
@@ -1231,7 +1228,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_GetMetaValue_ShouldReturnMetadata()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var value = model.GetMetaValue("general.architecture");
         Assert.NotNull(value);
     }
@@ -1254,7 +1251,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Metadata_ShouldReturnInfo()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.NotEmpty(model.Architecture);
         Assert.NotEmpty(model.Variant);
         Assert.NotEmpty(model.Backend);
@@ -1267,7 +1264,7 @@ public class HighLevelApiTests : IDisposable
     public void Session_Metadata_ShouldReturnInfo()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         
         var limits = session.GetLimits();
@@ -1287,7 +1284,7 @@ public class HighLevelApiTests : IDisposable
     public void Session_DoubleDispose_DoesNotThrow()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var session = model.CreateSession();
         var ex = Record.Exception(() =>
         {
@@ -1301,7 +1298,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_DoubleDispose_DoesNotThrow()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var ex = Record.Exception(() =>
         {
             model.Dispose();
@@ -1438,26 +1435,26 @@ public class HighLevelApiTests : IDisposable
     public void Batch_Run_NullSession_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            TranscribeCppSharp.Batch.Run(null!, new float[][] { new float[16000] }));
+            Batch.Run(null!, new float[][] { new float[16000] }));
     }
 
     [SkippableFact]
     public void Batch_Run_NullBuffers_ThrowsArgumentNullException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         Assert.Throws<ArgumentNullException>(() =>
-            TranscribeCppSharp.Batch.Run(session, null!));
+            Batch.Run(session, null!));
     }
 
     [SkippableFact]
     public void Batch_Run_EmptyArray_ReturnsEmpty()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var results = TranscribeCppSharp.Batch.Run(session, Array.Empty<float[]>());
+        var results = Batch.Run(session, Array.Empty<float[]>());
         Assert.Empty(results);
     }
 
@@ -1468,7 +1465,7 @@ public class HighLevelApiTests : IDisposable
     [Fact]
     public void Model_Load_NullPath_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => TranscribeCppSharp.Model.Load(null!));
+        Assert.Throws<ArgumentNullException>(() => Model.Load(null!));
     }
 
     [Fact]
@@ -1492,7 +1489,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_NullText_ThrowsArgumentNullException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.Throws<ArgumentNullException>(() => model.Tokenize(null!));
     }
 
@@ -1500,7 +1497,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_ZeroInitialCapacity_ThrowsArgumentOutOfRangeException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Tokenize("test", 0));
     }
 
@@ -1508,7 +1505,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_NegativeInitialCapacity_ThrowsArgumentOutOfRangeException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Tokenize("test", -1));
     }
 
@@ -1516,7 +1513,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_EmptyString_ShouldReturnEmptyOrSingleToken()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var tokens = model.Tokenize("");
         Assert.NotNull(tokens);
         // Empty string may yield 0 tokens or a single end-of-text token
@@ -1527,7 +1524,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_SmallInitialCapacity_ShouldRetryAndSucceed()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         // capacity=1 forces the retry loop (negative return = required size)
         var tokens = model.Tokenize("Hello world, this is a test.", initialCapacity: 1);
         Assert.NotNull(tokens);
@@ -1538,7 +1535,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_LargeInitialCapacity_ShouldWork()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var tokens = model.Tokenize("Hello", initialCapacity: 8192);
         Assert.NotNull(tokens);
         Assert.True(tokens.Length > 0);
@@ -1548,7 +1545,7 @@ public class HighLevelApiTests : IDisposable
     public void Model_Tokenize_UnicodeText_ShouldWork()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         var tokens = model.Tokenize("Bonjour, comment allez-vous?");
         Assert.NotNull(tokens);
         Assert.True(tokens.Length > 0);
@@ -1558,19 +1555,19 @@ public class HighLevelApiTests : IDisposable
     public void Log_Configure_WithRealCallback_ShouldNotThrow()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        Assert.Null(Record.Exception(() => TranscribeCppSharp.Log.Configure((level, msg) => { })));
+        Assert.Null(Record.Exception(() => Log.Configure((level, msg) => { })));
 
         // Trigger native activity that may produce log output; capture any exception
         // so the test can assert that Configure + Load doesn't crash. We can't
         // guarantee the callback was invoked (depends on log levels).
         var ex = Record.Exception(() =>
         {
-            using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+            using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         });
         Assert.Null(ex);
 
         // Clean up: disable logging
-        Assert.Null(Record.Exception(() => TranscribeCppSharp.Log.Configure(null)));
+        Assert.Null(Record.Exception(() => Log.Configure(null)));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -1615,9 +1612,9 @@ public class HighLevelApiTests : IDisposable
     public void Session_Run_ShouldReturnTranscript_ContainsJFKText()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var transcript = session.Run(pcm);
 
         Assert.False(string.IsNullOrWhiteSpace(transcript.FullText));
@@ -1637,9 +1634,9 @@ public class HighLevelApiTests : IDisposable
     public void Session_Run_AlreadyCancelled_ThrowsOperationCanceledException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
 
         var cts = new CancellationTokenSource();
         cts.Cancel(); // cancel before calling Run
@@ -1651,7 +1648,7 @@ public class HighLevelApiTests : IDisposable
     public void Session_Run_CancellationRestoresCallback()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
 
         bool originalCallbackCalled = false;
@@ -1661,7 +1658,7 @@ public class HighLevelApiTests : IDisposable
             return false;
         });
 
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -1684,15 +1681,15 @@ public class HighLevelApiTests : IDisposable
     public void Batch_Run_AlreadyCancelled_ThrowsOperationCanceledException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
 
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
         Assert.Throws<OperationCanceledException>(() =>
-            TranscribeCppSharp.Batch.Run(session, new[] { pcm }, ct: cts.Token));
+            Batch.Run(session, new[] { pcm }, ct: cts.Token));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -1763,7 +1760,7 @@ public class HighLevelApiTests : IDisposable
         var path = WriteTestWavWithFormat(audioFormat: 1, bitsPerSample: 24);
         try
         {
-            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+            Assert.Throws<InvalidDataException>(() => PcmExtensions.ReadWavToPcm(path));
         }
         finally { File.Delete(path); }
     }
@@ -1774,7 +1771,7 @@ public class HighLevelApiTests : IDisposable
         var path = WriteTestWavWithFormat(audioFormat: 1, bitsPerSample: 8);
         try
         {
-            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+            Assert.Throws<InvalidDataException>(() => PcmExtensions.ReadWavToPcm(path));
         }
         finally { File.Delete(path); }
     }
@@ -1786,7 +1783,7 @@ public class HighLevelApiTests : IDisposable
         var path = WriteTestWavWithFormat(audioFormat: 3, bitsPerSample: 32);
         try
         {
-            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+            Assert.Throws<InvalidDataException>(() => PcmExtensions.ReadWavToPcm(path));
         }
         finally { File.Delete(path); }
     }
@@ -1798,7 +1795,7 @@ public class HighLevelApiTests : IDisposable
         var path = WriteTestWavWithFormat(audioFormat: unchecked((short)0xFFFE), bitsPerSample: 16);
         try
         {
-            Assert.Throws<InvalidDataException>(() => TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path));
+            Assert.Throws<InvalidDataException>(() => PcmExtensions.ReadWavToPcm(path));
         }
         finally { File.Delete(path); }
     }
@@ -1811,22 +1808,22 @@ public class HighLevelApiTests : IDisposable
     public void Batch_Run_NullElement_Throws()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var buffers = new float[][] { pcm, null! };
-        Assert.Throws<ArgumentNullException>(() => TranscribeCppSharp.Batch.Run(session, buffers));
+        Assert.Throws<ArgumentNullException>(() => Batch.Run(session, buffers));
     }
 
     [SkippableFact]
     public void Batch_Run_EmptySubArray_ThrowsArgumentException()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
-        var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+        var pcm = PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
         var buffers = new float[][] { pcm, Array.Empty<float>() };
-        Assert.Throws<ArgumentException>(() => TranscribeCppSharp.Batch.Run(session, buffers));
+        Assert.Throws<ArgumentException>(() => Batch.Run(session, buffers));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -1837,7 +1834,7 @@ public class HighLevelApiTests : IDisposable
     public void Session_Run_PcmWithNaN_DoesNotCrash()
     {
         Skip.IfNot(IsIntegrationEnv, "Integration test assets (test-models/ggml-tiny.bin, test-audio/jfk.wav) not present. Run ./run-integration-tests.sh to provision them.");
-        using var model = TranscribeCppSharp.Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         using var session = model.CreateSession();
         // 1 second of silence with one NaN sample
         var pcm = new float[16000];

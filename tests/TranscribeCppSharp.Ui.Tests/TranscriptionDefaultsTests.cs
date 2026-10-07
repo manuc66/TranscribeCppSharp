@@ -1,7 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -23,8 +19,8 @@ public class TranscriptionDefaultsTests
         // Keep the constructor's capability probe from loading a real model:
         // point the cache at an empty directory so nothing is on disk.
         string? previous = ModelStore.CacheRootOverride;
-        ModelStore.CacheRootOverride = System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(), "tcsharp-ui-tests-empty-cache");
+        ModelStore.CacheRootOverride = Path.Combine(
+            Path.GetTempPath(), "tcsharp-ui-tests-empty-cache");
         try
         {
             var viewModel = new TranscriptionViewModel(new FakeTranscriptionService(), new SettingsViewModel());
@@ -37,7 +33,7 @@ public class TranscriptionDefaultsTests
                 .First(c => AutomationProperties.GetAutomationId(c) == "transcription-kv-type");
 
             Assert.Equal(3, combo.ItemCount);
-            Assert.Equal(TranscribeCppSharp.Interop.KvType.KvTypeAuto, combo.SelectedItem);
+            Assert.Equal(Interop.KvType.KvTypeAuto, combo.SelectedItem);
         }
         finally
         {
@@ -50,10 +46,10 @@ public class TranscriptionDefaultsTests
         public Task<TranscriptionResult> TranscribeAsync(
             string audioPath, string modelPath, TranscriptionOptions options,
             IProgress<double>? progress = null, CancellationToken cancellationToken = default)
-            => throw new System.NotSupportedException();
+            => throw new NotSupportedException();
 
-        public async IAsyncEnumerable<TranscribeCppSharp.Ui.Models.StreamUpdate> StreamTranscribeAsync(
-            string modelPath, TranscribeCppSharp.Ui.Models.StreamOptions options,
+        public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(
+            string modelPath, StreamOptions options,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
@@ -63,6 +59,6 @@ public class TranscriptionDefaultsTests
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
             IProgress<int>? progress = null, CancellationToken cancellationToken = default)
-            => throw new System.NotSupportedException();
+            => throw new NotSupportedException();
     }
 }

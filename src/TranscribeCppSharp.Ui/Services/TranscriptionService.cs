@@ -1,6 +1,4 @@
-using System.Linq;
 using System.Runtime.CompilerServices;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
@@ -10,7 +8,7 @@ namespace TranscribeCppSharp.Ui.Services;
 
 public class TranscriptionService : ITranscriptionService
 {
-    public async System.Threading.Tasks.Task<TranscriptionResult> TranscribeAsync(
+    public async Task<TranscriptionResult> TranscribeAsync(
         string audioPath,
         string modelPath,
         TranscriptionOptions options,
@@ -26,8 +24,8 @@ public class TranscriptionService : ITranscriptionService
 
             return await System.Threading.Tasks.Task.Run(() =>
             {
-                var words = new List<TranscribeCppSharp.WordResult>();
-                var speakerSegments = new List<TranscribeCppSharp.SpeakerSegmentResult>();
+                var words = new List<WordResult>();
+                var speakerSegments = new List<SpeakerSegmentResult>();
                 var merger = new TranscriptMerger();
                 string detectedLanguage = string.Empty;
                 bool wasAborted = false;
@@ -90,7 +88,7 @@ public class TranscriptionService : ITranscriptionService
         }
     }
 
-    public async IAsyncEnumerable<TranscribeCppSharp.Ui.Models.StreamUpdate> StreamTranscribeAsync(
+    public async IAsyncEnumerable<Models.StreamUpdate> StreamTranscribeAsync(
         string modelPath,
         StreamOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -118,7 +116,7 @@ public class TranscriptionService : ITranscriptionService
                     }
 
                     var text = stream.GetCurrentText();
-                    yield return new TranscribeCppSharp.Ui.Models.StreamUpdate
+                    yield return new Models.StreamUpdate
                     {
                         FullText = text.FullText,
                         CommittedText = text.CommittedText,
@@ -130,7 +128,7 @@ public class TranscriptionService : ITranscriptionService
                 }
 
                 var finalText = stream.GetCurrentText();
-                yield return new TranscribeCppSharp.Ui.Models.StreamUpdate
+                yield return new Models.StreamUpdate
                 {
                     FullText = finalText.FullText,
                     CommittedText = finalText.CommittedText,
@@ -151,7 +149,7 @@ public class TranscriptionService : ITranscriptionService
         }
     }
 
-    public async System.Threading.Tasks.Task<List<BatchItemResult>> BatchTranscribeAsync(
+    public async Task<List<BatchItemResult>> BatchTranscribeAsync(
         IReadOnlyList<string> audioPaths,
         string modelPath,
         TranscriptionOptions options,
@@ -206,13 +204,13 @@ public class TranscriptionService : ITranscriptionService
     /// list, and Model.Load only accepts a real file. Resolution blocks while it
     /// downloads a first-use model, so it runs on a worker thread.
     /// </remarks>
-    private static TranscribeCppSharp.Model LoadModel(
+    private static Model LoadModel(
         string modelArgument,
         BackendRequest? backend,
         BackendDevice? device)
     {
         string resolved = ModelStore.Resolve(modelArgument, null, TextWriter.Null);
-        return TranscribeCppSharp.Model.Load(resolved, builder =>
+        return Model.Load(resolved, builder =>
         {
             if (backend != null)
                 builder.WithBackend(backend.Value);
@@ -230,8 +228,8 @@ public class TranscriptionService : ITranscriptionService
     /// session tuning at all, so streaming goes through the plain
     /// <c>CreateSession</c> overload.
     /// </remarks>
-    private static TranscribeCppSharp.Session CreateSession(
-        TranscribeCppSharp.Model model,
+    private static Session CreateSession(
+        Model model,
         TranscriptionOptions options)
         => model.CreateSession(sessionParams =>
         {
@@ -378,9 +376,9 @@ public class TranscriptionService : ITranscriptionService
     private static void Collect(
         TranscriptMerger merger,
         AudioWindow window,
-        TranscribeCppSharp.Transcript transcript,
-        List<TranscribeCppSharp.WordResult> words,
-        List<TranscribeCppSharp.SpeakerSegmentResult> speakerSegments)
+        Transcript transcript,
+        List<WordResult> words,
+        List<SpeakerSegmentResult> speakerSegments)
     {
         merger.Add(window, transcript);
 

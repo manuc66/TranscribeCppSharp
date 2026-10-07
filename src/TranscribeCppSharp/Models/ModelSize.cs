@@ -7,7 +7,6 @@
 // Both were honest arithmetic on the same manifest number and neither was wrong,
 // but a user comparing the two had no reason to expect two answers.
 
-using System;
 using System.Globalization;
 
 namespace TranscribeCppSharp.Models;

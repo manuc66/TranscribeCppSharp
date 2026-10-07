@@ -1,8 +1,6 @@
 #nullable enable
 
-using System;
 using System.Runtime.InteropServices;
-using TranscribeCppSharp.Interop;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -141,7 +139,7 @@ public class InfrastructureTests
         // We catch DllNotFoundException to handle the no-native-lib case.
         try
         {
-            AbiValidation.ValidateSize<Interop.Segment>(AbiStruct.AbiSegment, "Segment");
+            AbiValidation.ValidateSize<Segment>(AbiStruct.AbiSegment, "Segment");
         }
         catch (DllNotFoundException)
         {

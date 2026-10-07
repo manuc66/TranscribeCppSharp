@@ -243,7 +243,7 @@ public sealed class Session : IDisposable
                 throw new TranscribeException(status, nameof(NativeMethods.SessionGetLimits));
             }
 
-            var limits = Marshal.PtrToStructure<Interop.SessionLimits>(ptr);
+            var limits = Marshal.PtrToStructure<SessionLimits>(ptr);
             return new SessionLimitsInfo(
                 EffectiveNCtx: limits.effectiveNCtx,
                 EffectiveMaxAudioMs: limits.effectiveMaxAudioMs,
@@ -262,7 +262,7 @@ public sealed class Session : IDisposable
     public IReadOnlyList<SegmentResult> ReadSegments()
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.Segment, SegmentResult>(
+        return ReadItems<Segment, SegmentResult>(
             count: NativeMethods.NSegments(handle),
             abi: AbiStruct.AbiSegment,
             init: NativeMethods.SegmentInit,
@@ -279,7 +279,7 @@ public sealed class Session : IDisposable
     public IReadOnlyList<SpeakerSegmentResult> ReadSpeakerSegments()
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.SpeakerSegment, SpeakerSegmentResult>(
+        return ReadItems<SpeakerSegment, SpeakerSegmentResult>(
             count: NativeMethods.NSpeakerSegments(handle),
             abi: AbiStruct.AbiSpeakerSegment,
             init: NativeMethods.SpeakerSegmentInit,
@@ -296,7 +296,7 @@ public sealed class Session : IDisposable
     public IReadOnlyList<WordResult> ReadWords()
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.Word, WordResult>(
+        return ReadItems<Word, WordResult>(
             count: NativeMethods.NWords(handle),
             abi: AbiStruct.AbiWord,
             init: NativeMethods.WordInit,
@@ -312,7 +312,7 @@ public sealed class Session : IDisposable
     public IReadOnlyList<TokenResult> ReadTokens()
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.Token, TokenResult>(
+        return ReadItems<Token, TokenResult>(
             count: NativeMethods.NTokens(handle),
             abi: AbiStruct.AbiToken,
             init: NativeMethods.TokenInit,
@@ -376,9 +376,9 @@ public sealed class Session : IDisposable
     /// created on first use and then reused. It is rooted for the session's
     /// lifetime because the native library holds the pointer to it.
     /// </summary>
-    private Interop.AbortCallback EnsureInteropCallback()
+    private AbortCallback EnsureInteropCallback()
     {
-        return interopAbortCallback ??= new Interop.AbortCallback(InvokeAbortCallback);
+        return interopAbortCallback ??= new AbortCallback(InvokeAbortCallback);
     }
 
     /// <summary>
@@ -427,7 +427,7 @@ public sealed class Session : IDisposable
     private Func<bool>? abortCallback;
     private CancellationToken abortToken;
     private bool abortUsesToken;
-    private Interop.AbortCallback? interopAbortCallback;
+    private AbortCallback? interopAbortCallback;
 
     /// <summary>
     /// Internal method for batch transcription with proper thread-safety.
@@ -479,7 +479,7 @@ public sealed class Session : IDisposable
     internal IReadOnlyList<SegmentResult> GetBatchSegments(int batchIndex)
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.Segment, SegmentResult>(
+        return ReadItems<Segment, SegmentResult>(
             count: NativeMethods.BatchNSegments(handle, batchIndex),
             abi: AbiStruct.AbiSegment,
             init: NativeMethods.SegmentInit,
@@ -503,7 +503,7 @@ public sealed class Session : IDisposable
     internal IReadOnlyList<SpeakerSegmentResult> GetBatchSpeakerSegments(int batchIndex)
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.SpeakerSegment, SpeakerSegmentResult>(
+        return ReadItems<SpeakerSegment, SpeakerSegmentResult>(
             count: NativeMethods.BatchNSpeakerSegments(handle, batchIndex),
             abi: AbiStruct.AbiSpeakerSegment,
             init: NativeMethods.SpeakerSegmentInit,
@@ -519,7 +519,7 @@ public sealed class Session : IDisposable
     internal IReadOnlyList<WordResult> GetBatchWords(int batchIndex)
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.Word, WordResult>(
+        return ReadItems<Word, WordResult>(
             count: NativeMethods.BatchNWords(handle, batchIndex),
             abi: AbiStruct.AbiWord,
             init: NativeMethods.WordInit,
@@ -534,7 +534,7 @@ public sealed class Session : IDisposable
     internal IReadOnlyList<TokenResult> GetBatchTokens(int batchIndex)
     {
         ThrowIfDisposed();
-        return ReadItems<Interop.Token, TokenResult>(
+        return ReadItems<Token, TokenResult>(
             count: NativeMethods.BatchNTokens(handle, batchIndex),
             abi: AbiStruct.AbiToken,
             init: NativeMethods.TokenInit,
@@ -560,7 +560,7 @@ public sealed class Session : IDisposable
             NativeMethods.TimingsInit(timingsPtr);
             if (NativeMethods.BatchGetTimings(handle, batchIndex, timingsPtr) == Status.Ok)
             {
-                var t = Marshal.PtrToStructure<Interop.Timings>(timingsPtr);
+                var t = Marshal.PtrToStructure<Timings>(timingsPtr);
                 result = new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
             }
         });
@@ -616,7 +616,7 @@ public sealed class Session : IDisposable
             NativeMethods.TimingsInit(timingsPtr);
             if (NativeMethods.GetTimings(handle, timingsPtr) == Status.Ok)
             {
-                var t = Marshal.PtrToStructure<Interop.Timings>(timingsPtr);
+                var t = Marshal.PtrToStructure<Timings>(timingsPtr);
                 result = new TimingsResult(t.loadMs, t.melMs, t.encodeMs, t.decodeMs);
             }
         });

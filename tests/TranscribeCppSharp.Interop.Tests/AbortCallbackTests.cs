@@ -1,9 +1,5 @@
 #nullable enable
 
-using System;
-using System.Threading;
-using TranscribeCppSharp;
-using TranscribeCppSharp.Interop;
 using Xunit;
 using Xunit.Abstractions;
 

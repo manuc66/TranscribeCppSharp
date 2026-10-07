@@ -1,7 +1,4 @@
-using System;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Models;
@@ -181,7 +178,7 @@ public partial class ModelManagerViewModel : ObservableObject
 
     /// <summary>Name of the chosen file, for the toolbar.</summary>
     public string BenchmarkAudioName => HasBenchmarkAudio
-        ? System.IO.Path.GetFileName(BenchmarkAudioPath!)
+        ? Path.GetFileName(BenchmarkAudioPath!)
         : "no audio chosen";
 
     /// <summary>How much of the audio each timing run uses, in seconds.</summary>
@@ -194,18 +191,18 @@ public partial class ModelManagerViewModel : ObservableObject
 
     /// <summary>Compute backend for the timing runs.</summary>
     [ObservableProperty]
-    private TranscribeCppSharp.Interop.BackendRequest _selectedBenchmarkBackend
-        = TranscribeCppSharp.Interop.BackendRequest.BackendAuto;
+    private Interop.BackendRequest _selectedBenchmarkBackend
+        = Interop.BackendRequest.BackendAuto;
 
     /// <summary>Backends offered for the timing runs.</summary>
-    public IReadOnlyList<TranscribeCppSharp.Interop.BackendRequest> AvailableBenchmarkBackends { get; } =
+    public IReadOnlyList<Interop.BackendRequest> AvailableBenchmarkBackends { get; } =
         new[]
         {
-            TranscribeCppSharp.Interop.BackendRequest.BackendAuto,
-            TranscribeCppSharp.Interop.BackendRequest.BackendCpu,
-            TranscribeCppSharp.Interop.BackendRequest.BackendVulkan,
-            TranscribeCppSharp.Interop.BackendRequest.BackendMetal,
-            TranscribeCppSharp.Interop.BackendRequest.BackendCuda,
+            Interop.BackendRequest.BackendAuto,
+            Interop.BackendRequest.BackendCpu,
+            Interop.BackendRequest.BackendVulkan,
+            Interop.BackendRequest.BackendMetal,
+            Interop.BackendRequest.BackendCuda,
         };
 
     /// <summary>Progress through the current model's passes, 0 to 1.</summary>
@@ -389,7 +386,7 @@ public partial class ModelManagerViewModel : ObservableObject
         BusyAlias = item.Alias;
         BusyAction = "download";
         DownloadProgress = 0;
-        var log = new System.IO.StringWriter();
+        var log = new StringWriter();
         try
         {
             var progress = new Progress<double>(p => DownloadProgress = p);
@@ -540,10 +537,10 @@ public partial class ModelManagerViewModel : ObservableObject
                 try
                 {
                     string path = item.LocalPath;
-                    bool supported = await System.Threading.Tasks.Task.Run(() =>
+                    bool supported = await Task.Run(() =>
                     {
-                        using var model = Model.Load(path, p => p.WithBackend(TranscribeCppSharp.Interop.BackendRequest.BackendCpu));
-                        return model.Supports(TranscribeCppSharp.Interop.Feature.FeatureDiarization);
+                        using var model = Model.Load(path, p => p.WithBackend(Interop.BackendRequest.BackendCpu));
+                        return model.Supports(Interop.Feature.FeatureDiarization);
                     }).ConfigureAwait(true);
 
                     ModelCatalogItem.DiarizationSupport state = supported
@@ -694,7 +691,7 @@ public partial class ModelManagerViewModel : ObservableObject
     /// picking something at random.
     /// </remarks>
     [RelayCommand]
-    private async System.Threading.Tasks.Task PickBenchmarkAudioAsync()
+    private async Task PickBenchmarkAudioAsync()
     {
         var window = Avalonia.Application.Current?.ApplicationLifetime
             is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
@@ -728,7 +725,7 @@ public partial class ModelManagerViewModel : ObservableObject
 
     /// <summary>Times the models already measured, most recent last.</summary>
     [RelayCommand]
-    private async System.Threading.Tasks.Task BenchmarkAllAsync()
+    private async Task BenchmarkAllAsync()
     {
         if (string.IsNullOrWhiteSpace(BenchmarkAudioPath))
         {
@@ -752,10 +749,10 @@ public partial class ModelManagerViewModel : ObservableObject
     /// discards them and a re-run starts from nothing.
     /// </remarks>
     [RelayCommand]
-    private async System.Threading.Tasks.Task BenchmarkAsync(ModelCatalogItem? item)
+    private async Task BenchmarkAsync(ModelCatalogItem? item)
         => await BenchmarkOneAsync(item).ConfigureAwait(true);
 
-    private async System.Threading.Tasks.Task BenchmarkOneAsync(ModelCatalogItem? item)
+    private async Task BenchmarkOneAsync(ModelCatalogItem? item)
     {
         if (item is null || IsBusy || _checkingDiarization)
         {
@@ -786,7 +783,7 @@ public partial class ModelManagerViewModel : ObservableObject
             var backend = SelectedBenchmarkBackend;
             int? threads = BenchmarkThreads > 0 ? BenchmarkThreads : null;
 
-            ModelBenchmark result = await System.Threading.Tasks.Task.Run(
+            ModelBenchmark result = await Task.Run(
                 () => ModelBenchmarkService.Measure(
                     item.Descriptor,
                     audioPath,
@@ -795,7 +792,7 @@ public partial class ModelManagerViewModel : ObservableObject
                     null,
                     threads,
                     progress),
-                System.Threading.CancellationToken.None).ConfigureAwait(true);
+                CancellationToken.None).ConfigureAwait(true);
 
             Benchmarks[item.Alias] = result;
             item.Benchmark = result;
@@ -849,7 +846,7 @@ public partial class ModelManagerViewModel : ObservableObject
     /// </summary>
     /// <param name="log">The writer ModelStore reported through.</param>
     /// <returns>Its content with the line breaks replaced by spaces.</returns>
-    private static string Describe(System.IO.TextWriter log)
+    private static string Describe(TextWriter log)
         => (log.ToString() ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
 
     private void Raise(string propertyName)

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Ui.Services;
 using Xunit;

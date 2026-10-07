@@ -1,10 +1,6 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Performance;
 using Xunit;

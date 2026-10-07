@@ -1,4 +1,3 @@
-using System.IO;
 using TranscribeCppSharp.Generator;
 using Xunit;
 
@@ -44,7 +43,7 @@ public class CHeaderDocTest
     {
         var doc = Doc.GetEnumValueDoc("transcribe_status", "TRANSCRIBE_ERR_ABORTED");
         Assert.NotNull(doc);
-        Assert.Contains("abort", doc, System.StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("abort", doc, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -60,7 +59,7 @@ public class CHeaderDocTest
     {
         var doc = Doc.GetStructDoc("transcribe_model_load_params");
         Assert.NotNull(doc);
-        Assert.Contains("model", doc, System.StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("model", doc, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

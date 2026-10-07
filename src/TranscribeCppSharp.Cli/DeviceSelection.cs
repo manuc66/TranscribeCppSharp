@@ -15,7 +15,6 @@
 
 using System.Globalization;
 using System.Text;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
 
 namespace TranscribeCppSharp.Cli;

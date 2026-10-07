@@ -56,7 +56,7 @@ static int RunTranscriptionTests(string modelPath, string? wavPath)
 {
     try
     {
-        using var model = TranscribeCppSharp.Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+        using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
         Console.WriteLine($"Model loaded: {model}");
 
         using var session = model.CreateSession();
@@ -80,7 +80,7 @@ static int RunTranscriptionTests(string modelPath, string? wavPath)
 
 static int RunAudioTests(Model model, Session session, string wavPath)
 {
-    var pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(wavPath);
+    var pcm = PcmExtensions.ReadWavToPcm(wavPath);
     Console.WriteLine($"Audio: {pcm.Length} samples ({(double)pcm.Length / 16000:F1}s)");
 
     // Test A: Normal Run

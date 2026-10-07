@@ -1,9 +1,5 @@
 #nullable enable
 
-using System;
-using System.IO;
-using System.Linq;
-
 namespace TranscribeCppSharp.Interop.Tests;
 
 public static class TestConfig

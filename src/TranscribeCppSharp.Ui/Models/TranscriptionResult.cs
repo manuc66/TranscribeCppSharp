@@ -13,8 +13,8 @@ public class TranscriptionResult
     /// rather than the native <see cref="TranscribeCppSharp.SegmentResult"/>
     /// because these have absolute times and may come from several windows.
     /// </summary>
-    public List<TranscribeCppSharp.Audio.MergedSegment> Segments { get; set; } = new();
+    public List<Audio.MergedSegment> Segments { get; set; } = new();
 
-    public List<TranscribeCppSharp.WordResult> Words { get; set; } = new();
-    public List<TranscribeCppSharp.SpeakerSegmentResult> SpeakerSegments { get; set; } = new();
+    public List<WordResult> Words { get; set; } = new();
+    public List<SpeakerSegmentResult> SpeakerSegments { get; set; } = new();
 }

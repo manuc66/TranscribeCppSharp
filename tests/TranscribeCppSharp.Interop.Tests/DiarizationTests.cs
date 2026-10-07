@@ -1,13 +1,7 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using TranscribeCppSharp.Cli;
-using TranscribeCppSharp.Interop;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -238,9 +232,9 @@ public class DiarizationTests
     /// </summary>
     private static (int ExitCode, string Out, string Error) RunCli(params string[] args)
     {
-        var stdout = new System.IO.StringWriter();
-        var stderr = new System.IO.StringWriter();
-        int exitCode = Cli.TranscribeCommand.Run(args, stdout, stderr);
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        int exitCode = TranscribeCommand.Run(args, stdout, stderr);
         return (exitCode, stdout.ToString(), stderr.ToString());
     }
 }

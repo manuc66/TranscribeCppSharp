@@ -69,7 +69,7 @@ public sealed class StreamSession : IDisposable
     {
         ThrowIfDisposed();
 
-        AbiValidation.ValidateSize<Interop.StreamUpdate>(AbiStruct.AbiStreamUpdate, nameof(Interop.StreamUpdate));
+        AbiValidation.ValidateSize<StreamUpdate>(AbiStruct.AbiStreamUpdate, nameof(StreamUpdate));
         var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
 
         // A pooled buffer pinned for the call, rather than stackalloc.
@@ -101,7 +101,7 @@ public sealed class StreamSession : IDisposable
                     throw new TranscribeException(status, nameof(NativeMethods.StreamFeed));
                 }
 
-                var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
+                var u = Marshal.PtrToStructure<StreamUpdate>(updatePtr);
                 return ToStreamUpdateResult(u);
             }
             finally
@@ -126,7 +126,7 @@ public sealed class StreamSession : IDisposable
     {
         ThrowIfDisposed();
 
-        AbiValidation.ValidateSize<Interop.StreamUpdate>(AbiStruct.AbiStreamUpdate, nameof(Interop.StreamUpdate));
+        AbiValidation.ValidateSize<StreamUpdate>(AbiStruct.AbiStreamUpdate, nameof(StreamUpdate));
         var updateSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamUpdate);
         return StackAllocHelper.RunWithBuffer(updateSize, updatePtr =>
         {
@@ -138,12 +138,12 @@ public sealed class StreamSession : IDisposable
                 throw new TranscribeException(status, nameof(NativeMethods.StreamFinalize));
             }
 
-            var u = Marshal.PtrToStructure<Interop.StreamUpdate>(updatePtr);
+            var u = Marshal.PtrToStructure<StreamUpdate>(updatePtr);
             return ToStreamUpdateResult(u);
         });
     }
 
-    private static StreamUpdateResult ToStreamUpdateResult(Interop.StreamUpdate u)
+    private static StreamUpdateResult ToStreamUpdateResult(StreamUpdate u)
     {
         return new StreamUpdateResult(
             ResultChanged: u.resultChanged,
@@ -170,7 +170,7 @@ public sealed class StreamSession : IDisposable
     {
         ThrowIfDisposed();
 
-        AbiValidation.ValidateSize<Interop.StreamText>(AbiStruct.AbiStreamText, nameof(Interop.StreamText));
+        AbiValidation.ValidateSize<StreamText>(AbiStruct.AbiStreamText, nameof(StreamText));
         var textSize = (int)NativeMethods.AbiStructSize(AbiStruct.AbiStreamText);
         return StackAllocHelper.RunWithBuffer(textSize, textPtr =>
         {
@@ -182,7 +182,7 @@ public sealed class StreamSession : IDisposable
                 throw new TranscribeException(status, nameof(NativeMethods.StreamGetText));
             }
 
-            var t = Marshal.PtrToStructure<Interop.StreamText>(textPtr);
+            var t = Marshal.PtrToStructure<StreamText>(textPtr);
             var fullText = t.fullText != IntPtr.Zero && t.fullTextBytes > 0
                 ? Marshal.PtrToStringUTF8(t.fullText, (int)t.fullTextBytes) ?? string.Empty
                 : string.Empty;

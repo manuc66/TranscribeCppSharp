@@ -1,9 +1,6 @@
 #nullable enable
 
-using System.IO;
-using TranscribeCppSharp;
 using TranscribeCppSharp.Cli;
-using TranscribeCppSharp.Interop;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
