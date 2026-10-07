@@ -55,4 +55,14 @@
        why that matters: a mismatched native fails at run time, not build time. -->
   <Import Project="../../build/CopyNativeLib.targets" />
 
+
+  <ItemGroup>
+    <!-- Upstream's pinned model catalog and the code that reads it, shared as
+         source so there is one implementation and no shared package. The
+         resource is a zip rather than their catalog.db: reading SQLite in .NET
+         means a native binary, which the wrapper's "ships no native binaries"
+         promise forbids. -->
+    <EmbeddedResource Include="..\Shared\..\..\catalog\catalog.zip" Link="Assets\catalog.zip" LogicalName="catalog.zip" />
+    <Compile Include="..\Shared\UpstreamCatalog.cs" Link="Shared\UpstreamCatalog.cs" />
+  </ItemGroup>
 </Project>

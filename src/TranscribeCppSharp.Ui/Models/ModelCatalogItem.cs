@@ -1,4 +1,5 @@
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.Shared;
 using TranscribeCppSharp.Performance;
 
 namespace TranscribeCppSharp.Ui.Models;
@@ -82,6 +83,177 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
             return languages is null || languages.Length == 0
                 ? "Languages: not stated in the model card."
                 : $"Languages per the model card ({languages.Length}): {string.Join(", ", languages)}";
+        }
+    }
+
+    private UpstreamCatalog.Record? _upstream;
+    private bool _upstreamLoaded;
+
+    /// <summary>
+    /// Upstream's record for this model, read once and then held.
+    /// </summary>
+    /// <remarks>
+    /// Lazy because only the selected row's detail pane reads it: building the grid
+    /// opens no archives, and scrolling it opens none either. Null means upstream
+    /// has no record — the detail lines then show nothing rather than a placeholder
+    /// that would read as a missing feature.
+    /// </remarks>
+    private UpstreamCatalog.Record? Upstream
+    {
+        get
+        {
+            if (!_upstreamLoaded)
+            {
+                _upstream = UpstreamCatalog.Read(Alias);
+                _upstreamLoaded = true;
+            }
+
+            return _upstream;
+        }
+    }
+
+    /// <summary>
+    /// Parameter count and where the checkpoint came from, as upstream records it.
+    /// </summary>
+    /// <remarks>
+    /// Empty when upstream has no record, rather than a dash: this pane is about
+    /// what is known, and an em-dash next to a number implies a measured zero.
+    /// </remarks>
+    public string UpstreamDetail
+    {
+        get
+        {
+            UpstreamCatalog.Record? record = Upstream;
+            if (record is null || !record.HasIdentity)
+            {
+                return string.Empty;
+            }
+
+            var parts = new List<string>(3);
+            if (record.Params > 0)
+            {
+                parts.Add($"{record.Params:N0} parameters");
+            }
+
+            if (record.UpstreamRepo is not null)
+            {
+                parts.Add(record.UpstreamCommit is null
+                    ? record.UpstreamRepo
+                    : $"{record.UpstreamRepo} @ {record.UpstreamCommit}");
+            }
+
+            if (record.Family is not null)
+            {
+                parts.Add($"family {record.Family}");
+            }
+
+            return string.Join(" · ", parts);
+        }
+    }
+
+    /// <summary>
+    /// Every quantization upstream publishes, and what each weighs.
+    /// </summary>
+    /// <remarks>
+    /// The manifest pins one quantization per model — the one this project
+    /// downloads and verifies. The other published ones are listed for comparison
+    /// only: none of them has been fetched, checked against a sha256 or measured
+    /// here, so this is a catalogue of what exists upstream and not of what is
+    /// available on disk.
+    /// </remarks>
+    public string QuantizationsDetail
+    {
+        get
+        {
+            List<UpstreamCatalog.Download>? downloads = Upstream?.Downloads;
+            if (downloads is null || downloads.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return "Published: " + string.Join(" · ", downloads.Select(d =>
+                $"{d.Quant} {ModelSizeFormat.Format(d.SizeBytes)}"));
+        }
+    }
+
+    /// <summary>
+    /// What upstream says can be done with this model, and what was checked.
+    /// </summary>
+    /// <remarks>
+    /// The two flags are kept apart because upstream keeps them apart: a capability
+    /// can be supported and unverified, and merging them would turn their caveat
+    /// into a claim they do not make. Only what is supported is listed; "unverified"
+    /// is stated when none of the listed ones was checked.
+    /// </remarks>
+    public string CapabilitiesDetail
+    {
+        get
+        {
+            Dictionary<string, UpstreamCatalog.Capability>? caps = Upstream?.Capabilities;
+            if (caps is null)
+            {
+                return string.Empty;
+            }
+
+            List<string> supported = caps
+                .Where(kv => kv.Value.Supported)
+                .Select(kv => kv.Key)
+                .ToList();
+            if (supported.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            bool anyVerified = caps.Any(kv => kv.Value.Supported && kv.Value.Verified);
+            return anyVerified
+                ? string.Join(", ", supported)
+                : string.Join(", ", supported) + " (unverified upstream)";
+        }
+    }
+
+    /// <summary>
+    /// The one accuracy result upstream says to quote for this model.
+    /// </summary>
+    /// <remarks>
+    /// Named as theirs, on their benchmark, because that is what it is — this
+    /// project measures nothing like it. Where the row carries no provenance the
+    /// result is still shown, with the absence stated rather than filled in: many
+    /// upstream rows are <c>legacy-published</c> with no engine build recorded, and
+    /// saying "measured" without one would overstate what is known.
+    /// </remarks>
+    public string HeadlineAccuracyDetail
+    {
+        get
+        {
+            UpstreamCatalog.Record? record = Upstream;
+            UpstreamCatalog.Headline? headline = record?.HeadlineBenchmark;
+            if (headline is null)
+            {
+                return string.Empty;
+            }
+
+            UpstreamCatalog.Accuracy? row = (record!.AccuracyBenchmarks ?? new())
+                .FirstOrDefault(a => string.Equals(a.Dataset, headline.Dataset, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(a.Split, headline.Split, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(a.Language, headline.Language, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(a.Quant, Descriptor.Quant, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(a.Metric, headline.Metric, StringComparison.OrdinalIgnoreCase));
+            row ??= (record.AccuracyBenchmarks ?? new())
+                .FirstOrDefault(a => string.Equals(a.Dataset, headline.Dataset, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(a.Language, headline.Language, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(a.Metric, headline.Metric, StringComparison.OrdinalIgnoreCase));
+
+            if (row is null || row.ErrPct is null)
+            {
+                return string.Empty;
+            }
+
+            string measured = row.MeasurementProvenance is null
+                ? "engine build not recorded upstream"
+                : row.MeasurementProvenance;
+            return $"{row.Metric?.ToUpperInvariant()} {row.ErrPct:0.##} % — upstream, " +
+                $"{headline.Dataset} {headline.Split}, {headline.Language}, " +
+                $"{row.Quant ?? Descriptor.Quant} · {measured}";
         }
     }
 

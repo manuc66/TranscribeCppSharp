@@ -109,6 +109,7 @@ public class AutomationIdTests
         "models-benchmark-all",
         "models-grid",
         "models-detail",
+        "models-headline-accuracy",
         "models-refresh",
         "models-delete-all",
         "models-check-diarization",

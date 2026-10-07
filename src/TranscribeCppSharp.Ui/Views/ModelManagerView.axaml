@@ -238,6 +238,26 @@
           <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" TextWrapping="Wrap" />
         <TextBlock Opacity="0.8" Text="{Binding LanguagesDetail}" TextWrapping="Wrap"
                    ToolTip.Tip="From the model card on HuggingFace, not from the model itself: the loaded model is what answers whether it accepts a language, and the manifest only tells you this before you download." />
+
+        <!-- Everything below comes from upstream's own catalog, pinned at the tag
+             this project binds. Their records, their measurements, attributed. -->
+        <TextBlock Text="{Binding UpstreamDetail}" TextWrapping="Wrap" Margin="0,4,0,0"
+                   IsVisible="{Binding UpstreamDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   ToolTip.Tip="Parameter count and checkpoint provenance as transcribe.cpp records them, read from its pinned model catalog." />
+
+        <TextBlock Opacity="0.8" Text="{Binding QuantizationsDetail}" TextWrapping="Wrap"
+                   IsVisible="{Binding QuantizationsDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   ToolTip.Tip="Quantizations transcribe.cpp publishes for this model. Only the one this row pins has been downloaded and checksum-verified here; the others are listed as a catalogue, not as something available on disk." />
+
+        <TextBlock Text="{Binding CapabilitiesDetail}" TextWrapping="Wrap"
+                   IsVisible="{Binding CapabilitiesDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   ToolTip.Tip="What transcribe.cpp records the model as able to do. 'unverified upstream' means they mark the capability supported but do not claim to have checked it — their distinction, kept." />
+
+        <TextBlock Text="{Binding HeadlineAccuracyDetail}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,6,0,0"
+                   IsVisible="{Binding HeadlineAccuracyDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   AutomationProperties.AutomationId="models-headline-accuracy"
+                   AutomationProperties.Name="Upstream accuracy"
+                   ToolTip.Tip="Measured by transcribe.cpp on their benchmark, not by this project. Accuracy on your audio will differ, and nothing here measures it." />
           <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
           <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
           <TextBlock Opacity="0.8"
