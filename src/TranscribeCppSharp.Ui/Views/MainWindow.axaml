@@ -36,9 +36,19 @@
       </ScrollViewer>
     </TabItem>
     <TabItem Header="Models">
-      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <views:ModelManagerView DataContext="{Binding ModelManager}" />
-      </ScrollViewer>
+      <!-- Deliberately not wrapped in a ScrollViewer, unlike every other tab.
+
+           The wrapper measures its child against infinite height, and a `*` row
+           given infinite height resolves to its content: the grid grew to its
+           rows — 2408px in a 720px window — so it never scrolled internally and
+           the whole view scrolled instead, taking the column headers off the top
+           and putting the detail pane at y=3049.
+
+           The view's own layout is what the star row needs: fixed rows for the
+           filters and the pane, and the grid taking whatever is left. That is
+           also what keeps the detail pane in reach — it appears by shrinking the
+           grid rather than by pushing it below the fold. -->
+      <views:ModelManagerView DataContext="{Binding ModelManager}" />
     </TabItem>
     <TabItem Header="Settings">
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
