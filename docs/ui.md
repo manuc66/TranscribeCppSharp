@@ -149,6 +149,16 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   A model that declares nothing is hidden while a language is selected, because
   unknown is not the same as yes. The free-text search reaches the codes too, so
   typing one filters the same way, and *Clear* turns all of them off at once.
+- **The detail pane quotes upstream.** Below the grid, the selected model shows what
+  [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) itself records:
+  the parameter count and the checkpoint it was converted from, every quantization they
+  publish (with the note that only the one this row pins has been downloaded and verified
+  here), their capability flags — with *unverified upstream* when they mark one supported
+  without claiming to have checked it — and their headline accuracy figure, named as their
+  measurement on their benchmark. The family column comes from the same source, so it
+  reads `whisper` rather than a name guessed from the repository.
+  The data is pinned at the tag this project binds; see
+  [`catalog/`](../catalog/README.md) for how it was fetched and what it must not be used for.
 - **Licence and languages come from the model card.** The grid's Languages column
   shows the first four codes and counts the rest, because some models declare 99;
   the detail pane below carries the whole list and names where it came from. Every

@@ -1,8 +1,15 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 using System.IO.Compression;
 using System.Reflection;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Shared;
 using TranscribeCppSharp.Ui.Models;
+using TranscribeCppSharp.Ui.ViewModels;
+using TranscribeCppSharp.Ui.Views;
 using Xunit;
 
 namespace TranscribeCppSharp.Ui.Tests;
@@ -111,6 +118,50 @@ public class UpstreamCatalogDetailTests
 
         Assert.True(blank.Length == 0,
             $"{blank.Length} model(s) with an incomplete detail pane: {string.Join(", ", blank.Take(10))}");
+    }
+
+    /// <summary>
+    /// The Family column shows upstream's family, not the one derived from the
+    /// repository name.
+    /// </summary>
+    /// <remarks>
+    /// Realized rather than read from the model, because the point is what a reader
+    /// sees in the grid: <c>whisper-tiny-gguf</c> derives to <c>whisper-tiny</c>,
+    /// which is an alias rather than a family, and upstream records <c>whisper</c>.
+    /// The alias column also holds <c>whisper-tiny</c>, so the assertion is on the
+    /// family cell alone — a value that appears nowhere else in the row.
+    /// </remarks>
+    [AvaloniaFact]
+    public void TheGridRendersUpstreamsFamilyNotTheDerivedOne()
+    {
+        string previous = ModelStore.CacheRootOverride ?? string.Empty;
+        bool hadOverride = ModelStore.CacheRootOverride is not null;
+        try
+        {
+            ModelStore.CacheRootOverride = Path.Combine(
+                Path.GetTempPath(), "tcsharp-ui-tests-family-grid");
+            // The repository, not the alias: "whisper-tiny" also matches
+            // "whisper-tiny.en", which would make the row assertion ambiguous.
+            var viewModel = new ModelManagerViewModel { Filter = "whisper-tiny-gguf" };
+            var view = new ModelManagerView { DataContext = viewModel };
+            var window = new Window { Content = view, Width = 1100, Height = 720 };
+            window.Show();
+
+            Assert.Single(viewModel.VisibleModels);
+            Assert.Equal("whisper", viewModel.VisibleModels[0].Family);
+
+            HashSet<string> rendered = window.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Where(t => t.IsVisible && !string.IsNullOrEmpty(t.Text))
+                .Select(t => t.Text!)
+                .ToHashSet();
+
+            Assert.Contains("whisper", rendered);
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = hadOverride ? previous : null;
+        }
     }
 
     /// <summary>Nothing fabricated for an alias upstream does not know.</summary>
