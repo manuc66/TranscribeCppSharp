@@ -100,6 +100,31 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     private string? _targetLanguage;
 
+    /// <summary>
+    /// The one choice with no code: the model decides for itself.
+    /// </summary>
+    /// <remarks>
+    /// Cached rather than rebuilt so the picker can be re-seated on the same
+    /// instance after the list is rebuilt, without relying on the ComboBox
+    /// recognising an equal-but-different record.
+    /// </remarks>
+    private static readonly TargetOption DefaultTargetOption = new("(model default)", null);
+
+    /// <summary>
+    /// Everything the loaded model says it can translate into, plus
+    /// <see cref="DefaultTargetOption"/>.
+    /// </summary>
+    public ObservableCollection<TargetOption> TargetOptions { get; } = new();
+
+    /// <summary>
+    /// The row the picker shows. Null until it is seeded.
+    /// </summary>
+    [ObservableProperty]
+    private TargetOption? _selectedTargetOption;
+
+    partial void OnSelectedTargetOptionChanged(TargetOption? value)
+        => TargetLanguage = value?.Code;
+
     [ObservableProperty]
     private int? _specKDrafts;
 
@@ -165,6 +190,12 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         _transcriptionService = transcriptionService;
         _settings = settings;
+
+        // Both pickers are seeded first, before LoadModels: a ComboBox bound to an
+        // empty list has nothing to match, and the reader sees a blank box until
+        // something answers.
+        TargetOptions.Add(DefaultTargetOption);
+        SelectedTargetOption = DefaultTargetOption;
 
         // The language list is seeded first, before LoadModels: that call can start
         // the capability probe, and a probe on a cache with nothing in it answers
@@ -315,6 +346,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowTranslate));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
         UpdateAvailableLanguages(capabilities);
+        UpdateTargetOptions(capabilities);
     }
 
     /// <summary>
@@ -358,6 +390,45 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             Language = AvailableLanguages.First();
         }
+    }
+
+    /// <summary>
+    /// Rebuilds the target-language choices from what a model says it translates
+    /// into, or leaves the single default when nothing has answered.
+    /// </summary>
+    /// <remarks>
+    /// The selection is re-seated explicitly rather than left alone. The list is
+    /// rebuilt with new objects, so the ComboBox's selection is dropped, and
+    /// reassigning an equal-but-different record would not fire the setter that
+    /// restores it. Going through null first guarantees the transition; the value
+    /// that matters is the one assigned last, so a transient unset is never seen by
+    /// a run — nothing runs while a model is still being probed.
+    /// <para>
+    /// A choice the model does not declare is dropped rather than kept: the native
+    /// library rejects a target outside the model's list, so keeping it would hand
+    /// the reader a value that cannot work.
+    /// </para>
+    /// </remarks>
+    private void UpdateTargetOptions(ModelCapabilitySnapshot? capabilities)
+    {
+        string? current = TargetLanguage;
+
+        TargetOptions.Clear();
+        TargetOptions.Add(DefaultTargetOption);
+        if (capabilities is not null)
+        {
+            foreach (string code in capabilities.TranslateTargetLanguages)
+            {
+                if (!string.IsNullOrEmpty(code))
+                {
+                    TargetOptions.Add(new TargetOption(code, code));
+                }
+            }
+        }
+
+        SelectedTargetOption = null;
+        SelectedTargetOption = TargetOptions.FirstOrDefault(o => o.Code == current)
+            ?? DefaultTargetOption;
     }
 
     /// <summary>

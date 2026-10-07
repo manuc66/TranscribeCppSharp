@@ -118,10 +118,21 @@
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding ShowTranslate}">
         <TextBlock Text="Target Language" Margin="0,0,0,4"
-                   ToolTip.Tip="Language code to translate into, for the models that support it. Left empty, the model's own default is used." />
-        <TextBox Text="{Binding TargetLanguage}" PlaceholderText="For translation (e.g. en)"
-                 AutomationProperties.AutomationId="transcription-target-language"
-                 AutomationProperties.Name="Target language" />
+                   ToolTip.Tip="What to translate into, for the models that support it. The list is what the loaded model declares it accepts — the library rejects a code outside it, so there is no free text to type a wrong value into. '(model default)' passes nothing and lets the model choose." />
+        <!-- A picker, not the free-text box it used to be: the choices come from
+             the model, and an empty selection would render as a blank line while a
+             valid value sat in the view model. '(model default)' is the label for
+             passing no code at all. -->
+        <ComboBox ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding SelectedTargetOption}"
+                  HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="transcription-target-language"
+                  AutomationProperties.Name="Target language">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Display}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
       </StackPanel>
       <StackPanel Grid.Column="2" Margin="8,0,0,0">
         <TextBlock Text="Window (sec)" Margin="0,0,0,4"
