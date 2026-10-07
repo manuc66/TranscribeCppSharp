@@ -77,6 +77,39 @@ public static class ModelBenchmarkOrder
         return measured;
     }
 
+    /// <summary>Orders rows by any key, ascending or descending.</summary>
+    /// <typeparam name="T">The row type.</typeparam>
+    /// <typeparam name="TKey">What the order is taken from.</typeparam>
+    /// <param name="rows">Every visible row.</param>
+    /// <param name="key">Reads the value to order by.</param>
+    /// <param name="comparer">How the values compare; string ordering is by code
+    /// unit rather than by locale, so the result does not change with the UI language.</param>
+    /// <param name="ascending">False to reverse it.</param>
+    /// <returns>The rows, ordered.</returns>
+    /// <remarks>
+    /// Descending is the exact mirror of ascending — the list is reversed after
+    /// ordering rather than ordered a second way — so the two can never disagree
+    /// about a tie.
+    /// </remarks>
+    public static List<T> ByKey<T, TKey>(
+        IEnumerable<T> rows,
+        Func<T, TKey> key,
+        IComparer<TKey> comparer,
+        bool ascending = true)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(comparer);
+
+        List<T> ordered = rows.OrderBy(key, comparer).ToList();
+        if (!ascending)
+        {
+            ordered.Reverse();
+        }
+
+        return ordered;
+    }
+
     /// <summary>Orders rows alphabetically by alias.</summary>
     /// <typeparam name="T">The row type.</typeparam>
     /// <param name="rows">Every visible row.</param>
@@ -86,18 +119,7 @@ public static class ModelBenchmarkOrder
     /// <returns>The rows, ordered.</returns>
     public static List<T> ByName<T>(IEnumerable<T> rows, Func<T, string> alias, bool ascending = true)
     {
-        ArgumentNullException.ThrowIfNull(rows);
-        ArgumentNullException.ThrowIfNull(alias);
-        List<T> ordered = rows.OrderBy(alias, StringComparer.Ordinal).ToList();
-
-        // The exact mirror rather than a second ordering: descending is defined as
-        // the reverse of ascending, so the two can never disagree about ties.
-        if (!ascending)
-        {
-            ordered.Reverse();
-        }
-
-        return ordered;
+        return ByKey(rows, alias, StringComparer.Ordinal, ascending);
     }
 
     /// <summary>Orders rows by download size, smallest first.</summary>

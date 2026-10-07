@@ -26,6 +26,12 @@ namespace TranscribeCppSharp.Ui.Tests;
 /// </remarks>
 public class ModelGridSortingTests
 {
+    /// <summary>The columns with an order behind them, and the two without.</summary>
+    private static readonly string[] SortableColumns =
+        ["Alias", "Family", "Size", "On disk", "Licence", "Languages", "x realtime", "Diarization"];
+
+    private static readonly string[] RefusedColumns = ["WER", "Action"];
+
     private static (Window Window, ModelManagerViewModel ViewModel, DataGrid Grid) Show()
     {
         ModelStore.CacheRootOverride = Path.Combine(
@@ -63,16 +69,98 @@ public class ModelGridSortingTests
     /// By content, not by DataContext: a DataGridColumnHeader's DataContext here is
     /// the view model, not the column — a diagnostic dump of the header-shaped
     /// controls is what established that, and it is also where the arrow showed up,
-    /// as "Alias ↑".
+    /// as "Alias ↑". Two captions exist because some headers are plain strings and
+    /// some are TextBlocks carrying a tooltip, and Header.ToString() on the second
+    /// kind is the type name.
     /// </remarks>
     private static ContentControl Header(DataGrid grid, string prefix)
         => grid.GetVisualDescendants()
             .OfType<ContentControl>()
-            .First(c => c.GetType().Name.Contains("Header", StringComparison.Ordinal)
-                && c.Content?.ToString()?.StartsWith(prefix, StringComparison.Ordinal) == true);
+            .First(c => Caption(c)?.StartsWith(prefix, StringComparison.Ordinal) == true);
+
+    private static string? Caption(ContentControl header)
+        => header.Content switch
+        {
+            string text => text,
+            TextBlock block => block.Text,
+            _ => header.Content?.ToString(),
+        };
 
     private static string CaptionOf(DataGrid grid, string prefix)
-        => Header(grid, prefix).Content!.ToString()!;
+        => Caption(Header(grid, prefix))!;
+
+    /// <summary>
+    /// Every data column either has an order behind it or says why it does not.
+    /// </summary>
+    /// <remarks>
+    /// The count is the point: a grid where most columns decline a click is a grid
+    /// where sorting is a feature nobody can find. Action is not data — it holds
+    /// buttons — and WER is the one data column without an order, because its 72
+    /// figures come from three metrics, two datasets and eight languages.
+    /// </remarks>
+    [AvaloniaFact]
+    public void AlmostEveryDataColumnCanBeOrdered()
+    {
+        var (_, _, grid) = Show();
+
+        List<string> sortable = grid.Columns
+            .Where(c => c.CanUserSort && c.Tag is not null)
+            .Select(c => c.Header switch { string t => t, TextBlock b => b.Text ?? "", _ => "" })
+            .Select(h => h.Replace("\u2191", string.Empty).Replace("\u2193", string.Empty).Trim())
+            .Where(h => h.Length > 0)
+            .ToList();
+
+        Assert.Equal(SortableColumns, sortable);
+
+        // The two that decline, and only those two.
+        List<string> refused = grid.Columns
+            .Where(c => !c.CanUserSort || c.Tag is null)
+            .Select(c => c.Header switch { string t => t, TextBlock b => b.Text ?? "", _ => "" })
+            .Where(h => h.Length > 0)
+            .ToList();
+        Assert.Equal(RefusedColumns, refused);
+    }
+
+    [AvaloniaFact]
+    public void ClickingTheLicenceHeaderOrdersByLicence()
+    {
+        var (window, viewModel, grid) = Show();
+
+        Click(window, Header(grid, "Licence"));
+
+        Assert.Equal(ModelManagerViewModel.ModelSort.Licence, viewModel.Sort);
+        List<string> licences = viewModel.VisibleModels.Select(m => m.License).ToList();
+        Assert.Equal(licences.OrderBy(l => l, StringComparer.Ordinal).ToList(), licences);
+        Assert.Contains("\u2191", CaptionOf(grid, "Licence"), StringComparison.Ordinal);
+    }
+
+    /// <summary>The column that has no comparable order refuses, and says why.</summary>
+    [AvaloniaFact]
+    public void ClickingTheWerHeaderDoesNothing()
+    {
+        var (window, viewModel, grid) = Show();
+
+        Click(window, Header(grid, "WER"));
+
+        // Still the default order: no order was invented for numbers that do not
+        // measure the same thing.
+        Assert.Equal(ModelManagerViewModel.ModelSort.Alias, viewModel.Sort);
+        Assert.True(viewModel.SortAscending);
+
+        // The refusal is explained in the tooltip rather than shouted in the
+        // caption: the column holds a number, and the reader needs to know before
+        // they trust an order that the numbers do not measure the same thing.
+        // The tooltip sits on the TextBlock inside the header, so that is the
+        // control to ask — the header itself carries none.
+        Control header = Header(grid, "WER").Content is TextBlock caption
+            ? caption
+            : Header(grid, "WER");
+        string? tip = ToolTip.GetTip(header)?.ToString();
+
+        Assert.NotNull(tip);
+        Assert.Contains("not sortable", tip!, StringComparison.Ordinal);
+        Assert.Contains("65 WER, 6 CER, 1 DER", tip!, StringComparison.Ordinal);
+    }
 
     [AvaloniaFact]
     public void TheDefaultOrderIsAscendingAndTheHeaderSaysSo()

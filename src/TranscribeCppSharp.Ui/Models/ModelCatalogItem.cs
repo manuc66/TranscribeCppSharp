@@ -212,6 +212,79 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     }
 
     /// <summary>
+    /// The accuracy row upstream says to quote, preferring the quantization pinned
+    /// in this manifest.
+    /// </summary>
+    /// <remarks>
+    /// Preferred for the pinned quant because that is the file a reader would
+    /// download — the first version of this printed F32, which nobody does here.
+    /// Falls back to any quantization of the same benchmark rather than reporting
+    /// nothing, and every place that prints it says which one it got.
+    /// </remarks>
+    private UpstreamCatalog.Accuracy? HeadlineRow
+    {
+        get
+        {
+            UpstreamCatalog.Record? record = Upstream;
+            UpstreamCatalog.Headline? headline = record?.HeadlineBenchmark;
+            if (headline is null)
+            {
+                return null;
+            }
+
+            static bool Same(UpstreamCatalog.Accuracy a, UpstreamCatalog.Headline h)
+                => string.Equals(a.Dataset, h.Dataset, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(a.Language, h.Language, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(a.Metric, h.Metric, StringComparison.OrdinalIgnoreCase);
+
+            List<UpstreamCatalog.Accuracy> rows = record!.AccuracyBenchmarks ?? new();
+            return rows.FirstOrDefault(a => Same(a, headline)
+                        && string.Equals(a.Quant, Descriptor.Quant, StringComparison.OrdinalIgnoreCase))
+                ?? rows.FirstOrDefault(a => Same(a, headline));
+        }
+    }
+
+    /// <summary>
+    /// The headline figure, short enough for a column.
+    /// </summary>
+    public string WerText
+    {
+        get
+        {
+            UpstreamCatalog.Accuracy? row = HeadlineRow;
+            return row?.ErrPct is { } pct ? $"{pct:0.##} %" : "-";
+        }
+    }
+
+    /// <summary>
+    /// What the figure in the WER column is, and whose it is.
+    /// </summary>
+    /// <remarks>
+    /// Named as theirs, on their benchmark, with the provenance they record — and
+    /// with the sentence this project would otherwise be implying: a published
+    /// word-error rate on someone else's audio is not a measurement of yours, and
+    /// this project measures none.
+    /// </remarks>
+    public string WerDetail
+    {
+        get
+        {
+            UpstreamCatalog.Accuracy? row = HeadlineRow;
+            UpstreamCatalog.Headline? headline = Upstream?.HeadlineBenchmark;
+            if (row is null || row.ErrPct is null)
+            {
+                return string.Empty;
+            }
+
+            string measured = row.MeasurementProvenance ?? "engine build not recorded upstream";
+            return $"{row.Metric?.ToUpperInvariant()} {row.ErrPct:0.##} % on {headline!.Dataset} " +
+                $"{headline.Split}, {headline.Language}, {row.Quant ?? Descriptor.Quant} — " +
+                $"measured by transcribe.cpp ({measured}). Not a measurement of your audio; " +
+                "this project publishes no accuracy figure of its own.";
+        }
+    }
+
+    /// <summary>
     /// The one accuracy result upstream says to quote for this model.
     /// </summary>
     /// <remarks>
@@ -225,24 +298,8 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     {
         get
         {
-            UpstreamCatalog.Record? record = Upstream;
-            UpstreamCatalog.Headline? headline = record?.HeadlineBenchmark;
-            if (headline is null)
-            {
-                return string.Empty;
-            }
-
-            UpstreamCatalog.Accuracy? row = (record!.AccuracyBenchmarks ?? new())
-                .FirstOrDefault(a => string.Equals(a.Dataset, headline.Dataset, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(a.Split, headline.Split, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(a.Language, headline.Language, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(a.Quant, Descriptor.Quant, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(a.Metric, headline.Metric, StringComparison.OrdinalIgnoreCase));
-            row ??= (record.AccuracyBenchmarks ?? new())
-                .FirstOrDefault(a => string.Equals(a.Dataset, headline.Dataset, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(a.Language, headline.Language, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(a.Metric, headline.Metric, StringComparison.OrdinalIgnoreCase));
-
+            UpstreamCatalog.Accuracy? row = HeadlineRow;
+            UpstreamCatalog.Headline? headline = Upstream?.HeadlineBenchmark;
             if (row is null || row.ErrPct is null)
             {
                 return string.Empty;
@@ -252,7 +309,7 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
                 ? "engine build not recorded upstream"
                 : row.MeasurementProvenance;
             return $"{row.Metric?.ToUpperInvariant()} {row.ErrPct:0.##} % — upstream, " +
-                $"{headline.Dataset} {headline.Split}, {headline.Language}, " +
+                $"{headline!.Dataset} {headline.Split}, {headline.Language}, " +
                 $"{row.Quant ?? Descriptor.Quant} · {measured}";
         }
     }
@@ -280,10 +337,16 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     public string SizeText => ModelSizeFormat.Format(Descriptor.Size).ToString();
 
     /// <summary>
-    /// Size on disk when downloaded, or the manifest size with a marker when
-    /// not, so the two are never confused for one another.
+    /// Whether the weights are here.
     /// </summary>
-    public string OnDiskText => IsCached ? $"{ModelSizeFormat.Format(CachedBytes)} on disk" : "not downloaded";
+    /// <remarks>
+    /// A yes or a no rather than a size: the Size column beside it already carries
+    /// the download size, and the line above the grid carries the total on disk, so
+    /// repeating the bytes per row cost the column its width for information the
+    /// reader already had twice. What the yes means — verified against the
+    /// manifest's sha256 — is spelled out in the detail pane, next to the path.
+    /// </remarks>
+    public string OnDiskText => IsCached ? "yes" : "no";
 
     /// <summary>
     /// The timing measured on this machine, when there is one.
@@ -333,12 +396,56 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     }
 
     /// <summary>Short cell text for the diarization column.</summary>
+    /// <summary>
+    /// Whether upstream records diarization for this model, or null when unknown.
+    /// </summary>
+    /// <remarks>
+    /// Read only when nothing has been asked of the model on this machine, and only
+    /// ever as the answer to "not checked yet": a local check that succeeded
+    /// overrides it, and one that failed does not let a catalog entry stand in for
+    /// a result the machine could not produce.
+    /// </remarks>
+    private bool? UpstreamDiarization
+    {
+        get
+        {
+            if (Diarization is not DiarizationSupport.Unknown)
+            {
+                return null;
+            }
+
+            Dictionary<string, UpstreamCatalog.Capability>? caps = Upstream?.Capabilities;
+            if (caps is null || !caps.TryGetValue("diarize", out UpstreamCatalog.Capability? cap))
+            {
+                return null;
+            }
+
+            return cap.Supported;
+        }
+    }
+
+    /// <summary>True when upstream records the capability as checked, not merely claimed.</summary>
+    private bool UpstreamDiarizationVerified
+        => Upstream?.Capabilities?.TryGetValue("diarize", out UpstreamCatalog.Capability? cap) == true
+        && cap.Verified;
+
     public string DiarizationText => Diarization switch
     {
         DiarizationSupport.Checking => "checking…",
         DiarizationSupport.Supported => "yes",
         DiarizationSupport.Unsupported => "no",
-        _ => "?",
+
+        // Asked here and the load failed: no answer. Printing upstream's claim in
+        // the cell would turn a machine that could not load the model into a
+        // result, which is the one thing this column must not do.
+        DiarizationSupport.LoadFailed => "?",
+
+        _ => UpstreamDiarization switch
+        {
+            true => "yes",
+            false => "no",
+            _ => "?",
+        },
     };
 
     /// <summary>One-line explanation for the detail pane.</summary>
@@ -348,6 +455,11 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
         DiarizationSupport.Supported => "yes (checked on this machine)",
         DiarizationSupport.Unsupported => "no (checked on this machine)",
         DiarizationSupport.LoadFailed => "unknown, the model could not be loaded",
+
+        _ when UpstreamDiarization == true => UpstreamDiarizationVerified
+            ? "yes (per transcribe.cpp's catalog, verified by them; not checked on this machine)"
+            : "yes (per transcribe.cpp's catalog, unverified by them; not checked on this machine)",
+        _ when UpstreamDiarization == false => "no (per transcribe.cpp's catalog)",
         _ => IsCached ? "unknown, not checked yet" : "unknown, not downloaded",
     };
 

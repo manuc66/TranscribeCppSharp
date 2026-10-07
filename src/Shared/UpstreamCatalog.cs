@@ -33,6 +33,51 @@ internal static class UpstreamCatalog
     };
 
     /// <summary>
+    /// Every record, read once from the archive and then kept.
+    /// </summary>
+    /// <remarks>
+    /// A single pass rather than one open per alias: the WER and diarization columns
+    /// are read for all seventy-two rows on every grid render, so opening and
+    /// seeking the archive per row would be seventy-two decompressions repeated on
+    /// each filter change. The whole catalog is wanted anyway — the WER column needs
+    /// the accuracy table for every model, not for the selected one.
+    /// </remarks>
+    private static readonly Lazy<Dictionary<string, Record>> Records = new(ReadAll, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    private static Dictionary<string, Record> ReadAll()
+    {
+        var records = new Dictionary<string, Record>(StringComparer.Ordinal);
+        try
+        {
+            using Stream? stream = typeof(UpstreamCatalog).Assembly
+                .GetManifestResourceStream(ResourceName);
+            if (stream is null)
+            {
+                return records;
+            }
+
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
+            foreach (ZipArchiveEntry entry in zip.Entries.Where(e => !string.IsNullOrEmpty(e.Name)))
+            {
+                using StreamReader reader = new(entry.Open());
+                Record? record = JsonSerializer.Deserialize<Record>(reader.ReadToEnd(), Json);
+                if (record is not null)
+                {
+                    records[entry.Name[..^".json".Length]] = record;
+                }
+            }
+        }
+        catch (InvalidDataException)
+        {
+            // A damaged or missing catalog must not take a front end down; the
+            // columns simply render their "unknown" state.
+            records.Clear();
+        }
+
+        return records;
+    }
+
+    /// <summary>
     /// Upstream's record for one model, or null when it has none.
     /// </summary>
     /// <remarks>
@@ -44,30 +89,8 @@ internal static class UpstreamCatalog
     /// </remarks>
     public static Record? Read(string alias)
     {
-        try
-        {
-            using Stream? stream = typeof(UpstreamCatalog).Assembly
-                .GetManifestResourceStream(ResourceName);
-            if (stream is null)
-            {
-                return null;
-            }
-
-            using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
-            ZipArchiveEntry? entry = zip.GetEntry($"{UpstreamName(alias)}.json");
-            if (entry is null)
-            {
-                return null;
-            }
-
-            using StreamReader reader = new(entry.Open());
-            return JsonSerializer.Deserialize<Record>(reader.ReadToEnd(), Json);
-        }
-        catch (InvalidDataException)
-        {
-            // A damaged or missing catalog must not take a transcription down.
-            return null;
-        }
+        Dictionary<string, Record> records = Records.Value;
+        return records.TryGetValue(UpstreamName(alias), out Record? record) ? record : null;
     }
 
     /// <summary>Our alias as upstream spells it. Only one of the seventy-two differs.</summary>

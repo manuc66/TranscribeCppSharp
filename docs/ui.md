@@ -152,11 +152,15 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
 - **The default model is marked.** The alias the CLI uses when no `--model` is given is
   shown as `default` in the Alias column. It is a mark of which alias a command ends up
   using, not a claim about quality or speed.
-- **Sort by clicking a header.** Alias, Size and *x realtime* order the grid, and the
-  arrow on the header says which way. Clicking again reverses it. The other columns have
-  no order behind them — you cannot sort by licence or by a count — so they say so by
-  not taking a click rather than by sorting something arbitrary. The three sort buttons
+- **Sort by clicking a header.** Eight of the nine data columns order the grid — Alias,
+  Family, Size, On disk, Licence, Languages, *x realtime* and Diarization — and the arrow
+  on the header says which way. Clicking again reverses it. Each orders by the value it
+  shows, so what you see in the column is what the order follows. The three sort buttons
   above the grid set the same state, so both routes move the same arrow.
+  **The one data column that declines is WER**, deliberately: its 72 figures come from
+  three metrics (65 WER, 6 CER, 1 DER), two datasets and eight languages, so an order
+  over them would rank numbers that do not measure the same thing. Its tooltip says so
+  rather than leaving a silent refusal. `Action` is not data — it holds buttons.
 - **Filter by language.** The picker beside the licence and size filters narrows the
   grid to the models whose card declares a language — codes, as the cards state them.
   A model that declares nothing is hidden while a language is selected, because
@@ -179,10 +183,26 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   [`tools/UpdateModelManifest`](../tools/UpdateModelManifest), whose
   `--languages-only` mode reads `cardData.language` and rewrites nothing else, so
   adding the column cannot re-pin a revision or a checksum.
-- **Diarization is a third state.** A model that is on disk can be loaded, which is the only
-  way to learn whether it can attribute speakers; until then the column says `?`, and
-  *Check diarization* loads each downloaded model once to find out. See
-  [Long audio and diarization](diarization.md), including what is not verified in CI.
+- **Diarization answers from whichever source can answer.** A model that has been loaded
+  on this machine reports for itself, and wins — including when the load fails, in which
+  case the cell says `?` rather than letting a catalog entry stand in for a result the
+  machine could not produce. Until then the column reads what transcribe.cpp records
+  (`capabilities.diarize`), which covers four of the 72 models; the detail pane names the
+  source and says *unverified by them* where they mark it supported without claiming to
+  have checked it. *Check diarization* still loads each downloaded model once to find out
+  for yourself. See [Long audio and diarization](diarization.md).
+- **On disk is a yes or a no.** The Size column beside it carries the download size and
+  the line above the grid carries the total, so the per-row size was saying twice what
+  the reader already had and costing the column its width. What the yes means — verified
+  against the manifest's sha256 — is in the detail pane, next to the path.
+- **Error rate is their figure.** One number per model, from transcribe.cpp's own
+  measurement, for the quantization this project pins. Hover it for the metric, the
+  dataset, the split, the language and their provenance flag — including *engine build not
+  recorded upstream*, which several rows honestly carry. The header says **WER** because
+  that is the majority of it, but 65 of the 72 figures are WER, six are CER and one is a
+  DER, so read the tooltip rather than the column name when it matters. **It is not a
+  measurement of your audio, and this project publishes no accuracy figure of its own**;
+  the number is theirs.
 - **Measure** times a model over an excerpt of audio *you* pick, because a timing is only
   meaningful for the audio it was taken on. One pass is discarded as warm-up and three are
   timed; the best is kept, since contention only ever makes a run slower. The backend is
@@ -192,7 +212,7 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
 `Sort by speed` orders the grid by what you measured here, and models you have not measured
 cannot be placed in a speed order, so they stay at the bottom in name order.
 
-**This app does not rank models by accuracy.** This project publishes no accuracy comparison
+**This app does not rank models by accuracy, and the WER column is not a ranking.** This project publishes no accuracy comparison
 between them, so there is none to show. `Measure` tells you how fast a model ran on your
 audio and nothing else. [Streaming benchmarks](streaming-bench.md) is the only benchmark the
 project has, and it covers Moonshine streaming only.
@@ -244,8 +264,11 @@ Capabilities are cached per alias for the session.
   Transcription tab, which runs offline.
 - **It does not time models for you against published numbers.** `Measure` runs on your
   machine, over your audio.
-- **There is no accuracy comparison behind the model grid.** Filtering by licence, family or
-  size is as far as it goes.
+- **No accuracy comparison is ours.** The grid quotes upstream's error rate per model, which
+  is their measurement on their benchmark and not a comparison this project made — let alone
+  one you could sort, since those figures come from three metrics and two datasets. What
+  this project's own judgement adds is filtering by licence, family, size, language and
+  what is on disk.
 
 ## How it is tested
 

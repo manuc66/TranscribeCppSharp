@@ -176,15 +176,43 @@
             </StackPanel>
           </DataTemplate>
         </DataGridTemplateColumn>
-        <DataGridTextColumn Header="Family (from repo)" Binding="{Binding Family}" Width="1.3*" CanUserSort="False" />
+        <DataGridTextColumn Header="Family" Binding="{Binding Family}" Width="1.3*" Tag="family" SortMemberPath="Family" />
         <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="0.6*" Tag="size" SortMemberPath="SizeText" />
-        <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" CanUserSort="False" />
-        <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="0.9*" CanUserSort="False" />
+        <!-- A yes or a no, so a template rather than a text column: ToolTip will
+             not attach to a column, only to a control. -->
+        <DataGridTemplateColumn Header="On disk" Width="0.45*" Tag="ondisk" CanUserSort="True">
+          <DataTemplate x:DataType="m:ModelCatalogItem">
+            <TextBlock Text="{Binding OnDiskText}"
+                       ToolTip.Tip="Whether the weights are on this machine, verified against the manifest's sha256. The download size is in the Size column; the total on disk is on the line above the grid." />
+          </DataTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="0.9*" Tag="licence" SortMemberPath="License" />
         <!-- What the model card says it covers. Compact form only: some models
              declare 99 languages and the detail pane below carries the list. -->
-        <DataGridTextColumn Header="Languages" Binding="{Binding LanguagesText}" Width="1.1*" CanUserSort="False" />
+        <DataGridTextColumn Header="Languages" Binding="{Binding LanguagesText}" Width="1.1*" Tag="languages" SortMemberPath="LanguagesText" />
+        <!-- Their measurement, not ours: the cell says the figure, the tooltip
+             says whose it is, on which benchmark, at which quantization. Template
+             rather than a text column so the tooltip is per row rather than one
+             caption standing in for seventy-two different figures. -->
+        <DataGridTemplateColumn Width="0.6*" CanUserSort="False">
+          <DataGridTemplateColumn.Header>
+            <TextBlock Text="WER"
+                       ToolTip.Tip="Their error rate, not ours, and deliberately not sortable: the 72 figures come from three metrics (65 WER, 6 CER, 1 DER), two datasets and eight languages, so putting them in one order would rank numbers that do not measure the same thing. Hover a cell for which metric, dataset and language that row's figure came from." />
+          </DataGridTemplateColumn.Header>
+          <DataTemplate x:DataType="m:ModelCatalogItem">
+            <TextBlock Text="{Binding WerText}" ToolTip.Tip="{Binding WerDetail}" />
+          </DataTemplate>
+        </DataGridTemplateColumn>
+
         <DataGridTextColumn Header="x realtime" Binding="{Binding MeasuredText}" Width="0.6*" Tag="speed" SortMemberPath="MeasuredText" />
-        <DataGridTextColumn Header="Diarization" Binding="{Binding DiarizationText}" Width="0.7*" CanUserSort="False" />
+        <DataGridTextColumn Binding="{Binding DiarizationText}" Width="0.7*" Tag="diarization" SortMemberPath="DiarizationText">
+          <!-- A TextBlock rather than a string: this column now mixes two sources,
+               and a reader has to be told which one they are looking at. -->
+          <DataGridTextColumn.Header>
+            <TextBlock Text="Diarization"
+                       ToolTip.Tip="Asked of the loaded model when it has been checked on this machine; otherwise what transcribe.cpp records for it. The detail pane says which, and says 'unverified' when they have not checked it either." />
+          </DataGridTextColumn.Header>
+        </DataGridTextColumn>
         <!-- Fixed, not a share of the row: the three buttons need ~380px, and a
              star share at the default window gives them 140. Star-sizing the
              actions is what put Delete outside the window. A fixed width also

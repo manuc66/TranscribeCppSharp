@@ -46,6 +46,21 @@ public partial class ModelManagerViewModel : ObservableObject
 
         /// <summary>Fastest first, by measured real-time factor.</summary>
         Speed = 2,
+
+        /// <summary>Family, as upstream records it.</summary>
+        Family = 3,
+
+        /// <summary>Whether the weights are on disk.</summary>
+        OnDisk = 4,
+
+        /// <summary>Licence identifier.</summary>
+        Licence = 5,
+
+        /// <summary>The languages the model card declares, as the column shows them.</summary>
+        Languages = 6,
+
+        /// <summary>What diarization the column currently reads.</summary>
+        Diarization = 7,
     }
 
     /// <summary>
@@ -726,15 +741,30 @@ public partial class ModelManagerViewModel : ObservableObject
     /// </remarks>
     public void SortByColumn(string? column, bool ascending)
     {
-        Sort = column switch
-        {
-            "size" => ModelSort.Size,
-            "speed" => ModelSort.Speed,
-            _ => ModelSort.Alias,
-        };
+        Sort = FromColumn(column);
         SortAscending = ascending;
         ApplyFilter();
     }
+
+    /// <summary>
+    /// Maps a column's Tag to the order behind it.
+    /// </summary>
+    /// <remarks>
+    /// Anything unknown maps to the alias, which is the default order rather than
+    /// an order invented for a column that has none — a header click on a column
+    /// with no Tag never reaches here, because the view refuses it first.
+    /// </remarks>
+    internal static ModelSort FromColumn(string? column) => column switch
+    {
+        "size" => ModelSort.Size,
+        "speed" => ModelSort.Speed,
+        "family" => ModelSort.Family,
+        "ondisk" => ModelSort.OnDisk,
+        "licence" => ModelSort.Licence,
+        "languages" => ModelSort.Languages,
+        "diarization" => ModelSort.Diarization,
+        _ => ModelSort.Alias,
+    };
 
     /// <summary>Orders the list with the smallest download first.</summary>
     [RelayCommand]
@@ -915,14 +945,36 @@ public partial class ModelManagerViewModel : ObservableObject
     /// </remarks>
     private void ApplySort()
     {
-        List<ModelCatalogItem> ordered = Sort switch
+        // Columns ordered by the value they show, one rule for all of them: a
+        // reader who clicks a column expects the order to match what is printed in
+        // that column, not an order they then have to translate.
+        Func<ModelCatalogItem, string>? shownValue = Sort switch
         {
-            ModelSort.Size => ModelBenchmarkOrder.BySize(
-                VisibleModels, m => m.Alias, m => m.Descriptor.Size, SortAscending),
-            ModelSort.Speed => ModelBenchmarkOrder.BySpeed(
-                VisibleModels, m => m.Alias, Benchmarks, MachineKey, SortAscending),
-            _ => ModelBenchmarkOrder.ByName(VisibleModels, m => m.Alias, SortAscending),
+            ModelSort.Family => m => m.Family,
+            ModelSort.OnDisk => m => m.OnDiskText,
+            ModelSort.Licence => m => m.License,
+            ModelSort.Languages => m => m.LanguagesText,
+            ModelSort.Diarization => m => m.DiarizationText,
+            _ => null,
         };
+
+        List<ModelCatalogItem> ordered;
+        if (shownValue is not null)
+        {
+            ordered = ModelBenchmarkOrder.ByKey(
+                VisibleModels, shownValue, StringComparer.Ordinal, SortAscending);
+        }
+        else
+        {
+            ordered = Sort switch
+            {
+                ModelSort.Size => ModelBenchmarkOrder.BySize(
+                    VisibleModels, m => m.Alias, m => m.Descriptor.Size, SortAscending),
+                ModelSort.Speed => ModelBenchmarkOrder.BySpeed(
+                    VisibleModels, m => m.Alias, Benchmarks, MachineKey, SortAscending),
+                _ => ModelBenchmarkOrder.ByName(VisibleModels, m => m.Alias, SortAscending),
+            };
+        }
 
         VisibleModels.Clear();
         foreach (ModelCatalogItem item in ordered)

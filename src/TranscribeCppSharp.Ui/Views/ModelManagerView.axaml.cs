@@ -38,6 +38,32 @@ public partial class ModelManagerView : UserControl
     /// </remarks>
     private readonly Dictionary<DataGridColumn, string> _baseHeaders = new();
 
+    /// <summary>
+    /// The caption a column was given, before any arrow.
+    /// </summary>
+    /// <remarks>
+    /// Read from either shape of header: most are plain strings, but Diarization's
+    /// is a TextBlock because a string cannot carry a tooltip. Returning the type
+    /// name for the second kind — which is what Header.ToString() gives — would put
+    /// "System.Controls.TextBlock ↑" on the column and delete its explanation.
+    /// </remarks>
+    private static string BaseCaption(DataGridColumn column, Dictionary<DataGridColumn, string> store)
+    {
+        if (store.TryGetValue(column, out string? cached))
+        {
+            return cached;
+        }
+
+        string text = column.Header switch
+        {
+            string value => value,
+            TextBlock block => block.Text ?? string.Empty,
+            _ => column.Header?.ToString() ?? string.Empty,
+        };
+        store[column] = text;
+        return text;
+    }
+
     public ModelManagerView()
     {
         InitializeComponent();
@@ -88,12 +114,7 @@ public partial class ModelManagerView : UserControl
         }
 
         string key = e.Column.Tag as string ?? string.Empty;
-        ModelManagerViewModel.ModelSort requested = key switch
-        {
-            "size" => ModelManagerViewModel.ModelSort.Size,
-            "speed" => ModelManagerViewModel.ModelSort.Speed,
-            _ => ModelManagerViewModel.ModelSort.Alias,
-        };
+        ModelManagerViewModel.ModelSort requested = ModelManagerViewModel.FromColumn(key);
 
         // Ascending unless this column is already the one being ordered that way,
         // which makes the first click A to Z and the next Z to A. Read from the
@@ -121,6 +142,11 @@ public partial class ModelManagerView : UserControl
         {
             ModelManagerViewModel.ModelSort.Size => "size",
             ModelManagerViewModel.ModelSort.Speed => "speed",
+            ModelManagerViewModel.ModelSort.Family => "family",
+            ModelManagerViewModel.ModelSort.OnDisk => "ondisk",
+            ModelManagerViewModel.ModelSort.Licence => "licence",
+            ModelManagerViewModel.ModelSort.Languages => "languages",
+            ModelManagerViewModel.ModelSort.Diarization => "diarization",
             _ => "alias",
         };
 
@@ -128,16 +154,22 @@ public partial class ModelManagerView : UserControl
 
         foreach (DataGridColumn column in grid.Columns)
         {
-            if (!_baseHeaders.TryGetValue(column, out string? baseHeader))
-            {
-                baseHeader = column.Header?.ToString() ?? string.Empty;
-                _baseHeaders[column] = baseHeader;
-            }
-
             // A column with no Tag has no order behind it, so it carries no arrow
             // whatever the view model happens to be doing.
+            string baseHeader = BaseCaption(column, _baseHeaders);
             bool ordered = column.Tag is string tag && tag == orderedBy;
-            column.Header = ordered ? baseHeader + arrow : baseHeader;
+            string shown = ordered ? baseHeader + arrow : baseHeader;
+
+            // Write back in the shape the column had, or a TextBlock header loses
+            // its tooltip on the first click.
+            if (column.Header is TextBlock block)
+            {
+                block.Text = shown;
+            }
+            else
+            {
+                column.Header = shown;
+            }
         }
     }
 }
