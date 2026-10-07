@@ -75,6 +75,35 @@ public class UpstreamCatalogEmbeddingTests
         Assert.False(record.Capabilities!["diarize"].Supported);
     }
 
+    /// <summary>
+    /// The section is printed, attributed, and reports the quantization this
+    /// manifest pins rather than whichever upstream row happens to come first.
+    /// </summary>
+    [Fact]
+    public void ModelInfoPrintsTheUpstreamCatalogSection()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        Assert.Equal(0, Cli.TranscribeCommand.Run(["--model-info", "whisper-tiny"], stdout, stderr));
+        string text = stdout.ToString();
+
+        Assert.Contains("upstream catalog (transcribe.cpp, their measurements):", text,
+            StringComparison.Ordinal);
+        Assert.Contains("Q4_K_M", text, StringComparison.Ordinal);
+        Assert.Contains("unverified upstream", text, StringComparison.Ordinal);
+
+        // Q5_K_M is what this manifest pins for whisper-tiny, so the figure quoted
+        // has to be the one for the file a reader would download.
+        Assert.Contains("Q5_K_M", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("on librispeech test-clean, en, F32", text, StringComparison.Ordinal);
+    }
+
+    // The other side of the branch — upstream has no record, so nothing is printed —
+    // is not reachable through this command: every alias in the manifest has one, as
+    // EveryModelInTheManifestHasUpstreamDetail asserts. It is covered where it can
+    // be reached, in AnUnknownAliasReturnsNoRecord.
+
     [Fact]
     public void TheHeadlineBenchmarkNamesTheResultUpstreamSaysToQuote()
     {

@@ -12,6 +12,8 @@ using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 
+using TranscribeCppSharp.Shared;
+
 namespace TranscribeCppSharp.Cli;
 
 internal static class TranscribeCommand
@@ -41,7 +43,7 @@ internal static class TranscribeCommand
           --quant <q>    quantization for a known alias (e.g. Q4_K_M, Q5_K_M,
                          Q8_0, F16); default is per model (see --list-models)
           --list-models  list the known model aliases and exit
-          --model-info <alias>  show details (family, params, revision, size, license)
+          --model-info <alias>  show details (family, params, license, upstream catalog)
           --backend <b>  compute backend: auto (default), cpu, cpu-accel,
                          metal, vulkan, cuda, rocm. 'auto' runs on the GPU
                          when one initializes (every discrete GPU is probed
@@ -67,6 +69,94 @@ internal static class TranscribeCommand
     /// Runs one command. Returns the process exit code: 0 on success, 1 on a
     /// reported error (a message on stderr, never a stack trace).
     /// </summary>
+    /// <summary>
+    /// Prints what upstream's pinned catalog adds to what the manifest already said.
+    /// </summary>
+    /// <remarks>
+    /// Its own section rather than more lines in <c>ModelStore.Info</c>, because
+    /// the wrapper has no access to the catalog — it is embedded in this executable
+    /// alone, deliberately, so the library never carries data only the two front
+    /// ends display. Everything below is transcribe.cpp's own record: their
+    /// published quantizations, their capability flags, their measurement. This
+    /// project measures none of it, so the section says whose it is.
+    /// <para>
+    /// Nothing is printed when upstream has no record for the alias, and no
+    /// placeholder stands in for one: an absent record is an absent record.
+    /// </para>
+    /// </remarks>
+    private static void PrintUpstreamCatalog(string alias, TextWriter stdout)
+    {
+        UpstreamCatalog.Record? record = UpstreamCatalog.Read(alias);
+        if (record is null)
+        {
+            return;
+        }
+
+        bool wroteHeader = false;
+        void Line(string label, string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+
+            if (!wroteHeader)
+            {
+                stdout.WriteLine();
+                stdout.WriteLine("upstream catalog (transcribe.cpp, their measurements):");
+                wroteHeader = true;
+            }
+
+            stdout.WriteLine($"    {label,-14}: {value}");
+        }
+
+        List<UpstreamCatalog.Download>? downloads = record.Downloads;
+        if (downloads is { Count: > 0 })
+        {
+            Line("quantizations", string.Join(" \u00b7 ", downloads.Select(d =>
+                $"{d.Quant} {ModelSizeFormat.Format(d.SizeBytes)}")));
+        }
+
+        Dictionary<string, UpstreamCatalog.Capability>? caps = record.Capabilities;
+        if (caps is not null)
+        {
+            List<string> supported = caps.Where(kv => kv.Value.Supported).Select(kv => kv.Key).ToList();
+            if (supported.Count > 0)
+            {
+                bool anyVerified = caps.Any(kv => kv.Value.Supported && kv.Value.Verified);
+                Line("capabilities", string.Join(", ", supported)
+                    + (anyVerified ? string.Empty : " (unverified upstream)"));
+            }
+        }
+
+        UpstreamCatalog.Headline? headline = record.HeadlineBenchmark;
+        if (headline is not null)
+        {
+            // The headline dataset, and the quantization this manifest pins — the one
+            // the reader would actually download. Falling back to any quantization
+            // rather than reporting nothing: upstream measures several, and the row
+            // still says which one it is.
+            List<UpstreamCatalog.Accuracy> rows = record.AccuracyBenchmarks ?? new List<UpstreamCatalog.Accuracy>();
+            UpstreamCatalog.Accuracy? row = rows
+                .FirstOrDefault(a => Same(a, headline) && a.Quant == PinnedQuant(alias))
+                ?? rows.FirstOrDefault(a => Same(a, headline));
+
+            if (row is { ErrPct: not null })
+            {
+                string provenance = row.MeasurementProvenance ?? "engine build not recorded upstream";
+                Line("accuracy", $"{row.Metric?.ToUpperInvariant()} {row.ErrPct:0.##} % on {headline.Dataset} {headline.Split}, "
+                    + $"{headline.Language}, {row.Quant} \u2014 {provenance}");
+            }
+        }
+
+        static bool Same(UpstreamCatalog.Accuracy a, UpstreamCatalog.Headline h)
+            => string.Equals(a.Dataset, h.Dataset, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.Language, h.Language, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.Metric, h.Metric, StringComparison.OrdinalIgnoreCase);
+
+        static string? PinnedQuant(string alias) => ModelStore.Find(alias)?.Quant;
+    }
+
     internal static int Run(string[] args, TextWriter stdout, TextWriter stderr)
     {
         // Flags answered without touching the model or the network.
@@ -78,7 +168,14 @@ internal static class TranscribeCommand
 
         if (Has(args, "--model-info"))
         {
-            return ModelStore.Info(CliOptions.ValueAfter(args, "--model-info") ?? string.Empty, stdout, stderr) ? 0 : 1;
+            string alias = CliOptions.ValueAfter(args, "--model-info") ?? string.Empty;
+            if (!ModelStore.Info(alias, stdout, stderr))
+            {
+                return 1;
+            }
+
+            PrintUpstreamCatalog(alias, stdout);
+            return 0;
         }
 
         if (Has(args, "--list-devices"))
