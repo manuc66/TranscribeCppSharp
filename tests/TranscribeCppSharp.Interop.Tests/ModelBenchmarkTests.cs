@@ -263,6 +263,47 @@ public class ModelBenchmarkTests
     }
 
     [Fact]
+    public void NameOrder_ReversesRatherThanSortingSomeOtherWay()
+    {
+        var rows = new[]
+        {
+            new Row("whisper-tiny", 1),
+            new Row("breeze-asr-25", 2),
+            new Row("canary-1b", 3),
+        };
+
+        List<string> ascending = ModelBenchmarkOrder.ByName(rows, r => r.Alias)
+            .Select(r => r.Alias).ToList();
+        List<string> descending = ModelBenchmarkOrder.ByName(rows, r => r.Alias, ascending: false)
+            .Select(r => r.Alias).ToList();
+
+        Assert.Equal(["breeze-asr-25", "canary-1b", "whisper-tiny"], ascending);
+
+        // Descending is defined as the mirror of ascending rather than as a second
+        // ordering, so the two can never disagree about a tie.
+        Assert.Equal(ascending.AsEnumerable().Reverse(), descending);
+    }
+
+    [Fact]
+    public void SizeOrder_ReversesToLargestFirst()
+    {
+        var rows = new[]
+        {
+            new Row("whisper-large-v3", 900),
+            new Row("whisper-tiny", 100),
+            new Row("breeze-asr-25", 100),
+        };
+
+        List<string> ordered = ModelBenchmarkOrder.BySize(
+                rows, r => r.Alias, r => r.SizeBytes, ascending: false)
+            .Select(r => r.Alias).ToList();
+
+        // Largest first, with the two equal ones still ordered by name — the exact
+        // reverse of the ascending test above.
+        Assert.Equal(["whisper-large-v3", "whisper-tiny", "breeze-asr-25"], ordered);
+    }
+
+    [Fact]
     public void Measure_RefusesAModelThatIsNotOnDiskAndFetchesNothing()
     {
         // Nothing is downloaded in order to be measured: the 72 aliases come to

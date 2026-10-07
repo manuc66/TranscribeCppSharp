@@ -144,12 +144,13 @@
     </Grid>
 
     <!-- Catalogue -->
-    <DataGrid Grid.Row="4"
+    <DataGrid Grid.Row="4" x:Name="ModelsGrid"
+              Sorting="OnSorting"
               ItemsSource="{Binding VisibleModels}"
               SelectedItem="{Binding SelectedModel}"
               AutoGenerateColumns="False"
               IsReadOnly="True"
-              CanUserSortColumns="False"
+              CanUserSortColumns="True"
               GridLinesVisibility="Horizontal"
               HorizontalAlignment="Stretch"
               Focusable="False"
@@ -165,7 +166,7 @@
              written for this and bound to nothing, so the banner pointed at a
              mark no one could see. Template rather than a plain text column so
              the alias stays clean and the mark reads as an aside. -->
-        <DataGridTemplateColumn Header="Alias" Width="1.3*">
+        <DataGridTemplateColumn Header="Alias" Width="1.3*" Tag="alias" SortMemberPath="Alias">
           <DataTemplate x:DataType="m:ModelCatalogItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock Text="{Binding Alias}" />
@@ -175,22 +176,22 @@
             </StackPanel>
           </DataTemplate>
         </DataGridTemplateColumn>
-        <DataGridTextColumn Header="Family (from repo)" Binding="{Binding Family}" Width="1.3*" />
-        <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="0.6*" />
-        <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" />
-        <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="0.9*" />
+        <DataGridTextColumn Header="Family (from repo)" Binding="{Binding Family}" Width="1.3*" CanUserSort="False" />
+        <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="0.6*" Tag="size" SortMemberPath="SizeText" />
+        <DataGridTextColumn Header="On disk" Binding="{Binding OnDiskText}" Width="0.8*" CanUserSort="False" />
+        <DataGridTextColumn Header="Licence" Binding="{Binding License}" Width="0.9*" CanUserSort="False" />
         <!-- What the model card says it covers. Compact form only: some models
              declare 99 languages and the detail pane below carries the list. -->
-        <DataGridTextColumn Header="Languages" Binding="{Binding LanguagesText}" Width="1.1*" />
-        <DataGridTextColumn Header="x realtime" Binding="{Binding MeasuredText}" Width="0.6*" />
-        <DataGridTextColumn Header="Diarization" Binding="{Binding DiarizationText}" Width="0.7*" />
+        <DataGridTextColumn Header="Languages" Binding="{Binding LanguagesText}" Width="1.1*" CanUserSort="False" />
+        <DataGridTextColumn Header="x realtime" Binding="{Binding MeasuredText}" Width="0.6*" Tag="speed" SortMemberPath="MeasuredText" />
+        <DataGridTextColumn Header="Diarization" Binding="{Binding DiarizationText}" Width="0.7*" CanUserSort="False" />
         <!-- Fixed, not a share of the row: the three buttons need ~380px, and a
              star share at the default window gives them 140. Star-sizing the
              actions is what put Delete outside the window. A fixed width also
              means the actions stay reachable when the window is narrowed — the
              columns beside them truncate instead, which is visible, unlike a
              button that is simply gone. -->
-        <DataGridTemplateColumn Header="Action" Width="390">
+        <DataGridTemplateColumn Header="Action" Width="390" CanUserSort="False">
           <DataTemplate x:DataType="m:ModelCatalogItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button Content="Download"

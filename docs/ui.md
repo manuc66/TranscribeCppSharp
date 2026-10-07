@@ -49,6 +49,14 @@ counts whatever it has fetched. Regenerate them with:
 dotnet run --project samples/UiScreenshot           # writes into docs/assets/images
 ```
 
+**Where the grid scrolls.** The Models tab is the one tab not wrapped in the view's
+`ScrollViewer`. That wrapper measures its child against infinite height, and a star row
+given infinite height resolves to its content — the grid came out 2408 px tall in a 720 px
+window, so it never scrolled internally and the whole page scrolled instead, taking the
+column headers off the top and leaving the detail pane four screens down. Without it the
+grid takes the space that is left, scrolls inside itself with its header in place, and the
+detail pane appears by shrinking it.
+
 **What the three model pickers offer.** Transcription, Streaming and Batch list only the
 aliases already on disk, so an entry means you can run it now — with a fresh cache the list
 is empty and the button that starts a run is disabled. Under each picker sits a count and a
@@ -144,6 +152,11 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
 - **The default model is marked.** The alias the CLI uses when no `--model` is given is
   shown as `default` in the Alias column. It is a mark of which alias a command ends up
   using, not a claim about quality or speed.
+- **Sort by clicking a header.** Alias, Size and *x realtime* order the grid, and the
+  arrow on the header says which way. Clicking again reverses it. The other columns have
+  no order behind them — you cannot sort by licence or by a count — so they say so by
+  not taking a click rather than by sorting something arbitrary. The three sort buttons
+  above the grid set the same state, so both routes move the same arrow.
 - **Filter by language.** The picker beside the licence and size filters narrows the
   grid to the models whose card declares a language — codes, as the cards state them.
   A model that declares nothing is hidden while a language is selected, because

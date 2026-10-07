@@ -81,12 +81,23 @@ public static class ModelBenchmarkOrder
     /// <typeparam name="T">The row type.</typeparam>
     /// <param name="rows">Every visible row.</param>
     /// <param name="alias">Reads a row's model alias.</param>
+    /// <param name="ascending">False for Z to A. Optional, so callers written
+    /// before direction existed keep the order they had.</param>
     /// <returns>The rows, ordered.</returns>
-    public static List<T> ByName<T>(IEnumerable<T> rows, Func<T, string> alias)
+    public static List<T> ByName<T>(IEnumerable<T> rows, Func<T, string> alias, bool ascending = true)
     {
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(alias);
-        return rows.OrderBy(alias, StringComparer.Ordinal).ToList();
+        List<T> ordered = rows.OrderBy(alias, StringComparer.Ordinal).ToList();
+
+        // The exact mirror rather than a second ordering: descending is defined as
+        // the reverse of ascending, so the two can never disagree about ties.
+        if (!ascending)
+        {
+            ordered.Reverse();
+        }
+
+        return ordered;
     }
 
     /// <summary>Orders rows by download size, smallest first.</summary>
@@ -94,15 +105,24 @@ public static class ModelBenchmarkOrder
     /// <param name="rows">Every visible row.</param>
     /// <param name="alias">Reads a row's model alias.</param>
     /// <param name="sizeBytes">Reads a row's download size.</param>
+    /// <param name="ascending">False for largest first. Optional, so callers
+    /// written before direction existed keep the order they had.</param>
     /// <returns>The rows, ordered, ties broken by name.</returns>
-    public static List<T> BySize<T>(IEnumerable<T> rows, Func<T, string> alias, Func<T, long> sizeBytes)
+    public static List<T> BySize<T>(IEnumerable<T> rows, Func<T, string> alias, Func<T, long> sizeBytes, bool ascending = true)
     {
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(alias);
         ArgumentNullException.ThrowIfNull(sizeBytes);
-        return rows
+        List<T> ordered = rows
             .OrderBy(sizeBytes)
             .ThenBy(alias, StringComparer.Ordinal)
             .ToList();
+
+        if (!ascending)
+        {
+            ordered.Reverse();
+        }
+
+        return ordered;
     }
 }

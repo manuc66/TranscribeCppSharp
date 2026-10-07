@@ -52,23 +52,31 @@ public partial class ModelManagerViewModel : ObservableObject
     /// Order applied to <see cref="VisibleModels"/>.
     /// </summary>
     /// <remarks>
-    /// Applied by hand rather than through a DataGrid header click: the
-    /// collection the grid binds is rebuilt on every filter change, and a view's
-    /// sort descriptions do not survive that.
+    /// Ordered by rebuilding the collection rather than by a DataGrid sort
+    /// description: the grid's collection is rebuilt on every filter change, and
+    /// sort descriptions do not survive that. Header clicks reach this through
+    /// <see cref="SortByColumn"/>, which sets the same two properties the sort
+    /// buttons do, so there is one source of order regardless of which asked.
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SortDescription))]
     private ModelSort _sort = ModelSort.Alias;
 
-    /// <summary>True when the list is ordered fastest first.</summary>
+    /// <summary>True when the list is ordered ascending, whatever is ordered.</summary>
+    /// <remarks>
+    /// Renamed from SortFastestFirst when column headers started driving it: the
+    /// name described one sort key while the flag now governs all three. True by
+    /// default because ascending is what each sort button already did — the speed
+    /// button set it true on first click, so no order changes.
+    /// </remarks>
     [ObservableProperty]
-    private bool _sortFastestFirst;
+    private bool _sortAscending = true;
 
     /// <summary>How the current order reads out, for the header.</summary>
     public string SortDescription => Sort switch
     {
         ModelSort.Size => "by size, smallest first",
-        ModelSort.Speed => SortFastestFirst ? "by measured speed, fastest first" : "by measured speed, slowest first",
+        ModelSort.Speed => SortAscending ? "by measured speed, fastest first" : "by measured speed, slowest first",
         _ => "by name",
     };
 
@@ -83,7 +91,7 @@ public partial class ModelManagerViewModel : ObservableObject
     /// </summary>
     public string SpeedSortText => Sort != ModelSort.Speed
         ? "By speed"
-        : SortFastestFirst ? "• Speed ↑" : "• Speed ↓";
+        : SortAscending ? "• Speed ↑" : "• Speed ↓";
 
     /// <summary>Every alias in the manifest, filtered by <see cref="Filter"/>.</summary>
     public ObservableCollection<ModelCatalogItem> Models { get; } = new();
@@ -704,6 +712,30 @@ public partial class ModelManagerViewModel : ObservableObject
         ApplyFilter();
     }
 
+    /// <summary>
+    /// Orders by a column, as a header click asks.
+    /// </summary>
+    /// <param name="column">Which column: "size", "speed", or anything else for the alias.</param>
+    /// <param name="ascending">The direction the click implies.</param>
+    /// <remarks>
+    /// Reached from the view's Sorting handler, which has already cancelled the
+    /// DataGrid's own attempt to sort: the grid's collection is rebuilt here, so
+    /// a sort description written on it would be lost on the next filter change.
+    /// Columns with no order behind them pass through as the alias, which is the
+    /// default order rather than a sort they cannot have.
+    /// </remarks>
+    public void SortByColumn(string? column, bool ascending)
+    {
+        Sort = column switch
+        {
+            "size" => ModelSort.Size,
+            "speed" => ModelSort.Speed,
+            _ => ModelSort.Alias,
+        };
+        SortAscending = ascending;
+        ApplyFilter();
+    }
+
     /// <summary>Orders the list with the smallest download first.</summary>
     [RelayCommand]
     private void SortBySize()
@@ -727,11 +759,11 @@ public partial class ModelManagerViewModel : ObservableObject
         if (Sort != ModelSort.Speed)
         {
             Sort = ModelSort.Speed;
-            SortFastestFirst = true;
+            SortAscending = true;
         }
         else
         {
-            SortFastestFirst = !SortFastestFirst;
+            SortAscending = !SortAscending;
         }
 
         ApplyFilter();
@@ -855,7 +887,7 @@ public partial class ModelManagerViewModel : ObservableObject
             item.Benchmark = result;
             item.Refresh();
             Sort = ModelSort.Speed;
-            SortFastestFirst = true;
+            SortAscending = true;
             ApplyFilter();
 
             StatusMessage = $"{item.Alias}: {result.ConditionsText}";
@@ -885,10 +917,11 @@ public partial class ModelManagerViewModel : ObservableObject
     {
         List<ModelCatalogItem> ordered = Sort switch
         {
-            ModelSort.Size => ModelBenchmarkOrder.BySize(VisibleModels, m => m.Alias, m => m.Descriptor.Size),
+            ModelSort.Size => ModelBenchmarkOrder.BySize(
+                VisibleModels, m => m.Alias, m => m.Descriptor.Size, SortAscending),
             ModelSort.Speed => ModelBenchmarkOrder.BySpeed(
-                VisibleModels, m => m.Alias, Benchmarks, MachineKey, SortFastestFirst),
-            _ => ModelBenchmarkOrder.ByName(VisibleModels, m => m.Alias),
+                VisibleModels, m => m.Alias, Benchmarks, MachineKey, SortAscending),
+            _ => ModelBenchmarkOrder.ByName(VisibleModels, m => m.Alias, SortAscending),
         };
 
         VisibleModels.Clear();
