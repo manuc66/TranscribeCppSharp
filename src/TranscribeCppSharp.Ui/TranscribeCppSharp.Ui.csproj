@@ -15,24 +15,28 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Avalonia 12.1.2, not 12.1.3: Avalonia.Controls.DataGrid ships one patch
-         behind the rest of Avalonia, and 12.1.2 is the highest version every
-         package below has. 12.1.3 only adds enhancements we do not use.
+    <!-- Avalonia 12.1.3 everywhere except Avalonia.Controls.DataGrid, which
+         still ships only 12.1.2 (its latest). The mix is allowed: DataGrid 12.1.2
+         asks for Avalonia 12.1.0, which 12.1.3 satisfies, so the DataGrid runs on
+         the newer core. Bump every Avalonia package together, across this
+         project, tests/TranscribeCppSharp.Ui.Tests and samples/UiScreenshot:
+         those projects pin their own Avalonia, and moving one alone fails the
+         restore of the others with NU1605 (package downgrade).
 
          Two packages present at 11.2.1 are gone. Avalonia.Diagnostics was removed
          in Avalonia 12; it was referenced here but never used, since nothing in
          this project calls AttachDevTools. And the explicit Tmds.DBus.Protocol pin
          that carried the CVE-2026-39959 fix on Avalonia 11 is no longer needed:
-         Avalonia.FreeDesktop 12.1.2 asks for 0.94.1, which is past the fix range. -->
+         Avalonia.FreeDesktop 12.1.3 asks for 0.94.1, which is past the fix range. -->
     <PackageReference Include="Avalonia" Version="12.1.3" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
     <!-- DataGrid is a separate package from the core controls. Without it the
          XAML compiler accepts <DataGrid> but the type does not exist at run
          time, and the control renders nothing at all: no rows, no headers, no
          error. Four of the five views use it. -->
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.3" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
