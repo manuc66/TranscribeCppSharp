@@ -1,0 +1,97 @@
+name: Upstream watch
+
+# This project packages a native library it does not own
+# (handy-computer/transcribe.cpp). New upstream releases are not surfaced by
+# Dependabot, so without this job a bump is discovered by chance. This job
+# only reports: it opens (or updates) an issue and never touches the pin.
+#
+# The pin itself stays manual -- see IDEAS.md ("Produire une nouvelle
+# version") and scripts/regenerate-bindings.sh.
+
+on:
+  schedule:
+    # Mondays at 06:17 UTC.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare the pinned version with the latest upstream release
+        id: check
+        run: |
+          chmod +x scripts/check-upstream.sh
+          set +e
+          out="$(scripts/check-upstream.sh)"
+          code=$?
+          set -e
+          echo "$out"
+          latest="$(printf '%s\n' "$out" | sed -n 's/^latest=//p' | head -n1)"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue if a newer upstream release exists
+        if: steps.check.outputs.exit_code == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pinned="$(tr -d '[:space:]' < build/TRANSCRIBE_VERSION)"
+          latest="${{ steps.check.outputs.latest }}"
+
+          # Do not open a second issue for the same release.
+          existing="$(gh issue list --state open \
+            --search "Upstream transcribe.cpp $latest out in:title" \
+            --json number --jq 'length')"
+          if [[ "$existing" != "0" ]]; then
+            echo "An open issue for $latest already exists; nothing to do."
+            exit 0
+          fi
+
+          tag_url="https://github.com/handy-computer/transcribe.cpp/releases/tag/v${latest}"
+          body="$(cat <<EOF
+          Upstream [transcribe.cpp]($tag_url) published a newer stable release.
+
+          | | |
+          |---|---|
+          | pinned here (\`build/TRANSCRIBE_VERSION\`) | \`${pinned}\` |
+          | latest upstream | \`${latest}\` |
+
+          This project tracks a native library it does not own, so the version
+          is pinned deliberately and bumped by hand. Nothing has been changed
+          automatically.
+
+          To move the pin, follow the procedure already documented in
+          [IDEAS.md](https://github.com/manuc66/TranscribeCppSharp/blob/main/IDEAS.md)
+          ("Produire une nouvelle version") and
+          [catalog/README.md](https://github.com/manuc66/TranscribeCppSharp/blob/main/catalog/README.md).
+          Before assuming it is additive, read the upstream release notes and
+          \`docs/migrating-to-*.md\` if present -- this wrapper binds the ABI,
+          and a version bump can change behaviour even when no symbol is
+          removed.
+
+          Rough checklist:
+          - [ ] Read the upstream release notes and any migration doc.
+          - [ ] Bump \`build/TRANSCRIBE_VERSION\`.
+          - [ ] \`./scripts/regenerate-bindings.sh\` and commit the regenerated
+                \`generated/TranscribeCppSharp.Interop/NativeMethods.cs\`.
+          - [ ] \`dotnet run --project tools/FetchNative -- --all --update-hashes\`
+                (review the new hashes before committing).
+          - [ ] Update \`catalog/PINNED.json\`, \`catalog/SHA256SUMS\` and any test
+                that asserts the old tag.
+          - [ ] Migrate the wrapper for behavioural changes; run the tests and
+                the smoke test.
+          - [ ] Update \`CHANGELOG.md\`, the docs that quote the upstream
+                version, and every "vX.Y.Z" reference.
+          EOF
+          )"
+
+          gh issue create \
+            --title "Upstream transcribe.cpp ${latest} is out (pinned: ${pinned})" \
+            --body "$body"
