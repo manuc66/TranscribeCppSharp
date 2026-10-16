@@ -152,10 +152,14 @@ jobs:
         run: |
           chmod +x scripts/regenerate-bindings.sh
           ./scripts/regenerate-bindings.sh
-          if ! git diff --quiet generated/TranscribeCppSharp.Interop/NativeMethods.cs; then
-            echo "ERROR: NativeMethods.cs is out of sync with upstream transcribe.cpp"
+          # Check generated code AND the vendored upstream sources (ffi/c, ffi/rust)
+          # the script copies, so a stale vendored header cannot pass unnoticed.
+          # git status also reports untracked files (a new upstream sub-header).
+          if [ -n "$(git status --porcelain -- generated/TranscribeCppSharp.Interop/NativeMethods.cs ffi/)" ]; then
+            echo "ERROR: generated bindings or vendored upstream sources are out of sync with transcribe.cpp"
             echo "Run ./scripts/regenerate-bindings.sh and commit the result"
-            git diff generated/TranscribeCppSharp.Interop/NativeMethods.cs
+            git status --porcelain -- generated/TranscribeCppSharp.Interop/NativeMethods.cs ffi/
+            git diff -- generated/TranscribeCppSharp.Interop/NativeMethods.cs ffi/
             exit 1
           fi
 

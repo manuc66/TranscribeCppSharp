@@ -23,7 +23,35 @@ Console.WriteLine($"  {functions.Count} functions");
 Console.WriteLine($"  {structs.Count} structs");
 
 CHeaderDoc? headerDoc = null;
-if (File.Exists(headerPath))
+if (Directory.Exists(headerPath))
+{
+    // Upstream splits the public surface across transcribe.h and
+    // transcribe/*.h; merge them so extension, VAD, LANGID and diarize
+    // functions get their doc comments too.
+    var headerFiles = new List<string>();
+    var rootHeader = Path.Combine(headerPath, "transcribe.h");
+    if (File.Exists(rootHeader))
+    {
+        headerFiles.Add(rootHeader);
+    }
+
+    var subHeaderDir = Path.Combine(headerPath, "transcribe");
+    if (Directory.Exists(subHeaderDir))
+    {
+        headerFiles.AddRange(Directory.GetFiles(subHeaderDir, "*.h").OrderBy(p => p, StringComparer.Ordinal));
+    }
+
+    if (headerFiles.Count > 0)
+    {
+        headerDoc = CHeaderDoc.FromFiles(headerFiles);
+        Console.WriteLine($"Docs from: {headerPath} ({headerFiles.Count} headers)");
+    }
+    else
+    {
+        Console.WriteLine($"Warning: no C headers found under {headerPath}; generating without doc comments.");
+    }
+}
+else if (File.Exists(headerPath))
 {
     headerDoc = CHeaderDoc.FromFile(headerPath);
     Console.WriteLine($"Docs from: {headerPath}");

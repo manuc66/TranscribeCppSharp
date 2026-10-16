@@ -16,6 +16,29 @@ public partial class CHeaderDoc
 
     public static CHeaderDoc FromFile(string path) => new(File.ReadAllText(path));
 
+    /// <summary>
+    /// Builds a doc source from several headers. Upstream splits the public
+    /// surface across <c>include/transcribe.h</c> and <c>include/transcribe/*.h</c>
+    /// (extensions, sortformer, vad, langid, diarize, ...); the root header does
+    /// not include them, so they must be merged here to document every function
+    /// the Rust binding declares. A separator banner is inserted between files so
+    /// a declaration at the top of one file cannot pick up the trailing comment
+    /// of the previous one.
+    /// </summary>
+    public static CHeaderDoc FromFiles(IEnumerable<string> paths)
+    {
+        var sb = new StringBuilder();
+        foreach (var path in paths)
+        {
+            sb.AppendLine();
+            sb.AppendLine("/* ----------------------------------------------------------------------- */");
+            sb.AppendLine();
+            sb.AppendLine(File.ReadAllText(path));
+        }
+
+        return new CHeaderDoc(sb.ToString());
+    }
+
     // ── Lookup API ─────────────────────────────────────────────────
 
     /// <summary>

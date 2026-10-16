@@ -721,6 +721,36 @@ public enum StreamCommitPolicy
     StreamCommitStablePrefix = 2,
 }
 
+/// <summary>
+/// <para>
+/// Streaming operating point (latency / accuracy trade-off).
+/// </para>
+/// <para>
+/// The model processes audio in fixed chunks and carries speaker identity
+/// across chunks in a bounded cache; the operating point sets the chunk
+/// geometry. Each named preset is a jointly-tuned bundle published by the
+/// upstream model (chunk length, lookahead, FIFO and speaker-cache
+/// geometry) - the menu is discrete, not a continuous latency dial, and
+/// only these bundles are accuracy-validated (AMI DER, see
+/// docs/porting/families/sortformer.md).
+/// </para>
+/// <para>
+/// DEFAULT             The GGUF-shipped checkpoint configuration.
+/// VERY_HIGH_LATENCY   ~30.4 s algorithmic lookahead (chunk 340 + rc 40
+/// frames @ 80 ms). Highest accuracy; the published
+/// operating point for offline file processing.
+/// HIGH_LATENCY        ~10.0 s lookahead (chunk 124 + rc 1).
+/// LOW_LATENCY         ~1.04 s lookahead (chunk 6 + rc 7). The
+/// real-time operating point. Note: much higher
+/// compute per audio second than the larger chunks
+/// (many small windows); see the family doc for
+/// measured throughput.
+/// </para>
+/// <para>
+/// Values outside the enum range are rejected by transcribe_run with
+/// TRANSCRIBE_ERR_INVALID_ARG before the previous result is cleared.
+/// </para>
+/// </summary>
 public enum SortformerPreset
 {
     SortformerPresetDefault = 0,
@@ -729,6 +759,26 @@ public enum SortformerPreset
     SortformerPresetLowLatency = 3,
 }
 
+/// <summary>
+/// <para>
+/// How an initial prompt composes with condition_on_prev_tokens on
+/// long-form runs. Matches HF's prompt_condition_type string knob.
+/// </para>
+/// <para>
+/// FIRST_SEGMENT (default): the initial prompt sits at the head of
+/// the first chunk's prefix. If condition_on_prev_tokens is true,
+/// subsequent chunks carry the decoded prior-chunk tokens under
+/// &lt;|startofprev|> and the initial prompt is visible only while
+/// it still fits in the sliding 223-token window.
+/// </para>
+/// <para>
+/// ALL_SEGMENTS: the initial prompt replaces &lt;|startofprev|> as the
+/// persistent BOS of the prev-context window on EVERY chunk.
+/// Requires condition_on_prev_tokens=true; passing this mode
+/// without condition_on_prev_tokens returns
+/// TRANSCRIBE_ERR_INVALID_ARG (mirrors HF's ValueError).
+/// </para>
+/// </summary>
 public enum WhisperPromptCondition
 {
     WhisperPromptFirstSegment = 0,
@@ -1689,6 +1739,35 @@ public struct SpeakerSegment
     public float p;
 }
 
+/// <summary>
+/// <para>
+/// Moonshine-Streaming decode-throttle knob.
+/// </para>
+/// <para>
+/// min_decode_interval_ms
+/// </para>
+/// <para>
+/// Minimum audio-time interval between expensive autoregressive
+/// partial decodes while a stream is active. This is a Moonshine-
+/// Streaming scheduling knob, not a generic streaming publication
+/// cadence. It can reduce partial-update compute at the cost of
+/// less frequent tentative transcripts.
+/// </para>
+/// <para>
+/// -1 (default): use the family default cadence.
+/// &lt; -1:         caller bug; transcribe_stream_begin returns
+/// TRANSCRIBE_ERR_INVALID_ARG.
+/// 0:           decode on every stable encoder-frame advance.
+/// > 0:          request at least this many milliseconds between
+/// partial decodes. Values below one encoder frame
+/// are rounded up to one frame; other positive values
+/// are rounded up to the next encoder-frame boundary.
+/// </para>
+/// <para>
+/// stream_finalize always performs the final decode if needed,
+/// independent of this throttle.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct MoonshineStreamingStreamExt
 {
@@ -1696,6 +1775,41 @@ public struct MoonshineStreamingStreamExt
     public int minDecodeIntervalMs;
 }
 
+/// <summary>
+/// <para>
+/// Cache-aware streaming knob (nemotron-speech-streaming-en-0.6b).
+/// </para>
+/// <para>
+/// att_context_right
+/// </para>
+/// <para>
+/// Right-context (lookahead) selector in encoder frames. The cache-
+/// aware streaming variants are trained on a menu of (left, right)
+/// pairs simultaneously - the user picks one at inference time to
+/// trade latency for accuracy. nemotron's published menu is
+/// right ∈ {13, 6, 1, 0}, corresponding to lookahead of
+/// {1040, 480, 80, 0} ms at the 80ms encoder frame rate.
+/// </para>
+/// <para>
+/// -1 (default): use the model's default setting (first entry of
+/// att_context_size_choices = max-accuracy /
+/// max-latency).
+/// &lt; -1:         caller bug; transcribe_stream_begin returns
+/// TRANSCRIBE_ERR_INVALID_ARG.
+/// >= 0:         select the corresponding (left, att_context_right)
+/// entry from the model's training menu. 0 is
+/// legitimate when 0-frame lookahead is in the menu.
+/// transcribe_stream_begin returns
+/// TRANSCRIBE_ERR_INVALID_ARG if the requested right
+/// is not in the menu.
+/// </para>
+/// <para>
+/// The published menu and the lookahead (in milliseconds) each
+/// entry corresponds to are documented in the model's family doc
+/// (docs/models/nemotron-speech-streaming-en-0.6b.md); -1 selects
+/// the model's default (max-accuracy / max-latency) entry.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct ParakeetStreamExt
 {
@@ -1703,6 +1817,41 @@ public struct ParakeetStreamExt
     public int attContextRight;
 }
 
+/// <summary>
+/// <para>
+/// Chunked-attention (buffered) streaming knob (parakeet-unified-en-0.6b).
+/// </para>
+/// <para>
+/// parakeet-unified-en-0.6b is trained with chunked_limited_with_rc
+/// attention over a menu of (left, chunk, right) context tuples
+/// expressed in 80ms encoder frames. The user picks the active tuple at
+/// stream_begin time; the encoder re-runs over each new
+/// [left | chunk | right] PCM window. Each field is in MILLISECONDS;
+/// the runtime converts to encoder frames at the model's frame rate.
+/// </para>
+/// <para>
+/// Per-field sentinels (each field independently):
+/// </para>
+/// <para>
+/// -1     "use the model default for this field." Unified-en-0.6b's
+/// best-accuracy default is L=5600 ms / C=1040 ms / R=1040 ms,
+/// which the published WER numbers correspond to.
+/// &lt; -1   caller bug; transcribe_stream_begin returns
+/// TRANSCRIBE_ERR_INVALID_ARG.
+/// 0      a legitimate requested value when 0 frames is in the model's
+/// menu for that field. Not all fields admit 0.
+/// > 0    must be an exact positive multiple of the encoder frame size
+/// (80 ms for every shipped FastConformer streaming variant).
+/// A value that does not divide the frame returns
+/// TRANSCRIBE_ERR_INVALID_ARG; the runtime never silently floors.
+/// </para>
+/// <para>
+/// After per-field resolution the (L, C, R) frame tuple is validated
+/// against the model's training menu
+/// (stt.parakeet.encoder.att_chunk_{left,chunk,right}_choices); tuples
+/// outside the menu return TRANSCRIBE_ERR_INVALID_ARG.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct ParakeetBufferedStreamExt
 {
@@ -1719,6 +1868,52 @@ public struct SortformerStreamExt
     public SortformerPreset preset;
 }
 
+/// <summary>
+/// <para>
+/// Voxtral Realtime streaming knobs.
+/// </para>
+/// <para>
+/// num_delay_tokens
+/// </para>
+/// <para>
+/// Transcription delay in 12.5 Hz audio tokens (80 ms each). The model
+/// emits the token for audio position t after observing audio through
+/// t + num_delay_tokens, trading latency for accuracy. The streaming
+/// default is 6 (= 480 ms); offline inference uses 30 (= 2400 ms).
+/// </para>
+/// <para>
+/// The accepted values are the publisher's validated set (model card +
+/// mistral-common): a delay that is a multiple of 80 ms in [80, 1200]
+/// (tokens 1..15) OR the standalone 2400 ms (token 30). Other values
+/// (0, 16..29, > 30) return TRANSCRIBE_ERR_INVALID_ARG even though the
+/// architecture would run them — they are out of the validated range.
+/// </para>
+/// <para>
+/// -1 (default): use the model default (default_num_delay_tokens, 6).
+/// 1..15:        80..1200 ms.
+/// 30:           2400 ms.
+/// anything else: TRANSCRIBE_ERR_INVALID_ARG.
+/// </para>
+/// <para>
+/// min_decode_interval_ms
+/// </para>
+/// <para>
+/// Minimum audio-time interval between tentative partial decodes while a
+/// stream is ACTIVE. Voxtral Realtime's partial decode reprocesses the
+/// accumulated buffer, so this knob bounds partial-decode compute at the
+/// cost of less frequent tentative transcripts. stream_finalize always
+/// performs the final decode regardless of this throttle, and that final
+/// decode is byte-identical to offline inference when both use delay 30.
+/// </para>
+/// <para>
+/// -1 (default): use the family default cadence.
+/// &lt; -1:         caller bug; transcribe_stream_begin returns
+/// TRANSCRIBE_ERR_INVALID_ARG.
+/// 0:           decode on every feed.
+/// > 0:          request at least this many milliseconds of new audio
+/// between tentative decodes.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct VoxtralRealtimeStreamExt
 {
@@ -1727,26 +1922,134 @@ public struct VoxtralRealtimeStreamExt
     public int minDecodeIntervalMs;
 }
 
+/// <summary>
+/// <para>
+/// Whisper-family run knobs. Reached via transcribe_run_params::family.
+/// NULL family selects transcribe_whisper_run_ext_init() values (Whisper's
+/// own shipping recipe: temperature fallback on, compression-ratio /
+/// avg-logprob / no-speech safety nets active). Callers that want HF
+/// library-wide generate() behavior ("all thresholds disabled") set each
+/// _thold field to its _DISABLED sentinel.
+/// </para>
+/// <para>
+/// Pointer lifetime: the library copies referenced data (initial_prompt
+/// bytes, prompt_tokens contents) into context state before
+/// transcribe_run returns. The caller may free both buffers immediately
+/// after the call.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct WhisperRunExt
 {
     public Ext ext;
+
+    /// <summary>
+    /// <para>
+    /// Initial prompt / prior context.
+    /// </para>
+    /// <para>
+    /// If prompt_tokens != NULL:
+    /// Use prompt_tokens verbatim (caller owns the bytes; they must
+    /// NOT include the &lt;|startofprev|> marker — the library prepends
+    /// it). initial_prompt is IGNORED.
+    /// </para>
+    /// <para>
+    /// Else if initial_prompt != NULL:
+    /// Tokenize as HF's get_prompt_ids does:
+    /// "&lt;|startofprev|>" + " " + initial_prompt.strip()
+    /// The leading space is mandatory (matches
+    /// transformers tokenization_whisper.py:710-722). Any special
+    /// token (&lt;|...|>) found in the tokenized prompt text is
+    /// rejected with TRANSCRIBE_ERR_INVALID_ARG, mirroring HF's
+    /// own check.
+    /// </para>
+    /// <para>
+    /// Else: no initial prompt.
+    /// </para>
+    /// </summary>
     public IntPtr initialPrompt;
     public IntPtr promptTokens;
     public nuint nPromptTokens;
+
+    /// <summary>
+    /// <para>
+    /// See transcribe_whisper_prompt_condition above. Default FIRST_SEGMENT.
+    /// </para>
+    /// </summary>
     public WhisperPromptCondition promptCondition;
+
+    /// <summary>
+    /// <para>
+    /// Per HF generation_whisper.py:1853-1918. When true and any prior
+    /// chunk decoded successfully at temperature &lt; 0.5, the tail of the
+    /// prior chunk's tokens is prepended (under &lt;|startofprev|>) to the
+    /// next chunk's prefix, capped at max_prev_context_tokens. Auto-
+    /// disables for the next chunk when the prior chunk was accepted at
+    /// temperature >= 0.5 (matches HF ":1090-1093").
+    /// </para>
+    /// </summary>
     [MarshalAs(UnmanagedType.I1)]
     public bool conditionOnPrevTokens;
+
+    /// <summary>
+    /// <para>
+    /// Cap for carried prev tokens; default 223 = max_target_positions/2 - 1.
+    /// </para>
+    /// </summary>
     public int maxPrevContextTokens;
+
+    /// <summary>
+    /// <para>
+    /// Sampling + temperature fallback. Default behavior matches
+    /// Whisper's own recipe, not HF generate()'s library-default.
+    /// Use the _DISABLED sentinels to turn off individual thresholds.
+    /// </para>
+    /// </summary>
     public float temperature;
     public float temperatureInc;
     public float compressionRatioThold;
     public float logprobThold;
     public float noSpeechThold;
+
+    /// <summary>
+    /// <para>
+    /// Seed for the sampler at temperature > 0. 0 = nondeterministic
+    /// (matches the whisper.cpp convention). A nonzero seed produces
+    /// reproducible output across runs at matching temperatures.
+    /// Ignored when temperature == 0.0 (greedy decode is deterministic
+    /// by construction).
+    /// </para>
+    /// </summary>
     public uint seed;
+
+    /// <summary>
+    /// <para>
+    /// Seconds. Caps the first emitted timestamp; default 1.0.
+    /// </para>
+    /// </summary>
     public float maxInitialTimestamp;
 }
 
+/// <summary>
+/// <para>
+/// Per-chunk observability: the temperature tier that the fallback loop
+/// accepted, the metric values that drove acceptance, and whether the
+/// no-speech gate fired. Populated on every successful transcribe_run()
+/// call for a Whisper context; one entry per 30-second encoder window
+/// that actually decoded (no-speech-skipped chunks still emit an entry).
+/// </para>
+/// <para>
+/// The chunk window <c>t0_ms .. t1_ms</c> is the global encoder slice, not a
+/// segment boundary. Segments carried in transcribe_n_segments() /
+/// transcribe_segment_*() live inside these windows.
+/// </para>
+/// <para>
+/// Output struct: caller initializes via transcribe_whisper_chunk_trace_init()
+/// (zero-fill). The library writes only fields that fit within struct_size
+/// and never touches tail bytes beyond it; every field is designed so the
+/// zero value means "absent / unknown / false."
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct WhisperChunkTrace
 {
@@ -3109,30 +3412,85 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_timings", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchGetTimings(IntPtr session, int i, IntPtr /* transcribe_timings */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Fills ext.size/kind and min_decode_interval_ms = -1 (family default).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_moonshine_streaming_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void MoonshineStreamingStreamExtInit(IntPtr /* transcribe_moonshine_streaming_stream_ext */ ext);
 
+    /// <summary>
+    /// <para>
+    /// Fills ext.size/kind and att_context_right = -1 (model default).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_parakeet_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ParakeetStreamExtInit(IntPtr /* transcribe_parakeet_stream_ext */ ext);
 
+    /// <summary>
+    /// <para>
+    /// Fills ext.size/kind and left/chunk/right_ms = -1 (model default).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_parakeet_buffered_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void ParakeetBufferedStreamExtInit(IntPtr /* transcribe_parakeet_buffered_stream_ext */ ext);
 
+    /// <summary>
+    /// <para>
+    /// Fills ext.size/kind and preset = DEFAULT (GGUF-shipped cfg).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_sortformer_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SortformerStreamExtInit(IntPtr /* transcribe_sortformer_stream_ext */ ext);
 
+    /// <summary>
+    /// <para>
+    /// Fills ext.size/kind and num_delay_tokens = -1 (model default),
+    /// min_decode_interval_ms = -1 (family default).
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_voxtral_realtime_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void VoxtralRealtimeStreamExtInit(IntPtr /* transcribe_voxtral_realtime_stream_ext */ ext);
 
+    /// <summary>
+    /// <para>
+    /// Fills ext.size/kind and the Whisper decoding recipe defaults.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_whisper_run_ext_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void WhisperRunExtInit(IntPtr /* transcribe_whisper_run_ext */ ext);
 
     [LibraryImport(LibName, EntryPoint = "transcribe_whisper_chunk_trace_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void WhisperChunkTraceInit(IntPtr /* transcribe_whisper_chunk_trace */ @out);
 
+    /// <summary>
+    /// <para>
+    /// Number of chunk traces captured on the most recent successful run.
+    /// Returns 0 before any run or on non-Whisper contexts.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_get_whisper_chunk_count", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int GetWhisperChunkCount(IntPtr session);
 
+    /// <summary>
+    /// <para>
+    /// Read the trace at index [0, count) into caller-owned storage.
+    /// Out-of-range indices and non-Whisper contexts succeed and leave the
+    /// caller's struct as initialized (zero-filled).
+    /// </para>
+    /// <para>
+    /// Returns:
+    /// TRANSCRIBE_ERR_INVALID_ARG     out_trace is NULL.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE out_trace->struct_size is 0 or
+    /// smaller than the library's minimum.
+    /// TRANSCRIBE_OK                  otherwise. The caller's struct is
+    /// written when session is a Whisper context
+    /// and i is in range; otherwise it is
+    /// left as zero-initialized by the init
+    /// function.
+    /// </para>
+    /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_get_whisper_chunk_trace", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status GetWhisperChunkTrace(IntPtr session, int i, IntPtr /* transcribe_whisper_chunk_trace */ outTrace);
 
