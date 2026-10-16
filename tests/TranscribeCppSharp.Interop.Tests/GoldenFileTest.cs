@@ -14,11 +14,11 @@ public class GoldenFileTest
     public void GeneratedOutput_MatchesCommittedSnapshot()
     {
         var rustPath = Path.Combine(TestConfig.RepoRoot, "ffi", "rust", "transcribe_sys.rs");
-        var headerPath = Path.Combine(TestConfig.RepoRoot, "ffi", "c", "transcribe.h");
+        var headerDir = Path.Combine(TestConfig.RepoRoot, "ffi", "c");
         var goldenPath = Path.Combine(TestConfig.RepoRoot, "generated", "TranscribeCppSharp.Interop", "NativeMethods.cs");
 
         var parser = RustFfiParser.FromFile(rustPath);
-        var headerDoc = CHeaderDoc.FromFile(headerPath);
+        var headerDoc = CHeaderDoc.FromDirectory(headerDir);
         var generated = new CSharpGenerator().Generate(parser, headerDoc).Replace("\r\n", "\n");
         var committed = File.ReadAllText(goldenPath).Replace("\r\n", "\n");
 

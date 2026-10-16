@@ -7,10 +7,10 @@ the project whose native library this one packages. Everything here is their wor
 ```json
 {
   "repository": "https://github.com/handy-computer/transcribe.cpp",
-  "tag": "v0.3.0",
-  "tag_object": "a87ca3373011e7760d4c477ce20199f5edb61770",
-  "commit": "077110eb00ca6880e13bef4ddebf766b3b76896c",
-  "files": 72
+  "tag": "v0.4.0",
+  "tag_object": "ea7a2817aac2dfbc0ca328b9fceb7fbe8543eec7",
+  "commit": "f1dcd15858c4bbba87ca97862b4e448b2cf15b8f",
+  "files": 76
 }
 ```
 

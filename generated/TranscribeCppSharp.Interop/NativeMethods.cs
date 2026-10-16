@@ -173,6 +173,21 @@ public enum Status
     /// </para>
     /// </summary>
     ErrOutputRepetition = 19,
+
+    /// <summary>
+    /// <para>
+    /// The model does not serve the role this call needs; see transcribe_model_roles().
+    /// </para>
+    /// </summary>
+    ErrUnsupportedRole = 20,
+
+    /// <summary>
+    /// <para>
+    /// The audio is shorter than the role's minimum (e.g. language ID's
+    /// transcribe_langid_info::min_audio_ms). Nothing was computed.
+    /// </para>
+    /// </summary>
+    ErrInputTooShort = 21,
 }
 
 /// <summary>
@@ -208,6 +223,38 @@ public enum AbiStruct
     AbiExt = 12,
     AbiDeviceInfo = 13,
     AbiSpeakerSegment = 14,
+    AbiBackendInitParams = 15,
+
+    /// <summary>
+    /// <para>
+    /// include/transcribe/diarize.h
+    /// </para>
+    /// </summary>
+    AbiDiarizeInfo = 16,
+    AbiDiarizeSessionParams = 17,
+    AbiDiarizeParams = 18,
+
+    /// <summary>
+    /// <para>
+    /// include/transcribe/langid.h
+    /// </para>
+    /// </summary>
+    AbiLangidInfo = 19,
+    AbiLangidSessionParams = 20,
+    AbiLangidParams = 21,
+    AbiLangidResult = 22,
+    AbiLangidCandidate = 23,
+
+    /// <summary>
+    /// <para>
+    /// include/transcribe/vad.h
+    /// </para>
+    /// </summary>
+    AbiVadInfo = 24,
+    AbiVadSessionParams = 25,
+    AbiVadParams = 26,
+    AbiVadResult = 27,
+    AbiVadSegment = 28,
 }
 
 /// <summary>
@@ -432,6 +479,13 @@ public enum ExtSlot
     /// </para>
     /// </summary>
     ExtSlotStream = 1,
+
+    /// <summary>
+    /// <para>
+    /// transcribe_diarize_params::family (include/transcribe/diarize.h)
+    /// </para>
+    /// </summary>
+    ExtSlotDiarizeRun = 2,
 }
 
 /// <summary>
@@ -520,6 +574,22 @@ public enum DeviceType
     DeviceTypeGpu = 1,
     DeviceTypeIgpu = 2,
     DeviceTypeAccel = 3,
+}
+
+/// <summary>
+/// <para>
+/// Roles: the kinds of work a loaded model can do. ASR is this header's
+/// transcribe_session_* / transcribe_run* API. The other roles each have
+/// their own header under include/transcribe/ and their own session type.
+/// A model may serve more than one role. Values are bits; append-only.
+/// </para>
+/// </summary>
+public enum Role
+{
+    RoleAsr = 1,
+    RoleDiarize = 2,
+    RoleLangid = 4,
+    RoleVad = 8,
 }
 
 /// <summary>
@@ -747,8 +817,8 @@ public enum StreamCommitPolicy
 /// measured throughput.
 /// </para>
 /// <para>
-/// Values outside the enum range are rejected by transcribe_run with
-/// TRANSCRIBE_ERR_INVALID_ARG before the previous result is cleared.
+/// Values outside the enum range are rejected by transcribe_diarize_run
+/// with TRANSCRIBE_ERR_INVALID_ARG before the previous result is cleared.
 /// </para>
 /// </summary>
 public enum SortformerPreset
@@ -914,6 +984,14 @@ public struct Ext
 {
     public ulong size;
     public uint kind;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct BackendInitParams
+{
+    public ulong structSize;
+    public IntPtr artifactDir;
+    public uint allowedBackends;
 }
 
 /// <summary>
@@ -1741,6 +1819,108 @@ public struct SpeakerSegment
 
 /// <summary>
 /// <para>
+/// Static facts about a diarization model.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct DiarizeInfo
+{
+    public ulong structSize;
+    public int sampleRate;
+    public int maxSpeakers;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct DiarizeSessionParams
+{
+    public ulong structSize;
+    public int nThreads;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct DiarizeParams
+{
+    public ulong structSize;
+    public IntPtr /* transcribe_ext */ family;
+}
+
+/// <summary>
+/// <para>
+/// Static facts about a language ID model.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct LangidInfo
+{
+    public ulong structSize;
+    public int sampleRate;
+    public int nLabels;
+    public int minAudioMs;
+    public int maxAudioMs;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct LangidSessionParams
+{
+    public ulong structSize;
+    public int nThreads;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct LangidParams
+{
+    public ulong structSize;
+    public IntPtr allowed;
+    public int nAllowed;
+}
+
+/// <summary>
+/// <para>
+/// Summary of the last run.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct LangidResult
+{
+    public ulong structSize;
+
+    /// <summary>
+    /// <para>
+    /// Rows readable via transcribe_langid_get_candidate: one per label in the
+    /// allowed set (duplicates counted once), n_labels when unrestricted.
+    /// </para>
+    /// </summary>
+    public int nCandidates;
+
+    /// <summary>
+    /// <para>
+    /// Share of the softmax over every label that falls in the allowed set;
+    /// 1 when unrestricted. A low value means the speech is probably outside
+    /// the allowed set.
+    /// </para>
+    /// </summary>
+    public float allowedMass;
+}
+
+/// <summary>
+/// <para>
+/// One ranked label. code and name point at model-owned storage, valid until
+/// transcribe_model_free.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct LangidCandidate
+{
+    public ulong structSize;
+    public int index;
+    public IntPtr code;
+    public IntPtr name;
+    public float p;
+    public float logit;
+}
+
+/// <summary>
+/// <para>
 /// Moonshine-Streaming decode-throttle knob.
 /// </para>
 /// <para>
@@ -1861,11 +2041,146 @@ public struct ParakeetBufferedStreamExt
     public int rightMs;
 }
 
+/// <summary>
+/// <para>
+/// transcribe_diarize_params::family: the operating point for
+/// transcribe_diarize_run.
+/// </para>
+/// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
-public struct SortformerStreamExt
+public struct SortformerDiarizeExt
 {
     public Ext ext;
     public SortformerPreset preset;
+}
+
+/// <summary>
+/// <para>
+/// Audio requirements of a VAD model.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct VadInfo
+{
+    public ulong structSize;
+    public int sampleRate;
+    public int frameSamples;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct VadSessionParams
+{
+    public ulong structSize;
+    public int nThreads;
+}
+
+/// <summary>
+/// <para>
+/// Settings for transcribe_vad_run. Durations are in milliseconds and
+/// must be nonnegative. Call transcribe_vad_params_init to set the defaults.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct VadParams
+{
+    public ulong structSize;
+
+    /// <summary>
+    /// <para>
+    /// Probability at or above which audio is classified as speech.
+    /// Default: 0.5. Range: 0 to 1.
+    /// </para>
+    /// </summary>
+    public double threshold;
+
+    /// <summary>
+    /// <para>
+    /// Probability below which ongoing speech is treated as silence.
+    /// Default: -1, which uses max(threshold - 0.15, 0.01).
+    /// Any negative value uses this default; otherwise use 0 to threshold.
+    /// </para>
+    /// </summary>
+    public double negThreshold;
+
+    /// <summary>
+    /// <para>
+    /// Discard speech segments this short or shorter. Default: 250 ms.
+    /// Does not apply to segments split by max_speech_ms.
+    /// </para>
+    /// </summary>
+    public int minSpeechMs;
+
+    /// <summary>
+    /// <para>
+    /// How long to wait after silence starts before ending speech.
+    /// Default: 100 ms.
+    /// </para>
+    /// </summary>
+    public int minSilenceMs;
+
+    /// <summary>
+    /// <para>
+    /// Extra audio to keep before and after speech. Default: 30 ms.
+    /// Nearby segments share the gap so they do not overlap.
+    /// </para>
+    /// </summary>
+    public int speechPadMs;
+
+    /// <summary>
+    /// <para>
+    /// Maximum speech segment length. Longer segments are split,
+    /// at the longest pause when possible. Default: 0 (no limit).
+    /// </para>
+    /// </summary>
+    public int maxSpeechMs;
+}
+
+/// <summary>
+/// <para>
+/// Summary of the last run, feed or flush.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct VadResult
+{
+    public ulong structSize;
+
+    /// <summary>
+    /// <para>
+    /// Number of probabilities from the last call (transcribe_vad_probs).
+    /// </para>
+    /// </summary>
+    public int nProbs;
+
+    /// <summary>
+    /// <para>
+    /// Index of the first returned frame, counting from 0. Always 0 after
+    /// run. For feed or flush, counts frames processed before this call.
+    /// A frame starts at sample: frame index * frame_samples.
+    /// </para>
+    /// </summary>
+    public long firstFrame;
+
+    /// <summary>
+    /// <para>
+    /// Number of speech segments (transcribe_vad_get_segment).
+    /// Always 0 after feed or flush.
+    /// </para>
+    /// </summary>
+    public int nSegments;
+}
+
+/// <summary>
+/// <para>
+/// Speech position in the input audio. Start is included; end is not.
+/// </para>
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8)]
+public struct VadSegment
+{
+    public ulong structSize;
+    public long startSample;
+    public long endSample;
 }
 
 /// <summary>
@@ -2076,6 +2391,7 @@ internal static class AbiLayout
     public static readonly (string TypeName, ulong Size, ulong Align, (string Field, nuint Offset)[] Offsets)[] All =
     [
         ("Ext", 16, 8, [("size", 0), ("kind", 8)]),
+        ("BackendInitParams", 24, 8, [("structSize", 0), ("artifactDir", 8), ("allowedBackends", 16)]),
         ("DeviceInfo", 64, 8, [("structSize", 0), ("name", 8), ("description", 16), ("kind", 24), ("deviceId", 32), ("memoryTotal", 40), ("memoryFree", 48), ("deviceType", 56)]),
         ("ModelLoadParams", 24, 8, [("structSize", 0), ("backend", 8), ("device", 16)]),
         ("SessionParams", 24, 8, [("structSize", 0), ("nThreads", 8), ("kvType", 12), ("nCtx", 16)]),
@@ -2090,10 +2406,23 @@ internal static class AbiLayout
         ("Word", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("segIndex", 24), ("firstToken", 28), ("nTokens", 32), ("text", 40)]),
         ("Token", 48, 8, [("structSize", 0), ("id", 8), ("p", 12), ("t0Ms", 16), ("t1Ms", 24), ("segIndex", 32), ("wordIndex", 36), ("text", 40)]),
         ("SpeakerSegment", 32, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("speakerId", 24), ("p", 28)]),
+        ("DiarizeInfo", 16, 8, [("structSize", 0), ("sampleRate", 8), ("maxSpeakers", 12)]),
+        ("DiarizeSessionParams", 16, 8, [("structSize", 0), ("nThreads", 8)]),
+        ("DiarizeParams", 16, 8, [("structSize", 0), ("family", 8)]),
+        ("LangidInfo", 24, 8, [("structSize", 0), ("sampleRate", 8), ("nLabels", 12), ("minAudioMs", 16), ("maxAudioMs", 20)]),
+        ("LangidSessionParams", 16, 8, [("structSize", 0), ("nThreads", 8)]),
+        ("LangidParams", 24, 8, [("structSize", 0), ("allowed", 8), ("nAllowed", 16)]),
+        ("LangidResult", 16, 8, [("structSize", 0), ("nCandidates", 8), ("allowedMass", 12)]),
+        ("LangidCandidate", 40, 8, [("structSize", 0), ("index", 8), ("code", 16), ("name", 24), ("p", 32), ("logit", 36)]),
         ("MoonshineStreamingStreamExt", 24, 8, [("ext", 0), ("minDecodeIntervalMs", 16)]),
         ("ParakeetStreamExt", 24, 8, [("ext", 0), ("attContextRight", 16)]),
         ("ParakeetBufferedStreamExt", 32, 8, [("ext", 0), ("leftMs", 16), ("chunkMs", 20), ("rightMs", 24)]),
-        ("SortformerStreamExt", 24, 8, [("ext", 0), ("preset", 16)]),
+        ("SortformerDiarizeExt", 24, 8, [("ext", 0), ("preset", 16)]),
+        ("VadInfo", 16, 8, [("structSize", 0), ("sampleRate", 8), ("frameSamples", 12)]),
+        ("VadSessionParams", 16, 8, [("structSize", 0), ("nThreads", 8)]),
+        ("VadParams", 40, 8, [("structSize", 0), ("threshold", 8), ("negThreshold", 16), ("minSpeechMs", 24), ("minSilenceMs", 28), ("speechPadMs", 32), ("maxSpeechMs", 36)]),
+        ("VadResult", 32, 8, [("structSize", 0), ("nProbs", 8), ("firstFrame", 16), ("nSegments", 24)]),
+        ("VadSegment", 24, 8, [("structSize", 0), ("startSample", 8), ("endSample", 16)]),
         ("VoxtralRealtimeStreamExt", 24, 8, [("ext", 0), ("numDelayTokens", 16), ("minDecodeIntervalMs", 20)]),
         ("WhisperRunExt", 80, 8, [("ext", 0), ("initialPrompt", 16), ("promptTokens", 24), ("nPromptTokens", 32), ("promptCondition", 40), ("conditionOnPrevTokens", 44), ("maxPrevContextTokens", 48), ("temperature", 52), ("temperatureInc", 56), ("compressionRatioThold", 60), ("logprobThold", 64), ("noSpeechThold", 68), ("seed", 72), ("maxInitialTimestamp", 76)]),
         ("WhisperChunkTrace", 48, 8, [("structSize", 0), ("t0Ms", 8), ("t1Ms", 16), ("temperatureUsed", 24), ("compressionRatio", 28), ("avgLogprob", 32), ("noSpeechProb", 36), ("noSpeechTriggered", 40), ("nFallbacks", 44)]),
@@ -2323,6 +2652,28 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_init_backends_default", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status InitBackendsDefault();
 
+    [LibraryImport(LibName, EntryPoint = "transcribe_backend_init_params_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void BackendInitParamsInit(IntPtr /* transcribe_backend_init_params */ p);
+
+    /// <summary>
+    /// <para>
+    /// Fix the mask, then behave as transcribe_init_backends(artifact_dir), or
+    /// _default() when artifact_dir is NULL. NULL params means all defaults.
+    /// Also returns TRANSCRIBE_ERR_BACKEND if the mask was already fixed to a
+    /// different value or no device is registered afterwards.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_init_backends_ex", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status InitBackendsEx(IntPtr /* transcribe_backend_init_params */ @params);
+
+    /// <summary>
+    /// <para>
+    /// The effective mask: the host's (ALL until _ex()) narrowed by the env.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_allowed_backends", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial uint AllowedBackends();
+
     /// <summary>
     /// <para>
     /// Number of compute devices currently registered with the runtime
@@ -2406,6 +2757,17 @@ internal static partial class NativeMethods
 
     /// <summary>
     /// <para>
+    /// Bitmask of transcribe_role values the loaded model serves. Fixed at load
+    /// and never changes for the model's lifetime. Returns 0 for NULL. Entry
+    /// points that need a role the model lacks return
+    /// TRANSCRIBE_ERR_UNSUPPORTED_ROLE.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_model_roles", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial uint ModelRoles(IntPtr model);
+
+    /// <summary>
+    /// <para>
     /// Read model capabilities into caller-owned storage. The caller
     /// initializes *out_caps via transcribe_capabilities_init() (zero-fill);
     /// the library writes only the fields that fit and leaves tail bytes
@@ -2413,9 +2775,12 @@ internal static partial class NativeMethods
     /// </para>
     /// <para>
     /// Returns:
-    /// TRANSCRIBE_ERR_INVALID_ARG     model or out_caps is NULL.
-    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE out_caps->struct_size is 0 or
+    /// TRANSCRIBE_ERR_INVALID_ARG      model or out_caps is NULL.
+    /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE  out_caps->struct_size is 0 or
     /// smaller than the library's minimum.
+    /// TRANSCRIBE_ERR_UNSUPPORTED_ROLE the model does not serve
+    /// TRANSCRIBE_ROLE_ASR. These are ASR
+    /// capabilities; *out_caps is untouched.
     /// </para>
     /// <para>
     /// Pointer fields written by the library (e.g. <c>languages</c>) point at
@@ -2507,7 +2872,10 @@ internal static partial class NativeMethods
 
     /// <summary>
     /// <para>
-    /// Load a GGUF model from disk.
+    /// Load a GGUF model or a supported whisper.cpp Whisper/Silero .bin from disk.
+    /// Format is detected from the file header, not the extension. Silero binary
+    /// support is limited to published 16 kHz v5.1.2 and v6.2.0 weights; inference
+    /// retains upstream Silero behavior. See docs/vad.md for scope and usage.
     /// </para>
     /// <para>
     /// path is UTF-8, like every path crossing this API; on Windows it is
@@ -2549,6 +2917,11 @@ internal static partial class NativeMethods
     /// <para>
     /// params may be NULL for library defaults, or initialize a struct with
     /// transcribe_session_params_init(). See transcribe_model_load_file.
+    /// </para>
+    /// <para>
+    /// Returns TRANSCRIBE_ERR_UNSUPPORTED_ROLE when the model does not serve
+    /// TRANSCRIBE_ROLE_ASR (see transcribe_model_roles); transcribe_open
+    /// returns the same and frees the model it loaded.
     /// </para>
     /// </summary>
     [LibraryImport(LibName, EntryPoint = "transcribe_session_init", StringMarshalling = StringMarshalling.Utf8)]
@@ -2628,7 +3001,10 @@ internal static partial class NativeMethods
     /// Run one batch transcription.
     /// </para>
     /// <para>
-    /// pcm:        mono float32 PCM samples in [-1.0, 1.0] at 16 kHz.
+    /// pcm:        mono float32 PCM samples in [-1.0, 1.0] at 16 kHz. Every
+    /// sample must be finite: NaN or +-Inf returns
+    /// TRANSCRIBE_ERR_INVALID_ARG and leaves the previous result
+    /// in place. Silence is valid.
     /// n_samples:  number of samples in pcm. Must be strictly positive;
     /// a non-positive count returns TRANSCRIBE_ERR_INVALID_ARG
     /// (same rule as transcribe_stream_feed).
@@ -2712,7 +3088,10 @@ internal static partial class NativeMethods
     /// or n_samples[i] &lt;= 0) fails only that
     /// utterance and is reported there.
     /// TRANSCRIBE_ERR_INVALID_ARG     session / pcm / n_samples NULL, n &lt;= 0,
-    /// or the session is in an ACTIVE stream.
+    /// any utterance holds a non-finite sample
+    /// (NaN / +-Inf; the previous result is
+    /// preserved), or the session is in an
+    /// ACTIVE stream.
     /// TRANSCRIBE_ERR_BAD_STRUCT_SIZE params->struct_size below the minimum.
     /// TRANSCRIBE_ERR_NOT_IMPLEMENTED the model has no run path at all.
     /// ... plus the same shared-param rejections as transcribe_run
@@ -2960,8 +3339,10 @@ internal static partial class NativeMethods
     /// transcribe_run.
     /// </para>
     /// <para>
-    /// pcm must be non-null and n_samples must be strictly greater than
-    /// zero. Polling the stream without supplying audio is unsupported —
+    /// pcm must be non-null, n_samples must be strictly greater than zero,
+    /// and every sample must be finite (NaN / +-Inf returns
+    /// TRANSCRIBE_ERR_INVALID_ARG and the stream stays ACTIVE, unchanged).
+    /// Polling the stream without supplying audio is unsupported —
     /// use the stream accessors (transcribe_stream_revision,
     /// transcribe_stream_get_text, transcribe_stream_n_committed_*,
     /// transcribe_stream_last_status, transcribe_stream_get_state) to inspect
@@ -3412,6 +3793,189 @@ internal static partial class NativeMethods
     [LibraryImport(LibName, EntryPoint = "transcribe_batch_get_timings", StringMarshalling = StringMarshalling.Utf8)]
     public static partial Status BatchGetTimings(IntPtr session, int i, IntPtr /* transcribe_timings */ @out);
 
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_info_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void DiarizeInfoInit(IntPtr /* transcribe_diarize_info */ @out);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_session_params_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void DiarizeSessionParamsInit(IntPtr /* transcribe_diarize_session_params */ @params);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_params_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void DiarizeParamsInit(IntPtr /* transcribe_diarize_params */ @params);
+
+    /// <summary>
+    /// <para>
+    /// UNSUPPORTED_ROLE when the model does not serve TRANSCRIBE_ROLE_DIARIZE.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_get_info", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status DiarizeGetInfo(IntPtr model, IntPtr /* transcribe_diarize_info */ @out);
+
+    /// <summary>
+    /// <para>
+    /// params may be NULL for defaults. UNSUPPORTED_ROLE when the model does not
+    /// serve TRANSCRIBE_ROLE_DIARIZE. On failure *out_session is NULL.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_session_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status DiarizeSessionInit(IntPtr model, IntPtr /* transcribe_diarize_session_params */ @params, IntPtr outSession);
+
+    /// <summary>
+    /// <para>
+    /// NULL is a no-op.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_session_free", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void DiarizeSessionFree(IntPtr /* transcribe_diarize_session */ session);
+
+    /// <summary>
+    /// <para>
+    /// Polled during a run; returning true stops it with TRANSCRIBE_ERR_ABORTED.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_set_abort_callback", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void DiarizeSetAbortCallback(IntPtr /* transcribe_diarize_session */ session, AbortCallback cb, IntPtr userData);
+
+    /// <summary>
+    /// <para>
+    /// Diarize one recording: 16 kHz mono float32 PCM, every sample finite.
+    /// params may be NULL for defaults. Replaces the previous result. Malformed
+    /// input (NULL pointers, n_samples &lt;= 0, NaN / Inf, a bad extension) returns
+    /// an error before the previous result is touched.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_run", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status DiarizeRun(IntPtr /* transcribe_diarize_session */ session, ReadOnlySpan<float> pcm, int nSamples, IntPtr /* transcribe_diarize_params */ @params);
+
+    /// <summary>
+    /// <para>
+    /// Speaker segments of the last run, grouped by speaker and time-ordered
+    /// within a speaker; segments of different speakers may overlap. 0 before any
+    /// run, and 0 after a run that passed input validation but then failed
+    /// (aborted, backend error). An out-of-range index returns OK with a zeroed row.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_n_segments", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int DiarizeNSegments(IntPtr /* transcribe_diarize_session */ session);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_get_segment", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status DiarizeGetSegment(IntPtr /* transcribe_diarize_session */ session, int i, IntPtr /* transcribe_speaker_segment */ @out);
+
+    /// <summary>
+    /// <para>
+    /// load_ms plus the last run's stage times.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_diarize_get_timings", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status DiarizeGetTimings(IntPtr /* transcribe_diarize_session */ session, IntPtr /* transcribe_timings */ @out);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_info_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void LangidInfoInit(IntPtr /* transcribe_langid_info */ @out);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_session_params_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void LangidSessionParamsInit(IntPtr /* transcribe_langid_session_params */ @params);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_params_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void LangidParamsInit(IntPtr /* transcribe_langid_params */ @params);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_result_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void LangidResultInit(IntPtr /* transcribe_langid_result */ @out);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_candidate_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void LangidCandidateInit(IntPtr /* transcribe_langid_candidate */ @out);
+
+    /// <summary>
+    /// <para>
+    /// UNSUPPORTED_ROLE when the model does not serve TRANSCRIBE_ROLE_LANGID.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_get_info", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status LangidGetInfo(IntPtr model, IntPtr /* transcribe_langid_info */ @out);
+
+    /// <summary>
+    /// <para>
+    /// The label table. Code and name of label i, or NULL when i is out of range
+    /// or the model does not serve TRANSCRIBE_ROLE_LANGID; model-owned.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_label_code", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr LangidLabelCode(IntPtr model, int i);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_label_name", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr LangidLabelName(IntPtr model, int i);
+
+    /// <summary>
+    /// <para>
+    /// Index of a code or alias ("he" and "iw" name the same label), or -1.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_label_index", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int LangidLabelIndex(IntPtr model, string codeOrAlias);
+
+    /// <summary>
+    /// <para>
+    /// params may be NULL for defaults. UNSUPPORTED_ROLE when the model does not
+    /// serve TRANSCRIBE_ROLE_LANGID. On failure *out_session is NULL.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_session_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status LangidSessionInit(IntPtr model, IntPtr /* transcribe_langid_session_params */ @params, IntPtr outSession);
+
+    /// <summary>
+    /// <para>
+    /// NULL is a no-op.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_session_free", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void LangidSessionFree(IntPtr /* transcribe_langid_session */ session);
+
+    /// <summary>
+    /// <para>
+    /// Polled during a run; returning true stops it with TRANSCRIBE_ERR_ABORTED.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_set_abort_callback", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void LangidSetAbortCallback(IntPtr /* transcribe_langid_session */ session, AbortCallback cb, IntPtr userData);
+
+    /// <summary>
+    /// <para>
+    /// Identify the language of one clip: 16 kHz mono float32 PCM, every sample
+    /// finite. params may be NULL for defaults. Input longer than
+    /// transcribe_langid_info::max_audio_ms is scored on its first max_audio_ms
+    /// (no error). Every allowed label is ranked. Replaces the previous result.
+    /// Malformed input (NULL pointers, n_samples &lt;= 0, NaN / Inf, a bad allowed
+    /// list, an unknown code, scored audio shorter than min_audio_ms) returns an
+    /// error before the previous result is touched.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_run", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status LangidRun(IntPtr /* transcribe_langid_session */ session, ReadOnlySpan<float> pcm, int nSamples, IntPtr /* transcribe_langid_params */ @params);
+
+    /// <summary>
+    /// <para>
+    /// The last run's summary. Zeroed before any run and after a run that passed
+    /// input validation but then failed (aborted, backend error).
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_get_result", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status LangidGetResult(IntPtr /* transcribe_langid_session */ session, IntPtr /* transcribe_langid_result */ @out);
+
+    /// <summary>
+    /// <para>
+    /// Candidate i of the last run, ranked by p (descending; ties keep label
+    /// order). An out-of-range index returns OK with a zeroed row (code NULL).
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_get_candidate", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status LangidGetCandidate(IntPtr /* transcribe_langid_session */ session, int i, IntPtr /* transcribe_langid_candidate */ @out);
+
+    /// <summary>
+    /// <para>
+    /// load_ms plus the last run's stage times (mel_ms, encode_ms).
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_langid_get_timings", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status LangidGetTimings(IntPtr /* transcribe_langid_session */ session, IntPtr /* transcribe_timings */ @out);
+
     /// <summary>
     /// <para>
     /// Fills ext.size/kind and min_decode_interval_ms = -1 (family default).
@@ -3438,11 +4002,167 @@ internal static partial class NativeMethods
 
     /// <summary>
     /// <para>
-    /// Fills ext.size/kind and preset = DEFAULT (GGUF-shipped cfg).
+    /// Fills ext.size/kind and preset = DEFAULT.
     /// </para>
     /// </summary>
-    [LibraryImport(LibName, EntryPoint = "transcribe_sortformer_stream_ext_init", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void SortformerStreamExtInit(IntPtr /* transcribe_sortformer_stream_ext */ ext);
+    [LibraryImport(LibName, EntryPoint = "transcribe_sortformer_diarize_ext_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void SortformerDiarizeExtInit(IntPtr /* transcribe_sortformer_diarize_ext */ ext);
+
+    /// <summary>
+    /// <para>
+    /// Call each struct's init function before using it.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_info_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadInfoInit(IntPtr /* transcribe_vad_info */ @out);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_session_params_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadSessionParamsInit(IntPtr /* transcribe_vad_session_params */ @params);
+
+    /// <summary>
+    /// <para>
+    /// Clear the struct and set the default settings documented above.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_params_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadParamsInit(IntPtr /* transcribe_vad_params */ @params);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_result_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadResultInit(IntPtr /* transcribe_vad_result */ @out);
+
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_segment_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadSegmentInit(IntPtr /* transcribe_vad_segment */ @out);
+
+    /// <summary>
+    /// <para>
+    /// Get the model's required sample rate and frame size.
+    /// Returns UNSUPPORTED_ROLE if the model cannot detect speech.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_get_info", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadGetInfo(IntPtr model, IntPtr /* transcribe_vad_info */ @out);
+
+    /// <summary>
+    /// <para>
+    /// Create a session for processing audio. NULL params uses defaults.
+    /// Returns UNSUPPORTED_ROLE if the model cannot detect speech.
+    /// On failure, *out_session is NULL.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_session_init", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadSessionInit(IntPtr model, IntPtr /* transcribe_vad_session_params */ @params, IntPtr outSession);
+
+    /// <summary>
+    /// <para>
+    /// Free the session. NULL does nothing.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_session_free", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadSessionFree(IntPtr /* transcribe_vad_session */ session);
+
+    /// <summary>
+    /// <para>
+    /// Check this callback during run, feed or flush. Return true to stop
+    /// processing with TRANSCRIBE_ERR_ABORTED.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_set_abort_callback", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadSetAbortCallback(IntPtr /* transcribe_vad_session */ session, AbortCallback cb, IntPtr userData);
+
+    /// <summary>
+    /// <para>
+    /// Find speech segments in a whole audio clip.
+    /// Input must be 16 kHz mono floats with no NaN or infinite values.
+    /// NULL params uses defaults. n_samples must be greater than 0.
+    /// </para>
+    /// <para>
+    /// Starts fresh, discards any live stream and replaces the last result.
+    /// Fills the last frame with zeros if needed. Speech segments never
+    /// extend past the input audio.
+    /// </para>
+    /// <para>
+    /// Invalid input (NULL session or pcm, invalid n_samples, NaN, infinity
+    /// or out-of-range settings) leaves the stream and last result unchanged.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_run", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadRun(IntPtr /* transcribe_vad_session */ session, ReadOnlySpan<float> pcm, int nSamples, IntPtr /* transcribe_vad_params */ @params);
+
+    /// <summary>
+    /// <para>
+    /// Process incoming audio. Keep incomplete frames for the next call.
+    /// Input must be 16 kHz mono floats with no NaN or infinite values.
+    /// Returns a probability for each completed frame through transcribe_vad_probs.
+    /// n_samples may be 0; pcm may be NULL in that case.
+    /// </para>
+    /// <para>
+    /// The stream continues until stream_reset, stream_flush or run.
+    /// Invalid input (NULL session, NULL pcm with n_samples > 0, negative
+    /// n_samples, NaN or infinity) leaves the stream and last result unchanged.
+    /// An abort or processing error resets the stream and clears the result.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_stream_feed", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadStreamFeed(IntPtr /* transcribe_vad_session */ session, ReadOnlySpan<float> pcm, int nSamples);
+
+    /// <summary>
+    /// <para>
+    /// Process leftover audio, filling the last frame with zeros, then end
+    /// the stream. Returns one probability, or none if no audio was left over.
+    /// The next feed starts a new stream at frame 0.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_stream_flush", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadStreamFlush(IntPtr /* transcribe_vad_session */ session);
+
+    /// <summary>
+    /// <para>
+    /// Discard the stream and leftover audio without processing them.
+    /// Reset the model state and frame count. Keep the last result.
+    /// NULL does nothing.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_stream_reset", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void VadStreamReset(IntPtr /* transcribe_vad_session */ session);
+
+    /// <summary>
+    /// <para>
+    /// Get the summary of the last run, feed or flush.
+    /// Empty before any processing, and after an abort or processing error.
+    /// Invalid input leaves the previous result unchanged.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_get_result", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadGetResult(IntPtr /* transcribe_vad_session */ session, IntPtr /* transcribe_vad_result */ @out);
+
+    /// <summary>
+    /// <para>
+    /// Get the last call's n_probs probabilities, or NULL if there are none.
+    /// Do not free this pointer. It is valid until the next run, feed, flush
+    /// or session free.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_probs", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr VadProbs(IntPtr /* transcribe_vad_session */ session);
+
+    /// <summary>
+    /// <para>
+    /// Get speech segment i from the last run, ordered by start time.
+    /// An out-of-range index returns OK with a cleared output.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_get_segment", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadGetSegment(IntPtr /* transcribe_vad_session */ session, int i, IntPtr /* transcribe_vad_segment */ @out);
+
+    /// <summary>
+    /// <para>
+    /// Get model loading and last-call processing times in milliseconds.
+    /// load_ms: model loading; encode_ms: audio preparation and encoder;
+    /// decode_ms: recurrent decoder.
+    /// </para>
+    /// </summary>
+    [LibraryImport(LibName, EntryPoint = "transcribe_vad_get_timings", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial Status VadGetTimings(IntPtr /* transcribe_vad_session */ session, IntPtr /* transcribe_timings */ @out);
 
     /// <summary>
     /// <para>

@@ -223,10 +223,28 @@ static Dictionary<string, string> LoadExpectedHashes(string path, string version
 
 static void SaveHashes(string path, string version, Dictionary<string, string> hashes)
 {
-    var sorted = hashes.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+    // Keep the hashes of every version already recorded: the pin moves forward,
+    // but a checkout pinned to an older release still needs its checksums to
+    // verify what it downloads. Overwriting the file with only the current
+    // version would silently drop them.
+    var byVersion = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+    if (File.Exists(path))
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        foreach (var prop in doc.RootElement.EnumerateObject())
+        {
+            byVersion[prop.Name] = JsonSerializer.Deserialize<Dictionary<string, string>>(prop.Value.GetRawText())
+                ?? new Dictionary<string, string>();
+        }
+    }
+
+    byVersion[version] = hashes.OrderBy(kv => kv.Key, StringComparer.Ordinal)
         .ToDictionary(kv => kv.Key, kv => "sha256:" + kv.Value);
-    var root = new Dictionary<string, object> { [version] = sorted };
-    File.WriteAllText(path, JsonSerializer.Serialize(root, FetchNative.JsonOptions.Instance) + Environment.NewLine);
+
+    var ordered = byVersion
+        .OrderBy(kv => Version.TryParse(kv.Key, out var parsed) ? parsed : new Version(0, 0))
+        .ToDictionary(kv => kv.Key, kv => (object)kv.Value);
+    File.WriteAllText(path, JsonSerializer.Serialize(ordered, FetchNative.JsonOptions.Instance) + Environment.NewLine);
 }
 
 static string FindRepoRoot()

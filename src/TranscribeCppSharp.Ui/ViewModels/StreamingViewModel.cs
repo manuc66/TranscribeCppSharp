@@ -71,9 +71,6 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     private int? _parakeetRightMs;
 
     [ObservableProperty]
-    private SortformerPreset? _selectedSortformerPreset;
-
-    [ObservableProperty]
     private int? _voxtralNumDelayTokens;
 
     [ObservableProperty]
@@ -86,14 +83,6 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         StreamCommitPolicy.StreamCommitStablePrefix,
     };
 
-    public ObservableCollection<SortformerPreset> AvailableSortformerPresets { get; } = new()
-    {
-        SortformerPreset.SortformerPresetDefault,
-        SortformerPreset.SortformerPresetVeryHighLatency,
-        SortformerPreset.SortformerPresetHighLatency,
-        SortformerPreset.SortformerPresetLowLatency,
-    };
-
     /// <summary>Whether the family-extension group applies to the selected model.</summary>
     public bool ShowFamilyExtensions => ModelOptionVisibility.ShowStreamingExtensions(_selectedCapabilities);
 
@@ -102,9 +91,6 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether the Parakeet extensions apply.</summary>
     public bool ShowParakeetExtensions => ModelOptionVisibility.ShowParakeetExtensions(_selectedCapabilities);
-
-    /// <summary>Whether the Sortformer extension applies.</summary>
-    public bool ShowSortformerExtensions => ModelOptionVisibility.ShowSortformerExtensions(_selectedCapabilities);
 
     /// <summary>Whether the Voxtral realtime extensions apply.</summary>
     public bool ShowVoxtralExtensions => ModelOptionVisibility.ShowVoxtralExtensions(_selectedCapabilities);
@@ -269,7 +255,6 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowFamilyExtensions));
         OnPropertyChanged(nameof(ShowMoonshineExtensions));
         OnPropertyChanged(nameof(ShowParakeetExtensions));
-        OnPropertyChanged(nameof(ShowSortformerExtensions));
         OnPropertyChanged(nameof(ShowVoxtralExtensions));
     }
 
@@ -302,7 +287,6 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
                 ParakeetLeftMs = ParakeetLeftMs,
                 ParakeetChunkMs = ParakeetChunkMs,
                 ParakeetRightMs = ParakeetRightMs,
-                SortformerPreset = SelectedSortformerPreset,
                 VoxtralNumDelayTokens = VoxtralNumDelayTokens,
                 VoxtralMinDecodeIntervalMs = VoxtralMinDecodeIntervalMs,
             };

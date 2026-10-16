@@ -15,7 +15,6 @@ public class StreamOptions
     public int? ParakeetLeftMs { get; set; }
     public int? ParakeetChunkMs { get; set; }
     public int? ParakeetRightMs { get; set; }
-    public SortformerPreset? SortformerPreset { get; set; }
     public int? VoxtralNumDelayTokens { get; set; }
     public int? VoxtralMinDecodeIntervalMs { get; set; }
 }

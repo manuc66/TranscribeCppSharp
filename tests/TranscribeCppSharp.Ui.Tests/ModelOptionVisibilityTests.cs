@@ -12,10 +12,12 @@ public class ModelOptionVisibilityTests
         string architecture = "test",
         bool streaming = false,
         bool languageDetect = false,
+        TranscribeRole roles = TranscribeRole.Asr,
         params Feature[] features)
         => new(
             Architecture: architecture,
             Variant: "test",
+            Roles: roles,
             SupportsTranslate: translate,
             SupportsLanguageDetect: languageDetect,
             SupportsStreaming: streaming,
@@ -72,7 +74,6 @@ public class ModelOptionVisibilityTests
         Assert.True(ModelOptionVisibility.ShowStreamingExtensions(null));
         Assert.True(ModelOptionVisibility.ShowMoonshineExtensions(null));
         Assert.True(ModelOptionVisibility.ShowParakeetExtensions(null));
-        Assert.True(ModelOptionVisibility.ShowSortformerExtensions(null));
         Assert.True(ModelOptionVisibility.ShowVoxtralExtensions(null));
     }
 
@@ -94,8 +95,10 @@ public class ModelOptionVisibilityTests
         Assert.True(ModelOptionVisibility.ShowParakeetExtensions(streamingParakeet));
         Assert.False(ModelOptionVisibility.ShowMoonshineExtensions(streamingParakeet));
 
+        // Sortformer is a diarizer in transcribe.cpp 0.4, not a streaming family:
+        // its architecture no longer turns on the streaming extension group.
         ModelCapabilitySnapshot sortformer = Snapshot(architecture: "sortformer", streaming: true);
-        Assert.True(ModelOptionVisibility.ShowSortformerExtensions(sortformer));
+        Assert.False(ModelOptionVisibility.ShowStreamingExtensions(sortformer));
 
         // Non-realtime Voxtral has a different architecture and does not stream.
         ModelCapabilitySnapshot voxtralRealtime = Snapshot(architecture: "voxtral_realtime", streaming: true);

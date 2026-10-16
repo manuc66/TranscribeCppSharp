@@ -57,6 +57,7 @@ public class LanguagePickerTests
             viewModel.ApplyCapabilities(new ModelCapabilitySnapshot(
                 Architecture: "test",
                 Variant: "test",
+                Roles: TranscribeRole.Asr,
                 SupportsTranslate: false,
                 SupportsLanguageDetect: false,
                 SupportsStreaming: false,
@@ -109,6 +110,7 @@ public class LanguagePickerTests
             viewModel.ApplyCapabilities(new ModelCapabilitySnapshot(
                 Architecture: "test",
                 Variant: "test",
+                Roles: TranscribeRole.Asr,
                 SupportsTranslate: false,
                 SupportsLanguageDetect: false,
                 SupportsStreaming: false,

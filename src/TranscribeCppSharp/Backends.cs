@@ -48,6 +48,14 @@ public static class Backends
     }
 
     /// <summary>
+    /// Initialize backends with default settings, restricted to
+    /// <paramref name="allowed"/>. Upstream 0.4 added the allowlist; a mask of
+    /// <see cref="BackendMask.All"/> is the default behavior.
+    /// </summary>
+    public static void InitDefault(BackendMask allowed)
+        => InitCore(artifactDir: null, allowed);
+
+    /// <summary>
     /// Initialize backends with a specific artifact directory (for DLLs, shaders, etc.).
     /// </summary>
     public static void Init(string artifactDir)
@@ -61,11 +69,57 @@ public static class Backends
         initialized = true;
     }
 
+    /// <summary>
+    /// Initialize backends with a specific artifact directory, restricted to
+    /// <paramref name="allowed"/> (upstream 0.4 allowlist).
+    /// </summary>
+    public static void Init(string artifactDir, BackendMask allowed)
+        => InitCore(artifactDir, allowed);
+
+    /// <summary>
+    /// The backend allowlist currently in effect
+    /// (<c>transcribe_allowed_backends</c>). Before initialization this is the
+    /// library default; after, what was requested.
+    /// </summary>
+    public static BackendMask AllowedBackends => (BackendMask)NativeMethods.AllowedBackends();
+
+    private static void InitCore(string? artifactDir, BackendMask allowed)
+    {
+        var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiBackendInitParams);
+        var dirPtr = artifactDir is null ? IntPtr.Zero : Marshal.StringToCoTaskMemUTF8(artifactDir);
+        try
+        {
+            StackAllocHelper.RunWithBuffer(size, ptr =>
+            {
+                NativeMethods.BackendInitParamsInit(ptr);
+                var p = Marshal.PtrToStructure<BackendInitParams>(ptr);
+                p.artifactDir = dirPtr;
+                p.allowedBackends = (uint)allowed;
+                Marshal.StructureToPtr(p, ptr, false);
+
+                var status = NativeMethods.InitBackendsEx(ptr);
+                if (status != Status.Ok)
+                {
+                    throw new TranscribeException(status, nameof(NativeMethods.InitBackendsEx));
+                }
+            });
+
+            initialized = true;
+        }
+        finally
+        {
+            if (dirPtr != IntPtr.Zero)
+            {
+                Marshal.FreeCoTaskMem(dirPtr);
+            }
+        }
+    }
+
     private static bool initialized;
 
     /// <summary>
     /// Initialize backends on demand (idempotent). Called by <see cref="Model.Load"/>
-    /// so a plain load works without an explicit <see cref="InitDefault"/> first.
+    /// so a plain load works without an explicit <see cref="InitDefault()"/> first.
     /// </summary>
     internal static void EnsureInitialized()
     {

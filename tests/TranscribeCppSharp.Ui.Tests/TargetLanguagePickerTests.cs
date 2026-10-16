@@ -31,6 +31,7 @@ public class TargetLanguagePickerTests
         => new(
             Architecture: "test",
             Variant: "test",
+            Roles: TranscribeRole.Asr,
             SupportsTranslate: true,
             SupportsLanguageDetect: false,
             SupportsStreaming: false,

@@ -14,6 +14,7 @@ namespace TranscribeCppSharp.Ui.Services;
 public sealed record ModelCapabilitySnapshot(
     string Architecture,
     string Variant,
+    TranscribeRole Roles,
     bool SupportsTranslate,
     bool SupportsLanguageDetect,
     bool SupportsStreaming,
@@ -40,7 +41,15 @@ public static class ModelCapabilityProbe
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
 
         using var model = Model.Load(modelPath, p => p.WithBackend(BackendRequest.BackendCpu));
-        var capabilities = model.GetCapabilities();
+        var roles = model.Roles;
+
+        // Capabilities are an ASR concept in transcribe.cpp 0.4: for a model
+        // that does not serve ASR (a Sortformer diarizer, say) the native call
+        // returns UNSUPPORTED_ROLE rather than a zeroed struct, so it is only
+        // asked when the role is there.
+        Model.ModelCapabilities? capabilities = roles.HasFlag(TranscribeRole.Asr)
+            ? model.GetCapabilities()
+            : null;
 
         var features = new HashSet<Feature>();
         foreach (Feature feature in Enum.GetValues<Feature>())
@@ -54,13 +63,14 @@ public static class ModelCapabilityProbe
         return new ModelCapabilitySnapshot(
             Architecture: model.Architecture,
             Variant: model.Variant,
-            SupportsTranslate: capabilities.SupportsTranslate,
-            SupportsLanguageDetect: capabilities.SupportsLanguageDetect,
-            SupportsStreaming: capabilities.SupportsStreaming,
-            SupportsSpecDecode: capabilities.SupportsSpecDecode,
+            Roles: roles,
+            SupportsTranslate: capabilities?.SupportsTranslate ?? false,
+            SupportsLanguageDetect: capabilities?.SupportsLanguageDetect ?? false,
+            SupportsStreaming: capabilities?.SupportsStreaming ?? false,
+            SupportsSpecDecode: capabilities?.SupportsSpecDecode ?? false,
             Features: features,
-            Languages: capabilities.Languages,
-            TranslateTargetLanguages: capabilities.TranslateTargetLanguages);
+            Languages: capabilities?.Languages ?? [],
+            TranslateTargetLanguages: capabilities?.TranslateTargetLanguages ?? []);
     }
 }
 
@@ -105,10 +115,6 @@ public static class ModelOptionVisibility
     public static bool ShowParakeetExtensions(ModelCapabilitySnapshot? capabilities)
         => IsStreamingFamily(capabilities, "parakeet");
 
-    /// <summary>Sortformer's preset extension.</summary>
-    public static bool ShowSortformerExtensions(ModelCapabilitySnapshot? capabilities)
-        => IsStreamingFamily(capabilities, "sortformer");
-
     /// <summary>Voxtral's realtime extensions.</summary>
     public static bool ShowVoxtralExtensions(ModelCapabilitySnapshot? capabilities)
         => IsStreamingFamily(capabilities, "voxtral_realtime");
@@ -126,9 +132,10 @@ public static class ModelOptionVisibility
 
     /// <summary>
     /// Architecture strings read from the <c>general.architecture</c> GGUF
-    /// metadata of the published models (not guessed): the four that have a
-    /// stream extension builder in the wrapper.
+    /// metadata of the published models (not guessed): the three that have a
+    /// stream extension builder in the wrapper. Sortformer is not one of them:
+    /// transcribe.cpp 0.4 moved it out of the streaming API.
     /// </summary>
     private static bool IsKnownStreamingArchitecture(string architecture)
-        => architecture is "moonshine_streaming" or "parakeet" or "sortformer" or "voxtral_realtime";
+        => architecture is "moonshine_streaming" or "parakeet" or "voxtral_realtime";
 }

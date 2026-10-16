@@ -29,7 +29,7 @@ public class CatalogPinningTests
         Assert.True(File.Exists(pinPath), $"missing {pinPath}");
 
         using JsonDocument pin = JsonDocument.Parse(File.ReadAllText(pinPath));
-        Assert.Equal("v0.3.0", pin.RootElement.GetProperty("tag").GetString());
+        Assert.Equal("v0.4.0", pin.RootElement.GetProperty("tag").GetString());
 
         // Same version as the native library this project binds, or the catalog
         // would describe models the pinned transcribe.cpp build has never seen.

@@ -989,34 +989,34 @@ public class HighLevelApiTests : IDisposable
     }
 
     [Fact]
-    public void SortformerStreamExtBuilder_WithPreset_ShouldSet()
+    public void SortformerDiarizeExtBuilder_WithPreset_ShouldSet()
     {
-        using var builder = new SortformerStreamExtBuilder();
+        using var builder = new SortformerDiarizeExtBuilder();
         builder.WithPreset(SortformerPreset.SortformerPresetLowLatency);
 
-        var p = Marshal.PtrToStructure<SortformerStreamExt>(builder.Build());
+        var p = Marshal.PtrToStructure<SortformerDiarizeExt>(builder.Build());
         Assert.Equal(SortformerPreset.SortformerPresetLowLatency, p.preset);
     }
 
     [Fact]
-    public void StreamParamsBuilder_WithSortformerExt_ShouldSetFamily()
+    public void DiarizeParamsBuilder_WithSortformerExt_ShouldSetFamily()
     {
-        using var ext = new SortformerStreamExtBuilder();
+        using var ext = new SortformerDiarizeExtBuilder();
         ext.WithPreset(SortformerPreset.SortformerPresetHighLatency);
 
-        using var builder = new StreamParamsBuilder();
+        using var builder = new DiarizeParamsBuilder();
         builder.WithSortformerExt(ext);
 
-        var p = Marshal.PtrToStructure<StreamParams>(builder.Build());
+        var p = Marshal.PtrToStructure<DiarizeParams>(builder.Build());
         Assert.NotEqual(IntPtr.Zero, p.family);
-        var extStruct = Marshal.PtrToStructure<SortformerStreamExt>(p.family);
+        var extStruct = Marshal.PtrToStructure<SortformerDiarizeExt>(p.family);
         Assert.Equal(SortformerPreset.SortformerPresetHighLatency, extStruct.preset);
     }
 
     [Fact]
-    public void SortformerStreamExtBuilder_WithPreset_AfterDispose_Throws()
+    public void SortformerDiarizeExtBuilder_WithPreset_AfterDispose_Throws()
     {
-        var builder = new SortformerStreamExtBuilder();
+        var builder = new SortformerDiarizeExtBuilder();
         builder.Dispose();
 
         Assert.Throws<ObjectDisposedException>(() => builder.WithPreset(SortformerPreset.SortformerPresetDefault));

@@ -345,13 +345,6 @@ public class TranscriptionService : ITranscriptionService
             builder.WithParakeetBufferedStreamExt(parakeetBuffered);
         }
 
-        if (options.SortformerPreset.HasValue)
-        {
-            var sortformerExt = new SortformerStreamExtBuilder();
-            sortformerExt.WithPreset(options.SortformerPreset.Value);
-            builder.WithSortformerExt(sortformerExt);
-        }
-
         if (options.VoxtralNumDelayTokens.HasValue || options.VoxtralMinDecodeIntervalMs.HasValue)
         {
             var voxtralExt = new VoxtralExtBuilder();

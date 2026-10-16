@@ -56,7 +56,6 @@ public class AutomationIdTests
         "streaming-parakeet-left",
         "streaming-parakeet-chunk",
         "streaming-parakeet-right",
-        "streaming-sortformer-preset",
         "streaming-voxtral-delay-tokens",
         "streaming-voxtral-interval",
         "streaming-start",

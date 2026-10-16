@@ -60,6 +60,131 @@ public sealed class Model : IDisposable
     }
 
     /// <summary>
+    /// The kinds of work this model serves, fixed at load. Introduced by
+    /// transcribe.cpp 0.4. See <see cref="TranscribeRole"/>.
+    /// </summary>
+    public TranscribeRole Roles
+    {
+        get
+        {
+            ThrowIfDisposed();
+            var roles = (TranscribeRole)NativeMethods.ModelRoles(handle);
+            GC.KeepAlive(this);
+            return roles;
+        }
+    }
+
+    /// <summary>Create an offline speaker-diarization session from this model.</summary>
+    public DiarizeSession CreateDiarizeSession(Action<DiarizeSessionParamsBuilder>? configure = null)
+    {
+        ThrowIfDisposed();
+        return DiarizeSession.Create(handle, this, configure);
+    }
+
+    /// <summary>
+    /// Facts about the model as a diarizer. Throws a <see cref="TranscribeException"/>
+    /// with <see cref="Status.ErrUnsupportedRole"/> when the model does not serve
+    /// <see cref="TranscribeRole.Diarize"/>.
+    /// </summary>
+    public DiarizeSession.DiarizeInfo GetDiarizeInfo()
+    {
+        ThrowIfDisposed();
+        var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiDiarizeInfo);
+        return StackAllocHelper.RunWithBuffer(size, ptr =>
+        {
+            NativeMethods.DiarizeInfoInit(ptr);
+            var status = NativeMethods.DiarizeGetInfo(handle, ptr);
+            if (status != Status.Ok)
+            {
+                throw new TranscribeException(status, nameof(NativeMethods.DiarizeGetInfo));
+            }
+
+            var info = Marshal.PtrToStructure<Interop.DiarizeInfo>(ptr);
+            return new DiarizeSession.DiarizeInfo(info.sampleRate, info.maxSpeakers);
+        });
+    }
+
+    /// <summary>Create a language-identification session from this model.</summary>
+    public LangIdSession CreateLangIdSession(Action<LangIdSessionParamsBuilder>? configure = null)
+    {
+        ThrowIfDisposed();
+        return LangIdSession.Create(handle, this, configure);
+    }
+
+    /// <summary>
+    /// Facts about the model as a language identifier. Throws a
+    /// <see cref="TranscribeException"/> with <see cref="Status.ErrUnsupportedRole"/>
+    /// when the model does not serve <see cref="TranscribeRole.Langid"/>.
+    /// </summary>
+    public LangIdSession.LangIdInfo GetLangIdInfo()
+    {
+        ThrowIfDisposed();
+        var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiLangidInfo);
+        return StackAllocHelper.RunWithBuffer(size, ptr =>
+        {
+            NativeMethods.LangidInfoInit(ptr);
+            var status = NativeMethods.LangidGetInfo(handle, ptr);
+            if (status != Status.Ok)
+            {
+                throw new TranscribeException(status, nameof(NativeMethods.LangidGetInfo));
+            }
+
+            var info = Marshal.PtrToStructure<LangidInfo>(ptr);
+            return new LangIdSession.LangIdInfo(info.sampleRate, info.nLabels, info.minAudioMs, info.maxAudioMs);
+        });
+    }
+
+    /// <summary>Language code of label <paramref name="index"/>, or null when out of range.</summary>
+    public string? GetLangIdLabelCode(int index)
+    {
+        ThrowIfDisposed();
+        var ptr = NativeMethods.LangidLabelCode(handle, index);
+        return ptr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(ptr);
+    }
+
+    /// <summary>Human-readable name of label <paramref name="index"/>, or null when out of range.</summary>
+    public string? GetLangIdLabelName(int index)
+    {
+        ThrowIfDisposed();
+        var ptr = NativeMethods.LangidLabelName(handle, index);
+        return ptr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(ptr);
+    }
+
+    /// <summary>Index of the label for a code or alias, or a negative value when unknown.</summary>
+    public int GetLangIdLabelIndex(string codeOrAlias)
+        => NativeMethods.LangidLabelIndex(handle, codeOrAlias);
+
+    /// <summary>Create a voice-activity-detection session from this model.</summary>
+    public VadSession CreateVadSession(Action<VadSessionParamsBuilder>? configure = null)
+    {
+        ThrowIfDisposed();
+        return VadSession.Create(handle, this, configure);
+    }
+
+    /// <summary>
+    /// Facts about the model as a voice-activity detector. Throws a
+    /// <see cref="TranscribeException"/> with <see cref="Status.ErrUnsupportedRole"/>
+    /// when the model does not serve <see cref="TranscribeRole.Vad"/>.
+    /// </summary>
+    public VadSession.VadInfo GetVadInfo()
+    {
+        ThrowIfDisposed();
+        var size = (int)NativeMethods.AbiStructSize(AbiStruct.AbiVadInfo);
+        return StackAllocHelper.RunWithBuffer(size, ptr =>
+        {
+            NativeMethods.VadInfoInit(ptr);
+            var status = NativeMethods.VadGetInfo(handle, ptr);
+            if (status != Status.Ok)
+            {
+                throw new TranscribeException(status, nameof(NativeMethods.VadGetInfo));
+            }
+
+            var info = Marshal.PtrToStructure<Interop.VadInfo>(ptr);
+            return new VadSession.VadInfo(info.sampleRate, info.frameSamples);
+        });
+    }
+
+    /// <summary>
     /// Query a metadata string from the loaded model.
     /// The returned string is a snapshot copy — safe to keep after the call.
     /// The native pointer is borrowed from the model and must not be freed.

@@ -39,6 +39,32 @@ public partial class CHeaderDoc
         return new CHeaderDoc(sb.ToString());
     }
 
+    /// <summary>
+    /// Loads every upstream header under <paramref name="directory"/>:
+    /// <c>transcribe.h</c> plus the <c>transcribe/*.h</c> sub-headers, in a
+    /// deterministic order. Returns null when the directory has no header. This
+    /// is the layout <c>scripts/regenerate-bindings.sh</c> vendors into
+    /// <c>ffi/c/</c>, and the single place the pipeline and the golden test
+    /// agree on which headers make up the public surface.
+    /// </summary>
+    public static CHeaderDoc? FromDirectory(string directory)
+    {
+        var paths = new List<string>();
+        var rootHeader = Path.Combine(directory, "transcribe.h");
+        if (File.Exists(rootHeader))
+        {
+            paths.Add(rootHeader);
+        }
+
+        var subHeaderDir = Path.Combine(directory, "transcribe");
+        if (Directory.Exists(subHeaderDir))
+        {
+            paths.AddRange(Directory.GetFiles(subHeaderDir, "*.h").OrderBy(p => p, StringComparer.Ordinal));
+        }
+
+        return paths.Count == 0 ? null : FromFiles(paths);
+    }
+
     // ── Lookup API ─────────────────────────────────────────────────
 
     /// <summary>

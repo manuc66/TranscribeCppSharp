@@ -92,14 +92,6 @@
                          ToolTip.Tip="Milliseconds of not-yet-spoken audio included as right context, at the cost of latency." />
         </Grid>
 
-        <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowSortformerExtensions}">
-          <TextBlock Grid.Column="0" Text="Sortformer preset" VerticalAlignment="Center"
-                     ToolTip.Tip="Latency against quality, as named by the upstream preset. Higher latency is the more accurate end. The numeric values are the upstream preset ids; no measurement of the trade-off is included here." />
-          <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableSortformerPresets}" SelectedItem="{Binding SelectedSortformerPreset}" HorizontalAlignment="Stretch"
-                    AutomationProperties.AutomationId="streaming-sortformer-preset"
-                    AutomationProperties.Name="Sortformer preset" />
-        </Grid>
-
         <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowVoxtralExtensions}">
           <TextBlock Grid.Column="0" Text="Voxtral delay tokens" VerticalAlignment="Center"
                      ToolTip.Tip="Number of delay tokens the Voxtral realtime stream allows before producing text. Not measured here." />

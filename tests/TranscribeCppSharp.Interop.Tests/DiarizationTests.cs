@@ -61,7 +61,7 @@ public class DiarizationTests
         // Documented limit, asserted so it is noticed if the upstream surface
         // ever gains a stream-level toggle: transcribe_stream_params has no
         // diarize field, so speaker attribution is not available through the
-        // streaming API in transcribe.cpp v0.3.0.
+        // streaming API in transcribe.cpp v0.4.0.
         Assert.Null(BuilderAcceptingDiarize<StreamParamsBuilder>());
         Assert.Null(BuilderAcceptingDiarize<SessionParamsBuilder>());
         Assert.NotNull(BuilderAcceptingDiarize<RunParamsBuilder>());
