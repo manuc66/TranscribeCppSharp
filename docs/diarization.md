@@ -67,14 +67,23 @@ What you get on a model that cannot: the upstream logs a warning and proceeds
 with the model's default behavior — no exception, and every `SpeakerId` is 0.
 Passing a non-DEFAULT mode to such a model is accepted, not rejected.
 
-## Not available: streaming
+## Diarization models and the DIARIZE role
 
-`transcribe_stream_params` has no `diarize` field in transcribe.cpp v0.3.0, so
-the streaming API cannot request speaker attribution; we do not invent one. The
-alias list does contain a streaming diarization model
-(`diar_streaming_sortformer_4spk-v2.1`, whose stream extension the wrapper
-exposes), but we have not verified what its stream results contain, and the
-native stream result carries no speaker rows we can read.
+transcribe.cpp 0.4 gives diarization a **role** of its own: a model whose product
+is speaker turns (Sortformer) serves `TranscribeRole.Diarize`, not
+`TranscribeRole.Asr`, and no longer runs through the ASR session.
+`Model.CreateSession` on such a model throws with `UNSUPPORTED_ROLE`; use
+`Model.CreateDiarizeSession`, passing `SortformerDiarizeExtBuilder` for the
+latency/quality preset. `Model.Roles` tells you which a model is before you try.
+
+The speaker-attributing **ASR** models (MOSS, granite, multitalker parakeet) are
+unchanged: they still attribute speakers through the run-time toggle above.
+
+There is **no streaming diarization**: upstream has no stream entry point for the
+DIARIZE role, and the streaming Sortformer extension that existed in 0.3 was
+removed in 0.4. `transcribe_stream_params` has no `diarize` field in transcribe.cpp
+v0.4.0 either, so the streaming API cannot request speaker attribution; we do not
+invent one.
 
 ## What is verified, and what CI does not run
 

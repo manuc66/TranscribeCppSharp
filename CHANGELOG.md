@@ -9,6 +9,78 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Bind transcribe.cpp v0.4.0 (roles; diarize/langid/vad; backend allowlist)
+
+The pinned upstream version moves from v0.3.0 to v0.4.0 (released 2026-10-12;
+v0.3.1 in between was a small release). Everything below is upstream's work; this
+change re-binds the wrapper to their release, regenerates the P/Invoke surface,
+and migrates the wrapper for the behaviour that changed. The wrapper's own version
+moves to `0.4.0` too, because the C# API changes are breaking.
+
+Native ABI, verified by diffing the two public headers:
+
+- **Additive at the symbol level**: no function removed, no existing enum value
+  changed, and only one new public struct (`transcribe_backend_init_params`).
+  Four new functions (`transcribe_model_roles`, `transcribe_allowed_backends`,
+  `transcribe_init_backends_ex`, `transcribe_backend_init_params_init`) and 21 new
+  enum constants.
+- One **removal**: `transcribe_sortformer_stream_ext` and its struct
+  `SortformerStreamExt` are gone (the Sortformer preset moved to
+  `transcribe_diarize_params`, the DIARIZE_RUN extension slot).
+
+Upstream 0.4 introduces **roles**: a model serves one or more of ASR, DIARIZE,
+LANGID and VAD, fixed at load. What that means for this wrapper:
+
+- `TranscribeRole` and `Model.Roles` (`transcribe_model_roles`).
+- **Diarization is a role of its own.** A Sortformer model no longer runs through
+  the ASR session — `Model.CreateSession` throws `UNSUPPORTED_ROLE` — and there is
+  no streaming diarization. New offline `DiarizeSession` (with
+  `SortformerDiarizeExtBuilder` for the preset). The old
+  `SortformerStreamExtBuilder` and `StreamParamsBuilder.WithSortformerExt` are
+  removed, and the desktop app's streaming "Sortformer preset" control with them.
+- **New `LangIdSession` and `VadSession`** (`Model.CreateLangIdSession` /
+  `CreateVadSession`), with their parameter builders and result records.
+- **Capabilities are ASR-only.** `Model.GetCapabilities` now throws
+  `UNSUPPORTED_ROLE` on a model without the ASR role instead of returning a zeroed
+  struct; the UI capability probe reads `Roles` first.
+- **Backend allowlist**: `BackendMask`, `Backends.InitDefault(BackendMask)`,
+  `Backends.Init(dir, BackendMask)`, `Backends.AllowedBackends`.
+- New status codes **20** (`UNSUPPORTED_ROLE`) and **21** (`INPUT_TOO_SHORT`).
+  They flow through `TranscribeException` via the native status string.
+- Behaviour changes that need no wrapper work but are worth knowing: non-finite
+  audio (NaN/±Inf) is rejected with `INVALID_ARG`, a stream whose family hook
+  throws now ends `FAILED`, and host thread-pool failures return an error instead
+  of terminating the process.
+
+Tooling and pin:
+
+- `scripts/regenerate-bindings.sh` now vendors and parses `include/transcribe/*.h`
+  as well as the root header (`CHeaderDoc.FromDirectory`). The root header does
+  not include the sub-headers, so extension, VAD, LANGID and diarize functions
+  were generated without their doc comments; the golden test now uses the same
+  header set.
+- The generator maps a pointer return to `IntPtr`: 0.4's `transcribe_vad_probs`
+  returns `const float *`, which mapped to `ReadOnlySpan<float>` as a return and
+  failed to build (SYSLIB1051). Regenerating at v0.3.0 is byte-identical.
+- `FetchNative --update-hashes` merges into `build/native-sha256.json` instead of
+  overwriting it, so older versions keep their checksums.
+- Catalog re-pinned to v0.4.0: 76 records (4 new: `parakeet-ultra`, `orukeet`,
+  `silero-vad-v6.2`, `lang-id-voxlingua107-ecapa`). The CLI's curated
+  `models.json` stays at its 72 aliases; the 4 new records are not curated into it
+  yet, so `transcribe --list` is unchanged.
+
+Verified: full solution builds; 544 Interop and 79 UI tests pass against the 0.4.0
+native library (83.6% total line coverage). The three new sessions are exercised
+end to end against the real weights — Silero VAD v6.2 (1.2 MB), VoxLingua107
+ECAPA-TDNN Q8_0 (27 MB) and Sortformer Q8_0 (139 MB) — which
+`scripts/run-integration-tests.sh` now fetches, each pinned to a HuggingFace
+revision and verified by sha256. `VadSessionTests`, `LangIdSessionTests` and
+`DiarizeSessionTests` cover the role check, info, run, streaming, timings,
+disposal, non-finite-audio rejection and mid-run cancellation. The added code is
+at 98% line coverage; the remainder is defensive `throw`s on native getters that
+a healthy session never returns non-OK from (unreachable without fault injection).
+New page: [docs/roles.md](docs/roles.md).
+
 ### Desktop app: an Avalonia GUI over the wrapper
 
 `src/TranscribeCppSharp.Ui` is a five-tab desktop app (Transcription, Streaming,

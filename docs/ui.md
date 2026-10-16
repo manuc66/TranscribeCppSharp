@@ -127,8 +127,7 @@ prefix needs before it is committed.
 
 Family extensions appear only for a model that both streams and has the matching extension
 builder: a decode interval for Moonshine, buffered-streaming context and attention for
-Parakeet, a latency/quality preset for Sortformer, delay tokens and a decode interval for
-Voxtral.
+Parakeet, delay tokens and a decode interval for Voxtral.
 
 Read [Real-time streaming](streaming.md) and [Streaming benchmarks](streaming-bench.md)
 before relying on this tab. In short, and unchanged by the GUI: the model default does not
@@ -282,8 +281,8 @@ Capabilities are cached per alias for the session.
   documentation disagree, the documentation is describing the code and the app is the thing
   that is wrong.
 - **It cannot attribute speakers while streaming.** `transcribe_stream_params` has no
-  `diarize` field in transcribe.cpp v0.3.0, so the streaming API cannot request it
-  ([Diarization](diarization.md#not-available-streaming)). The Speakers tab belongs to the
+  `diarize` field in transcribe.cpp v0.4.0, so the streaming API cannot request it
+  ([Diarization](diarization.md#diarization-models-and-the-diarize-role)). The Speakers tab belongs to the
   Transcription tab, which runs offline.
 - **It does not time models for you against published numbers.** `Measure` runs on your
   machine, over your audio.

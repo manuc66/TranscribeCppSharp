@@ -96,7 +96,7 @@ var text = stream.GetCurrentText();
 <!-- @end streaming-transcription -->
 
 Streaming cannot request speaker attribution — the reason is in
-[Speaker diarization](diarization.md#not-available-streaming).
+[Speaker diarization](diarization.md#diarization-models-and-the-diarize-role).
 
 ## Model capabilities
 
