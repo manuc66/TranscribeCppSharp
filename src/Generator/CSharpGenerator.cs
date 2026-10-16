@@ -393,9 +393,15 @@ public class CSharpGenerator
             WriteXmlDoc(sb, doc, "    ");
         }
 
-        // Determine return type — borrowed string pointers return IntPtr
-        var isBorrowedStringReturn = fn.ReturnType is PointerType(_, PrimitiveType(CharType));
-        var retCsType = isBorrowedStringReturn ? TypeIntPtr : MapParamType(fn.ReturnType);
+        // Any pointer return is a borrowed pointer: native owns the storage and
+        // the length comes from a separate accessor (or the string is
+        // NUL-terminated). LibraryImport cannot marshal a returned pointer
+        // without a size, so surface it as IntPtr and let the caller pin it --
+        // this is why e.g. `const float * transcribe_vad_probs(...)` must not be
+        // mapped to ReadOnlySpan<float> (that mapping is only valid for
+        // parameters, where the source generator can auto-pin).
+        var isPointerReturn = fn.ReturnType is PointerType;
+        var retCsType = isPointerReturn ? TypeIntPtr : MapParamType(fn.ReturnType);
 
         sb.AppendLine(InvariantCulture, $"    [LibraryImport(LibName, EntryPoint = \"{fn.Name}\", StringMarshalling = StringMarshalling.Utf8)]");
 
