@@ -81,6 +81,56 @@ else
     echo "Skipping diarization model (set WITH_DIARIZATION_MODEL=1 to fetch it)"
 fi
 
+# The three role models (VAD, LANGID, DIARIZE) are small enough to fetch
+# unconditionally, so the VadSession / LangIdSession / DiarizeSession tests run
+# in CI instead of skipping — that is what gives those code paths their
+# coverage. Each is pinned to a HuggingFace revision and verified by sha256, so
+# a re-upload cannot silently change what the tests run against.
+sha256_of() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+    else
+        shasum -a 256 "$1" | awk '{print $1}'
+    fi
+}
+
+fetch_verified() {
+    local url="$1" dest="$2" want="$3" label="$4"
+    if [[ -f "$dest" ]] && [[ "$(sha256_of "$dest")" == "$want" ]]; then
+        echo "$label already present and verified"
+        return
+    fi
+    echo "Downloading $label..."
+    curl -fSL --proto "$CURL_PROTO" --proto-redir "$CURL_PROTO" -o "$dest.tmp" "$url"
+    local got
+    got="$(sha256_of "$dest.tmp")"
+    if [[ "$got" != "$want" ]]; then
+        echo "Error: checksum mismatch for $label: expected $want, got $got" >&2
+        rm -f "$dest.tmp"
+        exit 1
+    fi
+    mv "$dest.tmp" "$dest"
+    echo "$label downloaded to $dest"
+}
+
+fetch_verified \
+    "https://huggingface.co/handy-computer/silero-vad-v6.2-gguf/resolve/a9b2d61c20ae4ddf3644edb34969e8185a485448/silero-vad-v6.2-F32.gguf" \
+    "$MODEL_DIR/silero-vad-v6.2-F32.gguf" \
+    "0d871a800c420fdd5d1b17a3aea4296d1c39608f0ff4a9295eb76457eb1c88e6" \
+    "Silero VAD v6.2 (~1.2 MB)"
+
+fetch_verified \
+    "https://huggingface.co/handy-computer/lang-id-voxlingua107-ecapa-gguf/resolve/e59f0f3847e77723b7d58447ef9456fa0c7e9436/lang-id-voxlingua107-ecapa-Q8_0.gguf" \
+    "$MODEL_DIR/lang-id-voxlingua107-ecapa-Q8_0.gguf" \
+    "063e6cb0af3d53085fc7d68356dfde5ecee2ffa7bc79855f7e4ff930081bfe3a" \
+    "VoxLingua107 ECAPA-TDNN Q8_0 (~27 MB)"
+
+fetch_verified \
+    "https://huggingface.co/handy-computer/diar_streaming_sortformer_4spk-v2.1-gguf/resolve/ae4afbb5c3d33b71cf2dbf600022b655ee706dd0/diar_streaming_sortformer_4spk-v2.1-Q8_0.gguf" \
+    "$MODEL_DIR/diar_streaming_sortformer_4spk-v2.1-Q8_0.gguf" \
+    "a5dacdc650790266c7a362e54e6bf51952015487edaa606c4e11632bc32442a9" \
+    "Sortformer diarizer Q8_0 (~139 MB)"
+
 # Set library path for native library (the CopyNativeLib target also places the
 # libs in the app output dir, which the DllImportResolver checks first; these env
 # vars are a belt-and-braces fallback and are only meaningful on Unix).

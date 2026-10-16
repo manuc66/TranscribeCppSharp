@@ -1028,6 +1028,43 @@ public class HighLevelApiTests : IDisposable
         Assert.Null(Backends.GetDeviceInfo(IntPtr.Zero));
     }
 
+    [Fact]
+    public void Backends_InitWithAllowlist_ReportsTheMask()
+    {
+        // Exercises the 0.4 allowlist path (transcribe_init_backends_ex). Upstream
+        // fixes the mask at the first registration and returns ERR_BACKEND for a
+        // later call with a *different* mask, so this test stays on ALL — the
+        // default the rest of the suite already fixed.
+        Backends.InitDefault(BackendMask.All);
+        Assert.Equal(BackendMask.All, Backends.AllowedBackends);
+
+        // The artifact-directory overload with a mask. The output directory is
+        // where the native libraries live — the same dir
+        // Backends_Init_WithArtifactDir_ShouldNotThrow uses.
+        string artifactDir = Path.GetDirectoryName(typeof(HighLevelApiTests).Assembly.Location)!;
+        Backends.Init(artifactDir, BackendMask.All);
+        Assert.Equal(BackendMask.All, Backends.AllowedBackends);
+    }
+
+    [Fact]
+    public void Backends_InitWithADifferentMaskAfterRegistration_ThrowsBackendError()
+    {
+        // Upstream fixes the mask at the first registration and returns
+        // ERR_BACKEND for a later call with a different effective mask. With ALL
+        // fixed first, requesting CPU is a different mask and must be refused —
+        // the wrapper surfaces that as TranscribeException(ErrBackend). Guarded on
+        // the effective mask being ALL, which is the case unless a host narrowed
+        // it with TRANSCRIBE_BACKENDS.
+        Backends.InitDefault(BackendMask.All);
+        if (Backends.AllowedBackends != BackendMask.All)
+        {
+            return;
+        }
+
+        var ex = Assert.Throws<TranscribeException>(() => Backends.InitDefault(BackendMask.Cpu));
+        Assert.Equal(Status.ErrBackend, ex.StatusCode);
+    }
+
     [SkippableFact]
     public void Model_Supports_Diarization_Whisper_ShouldBeFalse()
     {

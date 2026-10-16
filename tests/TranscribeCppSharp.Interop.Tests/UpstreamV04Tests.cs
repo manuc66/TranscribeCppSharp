@@ -164,4 +164,19 @@ public class UpstreamV04Tests
         var ex = Assert.Throws<TranscribeException>(() => model.CreateDiarizeSession());
         Assert.Equal(Status.ErrUnsupportedRole, ex.StatusCode);
     }
+
+    [SkippableFact]
+    public void Whisper_CreateLangIdAndVadSessions_FailWithUnsupportedRole()
+    {
+        Skip.IfNot(IsIntegrationEnv, "Integration test assets not present.");
+
+        using var model = Model.Load(TestConfig.ModelPath, p => p.WithBackend(BackendRequest.BackendCpu));
+
+        Assert.Equal(
+            Status.ErrUnsupportedRole,
+            Assert.Throws<TranscribeException>(() => model.CreateLangIdSession()).StatusCode);
+        Assert.Equal(
+            Status.ErrUnsupportedRole,
+            Assert.Throws<TranscribeException>(() => model.CreateVadSession()).StatusCode);
+    }
 }
