@@ -110,7 +110,12 @@ extension you type; the formats themselves are the same as
 
 ![The Streaming tab.]({{ '/assets/images/ui-streaming.png' | relative_url }})
 
-Transcribes the microphone live, at 16 kHz mono 16-bit PCM.
+Transcribes the microphone live, at 16 kHz mono 16-bit PCM. The audio is captured by
+`ffmpeg`, which must be on `PATH` — the same requirement as decoding a non-WAV file. It opens
+the system input on Linux (PulseAudio) and macOS (AVFoundation); Windows DirectShow has no
+default input, so set `TRANSCRIBE_MIC_DEVICE` to a device name
+(`ffmpeg -f dshow -list_devices true -i ""` lists them). `TRANSCRIBE_MIC_FORMAT` and
+`TRANSCRIBE_MIC_DEVICE` override the default on every platform.
 
 The two text areas are the point of the layout. **Committed** text, on the left, is final.
 **Tentative** text, on the right and in italics, is what the model would say so far and may
