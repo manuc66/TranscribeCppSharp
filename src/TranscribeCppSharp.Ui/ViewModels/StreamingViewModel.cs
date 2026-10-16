@@ -227,8 +227,12 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         try
         {
             string path = ModelStore.CachedPath(descriptor);
+            // CancellationToken.None: the probe is not cancellable. Model.Load
+            // takes no token, so there is nothing to cancel, and this probe is
+            // not part of the streaming scope that _cts governs. Same explicit
+            // opt-out as the download and benchmark Task.Run calls.
             ModelCapabilitySnapshot snapshot = await System.Threading.Tasks.Task.Run(
-                () => ModelCapabilityProbe.Probe(path)).ConfigureAwait(true);
+                () => ModelCapabilityProbe.Probe(path), CancellationToken.None).ConfigureAwait(true);
 
             _capabilityCache[alias] = snapshot;
             if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
