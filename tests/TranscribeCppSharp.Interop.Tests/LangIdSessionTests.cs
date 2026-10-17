@@ -188,8 +188,8 @@ public class LangIdSessionTests
         using var model = LoadLangId();
         using var langid = model.CreateLangIdSession();
 
-        // Enough audio that the native run polls the abort callback after the
-        // token fires; a 2 ms timeout makes that reliable.
+        // Enough audio that the native run keeps going long enough to poll the
+        // abort callback after the token fires (measured ~0.6 s here).
         float[] one = Pcm();
         var longPcm = new float[one.Length * 50];
         for (int i = 0; i < 50; i++)
@@ -197,7 +197,10 @@ public class LangIdSessionTests
             one.CopyTo(longPcm, i * one.Length);
         }
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(2));
-        Assert.Throws<OperationCanceledException>(() => langid.Run(longPcm, ct: cts.Token));
+        // Cancelled from a dedicated thread, not a thread-pool timer: a loaded CI
+        // can starve the timer callback past the end of the run. See
+        // MidRunCancellation.
+        using var cancel = new MidRunCancellation(TimeSpan.FromMilliseconds(10));
+        Assert.Throws<OperationCanceledException>(() => langid.Run(longPcm, ct: cancel.Token));
     }
 }

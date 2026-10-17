@@ -197,8 +197,9 @@ public class DiarizeSessionTests
         using var model = LoadSortformer();
         using var diarize = model.CreateDiarizeSession();
 
-        // Enough audio that the native run polls the abort callback after the
-        // token fires; a 2 ms timeout makes that reliable.
+        // Enough audio that the native run keeps going long enough to poll the
+        // abort callback after the token fires (diarization runs whole, so this
+        // is the slowest of the three).
         float[] one = Pcm();
         var longPcm = new float[one.Length * 20];
         for (int i = 0; i < 20; i++)
@@ -206,7 +207,10 @@ public class DiarizeSessionTests
             one.CopyTo(longPcm, i * one.Length);
         }
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(2));
-        Assert.Throws<OperationCanceledException>(() => diarize.Run(longPcm, ct: cts.Token));
+        // Cancelled from a dedicated thread, not a thread-pool timer: a loaded CI
+        // can starve the timer callback past the end of the run. See
+        // MidRunCancellation.
+        using var cancel = new MidRunCancellation(TimeSpan.FromMilliseconds(10));
+        Assert.Throws<OperationCanceledException>(() => diarize.Run(longPcm, ct: cancel.Token));
     }
 }
