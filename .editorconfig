@@ -35,7 +35,14 @@ csharp_space_between_method_call_parameter_list_parentheses = false
 # PascalCase for methods, properties and events whatever their accessibility, so
 # those kinds are deliberately not listed here (a private method such as
 # VadSession.ReadProbabilities must stay PascalCase).
-dotnet_naming_rule.private_fields_should_be_camel_case.severity = warning
+#
+# The severity below only drives the IDE (squiggle + rename suggestion): csc
+# reports no diagnostic for a naming rule during a build, whatever this severity
+# or EnforceCodeStyleInBuild says. Verified — setting this to error changes
+# nothing, while dotnet_diagnostic.IDE1006.severity = error does make the build
+# report it. The build-time gate for private field naming in the libraries is
+# StyleCop SA1306 (which, like this rule, leaves static readonly fields alone).
+dotnet_naming_rule.private_fields_should_be_camel_case.severity = suggestion
 dotnet_naming_rule.private_fields_should_be_camel_case.symbols = private_fields
 dotnet_naming_rule.private_fields_should_be_camel_case.style = camel_case_style
 dotnet_naming_symbols.private_fields.applicable_kinds = field
