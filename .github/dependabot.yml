@@ -21,3 +21,13 @@ updates:
       avalonia:
         patterns:
           - "Avalonia*"
+    ignore:
+      # Avalonia.Headless.XUnit (12.1.4, the latest) still depends on
+      # xunit.v3.extensibility.core 3.2.2. Moving to xunit.v3 4.x makes its
+      # discoverer throw MissingMethodException for every [AvaloniaFact] and
+      # drops the VSTest target `dotnet test` uses here, which turns the whole
+      # UI.Tests project red in CI (this is what 4.0.2 did, PR #25). Lift this
+      # together with the pinned version in tests/TranscribeCppSharp.UI.Tests,
+      # once Avalonia ships a Headless.XUnit on xunit.v3 4.x.
+      - dependency-name: "xunit.v3"
+        versions: ["4.x"]

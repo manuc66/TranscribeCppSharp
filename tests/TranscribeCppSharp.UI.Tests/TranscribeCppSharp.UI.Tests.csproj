@@ -7,7 +7,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <!-- Avalonia.Headless.XUnit 12.1.3 depends on xunit.v3.extensibility.core
+    <!-- Avalonia.Headless.XUnit 12.1.4 depends on xunit.v3.extensibility.core
          3.2.2, so this suite is xUnit v3, unlike the interop suite which is
          still xUnit v2. The two projects are separate; neither references the
          other. xUnit v3 test assemblies are executables. -->
@@ -18,7 +18,18 @@
        the visual tree comes from a different build than the one under test. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <!-- 3.2.2, not 4.x: Avalonia.Headless.XUnit (12.1.4, the latest) depends on
+         xunit.v3.extensibility.core 3.2.2. With xunit.v3 4.x its discoverer
+         throws MissingMethodException for every [AvaloniaFact], so the whole UI
+         view-model suite fails in CI — and xunit.v3 4.x drops the VSTest target
+         that `dotnet test` uses here, which fails the run even earlier
+         ("Testing with VSTest target is no longer supported by
+         Microsoft.Testing.Platform on .NET 10 SDK and later").
+         .github/dependabot.yml ignores xunit.v3 4.x for the same reason; undo
+         both together, once Avalonia ships a Headless.XUnit built on xunit.v3
+         4.x, and re-check the [AvaloniaFact] classes then. 3.2.2 is what this
+         project had when CI was last green. -->
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
