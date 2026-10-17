@@ -21,8 +21,7 @@
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto,Auto">
 
     <!-- What to look for, and where the weights are -->
-    <Border Grid.Row="0" Padding="10" Margin="0,0,0,8"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+    <Border Grid.Row="0" Classes="card" Margin="0,0,0,8"
             ToolTip.Tip="72 models are published by the transcribe.cpp authors. This project publishes no accuracy comparison between them, so there is nothing here to rank them by. Pick on size, licence, or measure the ones you have.">
       <TextBlock TextWrapping="Wrap"
                  Text="No model is faster or more accurate than another as far as this project has measured: docs/streaming-bench.md is the only benchmark and it covers Moonshine streaming only. Start with the model marked 'default' if you have no reason not to, then narrow by size or licence. A model is fetched on first use and cached." />
@@ -118,7 +117,7 @@
               AutomationProperties.Name="Sort by speed"
               ToolTip.Tip="Order by the timing measured on this machine. Click again to reverse it. Models that were never measured cannot be placed in a speed order, so they stay at the bottom in name order." />
 
-      <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
+      <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" Classes="hint"
                  Text="{Binding SortDescription}" />
 
       <Button Margin="12,0,0,0"
@@ -152,14 +151,14 @@
 
     <!-- What the filters are doing, said out loud -->
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,8">
-      <TextBlock Grid.Column="0" Text="{Binding ActiveFilterSummary}" FontSize="11" Opacity="0.75"
-                 TextWrapping="Wrap" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="0" Text="{Binding ActiveFilterSummary}" Classes="hint"
+                 VerticalAlignment="Center" />
 
-      <TextBlock Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
+      <TextBlock Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Classes="hint"
                  Text="{Binding DownloadedCount, StringFormat='{}{0} downloaded'}" />
-      <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
+      <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center" Classes="hint"
                  Text="{Binding CacheSizeText, StringFormat='{}{0} on disk'}" />
-      <TextBlock Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Opacity="0.75"
+      <TextBlock Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" Classes="hint"
                  Text="{Binding CacheRoot, StringFormat='cached in {0}'}" />
     </Grid>
 
@@ -272,8 +271,8 @@
     <!-- Detail of the selected model -->
     <Border Grid.Row="5"
             IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNotNull}}"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            Padding="10" Margin="0,8,0,0"
+            Classes="card"
+            Margin="0,8,0,0"
             AutomationProperties.AutomationId="models-detail"
             AutomationProperties.Name="Selected model details">
       <ScrollViewer>
@@ -323,7 +322,7 @@
 
           <TextBlock Text="Non-commercial licence: check the terms before any commercial use."
                      IsVisible="{Binding IsNonCommercialLicense}"
-                     Foreground="#CC4444" Margin="0,4,0,0" TextWrapping="Wrap" />
+                     Classes="danger" Margin="0,4,0,0" />
         </StackPanel>
       </ScrollViewer>
     </Border>
@@ -336,6 +335,7 @@
               AutomationProperties.Name="Refresh"
               ToolTip.Tip="Re-read the cache, to pick up a model downloaded by the transcribe CLI or added by hand." />
       <Button Content="Delete all downloaded"
+              Classes="danger"
               Command="{Binding DeleteAllCommand}"
               IsEnabled="{Binding !IsBusy}"
               Margin="8,0,0,0"
