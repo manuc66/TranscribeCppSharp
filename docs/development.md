@@ -31,7 +31,7 @@ dotnet run --project samples/SmokeTest -- model.gguf audio.wav
 dotnet run --project src/TranscribeCppSharp.Cli -- audio.ogg
 
 # Regenerate the desktop-app screenshots in docs/assets/images/ui-*.png
-dotnet run --project samples/UiScreenshot
+dotnet run --project samples/UIScreenshot
 ```
 
 Every command above needs `tools/FetchNative` to have run first, so the native

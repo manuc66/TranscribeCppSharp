@@ -40,7 +40,7 @@ Every option, the export formats and what the tool does not do:
 
 ## Or use the desktop app
 
-`TranscribeCppSharp.Ui` is an Avalonia GUI over the same wrapper: five tabs for
+`TranscribeCppSharp.UI` is an Avalonia GUI over the same wrapper: five tabs for
 transcribing a file, streaming the microphone, a batch, the model catalogue and the
 compute settings. Each [release](https://github.com/manuc66/TranscribeCppSharp/releases)
 attaches a self-contained archive per platform (no NuGet package); you can also run it
@@ -48,7 +48,7 @@ from a clone:
 
 ```bash
 dotnet run --project tools/FetchNative            # once: the native library the app loads
-dotnet run --project src/TranscribeCppSharp.Ui
+dotnet run --project src/TranscribeCppSharp.UI
 ```
 
 ![The Transcription tab: an audio path, a model, the language and the decoder settings, with Transcribe and Export below.]({{ '/assets/images/ui-transcription.png' | relative_url }})

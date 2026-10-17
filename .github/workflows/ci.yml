@@ -390,9 +390,9 @@ jobs:
           version="${{ needs.get-version.outputs.wrapper-version }}"
           mkdir -p ui-zips
           for rid in win-x64 linux-x64 linux-arm64 osx-arm64 osx-x64; do
-            dotnet publish src/TranscribeCppSharp.Ui -c Release -r "$rid" --self-contained true \
+            dotnet publish src/TranscribeCppSharp.UI -c Release -r "$rid" --self-contained true \
               -o "publish/$rid" /p:Version="$version"
-            (cd publish && zip -rq "$GITHUB_WORKSPACE/ui-zips/TranscribeCppSharp.Ui-$version-$rid.zip" "$rid")
+            (cd publish && zip -rq "$GITHUB_WORKSPACE/ui-zips/TranscribeCppSharp.UI-$version-$rid.zip" "$rid")
           done
 
       - uses: actions/upload-artifact@v7

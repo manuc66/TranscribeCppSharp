@@ -3,18 +3,18 @@
     <Project Path="src/Generator/Generator.csproj" />
     <Project Path="src/TranscribeCppSharp/TranscribeCppSharp.csproj" />
     <Project Path="src/TranscribeCppSharp.Cli/TranscribeCppSharp.Cli.csproj" />
-    <Project Path="src/TranscribeCppSharp.Ui/TranscribeCppSharp.Ui.csproj" />
+    <Project Path="src/TranscribeCppSharp.UI/TranscribeCppSharp.UI.csproj" />
   </Folder>
   <Folder Name="/generated/">
     <Project Path="generated/TranscribeCppSharp.Interop/TranscribeCppSharp.Interop.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TranscribeCppSharp.Interop.Tests/TranscribeCppSharp.Interop.Tests.csproj" />
-    <Project Path="tests/TranscribeCppSharp.Ui.Tests/TranscribeCppSharp.Ui.Tests.csproj" />
+    <Project Path="tests/TranscribeCppSharp.UI.Tests/TranscribeCppSharp.UI.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SmokeTest/SmokeTest.csproj" />
     <Project Path="samples/StreamingBench/StreamingBench.csproj" />
-    <Project Path="samples/UiScreenshot/UiScreenshot.csproj" />
+    <Project Path="samples/UIScreenshot/UIScreenshot.csproj" />
   </Folder>
 </Solution>

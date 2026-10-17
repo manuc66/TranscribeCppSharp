@@ -5,7 +5,7 @@ nav_order: 15
 
 # Desktop app
 
-`TranscribeCppSharp.Ui` is an [Avalonia](https://avaloniaui.net/) app on .NET 10 that drives
+`TranscribeCppSharp.UI` is an [Avalonia](https://avaloniaui.net/) app on .NET 10 that drives
 the same wrapper and the same native library as the [command-line tool](cli.md). It adds no
 transcription logic of its own, so every limit documented on the other pages — the
 [thread-safety rule](concurrency.md#thread-safety), the [streaming abort](streaming-bench.md),
@@ -14,7 +14,7 @@ the [missing CUDA runtime](compute.md#using-cuda) — applies to it unchanged.
 ## Running it
 
 Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a
-self-contained archive per platform — `TranscribeCppSharp.Ui-<version>-<rid>.zip` for
+self-contained archive per platform — `TranscribeCppSharp.UI-<version>-<rid>.zip` for
 `win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` and `osx-x64`. Unzip it and run the
 executable: it carries the .NET runtime and the matching native transcribe.cpp build, so
 no SDK is needed. It carries the project licence and the upstream component licences under
@@ -24,7 +24,7 @@ no SDK is needed. It carries the project licence and the upstream component lice
   and macOS Gatekeeper will warn or refuse on first launch.
 - **No `.app` bundle on macOS.** The archive is a bare executable (no `Info.plist`), so Finder
   gives it no Dock name and Gatekeeper quarantines it like any unsigned download; clear it
-  with `xattr -dr com.apple.quarantine TranscribeCppSharp.Ui` if it refuses to run.
+  with `xattr -dr com.apple.quarantine TranscribeCppSharp.UI` if it refuses to run.
 - **No `ffmpeg`.** The app still needs it on `PATH` for any non-WAV input and for the
   microphone ([Audio input](audio-input.md)).
 
@@ -32,7 +32,7 @@ To run from a clone instead, fetch the native libraries once and then start it:
 
 ```bash
 dotnet run --project tools/FetchNative
-dotnet run --project src/TranscribeCppSharp.Ui
+dotnet run --project src/TranscribeCppSharp.UI
 ```
 
 `FetchNative` is the same prerequisite the CLI has. The project copies the fetched native
@@ -51,7 +51,7 @@ at all.
 ## The five tabs
 
 The pictures below are generated from the app itself by
-[`samples/UiScreenshot`](../samples/UiScreenshot), which drives the real window with the
+[`samples/UIScreenshot`](../samples/UIScreenshot), which drives the real window with the
 real view models and takes the frame itself. Nothing is stubbed to suit a picture, and
 nothing is fabricated to fill one: what a tab shows on a fresh machine is what a tab shows
 here — no audio picked, nothing transcribed, nothing downloaded. What the machine decides
@@ -59,7 +59,7 @@ is in the picture, so the Settings tab lists whatever devices it has, and the ca
 counts whatever it has fetched. Regenerate them with:
 
 ```bash
-dotnet run --project samples/UiScreenshot           # writes into docs/assets/images
+dotnet run --project samples/UIScreenshot           # writes into docs/assets/images
 ```
 
 **Where the grid scrolls.** The Models tab is the one tab not wrapped in the view's
@@ -328,7 +328,7 @@ Capabilities are cached per alias for the session.
 
 ## How it is tested
 
-Headless Avalonia tests in `tests/TranscribeCppSharp.Ui.Tests`, run by the same
+Headless Avalonia tests in `tests/TranscribeCppSharp.UI.Tests`, run by the same
 `./scripts/run-integration-tests.sh` as everything else, on all three CI platforms. They
 build the real `App` on Avalonia's headless backend, so the views load with the styles they
 get on screen.
@@ -344,7 +344,7 @@ any test — only the ids are, and a name is not an id. And no test drives the w
 interactively end to end, or asserts what the app looks like.
 
 The pictures above are not a screenshot test either. They come from
-[`samples/UiScreenshot`](../samples/UiScreenshot), which runs the real window through
+[`samples/UIScreenshot`](../samples/UIScreenshot), which runs the real window through
 Avalonia's headless platform and saves whatever it draws; it is a generator, run by hand,
 not a check that fails when a pixel moves. Nothing in CI compares them against anything,
 so a visual regression passes unnoticed — the automation ids are what CI actually pins down.

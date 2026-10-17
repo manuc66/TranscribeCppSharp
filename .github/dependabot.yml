@@ -10,9 +10,9 @@ updates:
     schedule:
       interval: "weekly"
     # Avalonia's packages have to move as one set. The app
-    # (src/TranscribeCppSharp.Ui), its test host
-    # (tests/TranscribeCppSharp.Ui.Tests) and the screenshot sample
-    # (samples/UiScreenshot) each pin their own Avalonia references, so a
+    # (src/TranscribeCppSharp.UI), its test host
+    # (tests/TranscribeCppSharp.UI.Tests) and the screenshot sample
+    # (samples/UIScreenshot) each pin their own Avalonia references, so a
     # per-package update leaves them on different patches and the next restore
     # fails with NU1605 (package downgrade). A single grouped PR keeps them in
     # step. Avalonia.Controls.DataGrid may still land a patch behind the rest;

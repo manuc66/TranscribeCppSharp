@@ -21,7 +21,7 @@ Three ways to use it:
 
 - **A command-line tool** — `dotnet tool install -g TranscribeCppSharp.Cli` gives you `transcribe`, which downloads a curated model on first use and prints or exports the transcript. See [Command-line tool](docs/cli.md).
 - **A .NET library** — the `TranscribeCppSharp` wrapper (plus the native runtime package for your platform) for C# code. See [Getting started](docs/getting-started.md).
-- **A desktop app** — `TranscribeCppSharp.Ui`, an Avalonia GUI over the same wrapper. Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a self-contained archive per platform (not a NuGet package); you can also run it from a clone. See [Desktop app](#desktop-app).
+- **A desktop app** — `TranscribeCppSharp.UI`, an Avalonia GUI over the same wrapper. Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a self-contained archive per platform (not a NuGet package); you can also run it from a clone. See [Desktop app](#desktop-app).
 
 📖 **[Full documentation →](https://manuc66.github.io/TranscribeCppSharp/)** — the guide, the reference, and the measured limits with the method behind each one. Published from [`docs/`](docs/); this README is the short version and the details are delegated to those pages.
 
@@ -133,12 +133,12 @@ Speaker attribution, long audio and windowing: [Long audio and diarization](docs
 
 ## Desktop app
 
-`TranscribeCppSharp.Ui` is an [Avalonia](https://avaloniaui.net/) app on .NET 10 that drives
+`TranscribeCppSharp.UI` is an [Avalonia](https://avaloniaui.net/) app on .NET 10 that drives
 the same wrapper and the same native library — it adds no transcription logic of its own, and
 its limits are the library's. It is built in CI on Linux, macOS and Windows.
 
 Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a
-self-contained archive per platform — `TranscribeCppSharp.Ui-<version>-<rid>.zip` for
+self-contained archive per platform — `TranscribeCppSharp.UI-<version>-<rid>.zip` for
 `win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` and `osx-x64`. Unzip it and run the
 executable: it carries the .NET runtime and the matching native transcribe.cpp build, so no
 SDK is needed. Each archive also carries the project `LICENSE` and the upstream component
@@ -148,7 +148,7 @@ licences under `licenses/`. The caveats, stated plainly:
   or refuse on first launch. There is no installer and no notarization.
 - **macOS ships a bare executable, not a `.app` bundle** (no `Info.plist`), so it has no Dock
   name or Finder integration, and Gatekeeper treats it like any unsigned download — clear the
-  quarantine if it refuses to run: `xattr -dr com.apple.quarantine TranscribeCppSharp.Ui`.
+  quarantine if it refuses to run: `xattr -dr com.apple.quarantine TranscribeCppSharp.UI`.
 - They carry **no `ffmpeg`**, which the app still needs on `PATH` for any non-WAV input and
   for the microphone ([Audio input](docs/audio-input.md)).
 
@@ -156,7 +156,7 @@ To build from source instead, fetch the native libraries once and then start it:
 
 ```bash
 dotnet run --project tools/FetchNative            # once: the native library the app loads
-dotnet run --project src/TranscribeCppSharp.Ui
+dotnet run --project src/TranscribeCppSharp.UI
 ```
 
 Five tabs, one per job:
@@ -253,7 +253,7 @@ dotnet run --project tools/FetchNative
 ./scripts/run-integration-tests.sh
 
 # Run the desktop app (also needs FetchNative; see Desktop app)
-dotnet run --project src/TranscribeCppSharp.Ui
+dotnet run --project src/TranscribeCppSharp.UI
 ```
 
 Prerequisites, the opt-in diarization run, the checks that keep this documentation

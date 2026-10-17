@@ -1,0 +1,71 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TranscribeCppSharp.UI.ViewModels"
+        xmlns:views="using:TranscribeCppSharp.UI.Views"
+        x:Class="TranscribeCppSharp.UI.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/icon.png"
+        Title="{Binding Title}"
+        Width="1100" Height="880"
+        MinWidth="640" MinHeight="640"
+        WindowStartupLocation="CenterScreen">
+
+  <!-- The height is not a taste: the Models tab's fixed rows — a banner carrying a
+       caveat, a filter row that wraps, a sort row that wraps, a summary, its buttons
+       and a status line — measure 368px together, and the master grid and its detail
+       pane split what is left between them. At the old 720 the leftover was 222px
+       (111 each, and 0 once a row was selected and the pane took its 250). 880
+       leaves each of them ~190px; 640 is the floor below which the Models tab cannot
+       show enough rows to be used.
+
+       The floor is the Models tab's, not the others': the four scrolled tabs are
+       long forms and shrink to fit whatever height they are given. -->
+
+  <!-- Vertical scrolling only, and deliberately not horizontal.
+
+       The scroll is there so a window shorter than a view can be shrunk to fit
+       instead of the content setting a floor the window cannot go below.
+
+       Horizontal is disabled on purpose: a horizontally scrollable ScrollViewer
+       offers its child an infinite width, and a DataGrid asked to lay out in
+       infinite width gives its star-sized columns no width at all — the grid
+       collapses and the window shrink-wraps to its minimum. Measuring against
+       the viewport width is what lets those columns share the space. -->
+  <TabControl SelectedIndex="{Binding SelectedTabIndex}" Padding="0">
+    <TabItem Header="Transcription">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:TranscriptionView DataContext="{Binding Transcription}" />
+      </ScrollViewer>
+    </TabItem>
+    <TabItem Header="Streaming">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:StreamingView DataContext="{Binding Streaming}" />
+      </ScrollViewer>
+    </TabItem>
+    <TabItem Header="Batch">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:BatchView DataContext="{Binding Batch}" />
+      </ScrollViewer>
+    </TabItem>
+    <TabItem Header="Models">
+      <!-- Deliberately not wrapped in a ScrollViewer, unlike every other tab.
+
+           The wrapper measures its child against infinite height, and a `*` row
+           given infinite height resolves to its content: the grid grew to its
+           rows — 2408px in a 720px window — so it never scrolled internally and
+           the whole view scrolled instead, taking the column headers off the top
+           and putting the detail pane at y=3049.
+
+           The view's own layout is what the star row needs: fixed rows for the
+           filters and the pane, and the grid taking whatever is left. That is
+           also what keeps the detail pane in reach — it appears by shrinking the
+           grid rather than by pushing it below the fold. -->
+      <views:ModelManagerView DataContext="{Binding ModelManager}" />
+    </TabItem>
+    <TabItem Header="Settings">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <views:SettingsView DataContext="{Binding Settings}" />
+      </ScrollViewer>
+    </TabItem>
+  </TabControl>
+</Window>

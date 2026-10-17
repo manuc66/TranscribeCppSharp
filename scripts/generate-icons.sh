@@ -13,7 +13,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${REPO_ROOT}/docs/assets/images/icon.svg"
 IMG_DIR="${REPO_ROOT}/docs/assets/images"
-UI_ASSETS="${REPO_ROOT}/src/TranscribeCppSharp.Ui/Assets"
+UI_ASSETS="${REPO_ROOT}/src/TranscribeCppSharp.UI/Assets"
 
 if ! command -v rsvg-convert >/dev/null 2>&1; then
     echo "Error: rsvg-convert not found. Install librsvg2-bin, then re-run." >&2
@@ -64,4 +64,4 @@ echo "Regenerated icons from ${SRC#$REPO_ROOT/}:"
 echo "  docs/assets/images/icon-512.png"
 echo "  docs/assets/images/icon-128.png"
 echo "  docs/assets/images/icon.ico"
-echo "  src/TranscribeCppSharp.Ui/Assets/icon.png"
+echo "  src/TranscribeCppSharp.UI/Assets/icon.png"

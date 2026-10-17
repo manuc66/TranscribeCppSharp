@@ -1,0 +1,217 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
+using System.IO.Compression;
+using System.Reflection;
+using TranscribeCppSharp.Models;
+using TranscribeCppSharp.SharedSource;
+using TranscribeCppSharp.UI.Models;
+using TranscribeCppSharp.UI.ViewModels;
+using TranscribeCppSharp.UI.Views;
+using Xunit;
+
+namespace TranscribeCppSharp.UI.Tests;
+
+/// <summary>
+/// The detail pane shows upstream's catalog, attributed, and shows nothing when
+/// upstream has none.
+/// </summary>
+/// <remarks>
+/// The GUI reads the same embedded zip the CLI does, through the same linked
+/// reader. What is being asserted here is the boundary: these lines are their
+/// records and their measurements, and a model without a record must leave them
+/// blank rather than fill them with a dash or a zero that reads as a measurement.
+/// </remarks>
+public class UpstreamCatalogDetailTests
+{
+    private static ModelCatalogItem Item(string alias)
+    {
+        ModelDescriptor? descriptor = ModelStore.Find(alias);
+        Assert.NotNull(descriptor);
+        return new ModelCatalogItem(descriptor!);
+    }
+
+    [Fact]
+    public void TheCatalogIsEmbeddedInTheGuiAssembly()
+    {
+        Assembly assembly = typeof(UpstreamCatalog).Assembly;
+        Assert.Contains(assembly.GetManifestResourceNames(), n => n == "catalog.zip");
+
+        using Stream? stream = assembly.GetManifestResourceStream("catalog.zip");
+        Assert.NotNull(stream);
+        using var zip = new ZipArchive(stream!, ZipArchiveMode.Read);
+        Assert.Equal(76, zip.Entries.Count(e => !string.IsNullOrEmpty(e.Name)));
+    }
+
+    [Fact]
+    public void TheDetailPaneCarriesUpstreamIdentity()
+    {
+        ModelCatalogItem item = Item("whisper-tiny");
+
+        Assert.Contains("parameters", item.UpstreamDetail, StringComparison.Ordinal);
+        Assert.Contains("openai/whisper-tiny", item.UpstreamDetail, StringComparison.Ordinal);
+        Assert.Contains("169d4a4", item.UpstreamDetail, StringComparison.Ordinal);
+        Assert.Contains("family whisper", item.UpstreamDetail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheDetailPaneListsEveryPublishedQuantization()
+    {
+        // The manifest pins one. The others exist upstream and are named as such —
+        // none has been fetched or verified here, which is what the tooltip says.
+        ModelCatalogItem item = Item("whisper-tiny");
+
+        Assert.StartsWith("Published:", item.QuantizationsDetail, StringComparison.Ordinal);
+        Assert.Contains("Q4_K_M", item.QuantizationsDetail, StringComparison.Ordinal);
+        Assert.Contains("Q5_K_M", item.QuantizationsDetail, StringComparison.Ordinal);
+        Assert.Contains("F32", item.QuantizationsDetail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CapabilitiesKeepSupportedApartFromVerified()
+    {
+        ModelCatalogItem item = Item("whisper-tiny");
+
+        Assert.Contains("transcribe", item.CapabilitiesDetail, StringComparison.Ordinal);
+        Assert.DoesNotContain("diarize", item.CapabilitiesDetail, StringComparison.Ordinal);
+
+        // Their own caveat must survive into the display: whisper's capabilities are
+        // recorded as supported and unverified, and dropping the suffix would turn
+        // their hedge into a claim.
+        Assert.Contains("unverified upstream", item.CapabilitiesDetail, StringComparison.Ordinal);
+    }
+
+    /// <summary>The accuracy line is theirs, and says whose it is.</summary>
+    [Fact]
+    public void TheAccuracyLineIsAttributedUpstream()
+    {
+        ModelCatalogItem item = Item("whisper-tiny");
+
+        Assert.Contains("upstream", item.HeadlineAccuracyDetail, StringComparison.Ordinal);
+        Assert.Contains("%", item.HeadlineAccuracyDetail, StringComparison.Ordinal);
+        Assert.Contains("librispeech", item.HeadlineAccuracyDetail, StringComparison.Ordinal);
+        // The provenance is printed, including when it says the build was not
+        // recorded — an absent engine_sha is part of what is known.
+        Assert.Contains("legacy-published", item.HeadlineAccuracyDetail, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Upstream records every model in the manifest, so a blank pane would mean the
+    /// reader is broken rather than the record missing.
+    /// </summary>
+    /// <remarks>
+    /// The capabilities and accuracy lines are only expected when upstream records
+    /// something for them: a language-identification model supports none of the
+    /// ASR-centric capability flags, and a voice-activity model has no headline
+    /// figure, so a blank line there is the record, not a broken reader. The
+    /// identity and quantizations lines are required for every model.
+    /// </remarks>
+    [Fact]
+    public void EveryModelInTheManifestHasUpstreamDetail()
+    {
+        string[] blank = ModelStore.Catalog
+            .Where(d =>
+            {
+                ModelCatalogItem item = new(d);
+                if (string.IsNullOrEmpty(item.UpstreamDetail)
+                    || string.IsNullOrEmpty(item.QuantizationsDetail))
+                {
+                    return true;
+                }
+
+                if (item.HasSupportedCapability && string.IsNullOrEmpty(item.CapabilitiesDetail))
+                {
+                    return true;
+                }
+
+                return item.HasHeadlineAccuracy && string.IsNullOrEmpty(item.HeadlineAccuracyDetail);
+            })
+            .Select(d => d.Alias)
+            .ToArray();
+
+        Assert.True(blank.Length == 0,
+            $"{blank.Length} model(s) with an incomplete detail pane: {string.Join(", ", blank.Take(10))}");
+    }
+
+    /// <summary>
+    /// A language model's headline is an accuracy, not an error rate, and both are
+    /// shown — each with its own metric named.
+    /// </summary>
+    [Fact]
+    public void ALanguageModelHeadlineIsAnAccuracyNotAnErrorRate()
+    {
+        ModelCatalogItem item = new(ModelStore.Find("lang-id-voxlingua107-ecapa")!);
+
+        Assert.Contains("ACCURACY", item.HeadlineAccuracyDetail, StringComparison.Ordinal);
+        // The WER column stays an error-rate column, so it shows a dash for a model
+        // that has no word-error rate.
+        Assert.Equal("-", item.WerText);
+    }
+
+    /// <summary>
+    /// The Family column shows upstream's family, not the one derived from the
+    /// repository name.
+    /// </summary>
+    /// <remarks>
+    /// Realized rather than read from the model, because the point is what a reader
+    /// sees in the grid: <c>whisper-tiny-gguf</c> derives to <c>whisper-tiny</c>,
+    /// which is an alias rather than a family, and upstream records <c>whisper</c>.
+    /// The alias column also holds <c>whisper-tiny</c>, so the assertion is on the
+    /// family cell alone — a value that appears nowhere else in the row.
+    /// </remarks>
+    [AvaloniaFact]
+    public void TheGridRendersUpstreamsFamilyNotTheDerivedOne()
+    {
+        string previous = ModelStore.CacheRootOverride ?? string.Empty;
+        bool hadOverride = ModelStore.CacheRootOverride is not null;
+        try
+        {
+            ModelStore.CacheRootOverride = Path.Combine(
+                Path.GetTempPath(), "tcsharp-ui-tests-family-grid");
+            // The repository, not the alias: "whisper-tiny" also matches
+            // "whisper-tiny.en", which would make the row assertion ambiguous.
+            var viewModel = new ModelManagerViewModel { Filter = "whisper-tiny-gguf" };
+            var view = new ModelManagerView { DataContext = viewModel };
+            var window = new Window { Content = view, Width = 1100, Height = 720 };
+            window.Show();
+
+            Assert.Single(viewModel.VisibleModels);
+            Assert.Equal("whisper", viewModel.VisibleModels[0].Family);
+
+            HashSet<string> rendered = window.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Where(t => t.IsVisible && !string.IsNullOrEmpty(t.Text))
+                .Select(t => t.Text!)
+                .ToHashSet();
+
+            Assert.Contains("whisper", rendered);
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = hadOverride ? previous : null;
+        }
+    }
+
+    /// <summary>Nothing fabricated for an alias upstream does not know.</summary>
+    [Fact]
+    public void AnUnknownAliasProducesNoDetailAtAll()
+    {
+        var record = new ModelCatalogItem(new ModelDescriptor(
+            Alias: "invented-alias",
+            Repo: "someone/invented-gguf",
+            Revision: "rev",
+            License: "mit",
+            LicenseUrl: "https://example.invalid",
+            Quant: "Q8_0",
+            File: "invented.gguf",
+            Sha256: "00",
+            Size: 1));
+
+        Assert.Equal(string.Empty, record.UpstreamDetail);
+        Assert.Equal(string.Empty, record.QuantizationsDetail);
+        Assert.Equal(string.Empty, record.CapabilitiesDetail);
+        Assert.Equal(string.Empty, record.HeadlineAccuracyDetail);
+    }
+}
