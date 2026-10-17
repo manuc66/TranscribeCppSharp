@@ -4,7 +4,7 @@
              x:Class="TranscribeCppSharp.UI.Views.BatchView"
              x:DataType="vm:BatchViewModel">
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
     <!-- Model and language -->
     <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,8">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">

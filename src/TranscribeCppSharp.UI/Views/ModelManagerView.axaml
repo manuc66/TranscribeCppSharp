@@ -18,7 +18,7 @@
        filter row that wraps after gaining a picker were enough to take the
        whole window and collapse the grid to zero — a master-detail where the
        master disappears when you pick a row. -->
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto,Auto">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto,Auto">
 
     <!-- What to look for, and where the weights are -->
     <Border Grid.Row="0" Classes="card" Margin="0,0,0,8"

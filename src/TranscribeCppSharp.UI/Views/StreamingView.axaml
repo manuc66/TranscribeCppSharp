@@ -4,7 +4,7 @@
              x:Class="TranscribeCppSharp.UI.Views.StreamingView"
              x:DataType="vm:StreamingViewModel">
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
     <!-- Model selection -->
     <StackPanel Grid.Row="0" Margin="0,0,0,8">
       <TextBlock Text="Model" Classes="label"

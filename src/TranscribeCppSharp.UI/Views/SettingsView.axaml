@@ -9,7 +9,7 @@
     <c:DeviceMemoryConverter x:Key="DeviceMemory" />
   </UserControl.Resources>
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,*">
     <!-- Backend and device -->
     <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,16">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">

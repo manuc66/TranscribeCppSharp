@@ -9,7 +9,7 @@
     <c:KvTypeNameConverter x:Key="KvTypeName" />
   </UserControl.Resources>
 
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
     <!-- Audio file selection -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
