@@ -45,7 +45,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AppCardBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusMd}" />
-    <Setter Property="Padding" Value="{DynamicResource SpaceLg}" />
+    <Setter Property="Padding" Value="{DynamicResource CardPadding}" />
   </Style>
 
   <!-- The tentative half of the streaming view: same card shape, a background
@@ -55,7 +55,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AppTentativeBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusMd}" />
-    <Setter Property="Padding" Value="{DynamicResource SpaceMd}" />
+    <Setter Property="Padding" Value="{DynamicResource CardPadding}" />
   </Style>
 
   <!-- The one action that starts work on a tab. Fluent's own accent class

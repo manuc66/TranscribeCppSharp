@@ -34,6 +34,10 @@
   <!-- Page padding, used by every tab so they all start at the same inset. -->
   <Thickness x:Key="PagePadding">16</Thickness>
 
+  <!-- Card padding. A Thickness, not a Double: it is set on Padding, which
+       rejects a bare number. -->
+  <Thickness x:Key="CardPadding">12</Thickness>
+
   <!-- Semantic colours, resolved per theme variant. Light and Dark carry the
        real values; Default repeats Light so the tokens resolve before a variant
        is known (design time, or a platform that reports none). -->
