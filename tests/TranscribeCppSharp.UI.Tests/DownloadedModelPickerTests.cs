@@ -2,7 +2,9 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
 using TranscribeCppSharp.UI.Views;
 using Xunit;
@@ -44,7 +46,7 @@ public class DownloadedModelPickerTests
     }
 
     private static TranscriptionViewModel Transcription()
-        => new(new StubTranscriptionService(), new SettingsViewModel());
+        => new(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
 
     /// <summary>
     /// Waits for the startup capability probe to finish, which is what gates
@@ -272,11 +274,69 @@ public class DownloadedModelPickerTests
     private static MainWindowViewModel MainWindow()
         => new(
             Transcription(),
-            new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel()),
+            new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),
             new BatchViewModel(new StubTranscriptionService(), new SettingsViewModel()),
             new ModelManagerViewModel(),
             new SettingsViewModel());
 
     private static void Restore(string previous, bool hadOverride)
         => ModelStore.CacheRootOverride = hadOverride ? previous : null;
+
+    /// <summary>
+    /// The two tabs that read the default model at startup do it once between
+    /// them, not once each.
+    /// </summary>
+    /// <remarks>
+    /// This is the shape of the startup OOM: the transcription tab and the
+    /// streaming tab are both built with the same default alias, and with a cache
+    /// each they loaded the same file on two threads at once. The load is faked
+    /// here, so the test counts loads rather than measuring memory, but the
+    /// wiring it exercises — both view models over one shared cache — is the
+    /// production one.
+    /// </remarks>
+    [AvaloniaFact]
+    public void TheTwoStartupProbesShareOneLoad()
+    {
+        string previous = ModelStore.CacheRootOverride ?? string.Empty;
+        bool hadOverride = ModelStore.CacheRootOverride is not null;
+        try
+        {
+            WithEmptyCache();
+            Plant(ModelStore.Catalog.Single(m => m.Alias == "moss-transcribe-diarize"));
+
+            int loads = 0;
+            var cache = new ModelCapabilityCache
+            {
+                Probe = _ =>
+                {
+                    Interlocked.Increment(ref loads);
+                    return new ModelCapabilitySnapshot(
+                        Architecture: "moss",
+                        Variant: "test",
+                        Roles: TranscribeRole.Asr,
+                        SupportsTranslate: false,
+                        SupportsLanguageDetect: false,
+                        SupportsStreaming: false,
+                        SupportsSpecDecode: false,
+                        Features: new HashSet<Feature>(),
+                        Languages: [],
+                        TranslateTargetLanguages: []);
+                },
+            };
+
+            // Both tabs, as the window builds them, over one cache.
+            var transcription = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), cache);
+            var streaming = new StreamingViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), cache);
+
+            Settle(transcription);
+
+            Assert.Equal(1, Volatile.Read(ref loads));
+        }
+        finally
+        {
+            Restore(previous, hadOverride);
+        }
+    }
 }

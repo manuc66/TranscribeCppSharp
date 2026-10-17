@@ -15,7 +15,7 @@ public partial class TranscriptionViewModel : ObservableObject
 
     private readonly SettingsViewModel _settings;
 
-    private readonly Dictionary<string, ModelCapabilitySnapshot> _capabilityCache = new(StringComparer.Ordinal);
+    private readonly ModelCapabilityCache _capabilityCache;
 
     private ModelCapabilitySnapshot? _selectedCapabilities;
 
@@ -244,10 +244,12 @@ public partial class TranscriptionViewModel : ObservableObject
 
     public TranscriptionViewModel(
         ITranscriptionService transcriptionService,
-        SettingsViewModel settings)
+        SettingsViewModel settings,
+        ModelCapabilityCache capabilityCache)
     {
         _transcriptionService = transcriptionService;
         _settings = settings;
+        _capabilityCache = capabilityCache;
 
         // Both pickers are seeded first, before LoadModels: a ComboBox bound to an
         // empty list has nothing to match, and the reader sees a blank box until
@@ -309,7 +311,8 @@ public partial class TranscriptionViewModel : ObservableObject
     partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
 
     /// <summary>
-    /// Reads the capabilities of the selected model, once per alias.
+    /// Reads the capabilities of the selected model, once per alias. The answer
+    /// is held by the shared <see cref="ModelCapabilityCache"/>.
     /// </summary>
     /// <remarks>
     /// Only a model that is on disk can be loaded, and loading is the only way
@@ -320,7 +323,7 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </remarks>
     private void RequestCapabilityProbe(string alias)
     {
-        if (_capabilityCache.TryGetValue(alias, out ModelCapabilitySnapshot? cached))
+        if (_capabilityCache.TryGet(alias, out ModelCapabilitySnapshot? cached))
         {
             ApplyCapabilities(cached);
             CapabilityStatus = string.Empty;
@@ -357,10 +360,11 @@ public partial class TranscriptionViewModel : ObservableObject
         try
         {
             string path = ModelStore.CachedPath(descriptor);
-            ModelCapabilitySnapshot snapshot = await System.Threading.Tasks.Task.Run(
-                () => ModelCapabilityProbe.Probe(path)).ConfigureAwait(true);
+            // The shared cache: another tab asking for the same alias joins this
+            // load rather than starting a second one.
+            ModelCapabilitySnapshot snapshot = await _capabilityCache
+                .GetAsync(alias, path).ConfigureAwait(true);
 
-            _capabilityCache[alias] = snapshot;
             if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
             {
                 ApplyCapabilities(snapshot);

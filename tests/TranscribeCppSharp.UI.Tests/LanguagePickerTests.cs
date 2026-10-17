@@ -39,7 +39,7 @@ public class LanguagePickerTests
         try
         {
             var viewModel = new TranscriptionViewModel(
-                new StubTranscriptionService(), new SettingsViewModel());
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
             var view = new TranscriptionView { DataContext = viewModel };
             var window = new Window { Content = view, Width = 1100, Height = 720 };
             window.Show();
@@ -92,7 +92,7 @@ public class LanguagePickerTests
         try
         {
             var viewModel = new TranscriptionViewModel(
-                new StubTranscriptionService(), new SettingsViewModel());
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
             var view = new TranscriptionView { DataContext = viewModel };
             var window = new Window { Content = view, Width = 1100, Height = 720 };
             window.Show();

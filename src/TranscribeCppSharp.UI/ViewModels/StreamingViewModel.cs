@@ -16,7 +16,7 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _cts;
     private bool _disposed;
 
-    private readonly Dictionary<string, ModelCapabilitySnapshot> _capabilityCache = new(StringComparer.Ordinal);
+    private readonly ModelCapabilityCache _capabilityCache;
     private ModelCapabilitySnapshot? _selectedCapabilities;
     private bool _probing;
     private string? _pendingProbeAlias;
@@ -118,10 +118,12 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
     public StreamingViewModel(
         ITranscriptionService transcriptionService,
-        SettingsViewModel settings)
+        SettingsViewModel settings,
+        ModelCapabilityCache capabilityCache)
     {
         _transcriptionService = transcriptionService;
         _settings = settings;
+        _capabilityCache = capabilityCache;
         LoadModels();
         // The default alias is a fixed one (MOSS, ~700 MB); this bounds the
         // startup probe to that single model. A model not on disk is not loaded.
@@ -167,8 +169,9 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
 
     /// <summary>
-    /// Reads the capabilities of the selected model, once per alias, so the
-    /// family-extension controls shown match what the model actually has.
+    /// Reads the capabilities of the selected model, once per alias. The answer
+    /// is held by the shared <see cref="ModelCapabilityCache"/>, so the
+    /// transcription tab and this one load the same model once between them.
     /// </summary>
     /// <remarks>
     /// Nothing is hidden for a model that was not checked: an unloaded model
@@ -179,7 +182,7 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     /// </remarks>
     private void RequestCapabilityProbe(string alias)
     {
-        if (_capabilityCache.TryGetValue(alias, out ModelCapabilitySnapshot? cached))
+        if (_capabilityCache.TryGet(alias, out ModelCapabilitySnapshot? cached))
         {
             ApplyCapabilities(cached);
             CapabilityStatus = string.Empty;
@@ -213,14 +216,13 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         try
         {
             string path = ModelStore.CachedPath(descriptor);
-            // CancellationToken.None: the probe is not cancellable. Model.Load
-            // takes no token, so there is nothing to cancel, and this probe is
-            // not part of the streaming scope that _cts governs. Same explicit
-            // opt-out as the download and benchmark Task.Run calls.
-            ModelCapabilitySnapshot snapshot = await System.Threading.Tasks.Task.Run(
-                () => ModelCapabilityProbe.Probe(path), CancellationToken.None).ConfigureAwait(true);
+            // The shared cache: another tab asking for the same alias joins this
+            // load rather than starting a second one. The probe is not
+            // cancellable — Model.Load takes no token, and this is not part of
+            // the streaming scope that _cts governs.
+            ModelCapabilitySnapshot snapshot = await _capabilityCache
+                .GetAsync(alias, path).ConfigureAwait(true);
 
-            _capabilityCache[alias] = snapshot;
             if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
             {
                 ApplyCapabilities(snapshot);

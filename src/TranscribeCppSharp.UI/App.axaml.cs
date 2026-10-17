@@ -36,6 +36,11 @@ public partial class App : Application
 
         services.AddSingleton<ITranscriptionService, TranscriptionService>();
 
+        // One cache for the whole window: the transcription tab and the streaming
+        // tab both read the default model's capabilities at startup, and this is
+        // what makes them share the one load instead of loading it twice.
+        services.AddSingleton<ModelCapabilityCache>();
+
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<TranscriptionViewModel>();
         services.AddSingleton<StreamingViewModel>();

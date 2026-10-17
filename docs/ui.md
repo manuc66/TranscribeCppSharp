@@ -308,7 +308,11 @@ The language picker works the same way: ten codes stand in while nothing has bee
 and a probed model replaces that list with the languages it actually reports. The UI used to
 offer languages a model could not handle, and no way to ask for auto-detection at all.
 
-Capabilities are cached per alias for the session.
+Capabilities are cached per alias for the session, in a single cache shared by the tabs. The
+transcription and streaming tabs each read the default model when they are built, so without
+the sharing they loaded the same weights twice at once — two copies of the file in memory,
+and on a machine already short of RAM that was enough for the OOM killer. A caller that asks
+while a load is in progress waits for it instead of starting another.
 
 ## Look and theme
 

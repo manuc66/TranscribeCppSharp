@@ -9,6 +9,16 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: one capability probe at startup, not two
+
+The transcription tab and the streaming tab each read the default model's capabilities when
+they are built. With a cache per view model, that loaded the same 700 MB file twice at once.
+On a machine already short of memory the doubled peak was enough for the kernel's OOM killer
+to take the app — verified in the kernel log (`global_oom`, `Killed process … anon-rss
+1,491,572kB`). The two tabs now share one `ModelCapabilityCache`, so a caller that asks while
+a load is in progress joins it instead of starting another. This lowers the startup peak to
+one model; it does not make the app safe on a machine that is already out of RAM.
+
 ### Release assets: SBOM and checksums
 
 Every GitHub Release now attaches `TranscribeCppSharp.sbom.spdx.json` (the SPDX

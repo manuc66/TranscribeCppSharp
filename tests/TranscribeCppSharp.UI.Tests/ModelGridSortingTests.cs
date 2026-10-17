@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
 using TranscribeCppSharp.UI.Views;
 using Xunit;
@@ -37,8 +38,8 @@ public class ModelGridSortingTests
             Path.GetTempPath(), "tcsharp-ui-tests-grid-sort");
 
         var root = new MainWindowViewModel(
-            new TranscriptionViewModel(new StubTranscriptionService(), new SettingsViewModel()),
-            new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel()),
+            new TranscriptionViewModel(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),
+            new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),
             new BatchViewModel(new StubTranscriptionService(), new SettingsViewModel()),
             new ModelManagerViewModel(),
             new SettingsViewModel());
