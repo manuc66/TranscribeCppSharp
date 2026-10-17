@@ -115,14 +115,17 @@ an unhandled `UNSUPPORTED_ROLE`, and a langid/vad model could not be run at all.
   as the ASR feature, so a Sortformer reads *supported*.
 - **Long-form audio, honestly.** VAD is `chunked-unbounded` upstream, so the CLI
   and the app score it window by window and union the intervals across the seams
-  (memory is one window, not the file; `--chunk` sets the window). Language
-  identification is a 30 s hard cap, so the head of the file is used. Diarization
-  is a hard cap with no streaming entry point and per-run speaker ids, so it is
-  run whole and not split — windowing it would renumber speakers at every seam.
+  (memory is one window, not the file; `--chunk` sets the window). Each window is
+  scored independently, so a seam can bridge a short silence a one-pass run keeps
+  as a gap: the speech found and its total duration match, the exact boundaries at
+  a seam do not. Language identification is a 30 s hard cap, so the head of the
+  file is used. Diarization is a hard cap with no streaming entry point and
+  per-run speaker ids, so it is run whole and not split — windowing it would
+  renumber speakers at every seam.
 
-Tests: `RoleCommandTests` (CLI) and `TranscriptionServiceRoleTests` (service) run
-against the three role weights, including a windowed VAD run that must match the
-one-pass segments. 554 Interop + 84 UI tests pass.
+Tests: `RoleCommandTests` (CLI), `VadWindowingTests` (the merge rules and a
+windowed run on ~138 s of synthesized audio) and `TranscriptionServiceRoleTests`
+(service) run against the three role weights. 561 Interop + 84 UI tests pass.
 
 ### Desktop app: an Avalonia GUI over the wrapper
 

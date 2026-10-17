@@ -80,7 +80,8 @@ public static class VadWindowing
     /// they are already sorted by start; a window's overlap with the next means the
     /// same speech is reported twice at the seam.
     /// </summary>
-    private static List<VadSession.VadSegmentResult> Merge(List<VadSession.VadSegmentResult> intervals)
+    /// <remarks>Internal, not private, so the merge rules are unit tested directly.</remarks>
+    internal static List<VadSession.VadSegmentResult> Merge(List<VadSession.VadSegmentResult> intervals)
     {
         var merged = new List<VadSession.VadSegmentResult>(intervals.Count);
         foreach (var interval in intervals)

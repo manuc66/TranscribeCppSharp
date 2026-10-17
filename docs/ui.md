@@ -93,8 +93,10 @@ to ASR are hidden for the other roles.
 
 A voice-activity model is scored one window at a time (Silero VAD is
 chunked-unbounded upstream), so a long file does not have to fit in memory; the
-Window setting is that window. A diarizer is run whole — its speaker ids are per
-run, so splitting would renumber them at the seam.
+Window setting is that window. Each window is scored independently, so the segment
+boundaries at a seam can differ slightly from a single pass — the speech found is
+the same. A diarizer is run whole — its speaker ids are per run, so splitting would
+renumber them at the seam.
 
 A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg`, `m4a`)
 is decoded with `ffmpeg`, which has to be installed and on `PATH` — see

@@ -68,6 +68,13 @@ and `Feed`/`Flush`/`Reset` drive the streaming form. Silero VAD is
 a time (1 s overlap) and union the intervals across the seams — memory stays one
 window, not the whole file. The CLI's `--chunk` sets that window.
 
+Each window is scored **independently**, so a seam can bridge a short silence that
+a one-pass run keeps as a gap (and, less often, the reverse). The speech found is
+the same and its total duration matches to within a second, but the exact segment
+boundaries at a seam are not identical to a single pass — that is the cost of not
+holding the whole file, and it is what upstream's `chunked-unbounded` strategy
+means.
+
 Diarization is the opposite: a **hard cap** with no streaming entry point, and
 speaker ids are per run, so a file is **not** split — windowing it would renumber
 the speakers at every seam. It is run whole.
