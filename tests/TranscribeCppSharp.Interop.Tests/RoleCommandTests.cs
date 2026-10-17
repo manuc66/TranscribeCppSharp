@@ -126,8 +126,13 @@ public class RoleCommandTests
         AssertNoCrash(windowed);
     }
 
+    // The CLI writes to the StringWriter the test hands it, and TextWriter.NewLine
+    // is "\r\n" on Windows, so the captured output is CRLF there. Normalize before
+    // splitting, or a line ends with "\r" and the suffix test never matches — which
+    // is how this read as "no speech segments" on Windows only.
     private static int CountSpeech(string output)
-        => output.Split('\n').Count(line => line.EndsWith("] speech", StringComparison.Ordinal));
+        => output.ReplaceLineEndings("\n").Split('\n')
+                 .Count(line => line.EndsWith("] speech", StringComparison.Ordinal));
 
     [SkippableFact]
     public void ADiarizationModel_WritesTheReportToOut()
