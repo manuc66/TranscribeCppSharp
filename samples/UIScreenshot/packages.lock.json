@@ -39,7 +39,7 @@
       },
       "Microsoft.SourceLink.GitHub": {
         "type": "Direct",
-        "requested": "[10.*, )",
+        "requested": "[10.0.402, )",
         "resolved": "10.0.402",
         "contentHash": "YXtBgnbTAhNng4PcEaolRL59UdRg77eYdAHilt9jljp8EuBOubDuHDkmH8Qa9pR2pBGte/FwJgHXQQVi24GOzg==",
         "dependencies": {
@@ -265,7 +265,7 @@
       "transcribecppsharp": {
         "type": "Project",
         "dependencies": {
-          "TranscribeCppSharp.Interop": "[0.3.0, )"
+          "TranscribeCppSharp.Interop": "[0.4.0, )"
         }
       },
       "transcribecppsharp.interop": {
@@ -281,7 +281,7 @@
           "Avalonia.Themes.Fluent": "[12.1.4, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.13, )",
-          "TranscribeCppSharp": "[0.3.1, )"
+          "TranscribeCppSharp": "[0.4.0, )"
         }
       }
     }

@@ -32,6 +32,10 @@
     <InternalsVisibleTo Include="TranscribeCppSharp.Cli" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.402" />
+  </ItemGroup>
+
   <!-- This is the platform-agnostic "core": it never depends on the native
        runtime packages. Consumers pick the native package for their RID (or the
        TranscribeCppSharp.Bundle meta-package that pulls them all), which keeps
