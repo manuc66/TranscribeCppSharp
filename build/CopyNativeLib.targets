@@ -36,7 +36,14 @@
       <NativeLib Include="$(MSBuildThisFileDirectory)../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/ggml*.dll"
                  Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     </ItemGroup>
-    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true"
+    <!-- SkipUnchangedFiles must stay false. The release archives store their
+         files with an epoch-0 mtime, so an old and a new copy of e.g. libggml.so
+         have the same timestamp; when their sizes also match (they do, 0.3.0 and
+         0.4.0 ship the same libggml.so size), SkipUnchangedFiles=true treats the
+         destination as up to date and leaves the stale native in place. The
+         Interop then fails at run time with a symbol error. Copy unconditionally:
+         the set is a few tens of MB and this only runs for local builds. -->
+    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="false"
           Condition="@(NativeLib) != ''" />
   </Target>
 </Project>
