@@ -8,6 +8,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <NoWarn>CS1591</NoWarn>
+    <!-- A user-facing app: it follows the wrapper's SemVer, not the upstream ABI
+         version (same rule as the CLI and the Bundle). It is what the release
+         archive is named after, so the file matches the release it came from. -->
+    <Version>$(WrapperVersionFile)</Version>
     <!-- The window and .exe icon. Assets/icon.png (an AvaloniaResource, set as the
          Window's Icon in MainWindow.axaml) is what the title bar and taskbar show;
          this .ico is the Windows executable's own icon. Both are generated from
@@ -57,6 +61,21 @@
          real model. -->
     <InternalsVisibleTo Include="TranscribeCppSharp.Ui.Tests" />
   </ItemGroup>
+
+  <!-- The native runtime for the RID being published, taken from native-packages/
+       (fetched by tools/FetchNative). This is what the per-RID release archives
+       carry: a self-contained publish sets RuntimeIdentifier, so the shared
+       CopyNativeLib target below — which only runs for a local build — would
+       otherwise leave the archive without any native. Mirrors the CLI, which
+       embeds its native the same way; see TranscribeCppSharp.Cli.csproj for why a
+       per-RID PackageReference cannot be used here. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <None Include="$(MSBuildThisFileDirectory)../../native-packages/$(RuntimeIdentifier)/runtimes/$(RuntimeIdentifier)/native/*"
+          Exclude="$(MSBuildThisFileDirectory)../../native-packages/$(RuntimeIdentifier)/runtimes/$(RuntimeIdentifier)/native/.done"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Without this the GUI resolved transcribe.cpp through the NuGet package,
        which is older than the checked-in Interop: 90 of the 99 entry points it
        declares are missing from it, transcribe_device_count among them, so every

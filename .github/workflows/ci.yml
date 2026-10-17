@@ -352,6 +352,54 @@ jobs:
           name: tool-nupkg
           path: nupkgs/*.nupkg
 
+  pack-ui:
+    # Self-contained, per-RID archives of the Avalonia desktop app, attached to
+    # the GitHub Release. Not a NuGet package: the app is an executable, and a
+    # library-style package would have nothing to reference. Running from a clone
+    # stays the documented way to run it; these archives are for users who do not
+    # want to install the .NET SDK (the app still needs ffmpeg on PATH for any
+    # non-WAV input and the microphone — see docs/ui.md).
+    needs: [build-and-test, get-version]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Cache native libraries
+        uses: actions/cache@v6
+        with:
+          # Cache only the downloaded binaries, not the .csproj files, so a
+          # stale cache never overwrites project changes from the checkout.
+          path: native-packages/*/runtimes
+          key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION', 'build/native-sha256.json') }}
+
+      - name: Fetch native libraries (all RIDs, one per archive)
+        run: dotnet run --project tools/FetchNative -- --all
+
+      - name: Publish self-contained app per RID and zip
+        # Cross-publishes every RID from Linux: the app is fully managed and the
+        # natives are injected as content by the project, so no target-platform
+        # toolchain is needed. A directory publish (not single-file) avoids the
+        # native-extraction problems a bundled Avalonia app hits. The archive's
+        # single top-level folder is the RID, so extracting one never scatters
+        # files into the current directory.
+        run: |
+          version="${{ needs.get-version.outputs.wrapper-version }}"
+          mkdir -p ui-zips
+          for rid in win-x64 linux-x64 linux-arm64 osx-arm64 osx-x64; do
+            dotnet publish src/TranscribeCppSharp.Ui -c Release -r "$rid" --self-contained true \
+              -o "publish/$rid" /p:Version="$version"
+            (cd publish && zip -rq "$GITHUB_WORKSPACE/ui-zips/TranscribeCppSharp.Ui-$version-$rid.zip" "$rid")
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ui-release
+          path: ui-zips/*.zip
+
   push-nugets:
     # Pre-release packages are published on demand, not on every commit:
     #  - workflow_dispatch: a manual run of this workflow pushes the -preview
@@ -395,7 +443,7 @@ jobs:
 
   create-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [push-nugets]
+    needs: [push-nugets, pack-ui]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -406,8 +454,15 @@ jobs:
           path: nupkgs
           pattern: '*-nupkg'
           merge-multiple: true
+      - name: Download the desktop-app archives
+        uses: actions/download-artifact@v8
+        with:
+          name: ui-release
+          path: ui
       - name: Create Release
         uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e
         with:
-          files: nupkgs/*.nupkg
+          files: |
+            nupkgs/*.nupkg
+            ui/*.zip
           generate_release_notes: true
