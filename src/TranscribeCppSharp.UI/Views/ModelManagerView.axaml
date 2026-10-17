@@ -56,7 +56,12 @@
       <!-- SelectedValue, not SelectedItem: the items are ModelSizeFilterOption
            records and the filter is a ModelSizeFilter enum, so SelectedItem never
            matches one and the picker sat blank while doing nothing. SelectedValue
-           with a Value binding is what maps item to filter. -->
+           with a Value binding is what maps item to filter.
+
+           ItemTemplate for the text: the items are records, so with no template the
+           box falls back to ToString() and reads 'ModelSizeFilterOption { Value =
+           Any, Label = Any size }'. The record's Label is the words meant to be
+           read, and the template is what shows them. -->
       <ComboBox Margin="12,0,0,0" MinWidth="130"
                 ItemsSource="{Binding SizeFilters}"
                 SelectedValueBinding="{Binding Value}"
@@ -64,7 +69,13 @@
                 HorizontalAlignment="Stretch"
                 AutomationProperties.AutomationId="models-size-filter"
                 AutomationProperties.Name="Size filter"
-                ToolTip.Tip="Filter by download size. Smaller models download sooner and use less memory; the manifest ranges from 33 MB to 16 GB." />
+                ToolTip.Tip="Filter by download size. Smaller models download sooner and use less memory; the manifest ranges from 33 MB to 16 GB.">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="m:ModelSizeFilterOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
 
       <ComboBox Margin="12,0,0,0" MinWidth="150"
                 ItemsSource="{Binding Licenses}"

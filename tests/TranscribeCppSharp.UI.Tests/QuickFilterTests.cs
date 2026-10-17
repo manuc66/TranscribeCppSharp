@@ -81,6 +81,33 @@ public class QuickFilterTests
                 $"{m.Alias} is {m.Descriptor.Size} bytes, over the band's 500 MB"));
     }
 
+    /// <summary>
+    /// The size picker shows the band's label, not the record it is built from.
+    /// </summary>
+    /// <remarks>
+    /// The items are <see cref="ModelSizeFilterOption"/> records. With no
+    /// <c>ItemTemplate</c> the ComboBox renders <c>ToString()</c>, so the box read
+    /// <c>ModelSizeFilterOption { Value = Any, Label = Any size }</c> while every
+    /// binding behind it worked. The label is the words meant to be read, so the
+    /// presented text is what this pins.
+    /// </remarks>
+    [AvaloniaFact]
+    public void TheSizePickerShowsTheLabelNotTheRecord()
+    {
+        var (window, viewModel, _) = Show();
+        ComboBox size = Find(window, "models-size-filter");
+
+        string label = viewModel.SizeFilters
+            .Single(o => o.Value == ModelSizeFilter.Any).Label;
+
+        IEnumerable<string?> shown = size.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .Select(t => t.Text);
+
+        Assert.Contains(shown, text => text == label);
+        Assert.DoesNotContain(shown, text => text is not null && text.Contains("ModelSizeFilterOption", StringComparison.Ordinal));
+    }
+
     [AvaloniaFact]
     public void TheSizeFilterCountsAsSomethingToClear()
     {
