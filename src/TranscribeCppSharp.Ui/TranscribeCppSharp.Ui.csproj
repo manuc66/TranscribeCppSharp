@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!-- WinExe, not Exe: it is the same executable on Linux/macOS, but on Windows
+         it selects the GUI PE subsystem. With Exe the released .exe opens a black
+         console window next to the Avalonia window, which a user double-clicking
+         the release archive does not expect (it did not show when running from a
+         clone through `dotnet run` in a terminal, so it went unnoticed). -->
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -70,10 +75,24 @@
        embeds its native the same way; see TranscribeCppSharp.Cli.csproj for why a
        per-RID PackageReference cannot be used here. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' != ''">
-    <None Include="$(MSBuildThisFileDirectory)../../native-packages/$(RuntimeIdentifier)/runtimes/$(RuntimeIdentifier)/native/*"
+    <None Include="$(MSBuildThisFileDirectory)../../native-packages/$(RuntimeIdentifier)/runtimes/$(RuntimeIdentifier)/native/**/*"
           Exclude="$(MSBuildThisFileDirectory)../../native-packages/$(RuntimeIdentifier)/runtimes/$(RuntimeIdentifier)/native/.done"
           CopyToOutputDirectory="PreserveNewest"
-          Link="%(Filename)%(Extension)" />
+          Link="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- The release archive is the publish directory zipped by CI, not a NuGet
+       package, so it does not get the README/LICENSE that Directory.Build.props
+       packs for NuGet. Copy them into the output so a distributed archive carries
+       the project's licence. The upstream component licences (ggml, miniz, Silero
+       VAD, ...) ride along under licenses/ inside the native package, injected
+       recursively above; the native glob must stay recursive for that, a flat
+       native/* drops the licenses/ subdirectory. -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../../LICENSE"
+          CopyToOutputDirectory="PreserveNewest" Link="LICENSE" />
+    <None Include="$(MSBuildThisFileDirectory)../../README.md"
+          CopyToOutputDirectory="PreserveNewest" Link="README.md" />
   </ItemGroup>
 
   <!-- Without this the GUI resolved transcribe.cpp through the NuGet package,

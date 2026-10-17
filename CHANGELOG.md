@@ -28,6 +28,22 @@ All five RIDs were published locally and each archive carries its matching nativ
 was launched. CI builds the archives but does not launch them on their target OS. There is
 still no NuGet package for the app.
 
+Follow-ups after inspecting the first archives:
+
+- **Windows opened a console window.** The project used `OutputType=Exe`, so the released
+  `.exe` had the console PE subsystem and showed a black window beside the GUI. Now `WinExe`
+  (GUI subsystem); it is the same executable on Linux and macOS. This was invisible through
+  `dotnet run` in a terminal, which is why it shipped unnoticed — it took inspecting the
+  built `.exe` to see it.
+- **The archives carried no licence at all.** The native injection glob was `native/*`, so
+  the `licenses/` subdirectory the native release ships (ggml, miniz, Silero VAD, ...) was
+  dropped, and a plain publish does not add the `README`/`LICENSE` that NuGet packing does.
+  The glob is recursive now and the project `LICENSE` and `README.md` are copied into the
+  output, so a distributed archive carries both.
+- **macOS ships a bare executable, not a `.app`.** No `Info.plist`, no code signature, so
+  Gatekeeper quarantines it like any unsigned download. Documented rather than fixed: a real
+  bundle (and signing) is a separate piece of work.
+
 ### One icon across every surface
 
 The project already had an identity — a signal-teal waveform on the dark

@@ -17,10 +17,14 @@ Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches 
 self-contained archive per platform — `TranscribeCppSharp.Ui-<version>-<rid>.zip` for
 `win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` and `osx-x64`. Unzip it and run the
 executable: it carries the .NET runtime and the matching native transcribe.cpp build, so
-no SDK is needed. Two things it does **not** carry:
+no SDK is needed. It carries the project licence and the upstream component licences under
+`licenses/`. Three things it does **not** carry:
 
 - **No code signature.** There is no installer and no notarization, so Windows SmartScreen
-  and macOS Gatekeeper will warn on first launch.
+  and macOS Gatekeeper will warn or refuse on first launch.
+- **No `.app` bundle on macOS.** The archive is a bare executable (no `Info.plist`), so Finder
+  gives it no Dock name and Gatekeeper quarantines it like any unsigned download; clear it
+  with `xattr -dr com.apple.quarantine TranscribeCppSharp.Ui` if it refuses to run.
 - **No `ffmpeg`.** The app still needs it on `PATH` for any non-WAV input and for the
   microphone ([Audio input](audio-input.md)).
 
