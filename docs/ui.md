@@ -13,9 +13,18 @@ the [missing CUDA runtime](compute.md#using-cuda) — applies to it unchanged.
 
 ## Running it
 
-The app is **not distributed**. There is no installer, no published binary and no NuGet
-package for it; what exists is the source in `src/TranscribeCppSharp.Ui`. To run it, fetch
-the native libraries once and then start it:
+Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a
+self-contained archive per platform — `TranscribeCppSharp.Ui-<version>-<rid>.zip` for
+`win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` and `osx-x64`. Unzip it and run the
+executable: it carries the .NET runtime and the matching native transcribe.cpp build, so
+no SDK is needed. Two things it does **not** carry:
+
+- **No code signature.** There is no installer and no notarization, so Windows SmartScreen
+  and macOS Gatekeeper will warn on first launch.
+- **No `ffmpeg`.** The app still needs it on `PATH` for any non-WAV input and for the
+  microphone ([Audio input](audio-input.md)).
+
+To run from a clone instead, fetch the native libraries once and then start it:
 
 ```bash
 dotnet run --project tools/FetchNative
@@ -169,7 +178,7 @@ Results land in a grid with the detected language, the status and the text, and 
 
 ![The Models tab.]({{ '/assets/images/ui-models.png' | relative_url }})
 
-The 72 curated aliases from the same manifest the CLI resolves against. All of them together
+The 76 curated aliases from the same manifest the CLI resolves against. All of them together
 come to 58 GiB, which is why the grid starts empty of weights and shows what is on disk.
 
 - **Filters.** Free text over the alias, the family read from the repository name, the
@@ -187,8 +196,8 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   on the header says which way. Clicking again reverses it. Each orders by the value it
   shows, so what you see in the column is what the order follows. The three sort buttons
   above the grid set the same state, so both routes move the same arrow.
-  **The one data column that declines is WER**, deliberately: its 72 figures come from
-  three metrics (65 WER, 6 CER, 1 DER), two datasets and eight languages, so an order
+  **The one data column that declines is WER**, deliberately: its 74 figures come from
+  three metrics (67 WER, 6 CER, 1 DER), two datasets and eight languages, so an order
   over them would rank numbers that do not measure the same thing. Its tooltip says so
   rather than leaving a silent refusal. `Action` is not data — it holds buttons.
 - **Filter by language.** The picker beside the licence and size filters narrows the
@@ -203,7 +212,7 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   no record is hidden while one is set, which is the rule the language filter applies too.
   **It selects one at a time.** For a model that both streams *and* diarizes — there are
   two: `diar_streaming_sortformer_4spk-v2.1` and `multitalker-parakeet-streaming-0.6b-v1` —
-  filter by `streaming` and read the Diarization column, which now answers for nine models
+  filter by `streaming` and read the Diarization column, which now answers for ten models
   rather than waiting for a download.
 - **The detail pane quotes upstream.** Below the grid, the selected model shows what
   [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) itself records:
@@ -218,7 +227,8 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
 - **Licence and languages come from the model card.** The grid's Languages column
   shows the first four codes and counts the rest, because some models declare 99;
   the detail pane below carries the whole list and names where it came from. Every
-  one of the 72 entries states its languages — the manifest is filled in by
+  entry states its languages except the voice-activity model (`silero-vad-v6.2`),
+  which has none — the manifest is filled in by
   [`tools/UpdateModelManifest`](../tools/UpdateModelManifest), whose
   `--languages-only` mode reads `cardData.language` and rewrites nothing else, so
   adding the column cannot re-pin a revision or a checksum.
@@ -226,7 +236,7 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   on this machine reports for itself, and wins — including when the load fails, in which
   case the cell says `?` rather than letting a catalog entry stand in for a result the
   machine could not produce. Until then the column reads what transcribe.cpp records
-  (`capabilities.diarize`), which covers four of the 72 models; the detail pane names the
+  (`capabilities.diarize`), which covers four of the 76 models; the detail pane names the
   source and says *unverified by them* where they mark it supported without claiming to
   have checked it. *Check diarization* still loads each downloaded model once to find out
   for yourself; it asks both the ASR `diarize` feature and the DIARIZE role, so a
@@ -240,7 +250,7 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   measurement, for the quantization this project pins. Hover it for the metric, the
   dataset, the split, the language and their provenance flag — including *engine build not
   recorded upstream*, which several rows honestly carry. The header says **WER** because
-  that is the majority of it, but 65 of the 72 figures are WER, six are CER and one is a
+  that is the majority of it, but 67 of the 74 figures are WER, six are CER and one is a
   DER, so read the tooltip rather than the column name when it matters. **It is not a
   measurement of your audio, and this project publishes no accuracy figure of its own**;
   the number is theirs.
@@ -294,7 +304,8 @@ Capabilities are cached per alias for the session.
 
 ## What the app does not do
 
-- **It is not distributed.** Source only, as above.
+- **It ships unsigned.** Each release attaches a self-contained archive per platform, but
+  nothing is code-signed and there is no installer, as above.
 - **It is not a second transcription implementation.** It is a front end over the wrapper, so
   it has exactly the wrapper's behaviour and the wrapper's limits. Where the app and the
   documentation disagree, the documentation is describing the code and the app is the thing

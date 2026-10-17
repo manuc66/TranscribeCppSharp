@@ -300,7 +300,18 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
         {
             UpstreamCatalog.Accuracy? row = HeadlineRow;
             UpstreamCatalog.Headline? headline = Upstream?.HeadlineBenchmark;
-            if (row is null || row.ErrPct is null)
+            if (row is null)
+            {
+                return string.Empty;
+            }
+
+            // The headline is an error rate (WER/CER/DER) for a recognizer and an
+            // accuracy for a language model; both are "the one figure upstream says
+            // to quote", so both are shown, each with its own metric named.
+            string? figure = row.ErrPct is { } err ? $"{err:0.##} %"
+                : row.AccPct is { } acc ? $"{acc:0.##} %"
+                : null;
+            if (figure is null)
             {
                 return string.Empty;
             }
@@ -308,11 +319,26 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
             string measured = row.MeasurementProvenance is null
                 ? "engine build not recorded upstream"
                 : row.MeasurementProvenance;
-            return $"{row.Metric?.ToUpperInvariant()} {row.ErrPct:0.##} % — upstream, " +
+            return $"{row.Metric?.ToUpperInvariant()} {figure} — upstream, " +
                 $"{headline!.Dataset} {headline.Split}, {headline.Language}, " +
                 $"{row.Quant ?? Descriptor.Quant} · {measured}";
         }
     }
+
+    /// <summary>
+    /// Whether upstream publishes a headline figure for this model — an error rate
+    /// (WER/CER/DER) for a recognizer, or an accuracy for a language model.
+    /// </summary>
+    internal bool HasHeadlineAccuracy
+        => HeadlineRow is { ErrPct: not null } or { AccPct: not null };
+
+    /// <summary>
+    /// Whether upstream records any capability as supported for this model. A
+    /// language-identification model supports none of the ASR-centric flags, so its
+    /// capabilities line is legitimately empty.
+    /// </summary>
+    internal bool HasSupportedCapability
+        => Upstream?.Capabilities?.Values.Any(c => c.Supported) == true;
 
     /// <summary>
     /// Whether upstream records this capability as supported for this model.
@@ -496,7 +522,7 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     /// The original reasoning, now historical: the manifest had no family field,
     /// and the native
     /// library reports what a model supports through <c>Model.Supports</c>,
-    /// which needs the model loaded — asking all 72 would mean downloading tens
+    /// which needs the model loaded — asking all 76 would mean downloading tens
     /// of gigabytes just to fill a column. The repositories are named after
     /// their family ("whisper-tiny-gguf", "parakeet-rnnt-0.6b-gguf"), so the
     /// name is the best signal available, but it is a guess and the column

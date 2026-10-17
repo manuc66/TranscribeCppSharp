@@ -42,8 +42,9 @@ Every option, the export formats and what the tool does not do:
 
 `TranscribeCppSharp.Ui` is an Avalonia GUI over the same wrapper: five tabs for
 transcribing a file, streaming the microphone, a batch, the model catalogue and the
-compute settings. It is **not distributed as a package** — there is no installer and no
-NuGet package for it, so you run it from a clone:
+compute settings. Each [release](https://github.com/manuc66/TranscribeCppSharp/releases)
+attaches a self-contained archive per platform (no NuGet package); you can also run it
+from a clone:
 
 ```bash
 dotnet run --project tools/FetchNative            # once: the native library the app loads
@@ -70,7 +71,7 @@ will start a download. With a fresh cache the list is empty and the button is di
 Under every one of those pickers sits a count and a **Get more…** button:
 
 ```
-1 of 72 on disk — the Models tab downloads more.    [Get more…]
+1 of 76 on disk — the Models tab downloads more.    [Get more…]
 ```
 
 The button is always there, not only when the list has run out: a picker with a single entry
@@ -78,7 +79,7 @@ does not tell you the other 71 exist. It switches to the Models tab, and the lis
 on every tab change — otherwise the guidance would point at a download that never appears,
 because the pickers are built once when the window opens.
 
-Which models those 72 are, and what the Models tab does with them:
+Which models those 76 are, and what the Models tab does with them:
 [Desktop app — Models](ui.md#models).
 
 ## Or call it from C#

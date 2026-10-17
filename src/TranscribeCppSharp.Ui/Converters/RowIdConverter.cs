@@ -8,7 +8,7 @@ namespace TranscribeCppSharp.Ui.Converters;
 /// </summary>
 /// <remarks>
 /// A static AutomationId inside a DataTemplate is repeated on every row, so it
-/// cannot address one: the model grid would offer 72 elements all called
+/// cannot address one: the model grid would offer 76 elements all called
 /// "download". Pairing the action with the row's own value gives one id per
 /// element — "models-download-whisper-tiny" — which is what a test, a UI
 /// automation client or a screen reader needs.

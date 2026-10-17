@@ -148,10 +148,15 @@ internal static class TranscribeCommand
                 .FirstOrDefault(a => Same(a, headline) && a.Quant == PinnedQuant(alias))
                 ?? rows.FirstOrDefault(a => Same(a, headline));
 
-            if (row is { ErrPct: not null })
+            // The headline is an error rate (WER/CER/DER) for a recognizer and an
+            // accuracy for a language model; both are shown, each with its metric.
+            string? figure = row?.ErrPct is { } err ? $"{err:0.##} %"
+                : row?.AccPct is { } acc ? $"{acc:0.##} %"
+                : null;
+            if (row is not null && figure is not null)
             {
                 string provenance = row.MeasurementProvenance ?? "engine build not recorded upstream";
-                Line("accuracy", $"{row.Metric?.ToUpperInvariant()} {row.ErrPct:0.##} % on {headline.Dataset} {headline.Split}, "
+                Line("accuracy", $"{row.Metric?.ToUpperInvariant()} {figure} on {headline.Dataset} {headline.Split}, "
                     + $"{headline.Language}, {row.Quant} \u2014 {provenance}");
             }
         }

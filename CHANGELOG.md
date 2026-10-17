@@ -9,6 +9,25 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Desktop app: self-contained archives per platform
+
+`TranscribeCppSharp.Ui` was documented as source-only ("no installer, no published binary,
+no NuGet package"). It now also ships as a self-contained archive per platform, attached to
+the GitHub Release by a new `pack-ui` CI job:
+
+`TranscribeCppSharp.Ui-<version>-<rid>.zip` for `win-x64`, `linux-x64`, `linux-arm64`,
+`osx-arm64` and `osx-x64`. Each archive carries the .NET runtime and the matching native
+transcribe.cpp build, so no SDK is needed. `TranscribeCppSharp.Ui.csproj` injects the per-RID
+native (the same mechanism the CLI uses) and now follows the wrapper's SemVer.
+
+What the archives are not, stated plainly: **not code-signed** (Windows SmartScreen and macOS
+Gatekeeper will warn; there is no installer and no notarization), and **not bundled with
+`ffmpeg`**, which the app still needs on `PATH` for any non-WAV input and for the microphone.
+All five RIDs were published locally and each archive carries its matching native
+(`libtranscribe.so`, `libtranscribe.dylib` or `transcribe.dll`); only the Linux x64 archive
+was launched. CI builds the archives but does not launch them on their target OS. There is
+still no NuGet package for the app.
+
 ### One icon across every surface
 
 The project already had an identity — a signal-teal waveform on the dark
@@ -79,9 +98,9 @@ Tooling and pin:
 - `FetchNative --update-hashes` merges into `build/native-sha256.json` instead of
   overwriting it, so older versions keep their checksums.
 - Catalog re-pinned to v0.4.0: 76 records (4 new: `parakeet-ultra`, `orukeet`,
-  `silero-vad-v6.2`, `lang-id-voxlingua107-ecapa`). The CLI's curated
-  `models.json` stays at its 72 aliases; the 4 new records are not curated into it
-  yet, so `transcribe --list` is unchanged.
+  `silero-vad-v6.2`, `lang-id-voxlingua107-ecapa`). The CLI's curated `models.json`
+  was left at its 72 aliases in this commit; the 4 new records are curated later
+  (see "The four new role models are curated" below).
 
 Verified: full solution builds; 544 Interop and 79 UI tests pass against the 0.4.0
 native library (83.6% total line coverage). The three new sessions are exercised
@@ -125,7 +144,28 @@ an unhandled `UNSUPPORTED_ROLE`, and a langid/vad model could not be run at all.
 
 Tests: `RoleCommandTests` (CLI), `VadWindowingTests` (the merge rules and a
 windowed run on ~138 s of synthesized audio) and `TranscriptionServiceRoleTests`
-(service) run against the three role weights. 561 Interop + 84 UI tests pass.
+(service) run against the three role weights. 562 Interop + 85 UI tests pass.
+
+### The four new role models are curated
+
+The 0.4 catalog added four models the manifest did not offer, so the roles the CLI
+and the app now run could only be reached with a raw HuggingFace spec. They are
+aliases now, each pinned to a HuggingFace revision with its sha256:
+
+| alias | role | quant | size |
+|---|---|---|---|
+| `parakeet-ultra` | ASR (25 European languages) | Q5_K_M | 524 MiB |
+| `orukeet` | ASR (25 European languages) | Q5_K_M | 523 MiB |
+| `lang-id-voxlingua107-ecapa` | LANGID | Q8_0 | 25 MiB |
+| `silero-vad-v6.2` | VAD | F32 | 1.2 MiB |
+
+The manifest goes from 72 to 76 aliases. Two detail-pane rules were relaxed for
+models upstream records differently: a language model's headline is an accuracy
+(on FLEURS), now shown — `HeadlineAccuracyDetail` and the CLI's catalog section
+handle both an error rate and an accuracy — and a VAD model has no language and no accuracy, so an
+explicitly empty language list is allowed (a *missing* field is still an error)
+and a blank accuracy line is the record, not a broken reader. The WER column stays
+an error-rate column: a language model shows a dash there.
 
 ### Desktop app: an Avalonia GUI over the wrapper
 
@@ -135,9 +175,9 @@ the `transcribe` CLI. It adds no transcription logic of its own, so the
 documented limits — the thread-safety rule, the native abort on long streams,
 the absent CUDA runtime — apply to it unchanged.
 
-It is **not distributed**: no installer, no published binary, no NuGet package.
-The app runs from a clone, after `dotnet run --project tools/FetchNative` the
-same way the CLI does. `CopyNativeLib.targets` now covers the GUI as well, which
+It ships as unsigned, self-contained archives (see the entry above): no installer, no code
+signature, no NuGet package. The app also runs from a clone, after
+`dotnet run --project tools/FetchNative` the same way the CLI does. `CopyNativeLib.targets` now covers the GUI as well, which
 it did not used to: the GUI silently fell back to the `TranscribeCppSharp.Native`
 package, 90 of the 99 entry points the Interop declares were missing from it, and
 every device call in Settings threw.
@@ -154,7 +194,7 @@ What it does:
   and Voxtral.
 - **Batch** — a queue of files run one after another against one loaded model,
   exported as `.txt` or `.json`.
-- **Models** — the 72 curated aliases, filterable by alias, family, size,
+- **Models** — the 76 curated aliases, filterable by alias, family, size,
   licence or what is on disk, with per-row download, measure and delete. It can
   time a model on audio you choose: one discarded warm-up and three timed
   passes, the best kept, in memory for the session only. Diarization support is a

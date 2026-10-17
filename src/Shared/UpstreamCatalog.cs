@@ -150,7 +150,8 @@ internal static class UpstreamCatalog
         string? Quant,
         string? Metric,
         double? ErrPct,
-        string? MeasurementProvenance);
+        string? MeasurementProvenance,
+        double? AccPct);
 
     /// <summary>The result upstream says should be quoted for this model.</summary>
     public sealed record Headline(string? Dataset, string? Split, string? Language, string? Metric);

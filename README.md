@@ -21,7 +21,7 @@ Three ways to use it:
 
 - **A command-line tool** — `dotnet tool install -g TranscribeCppSharp.Cli` gives you `transcribe`, which downloads a curated model on first use and prints or exports the transcript. See [Command-line tool](docs/cli.md).
 - **A .NET library** — the `TranscribeCppSharp` wrapper (plus the native runtime package for your platform) for C# code. See [Getting started](docs/getting-started.md).
-- **A desktop app** — `TranscribeCppSharp.Ui`, an Avalonia GUI over the same wrapper. It is **not distributed as a package**: there is no installer and no NuGet package for it, so you run it from a clone. See [Desktop app](#desktop-app).
+- **A desktop app** — `TranscribeCppSharp.Ui`, an Avalonia GUI over the same wrapper. Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a self-contained archive per platform (not a NuGet package); you can also run it from a clone. See [Desktop app](#desktop-app).
 
 📖 **[Full documentation →](https://manuc66.github.io/TranscribeCppSharp/)** — the guide, the reference, and the measured limits with the method behind each one. Published from [`docs/`](docs/); this README is the short version and the details are delegated to those pages.
 
@@ -135,8 +135,20 @@ Speaker attribution, long audio and windowing: [Long audio and diarization](docs
 
 `TranscribeCppSharp.Ui` is an [Avalonia](https://avaloniaui.net/) app on .NET 10 that drives
 the same wrapper and the same native library — it adds no transcription logic of its own, and
-its limits are the library's. It is built in CI on Linux, macOS and Windows. As noted above
-it is distributed as source, so it runs from a clone:
+its limits are the library's. It is built in CI on Linux, macOS and Windows.
+
+Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a
+self-contained archive per platform — `TranscribeCppSharp.Ui-<version>-<rid>.zip` for
+`win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` and `osx-x64`. Unzip it and run the
+executable: it carries the .NET runtime and the matching native transcribe.cpp build, so no
+SDK is needed. Two caveats, stated plainly:
+
+- The archives are **not code-signed**, so Windows SmartScreen and macOS Gatekeeper will warn
+  on first launch. There is no installer and no notarization.
+- They carry **no `ffmpeg`**, which the app still needs on `PATH` for any non-WAV input and
+  for the microphone ([Audio input](docs/audio-input.md)).
+
+To build from source instead, fetch the native libraries once and then start it:
 
 ```bash
 dotnet run --project tools/FetchNative            # once: the native library the app loads
@@ -150,7 +162,7 @@ Five tabs, one per job:
 | **Transcription** | Pick a file, a model and the decoder settings (language, threads, KV type, context size, window length, and the knobs that only some model families have). The result comes back as text, as segments, as words, or as speaker-attributed segments, and exports to `.txt`, `.vtt` or `.json`. |
 | **Streaming** | Transcribe the microphone live, with committed text on the left and the tentative part the model may still revise on the right. The commit policy and the family-specific knobs are there. |
 | **Batch** | Queue several files and run them one after another against one loaded model, then export the results as `.txt` or `.json`. |
-| **Models** | The 72 curated aliases, filterable by alias, family, size, licence, language, or what is already on disk, with per-row download, measure and delete. It can also time a model on audio you choose, on your machine, for this session only. |
+| **Models** | The 76 curated aliases, filterable by alias, family, size, licence, language, or what is already on disk, with per-row download, measure and delete. It can also time a model on audio you choose, on your machine, for this session only. |
 | **Settings** | Backend and device selection, the cache directory, the native library's version, and the compute devices this build can see. |
 
 Three things worth knowing before you rely on it:
@@ -204,9 +216,10 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 - **There is no GPU in CI.** The tool is tested end to end on the CPU, but GPU selection
   itself is covered by policy tests, not by a real run
   ([what the CLI does not do](docs/cli.md#what-the-cli-does-not-do)).
-- **The desktop app is not distributed.** It is built and its headless tests run in CI on
-  all three platforms, but there is no installer, no published binary and no NuGet package
-  for it — only the source in `src/TranscribeCppSharp.Ui`
+- **The desktop app is unsigned and has no installer.** Each release attaches a self-contained
+  archive per platform, but nothing is code-signed — Windows SmartScreen and macOS Gatekeeper
+  will warn on first launch — and there is no installer and no NuGet package for it. Its
+  headless tests run in CI on all three platforms, but a real launch on each OS is not covered
   ([Desktop app](#desktop-app)).
 
 The formats the decoder is *verified* to read are listed, with the tests that cover them,

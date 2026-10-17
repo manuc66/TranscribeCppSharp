@@ -95,7 +95,7 @@ public class ModelGridSortingTests
     /// <remarks>
     /// The count is the point: a grid where most columns decline a click is a grid
     /// where sorting is a feature nobody can find. Action is not data — it holds
-    /// buttons — and WER is the one data column without an order, because its 72
+    /// buttons — and WER is the one data column without an order, because its 76
     /// figures come from three metrics, two datasets and eight languages.
     /// </remarks>
     [AvaloniaFact]

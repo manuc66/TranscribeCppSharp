@@ -306,8 +306,8 @@ public class ModelBenchmarkTests
     [Fact]
     public void Measure_RefusesAModelThatIsNotOnDiskAndFetchesNothing()
     {
-        // Nothing is downloaded in order to be measured: the 72 aliases come to
-        // 58 GiB, so a measurement must never start a fetch behind the user's
+        // Nothing is downloaded in order to be measured: the 76 aliases come to
+        // 59 GiB, so a measurement must never start a fetch behind the user's
         // back, and a model that was never downloaded has no local speed.
         ModelDescriptor missing = ModelStore.Find("whisper-large")!;
         string? previous = ModelStore.CacheRootOverride;

@@ -83,6 +83,19 @@ public class TranscribeCommandTests
     }
 
     [Fact]
+    public void ModelInfo_ShowsALanguageModelsAccuracyNotAnErrorRate()
+    {
+        // The headline is an accuracy for a language model; it used to be dropped
+        // because the section only rendered an error rate.
+        Result result = Run("--model-info", "lang-id-voxlingua107-ecapa");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("ACCURACY", result.Out);
+        Assert.DoesNotContain("WER", result.Out);
+        AssertNoCrash(result);
+    }
+
+    [Fact]
     public void ModelInfo_ShowsThePinnedRecordForAKnownAlias()
     {
         Result result = Run("--model-info", "whisper-tiny");

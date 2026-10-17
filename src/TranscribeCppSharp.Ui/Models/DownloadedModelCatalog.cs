@@ -7,7 +7,7 @@ namespace TranscribeCppSharp.Ui.Models;
 /// </summary>
 /// <remarks>
 /// The three pickers (Transcription, Streaming, Batch) used to list the whole
-/// catalogue, so a first run showed 72 entries of which at most one could be used
+/// catalogue, so a first run showed 76 entries of which at most one could be used
 /// without a download. Listing only what is cached makes the list mean something,
 /// and moves the decision to the Models tab — which is where the hint below sends
 /// the reader.
@@ -22,7 +22,7 @@ public static class DownloadedModelCatalog
     /// Aliases already downloaded, in manifest order.
     /// </summary>
     /// <remarks>
-    /// One <c>File.Exists</c> per entry — 72 on a full cache. Cheap enough to run on
+    /// One <c>File.Exists</c> per entry — 76 on a full cache. Cheap enough to run on
     /// a tab change, which is the only place it runs outside startup: the list is
     /// built once when the window is created, and a model downloaded afterwards
     /// would otherwise never appear.

@@ -133,7 +133,7 @@ Stated plainly, so nothing is implied:
 
 ## What it supports
 
-72 curated model aliases across every family transcribe.cpp supports, on the GPU
+76 curated model aliases across every family transcribe.cpp supports, on the GPU
 by default, with speaker diarization and plain/WebVTT/JSON export. Which model
 families those are, and how their licenses differ, is on
 [Models](models.md#model-licenses).

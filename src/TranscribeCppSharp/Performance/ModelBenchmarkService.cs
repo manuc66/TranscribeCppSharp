@@ -16,7 +16,7 @@ namespace TranscribeCppSharp.Performance;
 /// <remarks>
 /// Only for models already on disk. Nothing here downloads anything: a model
 /// that has to be fetched first cannot be compared against one that is loaded,
-/// and the 72 aliases come to 58 GiB.
+/// and the 76 aliases come to 59 GiB.
 /// <para>
 /// The measurement is deliberately not a single pass. One run reports whatever
 /// else the machine was doing at that instant, and docs/streaming-bench.md

@@ -101,6 +101,13 @@ public class UpstreamCatalogDetailTests
     /// Upstream records every model in the manifest, so a blank pane would mean the
     /// reader is broken rather than the record missing.
     /// </summary>
+    /// <remarks>
+    /// The capabilities and accuracy lines are only expected when upstream records
+    /// something for them: a language-identification model supports none of the
+    /// ASR-centric capability flags, and a voice-activity model has no headline
+    /// figure, so a blank line there is the record, not a broken reader. The
+    /// identity and quantizations lines are required for every model.
+    /// </remarks>
     [Fact]
     public void EveryModelInTheManifestHasUpstreamDetail()
     {
@@ -108,16 +115,39 @@ public class UpstreamCatalogDetailTests
             .Where(d =>
             {
                 ModelCatalogItem item = new(d);
-                return string.IsNullOrEmpty(item.UpstreamDetail)
-                    || string.IsNullOrEmpty(item.QuantizationsDetail)
-                    || string.IsNullOrEmpty(item.CapabilitiesDetail)
-                    || string.IsNullOrEmpty(item.HeadlineAccuracyDetail);
+                if (string.IsNullOrEmpty(item.UpstreamDetail)
+                    || string.IsNullOrEmpty(item.QuantizationsDetail))
+                {
+                    return true;
+                }
+
+                if (item.HasSupportedCapability && string.IsNullOrEmpty(item.CapabilitiesDetail))
+                {
+                    return true;
+                }
+
+                return item.HasHeadlineAccuracy && string.IsNullOrEmpty(item.HeadlineAccuracyDetail);
             })
             .Select(d => d.Alias)
             .ToArray();
 
         Assert.True(blank.Length == 0,
             $"{blank.Length} model(s) with an incomplete detail pane: {string.Join(", ", blank.Take(10))}");
+    }
+
+    /// <summary>
+    /// A language model's headline is an accuracy, not an error rate, and both are
+    /// shown — each with its own metric named.
+    /// </summary>
+    [Fact]
+    public void ALanguageModelHeadlineIsAnAccuracyNotAnErrorRate()
+    {
+        ModelCatalogItem item = new(ModelStore.Find("lang-id-voxlingua107-ecapa")!);
+
+        Assert.Contains("ACCURACY", item.HeadlineAccuracyDetail, StringComparison.Ordinal);
+        // The WER column stays an error-rate column, so it shows a dash for a model
+        // that has no word-error rate.
+        Assert.Equal("-", item.WerText);
     }
 
     /// <summary>

@@ -10,7 +10,7 @@ nav_order: 5
 The model argument accepts three forms:
 
 ```bash
-transcribe audio.wav --model whisper-tiny            # curated alias (72 across all families)
+transcribe audio.wav --model whisper-tiny            # curated alias (76 across all families)
 transcribe audio.wav --model whisper-tiny --quant Q8_0
 transcribe audio.wav /path/to/my-model.gguf           # local file, fully offline
 transcribe audio.wav handy-computer/parakeet-tdt-0.6b-v3-gguf/parakeet-tdt-0.6b-v3-Q5_K_M.gguf
