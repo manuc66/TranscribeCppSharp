@@ -52,6 +52,14 @@
                    IsVisible="{Binding RolesHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                    AutomationProperties.AutomationId="transcription-roles"
                    AutomationProperties.Name="Model roles" />
+        <StackPanel Margin="0,4,0,0" IsVisible="{Binding ShowAllowedLanguages}">
+          <TextBlock Text="Allowed languages (language-identification model)" FontSize="11" Margin="0,0,0,4"
+                     ToolTip.Tip="Comma-separated language codes the model may answer with (e.g. en,fr,de). Empty ranks every label." />
+          <TextBox Text="{Binding AllowedLanguages}"
+                   AutomationProperties.AutomationId="transcription-allowed-languages"
+                   AutomationProperties.Name="Allowed languages"
+                   Watermark="en,fr,de" />
+        </StackPanel>
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
         <TextBlock Text="Language" Margin="0,0,0,4"
@@ -220,6 +228,27 @@
             <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
             <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
             <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P0}}" />
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+      <TabItem Header="Languages" IsVisible="{Binding ShowLangIdTab}"
+               AutomationProperties.AutomationId="transcription-langid-grid"
+               AutomationProperties.Name="Language candidates">
+        <DataGrid ItemsSource="{Binding LangIdCandidates}" AutoGenerateColumns="False" IsReadOnly="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Code" Binding="{Binding Code}" />
+            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+            <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P1}}" />
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+      <TabItem Header="Speech" IsVisible="{Binding ShowVadTab}"
+               AutomationProperties.AutomationId="transcription-vad-grid"
+               AutomationProperties.Name="Speech segments">
+        <DataGrid ItemsSource="{Binding VadSegments}" AutoGenerateColumns="False" IsReadOnly="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Start (sample)" Binding="{Binding StartSample}" />
+            <DataGridTextColumn Header="End (sample)" Binding="{Binding EndSample}" />
           </DataGrid.Columns>
         </DataGrid>
       </TabItem>

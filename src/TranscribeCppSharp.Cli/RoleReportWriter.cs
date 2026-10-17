@@ -72,7 +72,7 @@ internal static class RoleReportWriter
 
     internal static void WriteVad(
         TextWriter w, TranscriptFormat format, string audioPath, string modelLabel,
-        TimeSpan duration, VadSession.VadResult result, int sampleRate, DateTime generated)
+        TimeSpan duration, IReadOnlyList<VadSession.VadSegmentResult> segments, int frameCount, int sampleRate, DateTime generated)
     {
         static double Ms(long samples, int rate) => Math.Round(samples * 1000.0 / rate, 1);
 
@@ -85,8 +85,8 @@ internal static class RoleReportWriter
                 model = modelLabel,
                 audio = Seconds(duration),
                 sample_rate = sampleRate,
-                frames = result.Probabilities.Count,
-                segments = result.Segments.Select(s => new
+                frames = frameCount,
+                segments = segments.Select(s => new
                 {
                     start_sample = s.StartSample,
                     end_sample = s.EndSample,
@@ -98,8 +98,8 @@ internal static class RoleReportWriter
         }
 
         Header(w, "speech activity", audioPath, modelLabel, duration, generated);
-        Line(w, $"# frames: {result.Probabilities.Count}");
-        foreach (var s in result.Segments)
+        Line(w, $"# frames: {frameCount}");
+        foreach (var s in segments)
         {
             Line(w, $"[{Fmt.Ts(Ms(s.StartSample, sampleRate))} -> {Fmt.Ts(Ms(s.EndSample, sampleRate))}] speech");
         }

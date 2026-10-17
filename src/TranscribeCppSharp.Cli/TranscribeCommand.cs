@@ -593,13 +593,15 @@ internal static class TranscribeCommand
         var info = model.GetVadInfo();
         double audioSec = totalSamples / (double)WindowPlanner.SampleRate;
         stdout.WriteLine($"vad: {info.SampleRate} Hz, frame {info.FrameSamples} samples ({info.FrameSamples * 1000.0 / info.SampleRate:0} ms)");
+        stdout.WriteLine($"      {Fmt.Dur(audioSec)} of audio, scored in {options.ChunkSeconds}s windows");
 
-        float[] pcm = ReadWhole(pcmSource, totalSamples);
         var sw = Stopwatch.StartNew();
-        VadSession.VadResult result;
+        VadWindowing.VadRunResult result;
         try
         {
-            result = session.Run(pcm);
+            // Silero VAD is chunked-unbounded upstream, so the file is scored one
+            // window at a time and the intervals merged, rather than held whole.
+            result = VadWindowing.Run(session, pcmSource, options.ChunkSeconds);
         }
         catch (TranscribeException ex)
         {
@@ -609,7 +611,7 @@ internal static class TranscribeCommand
 
         sw.Stop();
 
-        stdout.WriteLine($"\n=== speech activity === ({result.Segments.Count} segments, {result.Probabilities.Count} frames)");
+        stdout.WriteLine($"\n=== speech activity === ({result.Segments.Count} segments, {result.FrameCount} frames)");
         foreach (var s in result.Segments)
         {
             double start = s.StartSample * 1000.0 / info.SampleRate;
@@ -619,7 +621,7 @@ internal static class TranscribeCommand
 
         WriteRoleReport(options, stdout, w => RoleReportWriter.WriteVad(
             w, options.Format, options.AudioPath, modelLabel,
-            TimeSpan.FromSeconds(audioSec), result, info.SampleRate, DateTime.Now));
+            TimeSpan.FromSeconds(audioSec), result.Segments, result.FrameCount, info.SampleRate, DateTime.Now));
 
         stdout.WriteLine($"\n  total : {Fmt.Dur(sw.Elapsed.TotalSeconds)} for {Fmt.Dur(audioSec)} audio");
         return 0;

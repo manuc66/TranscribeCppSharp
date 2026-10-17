@@ -84,10 +84,17 @@ Pick a file, a model and the decoder settings, then run.
 The tab runs the **role** the selected model serves (transcribe.cpp 0.4), and the
 line under the picker names it. An ASR model is transcribed as below; a
 diarization model (Sortformer) returns speaker turns; a language-identification
-model returns the ranked languages (top language in the language field); a
-voice-activity model returns the speech segments. The result is shown as text,
-with the speaker rows in the Speakers tab for a diarizer. Decoder settings that
-only apply to ASR are hidden for the other roles.
+model returns the ranked languages; a voice-activity model returns the speech
+segments. The result appears in the Text tab and, by role, in a **Languages** grid
+(ranked candidates) or a **Speech** grid (segments, in samples); a diarizer fills
+the **Speakers** tab. A language model also shows an **Allowed languages** field
+(comma-separated codes) to restrict the ranking. Decoder settings that only apply
+to ASR are hidden for the other roles.
+
+A voice-activity model is scored one window at a time (Silero VAD is
+chunked-unbounded upstream), so a long file does not have to fit in memory; the
+Window setting is that window. A diarizer is run whole — its speaker ids are per
+run, so splitting would renumber them at the seam.
 
 A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg`, `m4a`)
 is decoded with `ffmpeg`, which has to be installed and on `PATH` — see

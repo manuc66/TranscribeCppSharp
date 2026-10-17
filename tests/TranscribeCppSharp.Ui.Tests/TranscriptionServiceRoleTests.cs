@@ -70,6 +70,22 @@ public class TranscriptionServiceRoleTests
         Assert.True(result.Roles.HasFlag(TranscribeRole.Langid));
         Assert.Equal("en", result.DetectedLanguage);
         Assert.Contains("Language identification:", result.FullText);
+        Assert.NotEmpty(result.LangIdCandidates);
+    }
+
+    [Fact]
+    public async Task ALanguageModel_WithAllowedLanguages_RanksOnlyThose()
+    {
+        string model = Model("lang-id-voxlingua107-ecapa-Q8_0.gguf");
+        Require(model);
+
+        var options = Cpu();
+        options.AllowedLanguages = ["en", "fr"];
+
+        var result = await new TranscriptionService().TranscribeAsync(Audio, model, options);
+
+        Assert.Equal(2, result.LangIdCandidates.Count);
+        Assert.Contains(result.LangIdCandidates, c => c.Code == "en");
     }
 
     [Fact]
@@ -83,6 +99,7 @@ public class TranscriptionServiceRoleTests
         Assert.True(result.Roles.HasFlag(TranscribeRole.Vad));
         Assert.Contains("Voice activity:", result.FullText);
         Assert.Contains("] speech", result.FullText);
+        Assert.NotEmpty(result.VadSegments);
     }
 
     [Fact]

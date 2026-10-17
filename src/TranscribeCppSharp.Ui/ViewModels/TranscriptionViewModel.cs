@@ -67,6 +67,16 @@ public partial class TranscriptionViewModel : ObservableObject
     private ObservableCollection<SpeakerSegmentResult> _speakerSegments = new();
 
     [ObservableProperty]
+    private ObservableCollection<LangIdSession.LangIdCandidate> _langIdCandidates = new();
+
+    [ObservableProperty]
+    private ObservableCollection<VadSession.VadSegmentResult> _vadSegments = new();
+
+    /// <summary>Comma-separated language codes for a LANGID model; empty ranks all.</summary>
+    [ObservableProperty]
+    private string _allowedLanguages = string.Empty;
+
+    [ObservableProperty]
     private bool _hasResult;
 
     public ObservableCollection<string> AvailableModels { get; } = new();
@@ -187,6 +197,15 @@ public partial class TranscriptionViewModel : ObservableObject
             return "runs: " + string.Join(", ", names);
         }
     }
+
+    /// <summary>Whether the selected model's roles include language identification.</summary>
+    public bool ShowLangIdTab => Result?.Roles.HasFlag(TranscribeRole.Langid) == true;
+
+    /// <summary>Whether the selected model's roles include voice activity detection.</summary>
+    public bool ShowVadTab => Result?.Roles.HasFlag(TranscribeRole.Vad) == true;
+
+    /// <summary>Whether the allowed-languages field applies (the model serves LANGID).</summary>
+    public bool ShowAllowedLanguages => _selectedCapabilities?.Roles.HasFlag(TranscribeRole.Langid) == true;
 
     /// <summary>False while a transcription or a capability check is running.</summary>
     public bool CanTranscribe
@@ -385,8 +404,16 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowTranslate));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
         OnPropertyChanged(nameof(RolesHint));
+        OnPropertyChanged(nameof(ShowAllowedLanguages));
         UpdateAvailableLanguages(capabilities);
         UpdateTargetOptions(capabilities);
+    }
+
+    /// <summary>Splits the comma-separated allowed-languages field into codes.</summary>
+    private static string[]? ParseAllowed(string text)
+    {
+        string[] parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? null : parts;
     }
 
     /// <summary>
@@ -558,6 +585,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 SpecKDrafts = SpecKDrafts,
                 KeepSpecialTags = KeepSpecialTags,
                 WindowSeconds = WindowSeconds,
+                AllowedLanguages = ParseAllowed(AllowedLanguages),
             };
 
             var progress = new Progress<double>(p => Progress = p);
@@ -569,6 +597,10 @@ public partial class TranscriptionViewModel : ObservableObject
             Segments = new ObservableCollection<MergedSegment>(Result.Segments);
             Words = new ObservableCollection<WordResult>(Result.Words);
             SpeakerSegments = new ObservableCollection<SpeakerSegmentResult>(Result.SpeakerSegments);
+            LangIdCandidates = new ObservableCollection<LangIdSession.LangIdCandidate>(Result.LangIdCandidates);
+            VadSegments = new ObservableCollection<VadSession.VadSegmentResult>(Result.VadSegments);
+            OnPropertyChanged(nameof(ShowLangIdTab));
+            OnPropertyChanged(nameof(ShowVadTab));
             HasResult = true;
             StatusMessage = "Transcription complete.";
         }

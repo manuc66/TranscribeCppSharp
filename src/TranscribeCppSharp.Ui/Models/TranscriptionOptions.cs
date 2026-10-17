@@ -18,6 +18,12 @@ public class TranscriptionOptions
     /// </summary>
     public int WindowSeconds { get; set; } = 300;
 
+    /// <summary>
+    /// Language codes a language-identification model may answer with
+    /// (comma-separated in the UI, split here). Null/empty ranks every label.
+    /// </summary>
+    public string[]? AllowedLanguages { get; set; }
+
     // Session parameters
     public int? Threads { get; set; }
     public KvType? KvType { get; set; }

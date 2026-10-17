@@ -94,12 +94,21 @@ an unhandled `UNSUPPORTED_ROLE`, and a langid/vad model could not be run at all.
   `--out` writes a plain or JSON report for the non-ASR roles (`--format vtt` is
   refused with an explanation, since a WebVTT cue is an ASR shape).
 - **Desktop app**: the Transcription tab runs the model's role and shows the
-  result, with a `runs:` line under the picker. The Models tab's *Check
-  diarization* now asks the DIARIZE role as well as the ASR feature, so a
-  Sortformer reads *supported*.
+  result, with a `runs:` line under the picker, a **Languages** grid for a
+  language model and a **Speech** grid for a VAD model (a diarizer fills the
+  existing Speakers grid). A language model also gets an **Allowed languages**
+  field. The Models tab's *Check diarization* now asks the DIARIZE role as well
+  as the ASR feature, so a Sortformer reads *supported*.
+- **Long-form audio, honestly.** VAD is `chunked-unbounded` upstream, so the CLI
+  and the app score it window by window and union the intervals across the seams
+  (memory is one window, not the file; `--chunk` sets the window). Language
+  identification is a 30 s hard cap, so the head of the file is used. Diarization
+  is a hard cap with no streaming entry point and per-run speaker ids, so it is
+  run whole and not split — windowing it would renumber speakers at every seam.
 
 Tests: `RoleCommandTests` (CLI) and `TranscriptionServiceRoleTests` (service) run
-against the three role weights. 553 Interop + 83 UI tests pass.
+against the three role weights, including a windowed VAD run that must match the
+one-pass segments. 554 Interop + 84 UI tests pass.
 
 ### Desktop app: an Avalonia GUI over the wrapper
 

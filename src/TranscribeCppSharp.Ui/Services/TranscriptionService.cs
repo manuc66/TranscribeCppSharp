@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.Shared;
 using TranscribeCppSharp.Ui.Models;
 
 namespace TranscribeCppSharp.Ui.Services;
@@ -29,7 +30,7 @@ public class TranscriptionService : ITranscriptionService
             return await System.Threading.Tasks.Task.Run(
                 () => roles.HasFlag(TranscribeRole.Asr)
                     ? RunAsr(model, roles, options, audioSource, progress, cancellationToken)
-                    : RunNonAsr(model, roles, options, audioSource, cancellationToken),
+                    : RunNonAsr(model, roles, options, audioSource, progress, cancellationToken),
                 cancellationToken);
         }
         finally
@@ -118,9 +119,9 @@ public class TranscriptionService : ITranscriptionService
         TranscribeRole roles,
         TranscriptionOptions options,
         PcmSource audioSource,
+        IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
-        _ = options;
         int sampleRate = WindowPlanner.SampleRate;
         int total = (int)Math.Min(audioSource.LengthSamples, int.MaxValue);
 
@@ -149,7 +150,16 @@ public class TranscriptionService : ITranscriptionService
             // The model has a maximum clip; identify from the head of the audio
             // when the file is longer.
             long max = info.MaxAudioMs > 0 ? (long)info.MaxAudioMs * sampleRate / 1000 : total;
-            var result = session.Run(audioSource.ReadWindow(0, (int)Math.Min(total, max)), ct: cancellationToken);
+            var result = session.Run(
+                audioSource.ReadWindow(0, (int)Math.Min(total, max)),
+                p =>
+                {
+                    if (options.AllowedLanguages is { Length: > 0 })
+                    {
+                        p.WithAllowed(options.AllowedLanguages);
+                    }
+                },
+                cancellationToken);
 
             var lines = new List<string>
             {
@@ -162,6 +172,7 @@ public class TranscriptionService : ITranscriptionService
                 Roles = roles,
                 DetectedLanguage = result.Candidates.Count > 0 ? result.Candidates[0].Code : string.Empty,
                 FullText = string.Join('\n', lines),
+                LangIdCandidates = result.Candidates.ToList(),
             };
         }
 
@@ -169,11 +180,14 @@ public class TranscriptionService : ITranscriptionService
         {
             using var session = model.CreateVadSession();
             var info = model.GetVadInfo();
-            var result = session.Run(audioSource.ReadWindow(0, total), ct: cancellationToken);
+
+            // Silero VAD is chunked-unbounded upstream: score it one window at a
+            // time and merge the intervals instead of holding the whole file.
+            var result = VadWindowing.Run(session, audioSource, options.WindowSeconds, progress, cancellationToken);
 
             var lines = new List<string>
             {
-                $"Voice activity: {result.Segments.Count} speech segments, {result.Probabilities.Count} frames.",
+                $"Voice activity: {result.Segments.Count} speech segments, {result.FrameCount} frames.",
             };
             lines.AddRange(result.Segments.Select(s =>
             {
@@ -186,6 +200,7 @@ public class TranscriptionService : ITranscriptionService
             {
                 Roles = roles,
                 FullText = string.Join('\n', lines),
+                VadSegments = result.Segments.ToList(),
             };
         }
 

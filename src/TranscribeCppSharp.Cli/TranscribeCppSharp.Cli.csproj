@@ -64,5 +64,6 @@
          promise forbids. -->
     <EmbeddedResource Include="..\Shared\..\..\catalog\catalog.zip" Link="Assets\catalog.zip" LogicalName="catalog.zip" />
     <Compile Include="..\Shared\UpstreamCatalog.cs" Link="Shared\UpstreamCatalog.cs" />
+    <Compile Include="..\Shared\VadWindowing.cs" Link="Shared\VadWindowing.cs" />
   </ItemGroup>
 </Project>

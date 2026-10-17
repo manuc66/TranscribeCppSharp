@@ -58,9 +58,19 @@ unchanged: they still attribute speakers through the run-time toggle described o
 ### Language identification and VAD
 
 `LangIdSession.Run` ranks the model's labels (optionally restricted to a set of
-codes with `LangIdParamsBuilder.WithAllowed`); `VadSession.Run` returns one speech
-probability per frame plus the speech segments, and `Feed`/`Flush`/`Reset` drive
-the streaming form.
+codes with `LangIdParamsBuilder.WithAllowed`). The model has a **hard cap** on the
+clip (30 s for VoxLingua107), so the CLI and the app identify from the head of the
+audio and say so.
+
+`VadSession.Run` returns one speech probability per frame plus the speech segments,
+and `Feed`/`Flush`/`Reset` drive the streaming form. Silero VAD is
+**chunked-unbounded** upstream, so the CLI and the app score the file one window at
+a time (1 s overlap) and union the intervals across the seams — memory stays one
+window, not the whole file. The CLI's `--chunk` sets that window.
+
+Diarization is the opposite: a **hard cap** with no streaming entry point, and
+speaker ids are per run, so a file is **not** split — windowing it would renumber
+the speakers at every seam. It is run whole.
 
 ## Backend allowlist
 

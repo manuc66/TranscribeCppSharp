@@ -109,6 +109,27 @@ public class RoleCommandTests
     }
 
     [SkippableFact]
+    public void AVadModel_Windowed_ProducesTheSameSegmentsAsOnePass()
+    {
+        Skip.IfNot(Have(Vad), "VAD model or audio not present.");
+
+        Result single = Run(TestConfig.AudioPath, Vad, "--backend", "cpu");
+        Result windowed = Run(TestConfig.AudioPath, Vad, "--backend", "cpu", "--chunk", "5");
+
+        Assert.Equal(0, single.ExitCode);
+        Assert.Equal(0, windowed.ExitCode);
+        Assert.Contains("scored in 5s windows", windowed.Out);
+
+        // The 11 s sample in 5 s windows crosses two seams; the intervals are
+        // merged there, so the same speech comes out as one pass.
+        Assert.Equal(CountSpeech(single.Out), CountSpeech(windowed.Out));
+        Assert.True(CountSpeech(single.Out) > 0, "no speech segments in the one-pass run");
+    }
+
+    private static int CountSpeech(string output)
+        => output.Split('\n').Count(line => line.EndsWith("] speech", StringComparison.Ordinal));
+
+    [SkippableFact]
     public void ADiarizationModel_WritesTheReportToOut()
     {
         Skip.IfNot(Have(Sortformer), "Sortformer model or audio not present.");

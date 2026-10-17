@@ -20,4 +20,10 @@ public class TranscriptionResult
 
     public List<WordResult> Words { get; set; } = new();
     public List<SpeakerSegmentResult> SpeakerSegments { get; set; } = new();
+
+    /// <summary>Ranked languages, for a model that serves the LANGID role.</summary>
+    public List<LangIdSession.LangIdCandidate> LangIdCandidates { get; set; } = new();
+
+    /// <summary>Speech segments, for a model that serves the VAD role.</summary>
+    public List<VadSession.VadSegmentResult> VadSegments { get; set; } = new();
 }
