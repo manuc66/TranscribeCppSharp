@@ -24,6 +24,7 @@ public class AutomationIdTests
         "transcription-model-hint",
         "transcription-get-models",
         "transcription-capability-status",
+        "transcription-roles",
         "transcription-language",
         "transcription-threads",
         "transcription-kv-type",

@@ -81,6 +81,26 @@ at 98% line coverage; the remainder is defensive `throw`s on native getters that
 a healthy session never returns non-OK from (unreachable without fault injection).
 New page: [docs/roles.md](docs/roles.md).
 
+### The CLI and the desktop app follow the model's role
+
+The 0.4 bind left the front ends behind: both only ever created an ASR session,
+so a Sortformer — which is in the CLI's curated alias list — crashed the CLI with
+an unhandled `UNSUPPORTED_ROLE`, and a langid/vad model could not be run at all.
+
+- **CLI**: `transcribe` reads `Model.Roles` and dispatches. An ASR model keeps the
+  transcription path; a diarizer prints speaker turns; a language model prints the
+  ranked languages; a VAD model prints the speech segments. A `roles :` line names
+  what the model serves. New `--allowed en,fr,de` restricts a language model, and
+  `--out` writes a plain or JSON report for the non-ASR roles (`--format vtt` is
+  refused with an explanation, since a WebVTT cue is an ASR shape).
+- **Desktop app**: the Transcription tab runs the model's role and shows the
+  result, with a `runs:` line under the picker. The Models tab's *Check
+  diarization* now asks the DIARIZE role as well as the ASR feature, so a
+  Sortformer reads *supported*.
+
+Tests: `RoleCommandTests` (CLI) and `TranscriptionServiceRoleTests` (service) run
+against the three role weights. 553 Interop + 83 UI tests pass.
+
 ### Desktop app: an Avalonia GUI over the wrapper
 
 `src/TranscribeCppSharp.Ui` is a five-tab desktop app (Transcription, Streaming,

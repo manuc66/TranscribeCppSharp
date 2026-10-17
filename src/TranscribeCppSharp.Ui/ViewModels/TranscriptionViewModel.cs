@@ -149,6 +149,45 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether speculative decoding applies to the selected model.</summary>
     public bool ShowSpeculativeDecoding => ModelOptionVisibility.ShowSpeculativeDecoding(_selectedCapabilities);
 
+    /// <summary>
+    /// The work the selected model serves (transcribe.cpp 0.4 roles), shown under
+    /// the picker so the tab says what it will run. Empty until the model answers.
+    /// </summary>
+    public string RolesHint
+    {
+        get
+        {
+            TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.None;
+            if (roles == TranscribeRole.None)
+            {
+                return string.Empty;
+            }
+
+            var names = new List<string>();
+            if (roles.HasFlag(TranscribeRole.Asr))
+            {
+                names.Add("transcription");
+            }
+
+            if (roles.HasFlag(TranscribeRole.Diarize))
+            {
+                names.Add("diarization");
+            }
+
+            if (roles.HasFlag(TranscribeRole.Langid))
+            {
+                names.Add("language identification");
+            }
+
+            if (roles.HasFlag(TranscribeRole.Vad))
+            {
+                names.Add("voice activity");
+            }
+
+            return "runs: " + string.Join(", ", names);
+        }
+    }
+
     /// <summary>False while a transcription or a capability check is running.</summary>
     public bool CanTranscribe
         => HasDownloadedModels && !IsTranscribing && !IsCheckingCapabilities;
@@ -345,6 +384,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowWhisperExtensions));
         OnPropertyChanged(nameof(ShowTranslate));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
+        OnPropertyChanged(nameof(RolesHint));
         UpdateAvailableLanguages(capabilities);
         UpdateTargetOptions(capabilities);
     }

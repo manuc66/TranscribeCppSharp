@@ -2,6 +2,9 @@ namespace TranscribeCppSharp.Ui.Models;
 
 public class TranscriptionResult
 {
+    /// <summary>The roles the model served; the run used the first one it has.</summary>
+    public TranscribeRole Roles { get; set; }
+
     public string FullText { get; set; } = string.Empty;
     public string DetectedLanguage { get; set; } = string.Empty;
     public bool WasAborted { get; set; }

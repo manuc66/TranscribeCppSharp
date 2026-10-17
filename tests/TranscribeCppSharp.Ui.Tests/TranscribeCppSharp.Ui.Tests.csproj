@@ -28,4 +28,9 @@
     <ProjectReference Include="..\..\src\TranscribeCppSharp.Ui\TranscribeCppSharp.Ui.csproj" />
   </ItemGroup>
 
+  <!-- The role-dispatch tests load real models through the real service, so the
+       native runtime has to be in this output directory too, not only in the UI
+       project's. See build/CopyNativeLib.targets. -->
+  <Import Project="../../build/CopyNativeLib.targets" />
+
 </Project>

@@ -641,7 +641,14 @@ public partial class ModelManagerViewModel : ObservableObject
                     bool supported = await Task.Run(() =>
                     {
                         using var model = Model.Load(path, p => p.WithBackend(Interop.BackendRequest.BackendCpu));
-                        return model.Supports(Interop.Feature.FeatureDiarization);
+
+                        // A model can attribute speakers in two ways in
+                        // transcribe.cpp 0.4: the ASR feature (MOSS, granite) or
+                        // the DIARIZE role (Sortformer, which no longer serves
+                        // ASR at all). Asking only the feature answered "no" for
+                        // a model whose whole product is speaker turns.
+                        return model.Roles.HasFlag(TranscribeRole.Diarize)
+                            || model.Supports(Interop.Feature.FeatureDiarization);
                     }).ConfigureAwait(true);
 
                     ModelCatalogItem.DiarizationSupport state = supported

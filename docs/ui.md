@@ -81,6 +81,14 @@ appears.
 
 Pick a file, a model and the decoder settings, then run.
 
+The tab runs the **role** the selected model serves (transcribe.cpp 0.4), and the
+line under the picker names it. An ASR model is transcribed as below; a
+diarization model (Sortformer) returns speaker turns; a language-identification
+model returns the ranked languages (top language in the language field); a
+voice-activity model returns the speech segments. The result is shown as text,
+with the speaker rows in the Speakers tab for a diarizer. Decoder settings that
+only apply to ASR are hidden for the other roles.
+
 A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg`, `m4a`)
 is decoded with `ffmpeg`, which has to be installed and on `PATH` — see
 [Audio input](audio-input.md).
@@ -212,7 +220,9 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   (`capabilities.diarize`), which covers four of the 72 models; the detail pane names the
   source and says *unverified by them* where they mark it supported without claiming to
   have checked it. *Check diarization* still loads each downloaded model once to find out
-  for yourself. See [Long audio and diarization](diarization.md).
+  for yourself; it asks both the ASR `diarize` feature and the DIARIZE role, so a
+  Sortformer — whose whole product is speaker turns — reads *supported*. See
+  [Long audio and diarization](diarization.md).
 - **On disk is a yes or a no.** The Size column beside it carries the download size and
   the line above the grid carries the total, so the per-row size was saying twice what
   the reader already had and costing the column its width. What the yes means — verified

@@ -19,74 +19,181 @@ public class TranscriptionService : ITranscriptionService
 
         try
         {
-            using var session = CreateSession(model, options);
             using var audioSource = AudioLoader.Open(audioPath);
 
-            return await System.Threading.Tasks.Task.Run(() =>
-            {
-                var words = new List<WordResult>();
-                var speakerSegments = new List<SpeakerSegmentResult>();
-                var merger = new TranscriptMerger();
-                string detectedLanguage = string.Empty;
-                bool wasAborted = false;
-                bool wasTruncated = false;
+            // transcribe.cpp 0.4 gives the model roles; this tab runs the role the
+            // model serves instead of always creating an ASR session (which throws
+            // UNSUPPORTED_ROLE on a diarizer).
+            TranscribeRole roles = model.Roles;
 
-                // TryPlan fails only when the window cannot advance past the
-                // overlap. WindowSeconds is checked when it is set, so reaching
-                // the fallback means the audio is empty or shorter than one
-                // window; either way one run over the whole thing is correct.
-                if (WindowPlanner.TryPlan(
-                    (int)Math.Min(audioSource.LengthSamples, int.MaxValue),
-                    options.WindowSeconds,
-                    out var windows,
-                    out _))
-                {
-                    int windowIndex = 0;
-                    foreach (var window in windows)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        var samples = audioSource.ReadWindow(window.OffsetSamples, window.LengthSamples);
-                        var transcript = session.Run(samples, builder => Configure(builder, options), cancellationToken);
-                        Collect(merger, window, transcript, words, speakerSegments);
-
-                        detectedLanguage = transcript.DetectedLanguage;
-                        wasAborted = transcript.WasAborted;
-                        wasTruncated = transcript.WasTruncated;
-
-                        windowIndex++;
-                        progress?.Report((double)windowIndex / windows.Count);
-                    }
-                }
-                else
-                {
-                    var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
-                    var transcript = session.Run(samples, builder => Configure(builder, options), cancellationToken);
-                    var window = new AudioWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
-                    Collect(merger, window, transcript, words, speakerSegments);
-
-                    detectedLanguage = transcript.DetectedLanguage;
-                    wasAborted = transcript.WasAborted;
-                    wasTruncated = transcript.WasTruncated;
-                    progress?.Report(1.0);
-                }
-
-                return new TranscriptionResult
-                {
-                    FullText = merger.BuildText(),
-                    Segments = merger.Segments.ToList(),
-                    Words = words,
-                    SpeakerSegments = speakerSegments,
-                    DetectedLanguage = detectedLanguage,
-                    WasAborted = wasAborted,
-                    WasTruncated = wasTruncated
-                };
-            }, cancellationToken);
+            return await System.Threading.Tasks.Task.Run(
+                () => roles.HasFlag(TranscribeRole.Asr)
+                    ? RunAsr(model, roles, options, audioSource, progress, cancellationToken)
+                    : RunNonAsr(model, roles, options, audioSource, cancellationToken),
+                cancellationToken);
         }
         finally
         {
             model.Dispose();
         }
     }
+
+    private static TranscriptionResult RunAsr(
+        Model model,
+        TranscribeRole roles,
+        TranscriptionOptions options,
+        PcmSource audioSource,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
+        using var session = CreateSession(model, options);
+
+        var words = new List<WordResult>();
+        var speakerSegments = new List<SpeakerSegmentResult>();
+        var merger = new TranscriptMerger();
+        string detectedLanguage = string.Empty;
+        bool wasAborted = false;
+        bool wasTruncated = false;
+
+        // TryPlan fails only when the window cannot advance past the
+        // overlap. WindowSeconds is checked when it is set, so reaching
+        // the fallback means the audio is empty or shorter than one
+        // window; either way one run over the whole thing is correct.
+        if (WindowPlanner.TryPlan(
+            (int)Math.Min(audioSource.LengthSamples, int.MaxValue),
+            options.WindowSeconds,
+            out var windows,
+            out _))
+        {
+            int windowIndex = 0;
+            foreach (var window in windows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var samples = audioSource.ReadWindow(window.OffsetSamples, window.LengthSamples);
+                var transcript = session.Run(samples, builder => Configure(builder, options), cancellationToken);
+                Collect(merger, window, transcript, words, speakerSegments);
+
+                detectedLanguage = transcript.DetectedLanguage;
+                wasAborted = transcript.WasAborted;
+                wasTruncated = transcript.WasTruncated;
+
+                windowIndex++;
+                progress?.Report((double)windowIndex / windows.Count);
+            }
+        }
+        else
+        {
+            var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
+            var transcript = session.Run(samples, builder => Configure(builder, options), cancellationToken);
+            var window = new AudioWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
+            Collect(merger, window, transcript, words, speakerSegments);
+
+            detectedLanguage = transcript.DetectedLanguage;
+            wasAborted = transcript.WasAborted;
+            wasTruncated = transcript.WasTruncated;
+            progress?.Report(1.0);
+        }
+
+        return new TranscriptionResult
+        {
+            Roles = roles,
+            FullText = merger.BuildText(),
+            Segments = merger.Segments.ToList(),
+            Words = words,
+            SpeakerSegments = speakerSegments,
+            DetectedLanguage = detectedLanguage,
+            WasAborted = wasAborted,
+            WasTruncated = wasTruncated
+        };
+    }
+
+    /// <summary>
+    /// Runs a model that does not serve ASR, through the session its role names.
+    /// The result is a readable report in <see cref="TranscriptionResult.FullText"/>
+    /// (and speaker rows for a diarizer); the audio is read whole, because these
+    /// roles have no windowing contract.
+    /// </summary>
+    private static TranscriptionResult RunNonAsr(
+        Model model,
+        TranscribeRole roles,
+        TranscriptionOptions options,
+        PcmSource audioSource,
+        CancellationToken cancellationToken)
+    {
+        _ = options;
+        int sampleRate = WindowPlanner.SampleRate;
+        int total = (int)Math.Min(audioSource.LengthSamples, int.MaxValue);
+
+        if (roles.HasFlag(TranscribeRole.Diarize))
+        {
+            using var session = model.CreateDiarizeSession();
+            var segments = session.Run(audioSource.ReadWindow(0, total), ct: cancellationToken);
+
+            var lines = new List<string> { $"Diarization: {segments.Count} speaker segments." };
+            lines.AddRange(segments.Select(s =>
+                $"[{Fmt(s.Start)} -> {Fmt(s.End)}] Speaker {s.SpeakerId}"));
+
+            return new TranscriptionResult
+            {
+                Roles = roles,
+                FullText = string.Join('\n', lines),
+                SpeakerSegments = segments.ToList(),
+            };
+        }
+
+        if (roles.HasFlag(TranscribeRole.Langid))
+        {
+            using var session = model.CreateLangIdSession();
+            var info = model.GetLangIdInfo();
+
+            // The model has a maximum clip; identify from the head of the audio
+            // when the file is longer.
+            long max = info.MaxAudioMs > 0 ? (long)info.MaxAudioMs * sampleRate / 1000 : total;
+            var result = session.Run(audioSource.ReadWindow(0, (int)Math.Min(total, max)), ct: cancellationToken);
+
+            var lines = new List<string>
+            {
+                $"Language identification: {result.Candidates.Count} candidates, allowed mass {result.AllowedMass:0.000}.",
+            };
+            lines.AddRange(result.Candidates.Select(c => $"{c.Code,-8} {c.Probability:0.000}  {c.Name}"));
+
+            return new TranscriptionResult
+            {
+                Roles = roles,
+                DetectedLanguage = result.Candidates.Count > 0 ? result.Candidates[0].Code : string.Empty,
+                FullText = string.Join('\n', lines),
+            };
+        }
+
+        if (roles.HasFlag(TranscribeRole.Vad))
+        {
+            using var session = model.CreateVadSession();
+            var info = model.GetVadInfo();
+            var result = session.Run(audioSource.ReadWindow(0, total), ct: cancellationToken);
+
+            var lines = new List<string>
+            {
+                $"Voice activity: {result.Segments.Count} speech segments, {result.Probabilities.Count} frames.",
+            };
+            lines.AddRange(result.Segments.Select(s =>
+            {
+                double start = s.StartSample * 1000.0 / info.SampleRate;
+                double end = s.EndSample * 1000.0 / info.SampleRate;
+                return $"[{Fmt(TimeSpan.FromMilliseconds(start))} -> {Fmt(TimeSpan.FromMilliseconds(end))}] speech";
+            }));
+
+            return new TranscriptionResult
+            {
+                Roles = roles,
+                FullText = string.Join('\n', lines),
+            };
+        }
+
+        throw new InvalidOperationException(
+            $"this model serves {roles}; the tab runs ASR, diarization, language identification or voice activity detection.");
+    }
+
+    private static string Fmt(TimeSpan t) => $"{t.Hours:00}:{t.Minutes:00}:{t.Seconds:00}.{t.Milliseconds / 100}";
 
     public async IAsyncEnumerable<Models.StreamUpdate> StreamTranscribeAsync(
         string modelPath,
