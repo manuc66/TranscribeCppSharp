@@ -7,7 +7,7 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 `TranscribeCppSharp.Interop` and `TranscribeCppSharp.Native.*` track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
-## Unreleased
+## [0.4.0] - wrapper release
 
 ### Desktop app: self-contained archives per platform
 
@@ -557,6 +557,7 @@ Wrapper SemVer baseline. This release binds to **transcribe.cpp v0.1.3**.
 - **v0.2.3** — packaged by 0.2.0 and 0.3.0.
 - **v0.1.3** — first version packaged by this project.
 
+[0.4.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/manuc66/TranscribeCppSharp/compare/v0.1.0...v0.2.0
