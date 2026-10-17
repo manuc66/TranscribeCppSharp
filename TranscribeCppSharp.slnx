@@ -1,4 +1,12 @@
 <Solution>
+  <Folder Name="/SolutionFolder/">
+    <File Path="..\LexiSharp\.editorconfig" />
+    <File Path="..\LexiSharp\.gitignore" />
+    <File Path="..\LexiSharp\CHANGELOG.md" />
+    <File Path="..\LexiSharp\Directory.Build.props" />
+    <File Path="..\LexiSharp\global.json" />
+    <File Path="..\LexiSharp\README.md" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Generator/Generator.csproj" />
     <Project Path="src/TranscribeCppSharp/TranscribeCppSharp.csproj" />
