@@ -1,5 +1,5 @@
 using TranscribeCppSharp.Models;
-using TranscribeCppSharp.Shared;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.Performance;
 
 namespace TranscribeCppSharp.Ui.Models;

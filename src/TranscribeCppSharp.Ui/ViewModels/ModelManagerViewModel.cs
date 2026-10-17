@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Performance;
-using TranscribeCppSharp.Shared;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.Ui.Models;
 
 namespace TranscribeCppSharp.Ui.ViewModels;

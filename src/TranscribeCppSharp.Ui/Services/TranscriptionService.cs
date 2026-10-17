@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
-using TranscribeCppSharp.Shared;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.Ui.Models;
 
 namespace TranscribeCppSharp.Ui.Services;

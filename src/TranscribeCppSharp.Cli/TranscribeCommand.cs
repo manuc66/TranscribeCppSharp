@@ -12,7 +12,7 @@ using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 
-using TranscribeCppSharp.Shared;
+using TranscribeCppSharp.SharedSource;
 
 namespace TranscribeCppSharp.Cli;
 

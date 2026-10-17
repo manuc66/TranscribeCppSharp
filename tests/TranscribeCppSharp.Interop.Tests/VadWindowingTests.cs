@@ -1,7 +1,7 @@
 #nullable enable
 
 using TranscribeCppSharp.Audio;
-using TranscribeCppSharp.Shared;
+using TranscribeCppSharp.SharedSource;
 using Xunit;
 using Xunit.Abstractions;
 

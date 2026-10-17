@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using System.Threading;
 using TranscribeCppSharp.Audio;
 
-namespace TranscribeCppSharp.Shared;
+namespace TranscribeCppSharp.SharedSource;
 
 /// <summary>VAD over a whole file, window by window, with the intervals merged.</summary>
 public static class VadWindowing

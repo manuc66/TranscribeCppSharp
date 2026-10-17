@@ -6,7 +6,7 @@ using Avalonia.VisualTree;
 using System.IO.Compression;
 using System.Reflection;
 using TranscribeCppSharp.Models;
-using TranscribeCppSharp.Shared;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.Ui.Models;
 using TranscribeCppSharp.Ui.ViewModels;
 using TranscribeCppSharp.Ui.Views;

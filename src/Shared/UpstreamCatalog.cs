@@ -2,7 +2,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace TranscribeCppSharp.Shared;
+namespace TranscribeCppSharp.SharedSource;
 
 /// <summary>
 /// Reads upstream's pinned model catalog out of the assembly that embedded it.
