@@ -35,6 +35,27 @@ public sealed class VoxtralExtBuilder : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// What the native <c>voxtral_realtime_stream_ext_init</c> sets, read from the
+    /// initialized struct rather than written here.
+    /// </summary>
+    /// <remarks>
+    /// Both are the sentinel -1. For the delay tokens that means the model default,
+    /// 6 tokens; for the decode interval it means the family default cadence.
+    /// Leaving the extension off asks for the same.
+    /// </remarks>
+    private static VoxtralRealtimeStreamExt Initialized()
+    {
+        using var builder = new VoxtralExtBuilder();
+        return builder.buffer.Params;
+    }
+
+    /// <inheritdoc cref="Initialized"/>
+    public static int DefaultNumDelayTokens => Initialized().numDelayTokens;
+
+    /// <inheritdoc cref="Initialized"/>
+    public static int DefaultMinDecodeIntervalMs => Initialized().minDecodeIntervalMs;
+
     internal IntPtr Build() => buffer.Build();
 
     /// <inheritdoc/>

@@ -160,6 +160,67 @@ public partial class TranscriptionViewModel : ObservableObject
     public bool ShowSpeculativeDecoding => ModelOptionVisibility.ShowSpeculativeDecoding(_selectedCapabilities);
 
     /// <summary>
+    /// Whether the diarization picker applies: a model that transcribes and can also
+    /// attribute speakers. A model that only diarizes runs the DIARIZE role, where
+    /// this setting has nothing to ask.
+    /// </summary>
+    public bool ShowDiarize => ModelOptionVisibility.ShowDiarize(_selectedCapabilities);
+
+    /// <summary>Whether the run asks the model to attribute speakers.</summary>
+    /// <remarks>
+    /// Passed as <c>WithDiarize</c> on an ASR run. It was hardcoded to the model
+    /// default, so an ASR model that can diarize — MOSS, granite-speech-4.1-2b-plus —
+    /// could not be asked to from the app at all.
+    /// </remarks>
+    [ObservableProperty]
+    private DiarizeMode _diarizeMode = DiarizeMode.DiarizeModeDefault;
+
+    /// <summary>The diarization choices, with the label each shows.</summary>
+    public IReadOnlyList<DiarizeOption> DiarizeOptions { get; } = new[]
+    {
+        new DiarizeOption(DiarizeMode.DiarizeModeDefault, "model default"),
+        new DiarizeOption(DiarizeMode.DiarizeModeOff, "off"),
+        new DiarizeOption(DiarizeMode.DiarizeModeOn, "on"),
+    };
+
+    /// <summary>
+    /// The run button's label, named for what the selected model will actually do.
+    /// </summary>
+    /// <remarks>
+    /// A model that only diarizes is not "transcribing", and the button saying
+    /// "Transcribe" over a run that returns speaker turns is what made the feature
+    /// look unsupported.
+    /// </remarks>
+    public string RunButtonText
+    {
+        get
+        {
+            TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.None;
+            if (roles.HasFlag(TranscribeRole.Asr))
+            {
+                return "Transcribe";
+            }
+
+            if (roles.HasFlag(TranscribeRole.Diarize))
+            {
+                return "Diarize";
+            }
+
+            if (roles.HasFlag(TranscribeRole.Langid))
+            {
+                return "Identify language";
+            }
+
+            if (roles.HasFlag(TranscribeRole.Vad))
+            {
+                return "Detect speech";
+            }
+
+            return "Transcribe";
+        }
+    }
+
+    /// <summary>
     /// The work the selected model serves (transcribe.cpp 0.4 roles), shown under
     /// the picker so the tab says what it will run. Empty until the model answers.
     /// </summary>
@@ -408,6 +469,8 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowWhisperExtensions));
         OnPropertyChanged(nameof(ShowTranslate));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
+        OnPropertyChanged(nameof(ShowDiarize));
+        OnPropertyChanged(nameof(RunButtonText));
         OnPropertyChanged(nameof(RolesHint));
         OnPropertyChanged(nameof(ShowAllowedLanguages));
         UpdateAvailableLanguages(capabilities);
@@ -579,7 +642,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 Device = _settings.SelectedDevice,
                 Language = Language,
                 TimestampKind = TimestampKind.TimestampsSegment,
-                DiarizeMode = DiarizeMode.DiarizeModeDefault,
+                DiarizeMode = DiarizeMode,
                 Threads = Threads,
                 KvType = SelectedKvType,
                 ContextSize = ContextSize,

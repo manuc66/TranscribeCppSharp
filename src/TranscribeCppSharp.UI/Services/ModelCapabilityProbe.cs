@@ -95,6 +95,18 @@ public static class ModelOptionVisibility
     public static bool ShowTranslate(ModelCapabilitySnapshot? capabilities)
         => capabilities is null || capabilities.SupportsTranslate;
 
+    /// <summary>
+    /// The diarization picker: a model that transcribes and can also attribute
+    /// speakers. A model that only diarizes runs the DIARIZE role instead, where
+    /// there is nothing to ask — its whole job is speaker turns. Unknown shows it,
+    /// like the other option groups.
+    /// </summary>
+    public static bool ShowDiarize(ModelCapabilitySnapshot? capabilities)
+        => capabilities is null
+        || (capabilities.Roles.HasFlag(TranscribeRole.Asr)
+            && (capabilities.Supports(Feature.FeatureDiarization)
+                || capabilities.Roles.HasFlag(TranscribeRole.Diarize)));
+
     /// <summary>Speculative decoding drafts, only for models that do it.</summary>
     public static bool ShowSpeculativeDecoding(ModelCapabilitySnapshot? capabilities)
         => capabilities is null || capabilities.SupportsSpecDecode;

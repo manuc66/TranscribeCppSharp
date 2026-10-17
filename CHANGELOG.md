@@ -61,6 +61,28 @@ could change the answer: models the catalog records as supported — the four it
 `verified: false` — and models it records nothing about. Rows already checked in the session
 are skipped too, and the status says how many were skipped and why.
 
+### UI: family-extension fields say what empty means, and Reset returns to it
+
+The Streaming tab's family-extension fields (Moonshine decode interval, Parakeet
+attention/buffered context, Voxtral delay tokens/interval) started empty, and an empty field
+is not "off": the extension is left off the run entirely, so the model's own default applies.
+Nothing said so, no default was shown, and there was no way back to that state once a field
+was filled. Each field now carries a `(model default)` placeholder, a Reset button clears
+them all (enabled only when something is set), and the tooltips state what the knob does and
+what the default is. The wrapper's `*ExtBuilder` types now expose the values the native
+`*_ext_init` sets — read from the initialized struct, not written by hand — and a test pins
+them at the -1 "model default" sentinel the interop headers document.
+
+### UI: the Transcription tab can ask for diarization, and names what it will run
+
+`DiarizeMode` was hardcoded to the model default, so an ASR model that can also attribute
+speakers (MOSS, granite-speech-4.1-2b-plus) could not be asked to from the app at all. The tab
+now has a diarization picker (model default / off / on), shown only for a model that
+transcribes *and* can diarize — a model that only diarizes runs the DIARIZE role, where there
+is nothing to ask. The run button is also named for the model's role: Transcribe, Diarize,
+Identify language or Detect speech, so a diarization-only model no longer looks unsupported
+behind a button that says "Transcribe".
+
 ### Release assets: SBOM and checksums
 
 Every GitHub Release now attaches `TranscribeCppSharp.sbom.spdx.json` (the SPDX

@@ -135,6 +135,13 @@ draft count. They are
 hidden based on what the model reports, not on what its name suggests — see
 [Asking the model](#asking-the-model) below.
 
+A fourth, diarization, appears only for a model that transcribes *and* can attribute
+speakers: it is passed as `WithDiarize` and the choices are *model default*, *off* and *on*.
+A model that only diarizes is not offered it — that model runs the DIARIZE role, where there
+is nothing to ask — and the run button is named for what the model does (Transcribe, Diarize,
+Identify language or Detect speech) so the role is visible before the run rather than only in
+the result. See [Long audio and diarization](diarization.md).
+
 The result is shown four ways: as text, as segments with timings, as words with timings, and
 as speaker-attributed segments. `Export` writes `.txt`, `.vtt` or `.json`, picked by the
 extension you type; the formats themselves are the same as
@@ -162,6 +169,17 @@ prefix needs before it is committed.
 Family extensions appear only for a model that both streams and has the matching extension
 builder: a decode interval for Moonshine, buffered-streaming context and attention for
 Parakeet, delay tokens and a decode interval for Voxtral.
+
+An empty extension field is not "off": the extension is left off the run entirely, so the
+model's own default applies — which is also what the native default, the `-1` sentinel the
+`*_ext_init` functions set, means. Each field shows `(model default)` as its placeholder,
+`Reset` clears them all (enabled only when something is set), and the tooltips say what each
+knob does and what the default is. For Parakeet buffered context that default is a tuple from
+the model's training menu — 5600 / 1040 / 1040 ms for parakeet-unified-en-0.6b — and a
+positive value must be an exact multiple of the 80 ms encoder frame. For Voxtral the delay
+defaults to 6 tokens, and only 1 to 15 or 30 is accepted. The values the library actually
+initializes are exposed by the wrapper's builders and pinned by a test, rather than written
+into this page.
 
 Start is enabled only for a model that can stream. The loaded model answers when it has been
 checked on this machine; until then, upstream's pinned catalog entry for the alias does —

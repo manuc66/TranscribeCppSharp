@@ -55,55 +55,69 @@
               AutomationProperties.Name="Family extensions"
               ToolTip.Tip="These are passed only to the model family they belong to; every other family ignores them. Only Moonshine has been measured in this project's benchmark: see docs/streaming-bench.md, which lists what is still unverified.">
       <StackPanel Margin="0,8,0,0" Spacing="4">
-        <TextBlock Text="These apply only to the matching model family; other families ignore them."
-                   Classes="hint" Margin="0,0,0,4" />
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+          <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="hint" TextWrapping="Wrap"
+                     Text="These apply only to the matching model family; other families ignore them. An empty field leaves the extension off, so the model uses its own default." />
+          <Button Grid.Column="1" Content="Reset" Command="{Binding ResetExtensionsCommand}"
+                  IsEnabled="{Binding HasAnyStreamingExtension}" Padding="8,2" Margin="8,0,0,0"
+                  AutomationProperties.AutomationId="streaming-extensions-reset"
+                  AutomationProperties.Name="Reset family extensions"
+                  ToolTip.Tip="Empty every family-extension field, so no extension is passed and each model uses its own default." />
+        </Grid>
 
         <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowMoonshineExtensions}">
           <TextBlock Grid.Column="0" Text="Moonshine min decode interval (ms)" VerticalAlignment="Center"
-                     ToolTip.Tip="Minimum delay between two decode passes, in milliseconds. Raising it decodes less often. Moonshine is the only streaming family measured in this project; see docs/streaming-bench.md." />
+                     ToolTip.Tip="Minimum audio time between partial decodes. Empty (model default) uses the family cadence; 0 decodes on every stable encoder-frame advance; a positive value asks for at least that many milliseconds between decodes, rounded up to a frame. Finalization always decodes. Moonshine is the only streaming family measured in this project: see docs/streaming-bench.md." />
           <NumericUpDown Grid.Column="1" Value="{Binding MoonshineMinDecodeIntervalMs}" Minimum="0" Maximum="5000" Increment="50"
+                         PlaceholderText="(model default)"
                          AutomationProperties.AutomationId="streaming-moonshine-interval"
                          AutomationProperties.Name="Moonshine minimum decode interval" />
         </Grid>
 
         <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowParakeetExtensions}">
           <TextBlock Grid.Column="0" Text="Parakeet att context right" VerticalAlignment="Center"
-                     ToolTip.Tip="Right-hand context the Parakeet streaming model attends over. The exact effect depends on the model build and has not been measured here." />
+                     ToolTip.Tip="Right-context (lookahead) in encoder frames, chosen from the model's trained menu. Empty (model default) picks the first entry, which is max accuracy and max latency; for nemotron-speech-streaming that menu is 13, 6, 1 or 0 frames (1040, 480, 80 or 0 ms). A value outside the menu is rejected by the library." />
           <NumericUpDown Grid.Column="1" Value="{Binding ParakeetAttContextRight}" Minimum="0" Maximum="2000" Increment="10"
+                         PlaceholderText="(model default)"
                          AutomationProperties.AutomationId="streaming-parakeet-att-right"
                          AutomationProperties.Name="Parakeet attention context right" />
         </Grid>
 
         <TextBlock Text="Parakeet buffered (left / chunk / right ms)" FontWeight="SemiBold" Margin="0,4,0,2"
                    IsVisible="{Binding ShowParakeetExtensions}"
-                   ToolTip.Tip="How the Parakeet streaming model buffers audio before decoding it: how much past audio to keep, how much to decode at a time, and how much upcoming audio to include. Not measured here." />
+                   ToolTip.Tip="Chunked-attention context: how much already-decoded audio to keep on the left, how much to decode per pass, and how much upcoming audio to include on the right. Empty (model default) uses the model's best-accuracy tuple — for parakeet-unified-en-0.6b that is 5600 / 1040 / 1040 ms. A positive value must be an exact multiple of the 80 ms encoder frame; the library never rounds it for you." />
         <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4" IsVisible="{Binding ShowParakeetExtensions}">
           <NumericUpDown Grid.Column="0" Value="{Binding ParakeetLeftMs}" Minimum="0" Maximum="10000" Increment="100" Margin="0,0,4,0"
+                         PlaceholderText="(model default)"
                          AutomationProperties.AutomationId="streaming-parakeet-left"
                          AutomationProperties.Name="Parakeet left context"
-                         ToolTip.Tip="Milliseconds of already-decoded audio kept as left context." />
+                         ToolTip.Tip="Milliseconds of already-decoded audio kept as left context. Empty (model default) uses the model's own value." />
           <NumericUpDown Grid.Column="1" Value="{Binding ParakeetChunkMs}" Minimum="0" Maximum="10000" Increment="100" Margin="0,0,4,0"
+                         PlaceholderText="(model default)"
                          AutomationProperties.AutomationId="streaming-parakeet-chunk"
                          AutomationProperties.Name="Parakeet chunk size"
-                         ToolTip.Tip="Milliseconds of audio decoded per pass." />
+                         ToolTip.Tip="Milliseconds of audio decoded per pass. Empty (model default) uses the model's own value." />
           <NumericUpDown Grid.Column="2" Value="{Binding ParakeetRightMs}" Minimum="0" Maximum="10000" Increment="100"
+                         PlaceholderText="(model default)"
                          AutomationProperties.AutomationId="streaming-parakeet-right"
                          AutomationProperties.Name="Parakeet right context"
-                         ToolTip.Tip="Milliseconds of not-yet-spoken audio included as right context, at the cost of latency." />
+                         ToolTip.Tip="Milliseconds of not-yet-spoken audio included as right context, at the cost of latency. Empty (model default) uses the model's own value." />
         </Grid>
 
         <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowVoxtralExtensions}">
           <TextBlock Grid.Column="0" Text="Voxtral delay tokens" VerticalAlignment="Center"
-                     ToolTip.Tip="Number of delay tokens the Voxtral realtime stream allows before producing text. Not measured here." />
+                     ToolTip.Tip="How many delay tokens the realtime stream allows before producing text: more tokens means more lookahead and later text. Empty (model default) is 6 tokens. The validated set is 1 to 15 (80 to 1200 ms) or 30 (2400 ms); anything else is rejected." />
           <NumericUpDown Grid.Column="1" Value="{Binding VoxtralNumDelayTokens}" Minimum="0" Maximum="100" Increment="1"
+                         PlaceholderText="(model default)"
                          AutomationProperties.AutomationId="streaming-voxtral-delay-tokens"
                          AutomationProperties.Name="Voxtral delay tokens" />
         </Grid>
 
         <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowVoxtralExtensions}">
           <TextBlock Grid.Column="0" Text="Voxtral min decode interval (ms)" VerticalAlignment="Center"
-                     ToolTip.Tip="Minimum delay between two decode passes, in milliseconds. Not measured here." />
+                     ToolTip.Tip="Minimum audio time between tentative decodes while the stream is active. Empty (model default) uses the family cadence; 0 decodes on every feed. Finalization always decodes." />
           <NumericUpDown Grid.Column="1" Value="{Binding VoxtralMinDecodeIntervalMs}" Minimum="0" Maximum="5000" Increment="50"
+                         PlaceholderText="(model default)"
                          AutomationProperties.AutomationId="streaming-voxtral-interval"
                          AutomationProperties.Name="Voxtral minimum decode interval" />
         </Grid>

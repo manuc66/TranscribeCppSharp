@@ -43,6 +43,32 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// What the native <c>parakeet_buffered_stream_ext_init</c> sets, read from the
+    /// initialized struct rather than written here.
+    /// </summary>
+    /// <remarks>
+    /// Each field's native default is the sentinel -1, meaning "use the model
+    /// default for this field"; leaving the field out of the extension asks for the
+    /// same thing. The model's own default is a (left, chunk, right) tuple in its
+    /// training menu — for parakeet-unified-en-0.6b the best-accuracy one is
+    /// 5600/1040/1040 ms, per the interop struct's doc.
+    /// </remarks>
+    private static ParakeetBufferedStreamExt Initialized()
+    {
+        using var builder = new ParakeetBufferedStreamExtBuilder();
+        return builder.buffer.Params;
+    }
+
+    /// <inheritdoc cref="Initialized"/>
+    public static int DefaultLeftMs => Initialized().leftMs;
+
+    /// <inheritdoc cref="Initialized"/>
+    public static int DefaultChunkMs => Initialized().chunkMs;
+
+    /// <inheritdoc cref="Initialized"/>
+    public static int DefaultRightMs => Initialized().rightMs;
+
     internal IntPtr Build() => buffer.Build();
 
     /// <inheritdoc/>

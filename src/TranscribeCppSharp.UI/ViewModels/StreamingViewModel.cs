@@ -62,24 +62,31 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     private int? _stablePrefixAgreement;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _moonshineMinDecodeIntervalMs;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _parakeetAttContextRight;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _parakeetLeftMs;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _parakeetChunkMs;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _parakeetRightMs;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _voxtralNumDelayTokens;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _voxtralMinDecodeIntervalMs;
 
     public ObservableCollection<StreamCommitPolicy> AvailableCommitPolicies { get; } = new()
@@ -100,6 +107,39 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether the Voxtral realtime extensions apply.</summary>
     public bool ShowVoxtralExtensions => ModelOptionVisibility.ShowVoxtralExtensions(_selectedCapabilities);
+
+    /// <summary>
+    /// Whether any family-extension field is set, which is what Reset clears.
+    /// </summary>
+    /// <remarks>
+    /// An empty field is not "off": the extension is left off the run entirely, so
+    /// the model's own default applies. That is what the fields start at, and what
+    /// Reset returns them to — which is why Reset has something to do.
+    /// </remarks>
+    public bool HasAnyStreamingExtension
+        => MoonshineMinDecodeIntervalMs.HasValue
+        || ParakeetAttContextRight.HasValue
+        || ParakeetLeftMs.HasValue
+        || ParakeetChunkMs.HasValue
+        || ParakeetRightMs.HasValue
+        || VoxtralNumDelayTokens.HasValue
+        || VoxtralMinDecodeIntervalMs.HasValue;
+
+    /// <summary>
+    /// Clears every family-extension field, so the run carries no extension and each
+    /// model uses its own default.
+    /// </summary>
+    [RelayCommand]
+    private void ResetExtensions()
+    {
+        MoonshineMinDecodeIntervalMs = null;
+        ParakeetAttContextRight = null;
+        ParakeetLeftMs = null;
+        ParakeetChunkMs = null;
+        ParakeetRightMs = null;
+        VoxtralNumDelayTokens = null;
+        VoxtralMinDecodeIntervalMs = null;
+    }
 
     /// <summary>False while streaming, while a capability check runs, with no model
     /// on disk, or when the selected model cannot stream.</summary>

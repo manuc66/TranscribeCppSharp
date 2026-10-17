@@ -68,6 +68,33 @@ public class ModelOptionVisibilityTests
         Assert.False(snapshot.Supports(Feature.FeatureInitialPrompt));
     }
 
+    /// <summary>
+    /// The diarization picker is for a model that transcribes *and* can diarize. A
+    /// model whose whole job is speaker turns runs the DIARIZE role, where there is
+    /// nothing to ask.
+    /// </summary>
+    [Fact]
+    public void DiarizationShowsOnlyWhereThereIsSomethingToAsk()
+    {
+        // Not checked yet: show it, like every other group.
+        Assert.True(ModelOptionVisibility.ShowDiarize(null));
+
+        // ASR with the diarize feature (MOSS, granite-speech-4.1-2b-plus).
+        Assert.True(ModelOptionVisibility.ShowDiarize(
+            Snapshot(features: new[] { Feature.FeatureDiarization })));
+
+        // ASR that reports the DIARIZE role as well.
+        Assert.True(ModelOptionVisibility.ShowDiarize(
+            Snapshot(roles: TranscribeRole.Asr | TranscribeRole.Diarize)));
+
+        // Plain ASR: nothing to ask.
+        Assert.False(ModelOptionVisibility.ShowDiarize(Snapshot()));
+
+        // A model that only diarizes (Sortformer): the role does it, no option.
+        Assert.False(ModelOptionVisibility.ShowDiarize(
+            Snapshot(roles: TranscribeRole.Diarize)));
+    }
+
     [Fact]
     public void UnknownStreamingCapabilitiesHideNothing()
     {

@@ -119,8 +119,8 @@
       </StackPanel>
     </Grid>
 
-    <!-- Task, target language, window size -->
-    <Grid Grid.Row="4" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
+    <!-- Task, target language, window size, diarization -->
+    <Grid Grid.Row="4" ColumnDefinitions="*,*,*,*" Margin="0,0,0,8">
       <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowTranslate}">
         <TextBlock Text="Task" Classes="label"
                    ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
@@ -153,6 +153,22 @@
                        AutomationProperties.AutomationId="transcription-window-seconds"
                        AutomationProperties.Name="Window seconds" />
       </StackPanel>
+      <StackPanel Grid.Column="3" Margin="8,0,0,0" IsVisible="{Binding ShowDiarize}">
+        <TextBlock Text="Diarization" Classes="label"
+                   ToolTip.Tip="Ask the model to attribute speakers while it transcribes. 'model default' lets the model decide, 'off' never asks, 'on' always asks. Only a model that transcribes and can diarize shows this; a model that only diarizes returns speaker turns on its own, with nothing to ask." />
+        <ComboBox ItemsSource="{Binding DiarizeOptions}"
+                  SelectedValueBinding="{Binding Value}"
+                  SelectedValue="{Binding DiarizeMode}"
+                  HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="transcription-diarize"
+                  AutomationProperties.Name="Diarization">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Label}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
     </Grid>
 
     <!-- Speculative decoding, keep special tags -->
@@ -174,9 +190,10 @@
 
     <!-- Action buttons -->
     <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Transcribe" Classes="accent" Command="{Binding TranscribeCommand}" IsEnabled="{Binding CanTranscribe}"
+      <Button Content="{Binding RunButtonText}" Classes="accent" Command="{Binding TranscribeCommand}" IsEnabled="{Binding CanTranscribe}"
               AutomationProperties.AutomationId="transcription-run"
-              AutomationProperties.Name="Transcribe" />
+              AutomationProperties.Name="{Binding RunButtonText}"
+              ToolTip.Tip="Run the selected model on the audio. The label names what it will do: transcribe, diarize, identify the language, or detect speech, according to the model's own role." />
       <Button Content="Export" Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="transcription-export"
               AutomationProperties.Name="Export transcript"
