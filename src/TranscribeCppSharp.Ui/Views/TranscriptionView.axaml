@@ -58,7 +58,7 @@
           <TextBox Text="{Binding AllowedLanguages}"
                    AutomationProperties.AutomationId="transcription-allowed-languages"
                    AutomationProperties.Name="Allowed languages"
-                   Watermark="en,fr,de" />
+                   PlaceholderText="en,fr,de" />
         </StackPanel>
       </StackPanel>
       <StackPanel Grid.Column="1" Margin="8,0,0,0">
