@@ -199,7 +199,8 @@ public partial class BatchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            UiLog.Failure("batch run", ex);
+            StatusMessage = $"Error: {ex.Message} (logged to {UiLog.FilePath})";
         }
         finally
         {

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Services;
 
 namespace TranscribeCppSharp.UI.ViewModels;
 
@@ -68,7 +69,8 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
         {
-            BackendError = $"Compute backends unavailable: {ex.Message}";
+            UiLog.Failure("backend initialisation", ex);
+            BackendError = $"Compute backends unavailable: {ex.Message} (logged to {UiLog.FilePath})";
             return;
         }
 
@@ -78,7 +80,8 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
         {
-            BackendError = $"Backends initialised, but the version could not be read: {ex.Message}";
+            UiLog.Failure("backend version read", ex);
+            BackendError = $"Backends initialised, but the version could not be read: {ex.Message} (logged to {UiLog.FilePath})";
         }
 
         try
@@ -92,7 +95,8 @@ public partial class SettingsViewModel : ObservableObject
         {
             // The device list is incomplete but the backend is usable, so this is
             // reported on its own rather than as a failure to start.
-            BackendError = $"{Devices.Count} device(s) listed, then enumeration failed: {ex.Message}";
+            UiLog.Failure("device enumeration", ex);
+            BackendError = $"{Devices.Count} device(s) listed, then enumeration failed: {ex.Message} (logged to {UiLog.FilePath})";
         }
     }
 }

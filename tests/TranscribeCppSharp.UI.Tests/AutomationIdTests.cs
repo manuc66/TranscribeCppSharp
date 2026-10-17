@@ -64,6 +64,7 @@ public class AutomationIdTests
         "streaming-voxtral-interval",
         "streaming-start",
         "streaming-stop",
+        "streaming-support-hint",
         "streaming-status",
         "streaming-committed-text",
         "streaming-tentative-text",

@@ -5,6 +5,7 @@ using TranscribeCppSharp.Models;
 using TranscribeCppSharp.Performance;
 using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.UI.Models;
+using TranscribeCppSharp.UI.Services;
 
 namespace TranscribeCppSharp.UI.ViewModels;
 
@@ -509,8 +510,9 @@ public partial class ModelManagerViewModel : ObservableObject
         {
             // ModelStore verifies sha256 before moving the file into place, so
             // anything reaching here means nothing usable was cached.
+            UiLog.Failure($"download of {item.Alias}", ex);
             item.Refresh();
-            StatusMessage = $"Could not download {item.Alias}: {ex.Message}";
+            StatusMessage = $"Could not download {item.Alias}: {ex.Message} (logged to {UiLog.FilePath})";
         }
         finally
         {
@@ -662,9 +664,10 @@ public partial class ModelManagerViewModel : ObservableObject
                     // A model that will not load cannot be classified: the cell
                     // shows "?" and the status names the reason, rather than
                     // answering "no" for a question that was never put.
+                    UiLog.Failure($"diarization check for {item.Alias}", ex);
                     item.SetDiarization(ModelCatalogItem.DiarizationSupport.LoadFailed);
                     failed++;
-                    StatusMessage = $"Could not check {item.Alias}: {ex.Message}";
+                    StatusMessage = $"Could not check {item.Alias}: {ex.Message} (logged to {UiLog.FilePath})";
                 }
 
                 done++;
@@ -975,7 +978,8 @@ public partial class ModelManagerViewModel : ObservableObject
             // A model that will not fit in memory, or that the backend refuses,
             // has to be reported rather than swallowed: it is the answer for that
             // model on this machine.
-            StatusMessage = $"{item.Alias} could not be measured: {ex.Message}";
+            UiLog.Failure($"measurement of {item.Alias}", ex);
+            StatusMessage = $"{item.Alias} could not be measured: {ex.Message} (logged to {UiLog.FilePath})";
         }
         finally
         {

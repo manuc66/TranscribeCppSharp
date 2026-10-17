@@ -373,6 +373,7 @@ public partial class TranscriptionViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            UiLog.Failure($"capability probe for {alias}", ex);
             if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
             {
                 ApplyCapabilities(null);
@@ -610,7 +611,8 @@ public partial class TranscriptionViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            UiLog.Failure("transcription run", ex);
+            StatusMessage = $"Error: {ex.Message} (logged to {UiLog.FilePath})";
         }
         finally
         {

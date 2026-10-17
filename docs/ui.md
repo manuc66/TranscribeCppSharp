@@ -163,6 +163,15 @@ Family extensions appear only for a model that both streams and has the matching
 builder: a decode interval for Moonshine, buffered-streaming context and attention for
 Parakeet, delay tokens and a decode interval for Voxtral.
 
+Start is enabled only for a model that can stream. The loaded model answers when it has been
+checked on this machine; until then, upstream's pinned catalog entry for the alias does —
+the same source the Models tab's capability filter reads. Ten of the seventy-two aliases
+declare `streaming` support. MOSS, the default model, is not one of them: it declares
+`streaming.supported = false`, the native library refuses `StreamBegin` with
+`ErrNotImplemented`, and the two agree. With only MOSS on disk there is no model to stream
+with, so the tab says so under the buttons and points at the Models tab rather than starting
+a run that fails. A model that declares nothing is not blocked: unknown is not a no.
+
 Read [Real-time streaming](streaming.md) and [Streaming benchmarks](streaming-bench.md)
 before relying on this tab. In short, and unchanged by the GUI: the model default does not
 keep up with live audio on the CPU backend, setting a decode interval or the commit policy is
@@ -313,6 +322,16 @@ transcription and streaming tabs each read the default model when they are built
 the sharing they loaded the same weights twice at once — two copies of the file in memory,
 and on a machine already short of RAM that was enough for the OOM killer. A caller that asks
 while a load is in progress waits for it instead of starting another.
+
+## When something fails
+
+A failure the app catches is shown as a line of status text and also appended, in full —
+exception type, message, inner exceptions and stack trace — to
+`<cache>/../logs/ui.log`, beside the `models` directory the Settings tab already names. The
+status line is not selectable, so the file is where to look for what actually happened; when
+a message reports a failure it also names that path. The file is appended to and never
+rotated. Not every failure in the app goes through it — only the ones the view models catch
+and report.
 
 ## Look and theme
 

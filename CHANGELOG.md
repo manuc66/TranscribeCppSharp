@@ -9,6 +9,27 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the streaming tab refuses a model that cannot stream
+
+MOSS, the default model on the Streaming tab, declares `streaming.supported = false` in
+upstream's catalog, and the native library refuses `StreamBegin` with `ErrNotImplemented`.
+The tab nevertheless enabled Start for any downloaded model, so the only visible result was
+one uncopyable line of status text (now in the log). Start is gated on the model's streaming
+capability: the loaded model's answer when it has been checked, otherwise upstream's pinned
+catalog entry, the same source the Models tab filters on. A model that declares nothing is
+not blocked. When the selected model cannot stream, the button is disabled and a line under
+it says why and points at the Models tab.
+
+### UI: failures are written to a log file
+
+A failure the UI catches was turned into a line of status text and nothing else: no type, no
+inner exception, no stack trace, and the status line cannot be copied — which is how a
+streaming Start error came back as a sentence nobody could act on. Every catch that reports a
+failure now also appends it, in full, to `<cache>/../logs/ui.log` (beside the `models`
+directory), and the status message names that path. The file is appended to and never
+rotated. The app still has no other log: Avalonia's `LogToTrace` goes to a Trace listener
+that nothing attaches.
+
 ### UI: one capability probe at startup, not two
 
 The transcription tab and the streaming tab each read the default model's capabilities when

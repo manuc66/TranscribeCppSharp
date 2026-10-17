@@ -120,6 +120,14 @@
               AutomationProperties.AutomationId="streaming-stop"
               AutomationProperties.Name="Stop streaming"
               ToolTip.Tip="Stop capturing and finalize the stream." />
+      <!-- Why Start is disabled when the selected model cannot stream. MOSS, the
+           default here, is one: upstream records streaming.supported = false and
+           the native library refuses with ErrNotImplemented. -->
+      <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" Classes="danger"
+                 Text="{Binding StreamingSupportHint}"
+                 IsVisible="{Binding StreamingSupportHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                 AutomationProperties.AutomationId="streaming-support-hint"
+                 AutomationProperties.Name="Streaming support" />
     </StackPanel>
 
     <!-- Status -->

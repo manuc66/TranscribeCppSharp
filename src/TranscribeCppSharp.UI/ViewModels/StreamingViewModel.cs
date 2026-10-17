@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 
@@ -18,6 +19,11 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
     private readonly ModelCapabilityCache _capabilityCache;
     private ModelCapabilitySnapshot? _selectedCapabilities;
+
+    /// <summary>The alias <see cref="_selectedCapabilities"/> belongs to, so a stale
+    /// snapshot is never read as the current model's answer.</summary>
+    private string? _capabilitiesAlias;
+
     private bool _probing;
     private string? _pendingProbeAlias;
 
@@ -95,9 +101,56 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     /// <summary>Whether the Voxtral realtime extensions apply.</summary>
     public bool ShowVoxtralExtensions => ModelOptionVisibility.ShowVoxtralExtensions(_selectedCapabilities);
 
-    /// <summary>False while streaming, while a capability check runs, or with no model on disk.</summary>
+    /// <summary>False while streaming, while a capability check runs, with no model
+    /// on disk, or when the selected model cannot stream.</summary>
     public bool CanStartStreaming
-        => HasDownloadedModels && !IsStreaming && !IsCheckingCapabilities;
+        => HasDownloadedModels && !IsStreaming && !IsCheckingCapabilities && SelectedModelStreams;
+
+    /// <summary>
+    /// Whether the selected model can stream.
+    /// </summary>
+    /// <remarks>
+    /// The loaded model answers when it has been checked on this machine; until
+    /// then upstream's pinned catalog entry for the alias does, which is the same
+    /// source the Models tab's capability filter reads. Both are real records, and
+    /// neither is a guess. When neither has an answer — an alias with no catalog
+    /// entry, or a probe that failed — the answer is yes: refusing on unknown
+    /// would block a model that works.
+    /// <para>
+    /// This is what stops the default model, MOSS, from being started on this tab:
+    /// upstream records <c>streaming.supported = false</c> for it, and the native
+    /// library refuses with <c>ErrNotImplemented</c>. The two agree.
+    /// </para>
+    /// </remarks>
+    public bool SelectedModelStreams
+        => _selectedCapabilities is { } checkedHere
+            && string.Equals(_capabilitiesAlias, ModelAlias, StringComparison.Ordinal)
+            ? checkedHere.SupportsStreaming
+            : DeclaredStreaming(ModelAlias);
+
+    /// <summary>
+    /// What sits under the picker when the selected model cannot stream, empty
+    /// otherwise, so a disabled Start says why.
+    /// </summary>
+    public string StreamingSupportHint
+        => SelectedModelStreams
+            ? string.Empty
+            : $"{ModelAlias} does not support streaming. Download a model that does — the Models tab can filter on the 'streaming' capability.";
+
+    /// <summary>Upstream's declaration for an alias; true when it declares nothing.</summary>
+    private static bool DeclaredStreaming(string alias)
+    {
+        Dictionary<string, UpstreamCatalog.Capability>? capabilities =
+            UpstreamCatalog.Read(alias)?.Capabilities;
+
+        if (capabilities is null
+            || !capabilities.TryGetValue("streaming", out UpstreamCatalog.Capability? streaming))
+        {
+            return true;
+        }
+
+        return streaming.Supported;
+    }
 
     /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
     public bool HasDownloadedModels => AvailableModels.Count > 0;
@@ -166,7 +219,15 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     /// </summary>
     public void RefreshModels() => LoadModels();
 
-    partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
+    partial void OnModelAliasChanged(string value)
+    {
+        // The new alias answers for itself until a probe replaces it: the hint and
+        // the button must not keep the previous model's verdict.
+        OnPropertyChanged(nameof(SelectedModelStreams));
+        OnPropertyChanged(nameof(StreamingSupportHint));
+        OnPropertyChanged(nameof(CanStartStreaming));
+        RequestCapabilityProbe(value);
+    }
 
     /// <summary>
     /// Reads the capabilities of the selected model, once per alias. The answer
@@ -184,7 +245,7 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     {
         if (_capabilityCache.TryGet(alias, out ModelCapabilitySnapshot? cached))
         {
-            ApplyCapabilities(cached);
+            ApplyCapabilities(alias, cached);
             CapabilityStatus = string.Empty;
             return;
         }
@@ -192,7 +253,7 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         ModelDescriptor? descriptor = ModelStore.Catalog.FirstOrDefault(m => m.Alias == alias);
         if (descriptor is null || !ModelStore.IsCached(descriptor))
         {
-            ApplyCapabilities(null);
+            ApplyCapabilities(alias, null);
             CapabilityStatus = descriptor is null
                 ? string.Empty
                 : $"{alias} is not downloaded, so its capabilities are unknown. Every option is shown until it is checked.";
@@ -225,15 +286,16 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
             if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
             {
-                ApplyCapabilities(snapshot);
+                ApplyCapabilities(alias, snapshot);
                 CapabilityStatus = string.Empty;
             }
         }
         catch (Exception ex)
         {
+            UiLog.Failure($"capability probe for {alias}", ex);
             if (string.Equals(ModelAlias, alias, StringComparison.Ordinal))
             {
-                ApplyCapabilities(null);
+                ApplyCapabilities(alias, null);
                 CapabilityStatus = $"Could not check {alias}: {ex.Message}. Every option is shown.";
             }
         }
@@ -251,13 +313,17 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void ApplyCapabilities(ModelCapabilitySnapshot? capabilities)
+    private void ApplyCapabilities(string alias, ModelCapabilitySnapshot? capabilities)
     {
         _selectedCapabilities = capabilities;
+        _capabilitiesAlias = capabilities is null ? null : alias;
         OnPropertyChanged(nameof(ShowFamilyExtensions));
         OnPropertyChanged(nameof(ShowMoonshineExtensions));
         OnPropertyChanged(nameof(ShowParakeetExtensions));
         OnPropertyChanged(nameof(ShowVoxtralExtensions));
+        OnPropertyChanged(nameof(SelectedModelStreams));
+        OnPropertyChanged(nameof(StreamingSupportHint));
+        OnPropertyChanged(nameof(CanStartStreaming));
     }
 
     [RelayCommand]
@@ -265,6 +331,15 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     {
         if (IsStreaming)
         {
+            return;
+        }
+
+        // The button is disabled for this, but the command is the gate: a binding
+        // that has not caught up must not reach the native library with a model it
+        // will refuse.
+        if (!SelectedModelStreams)
+        {
+            StatusMessage = $"{ModelAlias} does not support streaming. Pick a model that does.";
             return;
         }
 
@@ -308,7 +383,8 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            UiLog.Failure($"streaming start for {ModelAlias}", ex);
+            StatusMessage = $"Error: {ex.Message} (logged to {UiLog.FilePath})";
         }
         finally
         {
