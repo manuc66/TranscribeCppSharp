@@ -41,7 +41,7 @@ if command -v gh >/dev/null 2>&1; then
     json="$(gh api "repos/${UPSTREAM}/releases/latest" 2>/dev/null || true)"
 fi
 if [[ -z "${json}" ]]; then
-    json="$(curl -fsSL \
+    json="$(curl -fsSL --proto '=https' --proto-redir '=https' \
         -H 'Accept: application/vnd.github+json' \
         "https://api.github.com/repos/${UPSTREAM}/releases/latest" 2>/dev/null || true)"
 fi
