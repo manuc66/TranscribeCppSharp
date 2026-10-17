@@ -60,6 +60,11 @@ Transcribe audio with a speech-to-text model. Supports every model family
 that transcribe.cpp supports (Whisper, Moonshine, Parakeet, Canary, GigaAM,
 Voxtral, Qwen3-ASR, MOSS diarization, …).
 
+The model's role decides what runs (transcribe.cpp 0.4): an ASR model is
+transcribed, a diarization model (Sortformer) prints speaker turns, a
+language-identification model prints ranked languages, a voice-activity
+model prints speech segments.
+
 Usage: transcribe <audio> [model] [options]
 
   <audio>        WAV (16 kHz mono 16-bit) read directly; any other
@@ -86,14 +91,16 @@ Usage: transcribe <audio> [model] [options]
                  never falls back to another device
   --list-devices list the compute devices this build and machine can see
   --lang <code>  language code for the decoder (default: en)
+  --allowed <codes>  language-identification model only: comma-separated
+                 codes to rank (e.g. en,fr,de); default is all labels
   --chunk <sec>  max per-transcription window in seconds (default: 300);
                  long audio is split with 1 s overlap and deduplicated
   --no-diarize   disable speaker diarization
-  --out <file>   write the transcript to a file; format controlled
+  --out <file>   write the report to a file; format controlled
                  by --format (plain/vtt/json)
-  --format <fmt> transcript file format: plain (default, timestamped
-                 lines), vtt (WebVTT, speaker cues) or json
-                 (whisper-style segments)
+  --format <fmt> report file format: plain (default, timestamped
+                 lines), vtt (WebVTT, speaker cues; ASR models only) or
+                 json
   --help         show this help
 ```
 

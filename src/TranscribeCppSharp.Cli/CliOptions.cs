@@ -60,6 +60,12 @@ internal sealed record CliOptions
 
     internal TranscriptFormat Format { get; init; } = TranscriptFormat.Plain;
 
+    /// <summary>
+    /// --allowed: language codes a language-identification model may answer with,
+    /// or null to let it rank every label. Ignored by the other roles.
+    /// </summary>
+    internal string[]? Allowed { get; init; }
+
     internal BackendRequest Backend { get; init; } = BackendRequest.BackendAuto;
 
     /// <summary>--backend as typed, for the error messages.</summary>
@@ -81,7 +87,7 @@ internal sealed record CliOptions
         error = null;
 
         string? model = null, quant = null, language = null, chunk = null, outPath = null,
-                format = null, backendName = null, device = null;
+                format = null, backendName = null, device = null, allowed = null;
         bool noDiarize = false;
         var positional = new List<string>();
 
@@ -106,6 +112,9 @@ internal sealed record CliOptions
                     break;
                 case "--format":
                     if (!TakeValue(args, ref i, "--format", out format, out error)) { return false; }
+                    break;
+                case "--allowed":
+                    if (!TakeValue(args, ref i, "--allowed", out allowed, out error)) { return false; }
                     break;
                 case "--backend":
                     if (!TakeValue(args, ref i, "--backend", out backendName, out error)) { return false; }
@@ -185,6 +194,11 @@ internal sealed record CliOptions
             return false;
         }
 
+        if (!TryParseAllowed(allowed, out var allowedCodes, out error))
+        {
+            return false;
+        }
+
         string? outFile = outPath is null ? null : Path.GetFullPath(outPath);
         if (outFile is not null && !Directory.Exists(Path.GetDirectoryName(outFile)!))
         {
@@ -204,6 +218,7 @@ internal sealed record CliOptions
             Diarize = noDiarize ? DiarizeMode.DiarizeModeOff : DiarizeMode.DiarizeModeOn,
             OutPath = outFile,
             Format = transcriptFormat,
+            Allowed = allowedCodes,
             Backend = backend,
             BackendName = DeviceSelection.Name(backend),
             DeviceIndex = deviceIndex,
@@ -340,8 +355,32 @@ internal sealed record CliOptions
         return true;
     }
 
-    private static bool TryCheckInput(string path, out string? error)
+    /// <summary>
+    /// Parses --allowed (a comma-separated list of language codes) for the langid
+    /// role. A missing or empty entry is reported rather than silently dropped.
+    /// </summary>
+    private static bool TryParseAllowed(string? name, out string[]? codes, out string? error)
     {
+        codes = null;
+        error = null;
+
+        if (name is null)
+        {
+            return true;
+        }
+
+        string[] parts = name.Split(',', StringSplitOptions.TrimEntries);
+        if (parts.Length == 0 || parts.Any(string.IsNullOrEmpty))
+        {
+            error = $"invalid --allowed: '{name}' (expected a comma-separated list of language codes, e.g. en,fr,de)";
+            return false;
+        }
+
+        codes = parts;
+        return true;
+    }
+
+    private static bool TryCheckInput(string path, out string? error)    {
         error = null;
 
         if (Directory.Exists(path))

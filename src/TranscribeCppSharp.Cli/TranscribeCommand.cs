@@ -28,6 +28,11 @@ internal static class TranscribeCommand
         that transcribe.cpp supports (Whisper, Moonshine, Parakeet, Canary, GigaAM,
         Voxtral, Qwen3-ASR, MOSS diarization, …).
 
+        The model's role decides what runs (transcribe.cpp 0.4): an ASR model is
+        transcribed, a diarization model (Sortformer) prints speaker turns, a
+        language-identification model prints ranked languages, a voice-activity
+        model prints speech segments.
+
         Usage: transcribe <audio> [model] [options]
 
           <audio>        WAV (16 kHz mono 16-bit) read directly; any other
@@ -54,14 +59,16 @@ internal static class TranscribeCommand
                          never falls back to another device
           --list-devices list the compute devices this build and machine can see
           --lang <code>  language code for the decoder (default: en)
+          --allowed <codes>  language-identification model only: comma-separated
+                         codes to rank (e.g. en,fr,de); default is all labels
           --chunk <sec>  max per-transcription window in seconds (default: 300);
                          long audio is split with 1 s overlap and deduplicated
           --no-diarize   disable speaker diarization
-          --out <file>   write the transcript to a file; format controlled
+          --out <file>   write the report to a file; format controlled
                          by --format (plain/vtt/json)
-          --format <fmt> transcript file format: plain (default, timestamped
-                         lines), vtt (WebVTT, speaker cues) or json
-                         (whisper-style segments)
+          --format <fmt> report file format: plain (default, timestamped
+                         lines), vtt (WebVTT, speaker cues; ASR models only) or
+                         json
           --help         show this help
         """;
 
@@ -288,6 +295,18 @@ internal static class TranscribeCommand
         string modelLabel = $"{model.Architecture}/{model.Variant}";
         stdout.WriteLine($"model : {modelLabel}");
         stdout.WriteLine($"compute: {DescribeCompute(choice, model)}");
+
+        // transcribe.cpp 0.4 gives a model one or more roles. An ASR model keeps
+        // the transcription path; anything else is a diarize/langid/vad model and
+        // runs through its own session, which is what the role reports print.
+        TranscribeRole roles = model.Roles;
+        stdout.WriteLine($"roles : {DescribeRoles(roles)}");
+
+        if (!roles.HasFlag(TranscribeRole.Asr))
+        {
+            return RunNonAsrRole(stdout, stderr, options, model, modelLabel, pcmSource, totalSamples, roles);
+        }
+
         stdout.WriteLine($"diarization supported: {model.Supports(Feature.FeatureDiarization)}");
 
         using var session = model.CreateSession();
@@ -436,9 +455,233 @@ internal static class TranscribeCommand
         return 0;
     }
 
-    /// <summary>The --format spelling, as accepted and as echoed back.</summary>
-    internal static string FormatName(TranscriptFormat format) => format switch
+    /// <summary>
+    /// Runs a model that does not serve ASR, through the session its role names.
+    /// The audio is read whole (these roles are offline and have no windowing
+    /// contract); the ASR path is the one that streams windows.
+    /// </summary>
+    private static int RunNonAsrRole(
+        TextWriter stdout,
+        TextWriter stderr,
+        CliOptions options,
+        Model model,
+        string modelLabel,
+        PcmSource pcmSource,
+        long totalSamples,
+        TranscribeRole roles)
     {
+        if (options.Format == TranscriptFormat.Vtt)
+        {
+            stderr.WriteLine("--format vtt applies to a transcription (ASR) model; "
+                + $"this model serves {DescribeRoles(roles)}. Use --format plain or json.");
+            return 1;
+        }
+
+        if (roles.HasFlag(TranscribeRole.Diarize))
+        {
+            return RunDiarize(stdout, stderr, options, model, modelLabel, pcmSource, totalSamples);
+        }
+
+        if (roles.HasFlag(TranscribeRole.Langid))
+        {
+            return RunLangId(stdout, stderr, options, model, modelLabel, pcmSource, totalSamples);
+        }
+
+        if (roles.HasFlag(TranscribeRole.Vad))
+        {
+            return RunVad(stdout, stderr, options, model, modelLabel, pcmSource, totalSamples);
+        }
+
+        stderr.WriteLine($"model {modelLabel} serves no role this tool can run (roles: {DescribeRoles(roles)}).");
+        return 1;
+    }
+
+    private static int RunDiarize(
+        TextWriter stdout, TextWriter stderr, CliOptions options, Model model,
+        string modelLabel, PcmSource pcmSource, long totalSamples)
+    {
+        using var session = model.CreateDiarizeSession();
+        var info = model.GetDiarizeInfo();
+        double audioSec = totalSamples / (double)WindowPlanner.SampleRate;
+        stdout.WriteLine($"diarize: {info.SampleRate} Hz, up to {info.MaxSpeakers} speakers");
+
+        float[] pcm = ReadWhole(pcmSource, totalSamples);
+        var sw = Stopwatch.StartNew();
+        IReadOnlyList<SpeakerSegmentResult> segments;
+        try
+        {
+            segments = session.Run(pcm);
+        }
+        catch (TranscribeException ex)
+        {
+            stderr.WriteLine($"diarization failed: {ex.Message}");
+            return 1;
+        }
+
+        sw.Stop();
+
+        stdout.WriteLine($"\n=== diarization === ({segments.Count} speaker segments)");
+        foreach (var s in segments)
+        {
+            stdout.WriteLine($"[{Fmt.Ts(s.Start.TotalMilliseconds)} -> {Fmt.Ts(s.End.TotalMilliseconds)}] Speaker {s.SpeakerId}");
+        }
+
+        WriteRoleReport(options, stdout, w => RoleReportWriter.WriteDiarize(
+            w, options.Format, options.AudioPath, modelLabel, TimeSpan.FromSeconds(audioSec), segments, DateTime.Now));
+
+        stdout.WriteLine($"\n  total : {Fmt.Dur(sw.Elapsed.TotalSeconds)} for {Fmt.Dur(audioSec)} audio");
+        return 0;
+    }
+
+    private static int RunLangId(
+        TextWriter stdout, TextWriter stderr, CliOptions options, Model model,
+        string modelLabel, PcmSource pcmSource, long totalSamples)
+    {
+        using var session = model.CreateLangIdSession();
+        var info = model.GetLangIdInfo();
+
+        // The model has a maximum clip; identify from the head of the audio when
+        // the file is longer, and say so.
+        long maxSamples = info.MaxAudioMs > 0 ? (long)info.MaxAudioMs * WindowPlanner.SampleRate / 1000 : totalSamples;
+        long usedSamples = Math.Min(totalSamples, maxSamples);
+        stdout.WriteLine($"langid: {info.LabelCount} labels, clip up to {info.MaxAudioMs / 1000.0:0.0}s");
+        if (usedSamples < totalSamples)
+        {
+            stdout.WriteLine($"        using the first {Fmt.Dur(usedSamples / (double)WindowPlanner.SampleRate)} of the audio");
+        }
+
+        float[] pcm = pcmSource.ReadWindow(0, (int)usedSamples);
+        LangIdSession.LangIdResult result;
+        try
+        {
+            result = session.Run(pcm, p => WithAllowedLanguages(p, options.Allowed));
+        }
+        catch (TranscribeException ex)
+        {
+            stderr.WriteLine($"language identification failed: {ex.Message}");
+            return 1;
+        }
+
+        // Unrestricted, the model ranks every label (107 for VoxLingua107); the
+        // console shows the head of that list, the report carries it all.
+        const int consoleTop = 5;
+        stdout.WriteLine($"\n=== language identification === ({result.Candidates.Count} candidates)");
+        foreach (var c in result.Candidates.Take(consoleTop))
+        {
+            stdout.WriteLine($"  {c.Code,-8} {c.Probability:0.000}  {c.Name}");
+        }
+
+        if (result.Candidates.Count > consoleTop)
+        {
+            stdout.WriteLine($"  … {result.Candidates.Count - consoleTop} more (see --out for the full list)");
+        }
+
+        stdout.WriteLine($"  allowed mass: {result.AllowedMass:0.000}");
+
+        WriteRoleReport(options, stdout, w => RoleReportWriter.WriteLangId(
+            w, options.Format, options.AudioPath, modelLabel,
+            TimeSpan.FromSeconds(usedSamples / (double)WindowPlanner.SampleRate), result, DateTime.Now));
+
+        return 0;
+    }
+
+    private static int RunVad(
+        TextWriter stdout, TextWriter stderr, CliOptions options, Model model,
+        string modelLabel, PcmSource pcmSource, long totalSamples)
+    {
+        using var session = model.CreateVadSession();
+        var info = model.GetVadInfo();
+        double audioSec = totalSamples / (double)WindowPlanner.SampleRate;
+        stdout.WriteLine($"vad: {info.SampleRate} Hz, frame {info.FrameSamples} samples ({info.FrameSamples * 1000.0 / info.SampleRate:0} ms)");
+
+        float[] pcm = ReadWhole(pcmSource, totalSamples);
+        var sw = Stopwatch.StartNew();
+        VadSession.VadResult result;
+        try
+        {
+            result = session.Run(pcm);
+        }
+        catch (TranscribeException ex)
+        {
+            stderr.WriteLine($"voice activity detection failed: {ex.Message}");
+            return 1;
+        }
+
+        sw.Stop();
+
+        stdout.WriteLine($"\n=== speech activity === ({result.Segments.Count} segments, {result.Probabilities.Count} frames)");
+        foreach (var s in result.Segments)
+        {
+            double start = s.StartSample * 1000.0 / info.SampleRate;
+            double end = s.EndSample * 1000.0 / info.SampleRate;
+            stdout.WriteLine($"[{Fmt.Ts(start)} -> {Fmt.Ts(end)}] speech");
+        }
+
+        WriteRoleReport(options, stdout, w => RoleReportWriter.WriteVad(
+            w, options.Format, options.AudioPath, modelLabel,
+            TimeSpan.FromSeconds(audioSec), result, info.SampleRate, DateTime.Now));
+
+        stdout.WriteLine($"\n  total : {Fmt.Dur(sw.Elapsed.TotalSeconds)} for {Fmt.Dur(audioSec)} audio");
+        return 0;
+    }
+
+    private static void WithAllowedLanguages(LangIdParamsBuilder p, string[]? allowed)
+    {
+        if (allowed is { Length: > 0 })
+        {
+            p.WithAllowed(allowed);
+        }
+    }
+
+    /// <summary>Writes the role report to --out, reusing the console writer when there is none.</summary>
+    private static void WriteRoleReport(CliOptions options, TextWriter stdout, Action<TextWriter> write)
+    {
+        if (options.OutPath is null)
+        {
+            return;
+        }
+
+        using StreamWriter outFile = OpenOutput(options.OutPath)!;
+        write(outFile);
+        stdout.WriteLine($"\nreport written to: {options.OutPath} ({FormatName(options.Format)})");
+    }
+
+    private static float[] ReadWhole(PcmSource source, long totalSamples)
+        => source.ReadWindow(0, (int)totalSamples);
+
+    private static string DescribeRoles(TranscribeRole roles)
+    {
+        if (roles == TranscribeRole.None)
+        {
+            return "none";
+        }
+
+        var names = new List<string>();
+        if (roles.HasFlag(TranscribeRole.Asr))
+        {
+            names.Add("asr");
+        }
+
+        if (roles.HasFlag(TranscribeRole.Diarize))
+        {
+            names.Add("diarize");
+        }
+
+        if (roles.HasFlag(TranscribeRole.Langid))
+        {
+            names.Add("langid");
+        }
+
+        if (roles.HasFlag(TranscribeRole.Vad))
+        {
+            names.Add("vad");
+        }
+
+        return string.Join(",", names);
+    }
+
+    /// <summary>The --format spelling, as accepted and as echoed back.</summary>
+    internal static string FormatName(TranscriptFormat format) => format switch    {
         TranscriptFormat.Vtt => "vtt",
         TranscriptFormat.Json => "json",
         _ => "plain",
