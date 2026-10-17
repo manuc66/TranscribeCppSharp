@@ -2,12 +2,12 @@
 // (ogg, mp3, m4a, …) is decoded by ffmpeg, which must be on PATH. The fallback
 // exists because the native library only takes raw 16 kHz mono float PCM.
 
+namespace TranscribeCppSharp.Audio;
+
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-
-namespace TranscribeCppSharp.Audio;
 
 /// <summary>
 /// Opens the input audio as a random-access source of 16 kHz mono float PCM.

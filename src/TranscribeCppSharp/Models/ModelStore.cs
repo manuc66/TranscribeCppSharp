@@ -16,6 +16,8 @@
 // GUI resolve models the same way and must agree on the cache layout: a model
 // downloaded by one is a cache hit for the other.
 
+namespace TranscribeCppSharp.Models;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,8 +27,6 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
-
-namespace TranscribeCppSharp.Models;
 
 /// <summary>
 /// Model resolution and caching, shared by the CLI and the GUI.

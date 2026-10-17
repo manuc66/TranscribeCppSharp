@@ -1,9 +1,7 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Fluent builder for the Sortformer diarization extension parameters.

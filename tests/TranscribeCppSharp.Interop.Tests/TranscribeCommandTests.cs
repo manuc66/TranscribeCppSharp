@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Text.Json;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Cli;
@@ -18,12 +16,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// and exit code 1 — never an unhandled exception, and never a stack trace on
 /// the console.
 /// </summary>
-public class TranscribeCommandTests
+public class TranscribeCommandTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public TranscribeCommandTests(ITestOutputHelper output) => _output = output;
-
     private sealed record Result(int ExitCode, string Out, string Error);
 
     private static Result Run(params string[] args)
@@ -289,7 +283,7 @@ public class TranscribeCommandTests
 
         Result plain = Run(audio, model, "--out", temp.Combine("out.txt"));
         Assert.Equal(0, plain.ExitCode);
-        _output.WriteLine(plain.Out);
+        output.WriteLine(plain.Out);
         Assert.Contains("audio :", plain.Out);
         Assert.Contains("model : whisper/whisper-tiny", plain.Out);
         Assert.Contains("compute:", plain.Out);

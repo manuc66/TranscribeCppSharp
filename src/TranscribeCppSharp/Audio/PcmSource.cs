@@ -1,7 +1,7 @@
+namespace TranscribeCppSharp.Audio;
+
 using System;
 using System.IO;
-
-namespace TranscribeCppSharp.Audio;
 
 /// <summary>
 /// Random access to 16 kHz mono f32 PCM, without holding the whole input in memory.

@@ -1,11 +1,9 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Exception thrown when a transcribe.cpp native call returns an error status.

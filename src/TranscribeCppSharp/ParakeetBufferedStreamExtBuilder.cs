@@ -1,9 +1,7 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Fluent builder for Parakeet buffered streaming extension parameters.

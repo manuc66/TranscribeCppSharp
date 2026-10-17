@@ -1,5 +1,3 @@
-#nullable enable
-
 using TranscribeCppSharp.Audio;
 using Xunit;
 using Xunit.Abstractions;
@@ -20,12 +18,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// removed from PATH, which turns "silently fell back" into a hard failure.
 /// </remarks>
 [Collection(nameof(DirectWavPathTests))]
-public class DirectWavPathTests
+public class DirectWavPathTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public DirectWavPathTests(ITestOutputHelper output) => _output = output;
-
     /// <summary>
     /// A 16 kHz mono 16-bit WAV is read without ffmpeg. Aimed at
     /// <see cref="WavPcmSource"/> directly so a fall-through to ffmpeg is a
@@ -144,7 +138,7 @@ public class DirectWavPathTests
         try
         {
             Environment.SetEnvironmentVariable("PATH", temp.Path);
-            _output.WriteLine($"PATH set to {temp.Path} (no ffmpeg there)");
+            output.WriteLine($"PATH set to {temp.Path} (no ffmpeg there)");
 
             float[] pcm = AudioLoader.Load(path);
 

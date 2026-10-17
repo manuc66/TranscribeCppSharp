@@ -1,16 +1,14 @@
+namespace TranscribeCppSharp.Generator;
+
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace TranscribeCppSharp.Generator;
-
 /// <summary>
 /// Parses transcribe_sys.rs (bindgen output) into structured declarations.
 /// </summary>
-public partial class RustFfiParser
+public partial class RustFfiParser(string content)
 {
-    private readonly string content;
-
     private static readonly HashSet<string> OpaqueHandleNames =
     [
         "transcribe_model",
@@ -26,8 +24,6 @@ public partial class RustFfiParser
     ];
 
     private const string ValueGroup = "value";
-
-    public RustFfiParser(string content) => this.content = content;
 
     public static RustFfiParser FromFile(string path) => new(File.ReadAllText(path));
 

@@ -1,6 +1,6 @@
-using System;
-
 namespace TranscribeCppSharp.Models;
+
+using System;
 
 /// <summary>
 /// One entry of the curated model manifest: a GGUF published on HuggingFace at a

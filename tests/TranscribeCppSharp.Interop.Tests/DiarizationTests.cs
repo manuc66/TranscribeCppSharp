@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Reflection;
 using TranscribeCppSharp.Cli;
 using Xunit;
@@ -19,12 +17,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// (opt-in, ~617 MB: WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh)
 /// and skip when it is absent. Whisper needs only test-models/ggml-tiny.bin.
 /// </summary>
-public class DiarizationTests
+public class DiarizationTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public DiarizationTests(ITestOutputHelper output) => _output = output;
-
     private static string MossPath => Path.Combine(TestConfig.RepoRoot, "test-models", "moss-transcribe-diarize-q4-k-m.gguf");
 
     private static bool HasMoss => File.Exists(MossPath);
@@ -99,8 +93,8 @@ public class DiarizationTests
         using var session = model.CreateSession();
         Transcript transcript = session.Run(Pcm(), r => r.WithDiarize(DiarizeMode.DiarizeModeOn));
 
-        _output.WriteLine($"full: {transcript.FullText}");
-        _output.WriteLine($"raw : {transcript.RawText}");
+        output.WriteLine($"full: {transcript.FullText}");
+        output.WriteLine($"raw : {transcript.RawText}");
         Assert.NotEmpty(transcript.SpeakerSegments);
         Assert.All(transcript.SpeakerSegments, s => Assert.Equal(1, s.SpeakerId));
         Assert.All(transcript.Segments, s => Assert.Equal(1, s.SpeakerId));
@@ -144,7 +138,7 @@ public class DiarizationTests
         Assert.Equal(2, results.Count);
         foreach (BatchResult result in results)
         {
-            _output.WriteLine($"[{result.Index}] {result.FullText}");
+            output.WriteLine($"[{result.Index}] {result.FullText}");
             Assert.NotEmpty(result.SpeakerSegments);
             Assert.All(result.SpeakerSegments, s => Assert.Equal(1, s.SpeakerId));
             Assert.All(result.Segments, s => Assert.Equal(1, s.SpeakerId));
@@ -160,7 +154,7 @@ public class DiarizationTests
         using var session = model.CreateSession();
 
         Transcript transcript = session.Run(TwoVoicePcm(), r => r.WithDiarize(DiarizeMode.DiarizeModeOn));
-        _output.WriteLine($"raw: {transcript.RawText}");
+        output.WriteLine($"raw: {transcript.RawText}");
 
         int[] speakers = transcript.SpeakerSegments.Select(s => s.SpeakerId).Distinct().Order().ToArray();
         Assert.Equal([1, 2], speakers);
@@ -186,7 +180,7 @@ public class DiarizationTests
         {
             string outFile = temp.Combine($"{format}.out");
             (int exitCode, string stdout, _) = RunCli(TestConfig.AudioPath, MossPath, "--backend", "cpu", "--out", outFile, "--format", CliFormatName(format));
-            _output.WriteLine(stdout);
+            output.WriteLine(stdout);
 
             Assert.Equal(0, exitCode);
             Assert.Contains("diarization supported: True", stdout);
@@ -202,7 +196,7 @@ public class DiarizationTests
         using var temp = new TempWorkspace();
         string outFile = temp.Combine("plain.out");
         (int exitCode, string stdout, _) = RunCli(TestConfig.AudioPath, MossPath, "--backend", "cpu", "--no-diarize", "--out", outFile);
-        _output.WriteLine(stdout);
+        output.WriteLine(stdout);
 
         Assert.Equal(0, exitCode);
         // The model still supports diarization; the run simply did not ask for it.

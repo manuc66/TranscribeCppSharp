@@ -1,12 +1,10 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// A transcription session bound to a model. Disposing this frees the native session.
@@ -341,7 +339,7 @@ public sealed class Session : IDisposable
     {
         ThrowIfDisposed();
         this.abortCallback = abortCallback ?? throw new ArgumentNullException(nameof(abortCallback));
-        abortToken = default;
+        abortToken = CancellationToken.None;
         abortUsesToken = false;
         var cb = EnsureInteropCallback();
         NativeMethods.SetAbortCallback(handle, cb, IntPtr.Zero);
@@ -408,7 +406,7 @@ public sealed class Session : IDisposable
         // while keeping the delegate rooted. It is the same delegate instance
         // for the whole session, so clearing does not allocate either.
         abortCallback = null;
-        abortToken = default;
+        abortToken = CancellationToken.None;
         abortUsesToken = false;
         var cb = EnsureInteropCallback();
         NativeMethods.SetAbortCallback(handle, cb, IntPtr.Zero);

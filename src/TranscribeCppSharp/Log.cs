@@ -1,9 +1,7 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Configure native log output. Call before Backends.InitDefault().

@@ -1,5 +1,3 @@
-#nullable enable
-
 using TranscribeCppSharp.Audio;
 using Xunit;
 

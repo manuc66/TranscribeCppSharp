@@ -1,5 +1,3 @@
-#nullable enable
-
 using TranscribeCppSharp.Audio;
 using Xunit;
 using Xunit.Abstractions;
@@ -17,12 +15,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// there has to be the only one doing so at the time.
 /// </remarks>
 [Collection("AudioStaging")]
-public class AudioLoaderTests
+public class AudioLoaderTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public AudioLoaderTests(ITestOutputHelper output) => _output = output;
-
     private static bool HasFfmpeg => TestConfig.HasFfmpeg();
 
     [Fact]
@@ -82,7 +76,7 @@ public class AudioLoaderTests
     {
         if (!HasFfmpeg)
         {
-            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
             return;
         }
 
@@ -104,7 +98,7 @@ public class AudioLoaderTests
     {
         if (!HasFfmpeg)
         {
-            _output.WriteLine("ffmpeg is not installed: skipping.");
+            output.WriteLine("ffmpeg is not installed: skipping.");
             return;
         }
 
@@ -123,7 +117,7 @@ public class AudioLoaderTests
     {
         if (!HasFfmpeg)
         {
-            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
             return;
         }
 
@@ -165,7 +159,7 @@ public class AudioLoaderTests
     {
         if (!HasFfmpeg)
         {
-            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
             return;
         }
 
@@ -200,7 +194,7 @@ public class AudioLoaderTests
     {
         if (!HasFfmpeg)
         {
-            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
             return;
         }
 
@@ -232,7 +226,7 @@ public class AudioLoaderTests
     {
         if (!HasFfmpeg)
         {
-            _output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
+            output.WriteLine("ffmpeg is not installed: skipping the ffmpeg fallback.");
             return;
         }
 
@@ -259,7 +253,7 @@ public class AudioLoaderTests
     {
         if (!HasFfmpeg)
         {
-            _output.WriteLine("ffmpeg is not installed: skipping.");
+            output.WriteLine("ffmpeg is not installed: skipping.");
             return;
         }
 

@@ -1,5 +1,3 @@
-#nullable enable
-
 using TranscribeCppSharp.Cli;
 using Xunit;
 using Xunit.Abstractions;
@@ -12,12 +10,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// ranked languages, a VAD model prints speech segments. These run the real
 /// command against the role weights fetched by scripts/run-integration-tests.sh.
 /// </summary>
-public class RoleCommandTests
+public class RoleCommandTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public RoleCommandTests(ITestOutputHelper output) => _output = output;
-
     private sealed record Result(int ExitCode, string Out, string Error);
 
     private static Result Run(params string[] args)
@@ -42,7 +36,7 @@ public class RoleCommandTests
         Skip.IfNot(Have(Sortformer), "Sortformer model or audio not present.");
 
         Result result = Run(TestConfig.AudioPath, Sortformer, "--backend", "cpu");
-        _output.WriteLine(result.Out);
+        output.WriteLine(result.Out);
 
         // It used to crash here with an unhandled UNSUPPORTED_ROLE, because the
         // CLI only ever created an ASR session.
@@ -72,7 +66,7 @@ public class RoleCommandTests
         Skip.IfNot(Have(LangId), "LANGID model or audio not present.");
 
         Result result = Run(TestConfig.AudioPath, LangId, "--backend", "cpu");
-        _output.WriteLine(result.Out);
+        output.WriteLine(result.Out);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("roles : langid", result.Out);
@@ -99,7 +93,7 @@ public class RoleCommandTests
         Skip.IfNot(Have(Vad), "VAD model or audio not present.");
 
         Result result = Run(TestConfig.AudioPath, Vad, "--backend", "cpu");
-        _output.WriteLine(result.Out);
+        output.WriteLine(result.Out);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("roles : vad", result.Out);

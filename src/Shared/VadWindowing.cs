@@ -11,8 +11,6 @@
 // Shared source: compiled into both the CLI and the desktop app (see the csproj
 // Compile includes), like UpstreamCatalog.
 
-#nullable enable
-
 using TranscribeCppSharp.Audio;
 
 namespace TranscribeCppSharp.SharedSource;

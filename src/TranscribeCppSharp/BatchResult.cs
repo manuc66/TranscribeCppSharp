@@ -1,9 +1,7 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System.Collections.Generic;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Result of a single item in a batch transcription.

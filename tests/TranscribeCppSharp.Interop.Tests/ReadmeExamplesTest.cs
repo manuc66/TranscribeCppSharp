@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Text.RegularExpressions;
 using TranscribeCppSharp.Cli;
 using Xunit;

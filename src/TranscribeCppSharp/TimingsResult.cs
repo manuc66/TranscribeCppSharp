@@ -1,5 +1,3 @@
-#nullable enable
-
 namespace TranscribeCppSharp;
 
 /// <summary>Performance timings for a transcription run.</summary>

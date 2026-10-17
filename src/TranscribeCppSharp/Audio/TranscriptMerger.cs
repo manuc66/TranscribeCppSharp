@@ -13,11 +13,11 @@
 //
 // This lives in the wrapper rather than in either front end for that reason.
 
+namespace TranscribeCppSharp.Audio;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-namespace TranscribeCppSharp.Audio;
 
 /// <summary>
 /// Accumulates the windows of one split run into a single transcript.

@@ -1,9 +1,7 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Runtime.InteropServices;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Helper for safe native buffer allocation: uses the stack for small structs

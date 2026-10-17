@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Diagnostics;
 using TranscribeCppSharp.Audio;
 using Xunit;
@@ -16,12 +14,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// exits 1 with a message — never an unhandled exception, never a stack trace,
 /// never a core dump (exit code 134).
 /// </summary>
-public class CliProcessTests
+public class CliProcessTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public CliProcessTests(ITestOutputHelper output) => _output = output;
-
     private sealed record ProcessResult(int ExitCode, string Out, string Error);
 
     private static string CliPath => Path.Combine(AppContext.BaseDirectory, "TranscribeCppSharp.Cli.dll");
@@ -193,7 +187,7 @@ public class CliProcessTests
 
         ProcessResult result = Run(TestConfig.AudioPath, TestConfig.ModelPath, "--out", Path.Combine(Path.GetTempPath(), "cli-process-test.txt"));
 
-        _output.WriteLine(result.Out);
+        output.WriteLine(result.Out);
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("model : whisper/whisper-tiny", result.Out);
         Assert.Contains("compute:", result.Out);

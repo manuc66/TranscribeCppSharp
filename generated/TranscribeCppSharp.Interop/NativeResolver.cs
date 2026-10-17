@@ -6,7 +6,8 @@
 // including the runtimes/<rid>/native/ layout where .NET places runtime-package
 // binaries — and the NuGet global packages folder. On failure it throws a
 // DllNotFoundException that lists the exact package to add and the paths searched.
-#nullable enable
+
+namespace TranscribeCppSharp.Interop;
 
 using System;
 using System.Collections.Generic;
@@ -14,8 +15,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-
-namespace TranscribeCppSharp.Interop;
 
 internal static partial class NativeMethods
 {

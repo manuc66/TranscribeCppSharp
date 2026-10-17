@@ -1,5 +1,3 @@
-#nullable enable
-
 using Xunit;
 using Xunit.Abstractions;
 
@@ -17,16 +15,12 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// must keep calling whichever one is current.
 /// </summary>
 [Collection(nameof(AbortCallbackTests))]
-public class AbortCallbackTests
+public class AbortCallbackTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public AbortCallbackTests(ITestOutputHelper output) => _output = output;
-
     [Fact]
     public void SetAbortCallback_WithNull_Throws()
     {
-        using var fixture = SessionFixture.TryCreate(_output);
+        using var fixture = SessionFixture.TryCreate(output);
         if (fixture is null)
         {
             return;
@@ -38,7 +32,7 @@ public class AbortCallbackTests
     [Fact]
     public void SetAbortCallback_SurvivesBeingSetClearedAndSetAgain()
     {
-        using var fixture = SessionFixture.TryCreate(_output);
+        using var fixture = SessionFixture.TryCreate(output);
         if (fixture is null)
         {
             return;
@@ -62,7 +56,7 @@ public class AbortCallbackTests
     [Fact]
     public void GetAbortCallback_IsNullUntilOneIsSet()
     {
-        using var fixture = SessionFixture.TryCreate(_output);
+        using var fixture = SessionFixture.TryCreate(output);
         if (fixture is null)
         {
             return;
@@ -81,7 +75,7 @@ public class AbortCallbackTests
     [Fact]
     public void SetAbortToken_ReportsNoUserCallback()
     {
-        using var fixture = SessionFixture.TryCreate(_output);
+        using var fixture = SessionFixture.TryCreate(output);
         if (fixture is null)
         {
             return;
@@ -102,7 +96,7 @@ public class AbortCallbackTests
     [Fact]
     public void SetAbortToken_ThenUserCallback_ReportsTheCallback()
     {
-        using var fixture = SessionFixture.TryCreate(_output);
+        using var fixture = SessionFixture.TryCreate(output);
         if (fixture is null)
         {
             return;
@@ -123,7 +117,7 @@ public class AbortCallbackTests
     [Fact]
     public void UserCallback_ThenSetAbortToken_ClearsTheCallback()
     {
-        using var fixture = SessionFixture.TryCreate(_output);
+        using var fixture = SessionFixture.TryCreate(output);
         if (fixture is null)
         {
             return;
@@ -141,7 +135,7 @@ public class AbortCallbackTests
     [Fact]
     public void InstallAndClear_AllocateNoDelegatePerCall()
     {
-        using var fixture = SessionFixture.TryCreate(_output);
+        using var fixture = SessionFixture.TryCreate(output);
         if (fixture is null)
         {
             return;

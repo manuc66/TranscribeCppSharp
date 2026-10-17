@@ -1,8 +1,6 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Result of a StreamFeed or StreamComplete call.

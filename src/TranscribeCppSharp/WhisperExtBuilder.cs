@@ -1,10 +1,8 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Fluent builder for Whisper-specific extension parameters.

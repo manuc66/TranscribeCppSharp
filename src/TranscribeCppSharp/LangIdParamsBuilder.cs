@@ -1,11 +1,9 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Fluent builder for language-identification run parameters

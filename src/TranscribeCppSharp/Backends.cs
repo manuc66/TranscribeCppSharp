@@ -1,11 +1,9 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Static API for backend initialization, device enumeration, and version info.

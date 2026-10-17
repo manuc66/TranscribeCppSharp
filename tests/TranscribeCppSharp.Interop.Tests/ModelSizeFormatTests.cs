@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Globalization;
 using TranscribeCppSharp.Models;
 using Xunit;

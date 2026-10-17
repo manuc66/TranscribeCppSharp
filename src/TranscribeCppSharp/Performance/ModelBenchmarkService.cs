@@ -1,3 +1,5 @@
+namespace TranscribeCppSharp.Performance;
+
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -6,8 +8,6 @@ using System.Threading;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
-
-namespace TranscribeCppSharp.Performance;
 
 /// <summary>
 /// Times a transcription on this machine, so the model list can be sorted by

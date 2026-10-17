@@ -1,5 +1,3 @@
-#nullable enable
-
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;

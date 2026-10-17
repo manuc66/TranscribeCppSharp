@@ -7,9 +7,9 @@
 // Both were honest arithmetic on the same manifest number and neither was wrong,
 // but a user comparing the two had no reason to expect two answers.
 
-using System.Globalization;
-
 namespace TranscribeCppSharp.Models;
+
+using System.Globalization;
 
 /// <summary>
 /// A byte count split into a number and a unit, so a caller can align the number

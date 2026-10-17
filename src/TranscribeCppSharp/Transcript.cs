@@ -1,8 +1,6 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System.Collections.Generic;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Complete transcription result.

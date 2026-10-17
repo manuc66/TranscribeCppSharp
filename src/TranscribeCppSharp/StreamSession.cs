@@ -1,11 +1,9 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Buffers;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Real-time streaming transcription session.

@@ -1,8 +1,8 @@
+namespace TranscribeCppSharp.Audio;
+
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-
-namespace TranscribeCppSharp.Audio;
 
 /// <summary>
 /// Reads 16 kHz mono f32 PCM out of the raw f32 file ffmpeg produced.

@@ -1,19 +1,15 @@
+namespace TranscribeCppSharp.Generator;
+
 using System.Text;
 using System.Text.RegularExpressions;
-
-namespace TranscribeCppSharp.Generator;
 
 /// <summary>
 /// Extracts documentation from the upstream C header (ffi/c/transcribe.h).
 /// Bindgen's transcribe_sys.rs strips all comments, so the C header is the
 /// only authoritative source of human-readable semantics for the native API.
 /// </summary>
-public partial class CHeaderDoc
+public partial class CHeaderDoc(string content)
 {
-    private readonly string content;
-
-    public CHeaderDoc(string content) => this.content = content;
-
     public static CHeaderDoc FromFile(string path) => new(File.ReadAllText(path));
 
     /// <summary>

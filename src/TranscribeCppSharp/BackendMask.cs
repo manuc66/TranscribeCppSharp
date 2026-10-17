@@ -1,8 +1,6 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Which compute backends may be initialized. Values match the upstream

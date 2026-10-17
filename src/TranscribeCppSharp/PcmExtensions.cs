@@ -1,12 +1,10 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
 using System.Text;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Extension methods for Span-based PCM loading from WAV files.

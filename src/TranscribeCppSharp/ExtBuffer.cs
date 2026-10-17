@@ -1,9 +1,7 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Runtime.InteropServices;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Owns the native memory and managed snapshot of an extension-parameter struct

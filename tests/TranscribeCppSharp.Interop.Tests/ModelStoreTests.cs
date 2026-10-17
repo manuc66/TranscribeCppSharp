@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Globalization;
 using System.Text.RegularExpressions;
 using TranscribeCppSharp.Cli;
@@ -15,12 +13,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// or an unpinned revision is a failed download for the user, so every record is
 /// checked here. No network: only the paths that resolve locally.
 /// </summary>
-public class ModelStoreTests
+public class ModelStoreTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public ModelStoreTests(ITestOutputHelper output) => _output = output;
-
     private sealed record AliasRow(string Alias, string Quant, string License, bool NonCommercial, long SizeBytes);
 
     private static (string Out, string Error) Capture(Action<TextWriter, TextWriter> body)
@@ -263,6 +257,6 @@ public class ModelStoreTests
         (string info, _) = Capture((o, _) => ModelStore.Info(CliOptions.DefaultModel, o, TextWriter.Null));
 
         Assert.Contains("moss-transcribe-diarize", info);
-        _output.WriteLine(info);
+        output.WriteLine(info);
     }
 }

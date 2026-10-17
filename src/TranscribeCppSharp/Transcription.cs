@@ -1,8 +1,6 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Convenience API: load model + transcribe in one call.

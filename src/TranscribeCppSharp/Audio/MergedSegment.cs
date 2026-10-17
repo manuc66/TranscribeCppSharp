@@ -1,8 +1,6 @@
-#nullable enable
+namespace TranscribeCppSharp.Audio;
 
 using System;
-
-namespace TranscribeCppSharp.Audio;
 
 /// <summary>A segment of the merged transcript, timed against the whole file.</summary>
 /// <param name="Start">Start of the segment in the original file.</param>

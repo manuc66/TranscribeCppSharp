@@ -1,7 +1,7 @@
+namespace TranscribeCppSharp.Audio;
+
 using System;
 using System.Collections.Generic;
-
-namespace TranscribeCppSharp.Audio;
 
 /// <summary>
 /// Cuts audio into overlapping windows for transcription of long audio.

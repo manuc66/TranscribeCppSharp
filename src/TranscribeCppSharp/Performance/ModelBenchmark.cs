@@ -1,7 +1,7 @@
+namespace TranscribeCppSharp.Performance;
+
 using System;
 using System.Globalization;
-
-namespace TranscribeCppSharp.Performance;
 
 /// <summary>
 /// One measured transcription run, and the conditions it was measured under.

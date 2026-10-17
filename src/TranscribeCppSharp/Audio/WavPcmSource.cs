@@ -1,10 +1,10 @@
+namespace TranscribeCppSharp.Audio;
+
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
 using System.Text;
-
-namespace TranscribeCppSharp.Audio;
 
 /// <summary>
 /// Reads 16 kHz mono f32 PCM out of a 16-bit PCM WAV, straight from the file.

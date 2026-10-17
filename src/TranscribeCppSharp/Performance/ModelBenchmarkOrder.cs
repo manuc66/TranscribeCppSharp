@@ -1,10 +1,8 @@
-#nullable enable
+namespace TranscribeCppSharp.Performance;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-namespace TranscribeCppSharp.Performance;
 
 /// <summary>
 /// Orders a list of models for display, keeping the speed ranking honest.

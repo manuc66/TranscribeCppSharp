@@ -1,5 +1,3 @@
-#nullable enable
-
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.SharedSource;
 using Xunit;
@@ -11,12 +9,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// Long-form voice activity detection: the interval merge (unit) and the whole
 /// windowed run against the real Silero VAD weights (integration).
 /// </summary>
-public class VadWindowingTests
+public class VadWindowingTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public VadWindowingTests(ITestOutputHelper output) => _output = output;
-
     private static string VadPath => Path.Combine(TestConfig.RepoRoot, "test-models", "silero-vad-v6.2-F32.gguf");
 
     private static bool Ready => File.Exists(VadPath) && File.Exists(TestConfig.AudioPath);
@@ -106,8 +100,8 @@ public class VadWindowingTests
             onePass = VadWindowing.Run(session, source, windowSeconds: 1000);
         }
 
-        _output.WriteLine($"windowed: {windowed.Segments.Count} segments, {windowed.FrameCount} frames");
-        _output.WriteLine($"one pass: {onePass.Segments.Count} segments, {onePass.FrameCount} frames");
+        output.WriteLine($"windowed: {windowed.Segments.Count} segments, {windowed.FrameCount} frames");
+        output.WriteLine($"one pass: {onePass.Segments.Count} segments, {onePass.FrameCount} frames");
 
         Assert.NotEmpty(onePass.Segments);
 

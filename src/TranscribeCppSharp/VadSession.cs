@@ -1,12 +1,10 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Voice activity detection, for a model that serves

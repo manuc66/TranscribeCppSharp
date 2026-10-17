@@ -1,10 +1,8 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Threading;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// Owns the single interop abort delegate a session registers with the native
@@ -18,15 +16,11 @@ namespace TranscribeCppSharp;
 /// allocates nothing here; it is rooted for the session's lifetime because the
 /// native library holds its pointer.
 /// </remarks>
-internal sealed class AbortSource
+internal sealed class AbortSource(Action<AbortCallback, IntPtr> setCallback)
 {
-    private readonly Action<AbortCallback, IntPtr> setCallback;
     private AbortCallback? callback;
     private CancellationToken token;
     private bool usesToken;
-
-    public AbortSource(Action<AbortCallback, IntPtr> setCallback)
-        => this.setCallback = setCallback;
 
     /// <summary>Install <paramref name="ct"/> as the abort source.</summary>
     public void UseToken(CancellationToken ct)
@@ -39,7 +33,7 @@ internal sealed class AbortSource
     /// <summary>Stop aborting (the callback always answers false).</summary>
     public void Clear()
     {
-        token = default;
+        token = CancellationToken.None;
         usesToken = false;
         setCallback(EnsureCallback(), IntPtr.Zero);
     }

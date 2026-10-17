@@ -1,6 +1,6 @@
-using System;
-
 namespace TranscribeCppSharp.Audio;
+
+using System;
 
 /// <summary>
 /// The input audio could not be read. Carries a message meant for the user.

@@ -1,5 +1,3 @@
-#nullable enable
-
 namespace TranscribeCppSharp.Interop.Tests;
 
 public static class TestConfig

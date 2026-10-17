@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Diagnostics;
 using TranscribeCppSharp.Audio;
 using Xunit;
@@ -29,12 +27,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// apart from a concurrent class's.
 /// </remarks>
 [Collection("AudioStaging")]
-public class AudioCodecTests
+public class AudioCodecTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public AudioCodecTests(ITestOutputHelper output) => _output = output;
-
     /// <summary>
     /// The formats the README names, with the encoder each needs. The suffix is
     /// the file extension, because ffmpeg picks a muxer from it.
@@ -66,7 +60,7 @@ public class AudioCodecTests
     {
         if (!TestConfig.HasFfmpeg())
         {
-            _output.WriteLine("ffmpeg is not installed: skipping.");
+            output.WriteLine("ffmpeg is not installed: skipping.");
             return;
         }
 
@@ -76,7 +70,7 @@ public class AudioCodecTests
         string encoded = temp.Combine("encoded" + extension);
         if (!TryEncode(source, encoded, encoder, extraArgs))
         {
-            _output.WriteLine($"This ffmpeg cannot produce {label}: skipping.");
+            output.WriteLine($"This ffmpeg cannot produce {label}: skipping.");
             return;
         }
 
@@ -114,7 +108,7 @@ public class AudioCodecTests
     {
         if (!TestConfig.HasFfmpeg())
         {
-            _output.WriteLine("ffmpeg is not installed: skipping.");
+            output.WriteLine("ffmpeg is not installed: skipping.");
             return;
         }
 
@@ -124,7 +118,7 @@ public class AudioCodecTests
 
         if (!TryMuxVideo(source, video, videoEncoder))
         {
-            _output.WriteLine($"This ffmpeg cannot produce {label}: skipping.");
+            output.WriteLine($"This ffmpeg cannot produce {label}: skipping.");
             return;
         }
 
@@ -144,7 +138,7 @@ public class AudioCodecTests
     {
         if (!TestConfig.HasFfmpeg())
         {
-            _output.WriteLine("ffmpeg is not installed: skipping.");
+            output.WriteLine("ffmpeg is not installed: skipping.");
             return;
         }
 
@@ -154,7 +148,7 @@ public class AudioCodecTests
         string video = temp.Combine("silent.mp4");
         if (!TryMuxVideo(source: null, video, "libx264"))
         {
-            _output.WriteLine("This ffmpeg cannot produce a silent video: skipping.");
+            output.WriteLine("This ffmpeg cannot produce a silent video: skipping.");
             return;
         }
 
@@ -169,7 +163,7 @@ public class AudioCodecTests
     {
         if (!TestConfig.HasFfmpeg())
         {
-            _output.WriteLine("ffmpeg is not installed: skipping.");
+            output.WriteLine("ffmpeg is not installed: skipping.");
             return;
         }
 
@@ -181,7 +175,7 @@ public class AudioCodecTests
         string stereo = temp.Combine("stereo.ogg");
         if (!TryEncode(source, stereo, "libvorbis", "-ac 2"))
         {
-            _output.WriteLine("This ffmpeg has no 'libvorbis' encoder: skipping.");
+            output.WriteLine("This ffmpeg has no 'libvorbis' encoder: skipping.");
             return;
         }
 
@@ -196,7 +190,7 @@ public class AudioCodecTests
     {
         if (!TestConfig.HasFfmpeg())
         {
-            _output.WriteLine("ffmpeg is not installed: skipping.");
+            output.WriteLine("ffmpeg is not installed: skipping.");
             return;
         }
 

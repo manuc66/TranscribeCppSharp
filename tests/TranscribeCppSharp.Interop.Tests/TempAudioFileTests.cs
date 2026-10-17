@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Diagnostics;
 using System.Globalization;
 using TranscribeCppSharp.Cli;
@@ -20,12 +18,8 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// is cleaned up by the next run.
 /// </remarks>
 [Collection(nameof(TempAudioFileTests))]
-public class TempAudioFileTests
+public class TempAudioFileTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public TempAudioFileTests(ITestOutputHelper output) => _output = output;
-
     [Fact]
     public void NewPath_IsInTheTempDirectoryAndIsNotARealFileYet()
     {
@@ -63,7 +57,7 @@ public class TempAudioFileTests
         try
         {
             int removed = TempAudioFile.Sweep();
-            _output.WriteLine($"sweep removed {removed}");
+            output.WriteLine($"sweep removed {removed}");
 
             Assert.False(File.Exists(orphan));
         }

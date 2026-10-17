@@ -1,10 +1,8 @@
-#nullable enable
+namespace TranscribeCppSharp;
 
 using System;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
-
-namespace TranscribeCppSharp;
 
 /// <summary>
 /// A loaded transcription model. Disposing this frees the native model.

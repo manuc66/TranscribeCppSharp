@@ -1,8 +1,8 @@
+namespace TranscribeCppSharp.Generator;
+
 using System.Text;
 using System.Text.RegularExpressions;
 using static System.Globalization.CultureInfo;
-
-namespace TranscribeCppSharp.Generator;
 
 /// <summary>
 /// Generates C# P/Invoke declarations from parsed Rust FFI.
