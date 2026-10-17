@@ -218,19 +218,14 @@ public class VadSessionTests
         using var model = LoadVad();
         using var vad = model.CreateVadSession();
 
-        // Minutes of audio so the native run keeps going long enough to poll the
-        // abort callback after the token fires (measured ~1.8 s here).
-        float[] one = Pcm();
-        var longPcm = new float[one.Length * 200];
-        for (int i = 0; i < 200; i++)
-        {
-            one.CopyTo(longPcm, i * one.Length);
-        }
-
-        // Cancelled from a dedicated thread, not a thread-pool timer: a loaded CI
-        // can starve the timer callback past the end of the run. See
-        // MidRunCancellation.
-        using var cancel = new MidRunCancellation(TimeSpan.FromMilliseconds(10));
-        Assert.Throws<OperationCanceledException>(() => vad.Run(longPcm, ct: cancel.Token));
+        // Cancel from the configure callback: Run invokes it after its
+        // pre-cancelled check and before the native call, so the token is already
+        // cancelled when the native library first polls it and the run aborts.
+        // Deterministic, unlike a timer or a background thread, which the parallel
+        // test host can delay past the native abort check (the pre-cancelled case
+        // is a separate test). No long input is needed this way.
+        using var cts = new CancellationTokenSource();
+        Assert.Throws<OperationCanceledException>(
+            () => vad.Run(Pcm(), configure: _ => cts.Cancel(), ct: cts.Token));
     }
 }

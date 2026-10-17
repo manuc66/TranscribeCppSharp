@@ -188,19 +188,19 @@ public class LangIdSessionTests
         using var model = LoadLangId();
         using var langid = model.CreateLangIdSession();
 
-        // Enough audio that the native run keeps going long enough to poll the
-        // abort callback after the token fires (measured ~0.6 s here).
-        float[] one = Pcm();
-        var longPcm = new float[one.Length * 50];
-        for (int i = 0; i < 50; i++)
-        {
-            one.CopyTo(longPcm, i * one.Length);
-        }
-
-        // Cancelled from a dedicated thread, not a thread-pool timer: a loaded CI
-        // can starve the timer callback past the end of the run. See
-        // MidRunCancellation.
-        using var cancel = new MidRunCancellation(TimeSpan.FromMilliseconds(10));
-        Assert.Throws<OperationCanceledException>(() => langid.Run(longPcm, ct: cancel.Token));
+        // Cancel from the configure callback: Run invokes it after its
+        // pre-cancelled check and before the native call, so the token is already
+        // cancelled when the native library first polls it and the run aborts.
+        // That abort is translated to OperationCanceledException, which is what
+        // this test guards (the pre-cancelled case is a separate test).
+        //
+        // Cancel from a timer or a background thread instead and it flakes: langid
+        // polls the abort callback only in the first few tens of milliseconds of
+        // the run and then does the bulk (~0.6 s) without checking, so a
+        // cancellation that lands even slightly late is never seen and the run
+        // completes normally. It needs no long input this way either.
+        using var cts = new CancellationTokenSource();
+        Assert.Throws<OperationCanceledException>(
+            () => langid.Run(Pcm(), configure: _ => cts.Cancel(), ct: cts.Token));
     }
 }

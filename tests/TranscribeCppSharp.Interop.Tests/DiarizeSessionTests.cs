@@ -197,20 +197,15 @@ public class DiarizeSessionTests
         using var model = LoadSortformer();
         using var diarize = model.CreateDiarizeSession();
 
-        // Enough audio that the native run keeps going long enough to poll the
-        // abort callback after the token fires (diarization runs whole, so this
-        // is the slowest of the three).
-        float[] one = Pcm();
-        var longPcm = new float[one.Length * 20];
-        for (int i = 0; i < 20; i++)
-        {
-            one.CopyTo(longPcm, i * one.Length);
-        }
-
-        // Cancelled from a dedicated thread, not a thread-pool timer: a loaded CI
-        // can starve the timer callback past the end of the run. See
-        // MidRunCancellation.
-        using var cancel = new MidRunCancellation(TimeSpan.FromMilliseconds(10));
-        Assert.Throws<OperationCanceledException>(() => diarize.Run(longPcm, ct: cancel.Token));
+        // Cancel from the configure callback: Run invokes it after its
+        // pre-cancelled check and before the native call, so the token is already
+        // cancelled when the native library first polls it and the run aborts.
+        // Deterministic, unlike a timer or a background thread, which the parallel
+        // test host can delay past the native abort check (the pre-cancelled case
+        // is a separate test). Diarization runs whole, so this also drops the
+        // multi-second input the previous version needed.
+        using var cts = new CancellationTokenSource();
+        Assert.Throws<OperationCanceledException>(
+            () => diarize.Run(Pcm(), configure: _ => cts.Cancel(), ct: cts.Token));
     }
 }
