@@ -1,5 +1,3 @@
-#nullable enable
-
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -17,6 +15,9 @@ public class LangIdSessionTests
     private static bool Ready => File.Exists(LangIdPath) && File.Exists(TestConfig.AudioPath);
 
     private static float[] Pcm() => PcmExtensions.ReadWavToPcm(TestConfig.AudioPath);
+
+    // CA1861: a constant array is built once for the class, not on every call.
+    private static readonly string[] AllowedCodes = ["en", "fr", "de"];
 
     private static Model LoadLangId()
         => Model.Load(LangIdPath, p => p.WithBackend(BackendRequest.BackendCpu));
@@ -82,11 +83,11 @@ public class LangIdSessionTests
         using var model = LoadLangId();
         using var langid = model.CreateLangIdSession();
 
-        var result = langid.Run(Pcm(), p => p.WithAllowed(new[] { "en", "fr", "de" }));
+        var result = langid.Run(Pcm(), p => p.WithAllowed(AllowedCodes));
 
         Assert.Equal(3, result.Candidates.Count);
         Assert.Contains(result.Candidates, c => c.Code == "en");
-        Assert.All(result.Candidates, c => Assert.Contains(c.Code, new[] { "en", "fr", "de" }));
+        Assert.All(result.Candidates, c => Assert.Contains(c.Code, AllowedCodes));
         // The allowed mass is a share, and restricting cannot exceed 1.
         Assert.InRange(result.AllowedMass, 0f, 1f);
     }

@@ -12,6 +12,12 @@ namespace TranscribeCppSharp.Cli;
 
 internal static class RoleReportWriter
 {
+    // One instance for the whole process: building JsonSerializerOptions reflects
+    // over the serialized graph, which is why CA1869 flags a new one per call.
+    // System.Text.Json freezes the instance on first use and documents it as safe
+    // to use concurrently, so a single static field serves every report.
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
     private static double Seconds(TimeSpan t) => Math.Round(t.TotalSeconds, 3);
 
     internal static void WriteDiarize(
@@ -123,7 +129,7 @@ internal static class RoleReportWriter
     }
 
     private static void WriteJson(TextWriter w, object document)
-        => Line(w, JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true }));
+        => Line(w, JsonSerializer.Serialize(document, JsonOptions));
 
     // LF-terminated regardless of the writer's convention, like TranscriptWriter:
     // the same audio has to produce the same bytes on every platform.

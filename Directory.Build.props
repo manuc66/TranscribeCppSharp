@@ -8,12 +8,14 @@
          version so consumers know which ABI they target. -->
     <Version Condition="'$(Version)' == ''">$(TranscribeVersionFile)</Version>
 
-    <!-- Pedantic analysis, applied to libraries only via Directory.Build.targets
-         (the target file is imported after the project file, so the per-project
-         IsLibrary flag is readable there). AnalysisLevel and the XML doc file are
-         global here because the SDK reads them before the project file is imported;
-         projects that opt out of doc generation (generator, tests) set
-         GenerateDocumentationFile=false themselves. -->
+    <!-- Pedantic analysis for every project in the repository.
+         TreatWarningsAsErrors / EnforceCodeStyleInBuild live in
+         Directory.Build.targets, which is imported after the project body (the
+         StyleCop reference there is the only part still gated on IsLibrary).
+         AnalysisLevel and the XML doc file are global here because the SDK reads
+         them before the project file is imported; projects that opt out of doc
+         generation (generator, tests) set GenerateDocumentationFile=false
+         themselves. -->
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 

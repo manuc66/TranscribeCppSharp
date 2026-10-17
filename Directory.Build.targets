@@ -1,12 +1,32 @@
 <Project>
 
-  <!-- Pedantic analysis for libraries (wrapper, Interop, generator). This file is
-       imported AFTER the project body, so the per-project IsLibrary flag is
-       readable here (it is not in Directory.Build.props, which is imported before
-       the body). Tests, samples, and the native (content-only) packages do not set
-       IsLibrary and are therefore excluded from warn-as-error and StyleCop. -->
+  <!-- Analysis policy for the whole repository. TreatWarningsAsErrors and
+       EnforceCodeStyleInBuild used to be gated on the per-project IsLibrary flag
+       (this file is imported AFTER the project body, so that flag — and every
+       other property the body sets — is readable here and not in
+       Directory.Build.props). They now apply to every project that builds code:
+       the entire solution — libraries, CLI, UI, tests, samples, the tools —
+       builds with 0 warnings, so they are all held to the same bar.
 
-  <PropertyGroup Condition="'$(IsLibrary)' == 'true'">
+       Content-only packages are the exception. The five native packages and the
+       Bundle meta-package produce no assembly, yet the SDK still runs a compile
+       pass with no sources (CS2008) and CA1016 asks for an assembly version on
+       an assembly that is never built. TreatWarningsAsErrors turns that noise
+       into a build failure for no benefit: there is no code to analyze. They
+       are recognised by IncludeBuildOutput=false, set in each of those projects.
+
+       C# analyzer rules (AnalysisLevel=latest-recommended) and the XML doc file
+       are still set in Directory.Build.props; projects that opt out of doc
+       generation (generator, tests) set GenerateDocumentationFile=false
+       themselves.
+
+       StyleCop stays on the libraries only: a formatting opinion rather than a
+       correctness rule, and enforcing it on generated Interop or test code buys
+       noise, not safety. Note that Roslyn's .editorconfig naming rules are
+       IDE-only in practice — the build-time gate for private field naming is
+       StyleCop's SA1306, which only the libraries get. -->
+
+  <PropertyGroup Condition="'$(IncludeBuildOutput)' != 'false'">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>

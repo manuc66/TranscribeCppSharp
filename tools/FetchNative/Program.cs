@@ -185,7 +185,7 @@ static void MoveContentsToTarget(string tmpExtract, string target)
             var destPath = Path.Combine(target, relative);
             if (File.Exists(srcEntry))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                 File.Copy(srcEntry, destPath, overwrite: true);
             }
         }

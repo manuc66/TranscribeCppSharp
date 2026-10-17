@@ -45,13 +45,25 @@ public class TranscriptionServiceRoleTests
     private static TranscriptionOptions Cpu()
         => new() { BackendRequest = TranscribeCppSharp.Interop.BackendRequest.BackendCpu };
 
+    /// <summary>
+    /// One transcription through the real service, with the test's own
+    /// cancellation token (xUnit1051): a transcription that hangs is then
+    /// cancelled when the test is.
+    /// </summary>
+    private static Task<TranscriptionResult> Transcribe(string model, TranscriptionOptions options)
+        => new TranscriptionService().TranscribeAsync(
+            Audio,
+            model,
+            options,
+            cancellationToken: TestContext.Current.CancellationToken);
+
     [Fact]
     public async Task ADiarizationModel_ReturnsSpeakerRows()
     {
         string model = Model("diar_streaming_sortformer_4spk-v2.1-Q8_0.gguf");
         Require(model);
 
-        var result = await new TranscriptionService().TranscribeAsync(Audio, model, Cpu());
+        var result = await Transcribe(model, Cpu());
 
         Assert.True(result.Roles.HasFlag(TranscribeRole.Diarize));
         Assert.NotEmpty(result.SpeakerSegments);
@@ -65,7 +77,7 @@ public class TranscriptionServiceRoleTests
         string model = Model("lang-id-voxlingua107-ecapa-Q8_0.gguf");
         Require(model);
 
-        var result = await new TranscriptionService().TranscribeAsync(Audio, model, Cpu());
+        var result = await Transcribe(model, Cpu());
 
         Assert.True(result.Roles.HasFlag(TranscribeRole.Langid));
         Assert.Equal("en", result.DetectedLanguage);
@@ -82,7 +94,7 @@ public class TranscriptionServiceRoleTests
         var options = Cpu();
         options.AllowedLanguages = ["en", "fr"];
 
-        var result = await new TranscriptionService().TranscribeAsync(Audio, model, options);
+        var result = await Transcribe(model, options);
 
         Assert.Equal(2, result.LangIdCandidates.Count);
         Assert.Contains(result.LangIdCandidates, c => c.Code == "en");
@@ -94,7 +106,7 @@ public class TranscriptionServiceRoleTests
         string model = Model("silero-vad-v6.2-F32.gguf");
         Require(model);
 
-        var result = await new TranscriptionService().TranscribeAsync(Audio, model, Cpu());
+        var result = await Transcribe(model, Cpu());
 
         Assert.True(result.Roles.HasFlag(TranscribeRole.Vad));
         Assert.Contains("Voice activity:", result.FullText);
@@ -108,7 +120,7 @@ public class TranscriptionServiceRoleTests
         string model = Model("ggml-tiny.bin");
         Require(model);
 
-        var result = await new TranscriptionService().TranscribeAsync(Audio, model, Cpu());
+        var result = await Transcribe(model, Cpu());
 
         Assert.True(result.Roles.HasFlag(TranscribeRole.Asr));
         Assert.NotEmpty(result.FullText);

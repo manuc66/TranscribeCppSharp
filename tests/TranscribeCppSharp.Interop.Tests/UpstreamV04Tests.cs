@@ -1,5 +1,3 @@
-#nullable enable
-
 using System.Runtime.InteropServices;
 using Xunit;
 
@@ -16,6 +14,9 @@ namespace TranscribeCppSharp.Interop.Tests;
 public class UpstreamV04Tests
 {
     private static bool IsIntegrationEnv => TestConfig.IsIntegrationTestEnvironment();
+
+    // CA1861: built once for the class, not on every call.
+    private static readonly string[] AllowedCodes = ["en", "fr", "de"];
 
     [Fact]
     public void TranscribeRole_MirrorsTheNativeEnum()
@@ -69,7 +70,7 @@ public class UpstreamV04Tests
     public void LangIdParamsBuilder_WithAllowed_MarshalsThePointerArray()
     {
         using var builder = new LangIdParamsBuilder();
-        builder.WithAllowed(new[] { "en", "fr", "de" });
+        builder.WithAllowed(AllowedCodes);
 
         var p = Marshal.PtrToStructure<LangidParams>(builder.Build());
         Assert.Equal(3, p.nAllowed);
