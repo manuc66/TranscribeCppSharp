@@ -35,7 +35,7 @@ csharp_space_between_method_call_parameter_list_parentheses = false
 # PascalCase for methods, properties and events whatever their accessibility, so
 # those kinds are deliberately not listed here (a private method such as
 # VadSession.ReadProbabilities must stay PascalCase).
-dotnet_naming_rule.private_fields_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.private_fields_should_be_camel_case.severity = warning
 dotnet_naming_rule.private_fields_should_be_camel_case.symbols = private_fields
 dotnet_naming_rule.private_fields_should_be_camel_case.style = camel_case_style
 dotnet_naming_symbols.private_fields.applicable_kinds = field
