@@ -31,23 +31,53 @@ csharp_space_between_method_declaration_parameter_list_parentheses = false
 csharp_space_between_method_call_parameter_list_parentheses = false
 
 # ── Naming (SA13xx) ───────────────────────────────────────────────
-# camelCase applies to private/internal *fields* only. .NET conventions require
-# PascalCase for methods, properties and events whatever their accessibility, so
-# those kinds are deliberately not listed here (a private method such as
-# VadSession.ReadProbabilities must stay PascalCase).
+# Three rules, because several can match one field and Roslyn applies the most
+# specific of them (an extra required modifier makes a rule more specific than
+# plain accessibility):
 #
-# The severity below only drives the IDE (squiggle + rename suggestion): csc
-# reports no diagnostic for a naming rule during a build, whatever this severity
-# or EnforceCodeStyleInBuild says. Verified — setting this to error changes
-# nothing, while dotnet_diagnostic.IDE1006.severity = error does make the build
-# report it. The build-time gate for private field naming in the libraries is
-# StyleCop SA1306 (which, like this rule, leaves static readonly fields alone).
-dotnet_naming_rule.private_fields_should_be_camel_case.severity = suggestion
-dotnet_naming_rule.private_fields_should_be_camel_case.symbols = private_fields
-dotnet_naming_rule.private_fields_should_be_camel_case.style = camel_case_style
-dotnet_naming_symbols.private_fields.applicable_kinds = field
-dotnet_naming_symbols.private_fields.applicable_accessibilities = private,internal
+#   private/internal instance fields        -> camelCase
+#   private/internal static readonly fields -> PascalCase
+#   private/internal const fields           -> PascalCase
+#
+# A mutable static field (nothing but static) is matched by the first rule only
+# and therefore stays camelCase, like the instance fields: initialized, callback,
+# cachedManifest and cleanupRegistered are all written that way today.
+#
+# The split follows what the code already does and what StyleCop enforces in the
+# libraries: SA1306 wants a lower-case first letter for instance fields and
+# ignores static ones, so genuinely constant data here is PascalCase
+# (JsonOptions, SChecked, Kibi, BytesPerSample). Without the two static rules the
+# IDE would keep suggesting to rename them.
+#
+# Methods, properties and events are absent by design: .NET conventions keep
+# them PascalCase at every accessibility, so a private method such as
+# VadSession.ReadProbabilities must not be renamed.
+#
+# These rules drive the IDE (squiggle + rename suggestion) and only the IDE: csc
+# reports no diagnostic for an .editorconfig naming rule during a build, whatever
+# these severities or EnforceCodeStyleInBuild say. Verified — setting a rule to
+# error changes nothing, while dotnet_diagnostic.IDE1006.severity = error does
+# make the build report it.
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.symbols = private_instance_fields
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.style = camel_case_style
+dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private,internal
 dotnet_naming_style.camel_case_style.capitalization = camel_case
+
+dotnet_naming_rule.private_static_fields_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.private_static_fields_should_be_pascal_case.symbols = private_static_fields
+dotnet_naming_rule.private_static_fields_should_be_pascal_case.style = pascal_case_style
+dotnet_naming_symbols.private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private,internal
+dotnet_naming_symbols.private_static_fields.required_modifiers = static,readonly
+dotnet_naming_rule.private_const_fields_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.private_const_fields_should_be_pascal_case.symbols = private_const_fields
+dotnet_naming_rule.private_const_fields_should_be_pascal_case.style = pascal_case_style
+dotnet_naming_symbols.private_const_fields.applicable_kinds = field
+dotnet_naming_symbols.private_const_fields.applicable_accessibilities = private,internal
+dotnet_naming_symbols.private_const_fields.required_modifiers = const
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
 
 # ── StyleCop-specific (disabled for pragmatism, or enabled where cheap) ──
 # Documentation (SA16xx) is handled by the compiler's CS1591 instead of
