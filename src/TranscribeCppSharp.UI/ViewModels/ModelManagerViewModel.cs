@@ -394,6 +394,14 @@ public partial class ModelManagerViewModel : ObservableObject
     /// <summary>True while a model is being fetched rather than timed.</summary>
     public bool IsDownloading => string.Equals(BusyAction, "download", StringComparison.Ordinal);
 
+    /// <summary>True while a model is being timed rather than fetched.</summary>
+    /// <remarks>
+    /// The two progress bars used to share one visibility rule (<c>IsBusy</c>), so
+    /// the empty benchmark bar sat on top of the download bar for the whole
+    /// download. Each now shows only for its own action.
+    /// </remarks>
+    public bool IsBenchmarking => string.Equals(BusyAction, "benchmark", StringComparison.Ordinal);
+
     /// <summary>True when the alias currently downloading matches this row.</summary>
     public bool IsBusyAlias(string? alias)
         => alias is not null && string.Equals(alias, BusyAlias, StringComparison.Ordinal);
@@ -457,9 +465,14 @@ public partial class ModelManagerViewModel : ObservableObject
     partial void OnBusyAliasChanged(string? value)
     {
         OnPropertyChanged(nameof(IsBusy));
-        OnPropertyChanged(nameof(IsDownloading));
         Raise(nameof(IsBusyAlias));
         Raise(nameof(IsDownloadingAlias));
+    }
+
+    partial void OnBusyActionChanged(string? value)
+    {
+        OnPropertyChanged(nameof(IsDownloading));
+        OnPropertyChanged(nameof(IsBenchmarking));
     }
 
     /// <summary>
@@ -488,10 +501,17 @@ public partial class ModelManagerViewModel : ObservableObject
         BusyAlias = item.Alias;
         BusyAction = "download";
         DownloadProgress = 0;
+        item.SetDownloading(true);
+        StatusMessage = $"Downloading {item.Alias}…";
         var log = new StringWriter();
         try
         {
-            var progress = new Progress<double>(p => DownloadProgress = p);
+            var progress = new Progress<double>(p =>
+            {
+                DownloadProgress = p;
+                item.SetDownloadProgress(p);
+                StatusMessage = $"Downloading {item.Alias}… {p:P0}";
+            });
             await Task.Run(
                 () => ModelStore.Resolve(item.Alias, null, log, progress),
                 CancellationToken.None).ConfigureAwait(true);
@@ -516,6 +536,7 @@ public partial class ModelManagerViewModel : ObservableObject
         }
         finally
         {
+            item.SetDownloading(false);
             BusyAlias = null;
             BusyAction = null;
         }
@@ -619,10 +640,27 @@ public partial class ModelManagerViewModel : ObservableObject
             return;
         }
 
-        List<ModelCatalogItem> targets = DownloadedModels.ToList();
-        if (targets.Count == 0)
+        List<ModelCatalogItem> downloaded = DownloadedModels.ToList();
+        if (downloaded.Count == 0)
         {
             StatusMessage = "No downloaded models to check. Download one first.";
+            return;
+        }
+
+        // Only what could change an answer. Upstream records diarize for every
+        // model, so a row it already records as "no" has nothing to confirm, and
+        // loading its weights to ask again is the cost this check used to pay for
+        // 72 of the 76 models. Rows already answered here are skipped too.
+        List<ModelCatalogItem> targets = downloaded
+            .Where(item => item.DiarizationWorthChecking && !_diarizationResults.ContainsKey(item.Alias))
+            .ToList();
+        int skipped = downloaded.Count - targets.Count;
+
+        if (targets.Count == 0)
+        {
+            StatusMessage = skipped == downloaded.Count
+                ? $"Nothing to check: the catalog already records no diarization for {skipped} downloaded model(s), or they were checked already."
+                : $"Nothing left to check; {skipped} downloaded model(s) skipped.";
             return;
         }
 
@@ -673,9 +711,12 @@ public partial class ModelManagerViewModel : ObservableObject
                 done++;
             }
 
-            StatusMessage = failed == 0
+            string checkedSummary = failed == 0
                 ? $"Checked diarization for {done} downloaded model(s)."
                 : $"Checked diarization for {done - failed} of {done} downloaded model(s); {failed} could not be loaded.";
+            StatusMessage = skipped == 0
+                ? checkedSummary
+                : $"{checkedSummary} Skipped {skipped} the catalog already records as no diarization, or that were checked already.";
         }
         finally
         {

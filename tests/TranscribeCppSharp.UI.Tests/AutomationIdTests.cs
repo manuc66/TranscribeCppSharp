@@ -114,6 +114,7 @@ public class AutomationIdTests
         "models-benchmark-all",
         "models-grid",
         "models-detail",
+        "models-detail-hint",
         "models-headline-accuracy",
         "models-refresh",
         "models-delete-all",

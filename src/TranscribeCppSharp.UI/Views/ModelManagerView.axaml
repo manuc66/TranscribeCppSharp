@@ -252,13 +252,20 @@
         <DataGridTemplateColumn Header="Action" Width="390" CanUserSort="False">
           <DataTemplate x:DataType="m:ModelCatalogItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Content="Download"
+              <Button Content="{Binding DownloadButtonText}"
                       Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DownloadCommand}"
                       CommandParameter="{Binding}"
                       IsEnabled="{Binding !$parent[DataGrid].((vm:ModelManagerViewModel)DataContext).IsBusy}"
                       AutomationProperties.AutomationId="{Binding Alias, Converter={StaticResource DownloadId}}"
                       AutomationProperties.Name="{Binding Alias, StringFormat='Download {0}'}"
                       ToolTip.Tip="Fetch this model from HuggingFace at the pinned revision. The download is verified against the sha256 in the manifest before it is cached." />
+              <!-- The row's own progress, next to the button that started it: the
+                   bar at the bottom of the tab is far from the row and, before,
+                   was overlapped by the benchmark bar for the whole download. -->
+              <ProgressBar Width="80" Minimum="0" Maximum="1" Value="{Binding DownloadProgress}"
+                           IsVisible="{Binding IsDownloading}" VerticalAlignment="Center"
+                           AutomationProperties.Name="{Binding Alias, StringFormat='Download progress for {0}'}"
+                           ToolTip.Tip="How much of this model has been fetched so far." />
               <Button Content="Measure"
                       Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).BenchmarkCommand}"
                       CommandParameter="{Binding}"
@@ -279,63 +286,71 @@
       </DataGrid.Columns>
     </DataGrid>
 
-    <!-- Detail of the selected model -->
+    <!-- Detail of the selected model. Always present, so the space below the grid
+         is never an empty half that reads as a broken pane: with nothing selected
+         it carries the line that says what to do. -->
     <Border Grid.Row="5"
-            IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNotNull}}"
             Classes="card"
             Margin="0,8,0,0"
             AutomationProperties.AutomationId="models-detail"
             AutomationProperties.Name="Selected model details">
-      <ScrollViewer>
-        <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
-          <TextBlock Text="{Binding Alias}" FontWeight="Bold" FontSize="15" />
-          <TextBlock Text="{Binding Repo}" Opacity="0.8" />
-          <TextBlock Text="{Binding Revision, StringFormat='revision {0}'}" Opacity="0.7" FontSize="11" />
-          <TextBlock Opacity="0.8" Margin="0,4,0,0"
-                     Text="{Binding License, StringFormat='Licence: {0}'}" />
-          <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" TextWrapping="Wrap" />
-        <TextBlock Opacity="0.8" Text="{Binding LanguagesDetail}" TextWrapping="Wrap"
-                   ToolTip.Tip="From the model card on HuggingFace, not from the model itself: the loaded model is what answers whether it accepts a language, and the manifest only tells you this before you download." />
+      <Panel>
+        <TextBlock Classes="hint" VerticalAlignment="Center" TextWrapping="Wrap"
+                   IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNull}}"
+                   AutomationProperties.AutomationId="models-detail-hint"
+                   AutomationProperties.Name="Model details hint"
+                   Text="Select a model in the grid above to see its details here: what transcribe.cpp records, the licence, the languages, the cached path and any timing measured on this machine." />
+        <ScrollViewer IsVisible="{Binding SelectedModel, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
+            <TextBlock Text="{Binding Alias}" FontWeight="Bold" FontSize="15" />
+            <TextBlock Text="{Binding Repo}" Opacity="0.8" />
+            <TextBlock Text="{Binding Revision, StringFormat='revision {0}'}" Opacity="0.7" FontSize="11" />
+            <TextBlock Opacity="0.8" Margin="0,4,0,0"
+                       Text="{Binding License, StringFormat='Licence: {0}'}" />
+            <TextBlock Opacity="0.8" Text="{Binding LicenseUrl}" TextWrapping="Wrap" />
+          <TextBlock Opacity="0.8" Text="{Binding LanguagesDetail}" TextWrapping="Wrap"
+                     ToolTip.Tip="From the model card on HuggingFace, not from the model itself: the loaded model is what answers whether it accepts a language, and the manifest only tells you this before you download." />
 
-        <!-- Everything below comes from upstream's own catalog, pinned at the tag
-             this project binds. Their records, their measurements, attributed. -->
-        <TextBlock Text="{Binding UpstreamDetail}" TextWrapping="Wrap" Margin="0,4,0,0"
-                   IsVisible="{Binding UpstreamDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   ToolTip.Tip="Parameter count and checkpoint provenance as transcribe.cpp records them, read from its pinned model catalog." />
+          <!-- Everything below comes from upstream's own catalog, pinned at the tag
+               this project binds. Their records, their measurements, attributed. -->
+          <TextBlock Text="{Binding UpstreamDetail}" TextWrapping="Wrap" Margin="0,4,0,0"
+                     IsVisible="{Binding UpstreamDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     ToolTip.Tip="Parameter count and checkpoint provenance as transcribe.cpp records them, read from its pinned model catalog." />
 
-        <TextBlock Opacity="0.8" Text="{Binding QuantizationsDetail}" TextWrapping="Wrap"
-                   IsVisible="{Binding QuantizationsDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   ToolTip.Tip="Quantizations transcribe.cpp publishes for this model. Only the one this row pins has been downloaded and checksum-verified here; the others are listed as a catalogue, not as something available on disk." />
+          <TextBlock Opacity="0.8" Text="{Binding QuantizationsDetail}" TextWrapping="Wrap"
+                     IsVisible="{Binding QuantizationsDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     ToolTip.Tip="Quantizations transcribe.cpp publishes for this model. Only the one this row pins has been downloaded and checksum-verified here; the others are listed as a catalogue, not as something available on disk." />
 
-        <TextBlock Text="{Binding CapabilitiesDetail}" TextWrapping="Wrap"
-                   IsVisible="{Binding CapabilitiesDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   ToolTip.Tip="What transcribe.cpp records the model as able to do. 'unverified upstream' means they mark the capability supported but do not claim to have checked it — their distinction, kept." />
+          <TextBlock Text="{Binding CapabilitiesDetail}" TextWrapping="Wrap"
+                     IsVisible="{Binding CapabilitiesDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     ToolTip.Tip="What transcribe.cpp records the model as able to do. 'unverified upstream' means they mark the capability supported but do not claim to have checked it — their distinction, kept." />
 
-        <TextBlock Text="{Binding HeadlineAccuracyDetail}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,6,0,0"
-                   IsVisible="{Binding HeadlineAccuracyDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   AutomationProperties.AutomationId="models-headline-accuracy"
-                   AutomationProperties.Name="Upstream accuracy"
-                   ToolTip.Tip="Measured by transcribe.cpp on their benchmark, not by this project. Accuracy on your audio will differ, and nothing here measures it." />
-          <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
-          <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
-          <TextBlock Opacity="0.8"
-                     Text="{Binding DiarizationDetail, StringFormat='Diarization: {0}'}"
-                     TextWrapping="Wrap"
-                     ToolTip.Tip="Only known for a model checked on this machine. The manifest declares no capabilities, and the native library only answers once the model is loaded." />
-          <TextBlock Opacity="0.8" Text="{Binding LocalPath, StringFormat='Cached at: {0}'}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding Sha256, StringFormat='sha256: {0}'}" Opacity="0.6" FontSize="11"
-                     TextWrapping="Wrap" />
+          <TextBlock Text="{Binding HeadlineAccuracyDetail}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,6,0,0"
+                     IsVisible="{Binding HeadlineAccuracyDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     AutomationProperties.AutomationId="models-headline-accuracy"
+                     AutomationProperties.Name="Upstream accuracy"
+                     ToolTip.Tip="Measured by transcribe.cpp on their benchmark, not by this project. Accuracy on your audio will differ, and nothing here measures it." />
+            <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
+            <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
+            <TextBlock Opacity="0.8"
+                       Text="{Binding DiarizationDetail, StringFormat='Diarization: {0}'}"
+                       TextWrapping="Wrap"
+                       ToolTip.Tip="Only known for a model checked on this machine. The manifest declares no capabilities, and the native library only answers once the model is loaded." />
+            <TextBlock Opacity="0.8" Text="{Binding LocalPath, StringFormat='Cached at: {0}'}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Sha256, StringFormat='sha256: {0}'}" Opacity="0.6" FontSize="11"
+                       TextWrapping="Wrap" />
 
-          <TextBlock Text="{Binding Benchmark.ConditionsText, StringFormat='Measured: {0}'}"
-                     IsVisible="{Binding IsMeasured}" Margin="0,6,0,0" FontWeight="SemiBold"
-                     TextWrapping="Wrap"
-                     ToolTip.Tip="Speed only. Nothing here knows which model transcribes your speech correctly." />
+            <TextBlock Text="{Binding Benchmark.ConditionsText, StringFormat='Measured: {0}'}"
+                       IsVisible="{Binding IsMeasured}" Margin="0,6,0,0" FontWeight="SemiBold"
+                       TextWrapping="Wrap"
+                       ToolTip.Tip="Speed only. Nothing here knows which model transcribes your speech correctly." />
 
-          <TextBlock Text="Non-commercial licence: check the terms before any commercial use."
-                     IsVisible="{Binding IsNonCommercialLicense}"
-                     Classes="danger" Margin="0,4,0,0" />
-        </StackPanel>
-      </ScrollViewer>
+            <TextBlock Text="Non-commercial licence: check the terms before any commercial use."
+                       IsVisible="{Binding IsNonCommercialLicense}"
+                       Classes="danger" Margin="0,4,0,0" />
+          </StackPanel>
+        </ScrollViewer>
+      </Panel>
     </Border>
 
     <!-- Bulk actions -->
@@ -366,7 +381,7 @@
     <ProgressBar Grid.Row="7" Value="{Binding DownloadProgress}" Maximum="1" Minimum="0"
                  IsVisible="{Binding IsDownloading}" Margin="0,8,0,0" />
     <ProgressBar Grid.Row="7" Value="{Binding BenchmarkProgress}" Maximum="1" Minimum="0"
-                 IsVisible="{Binding IsBusy}" IsIndeterminate="False" Margin="0,8,0,0" />
+                 IsVisible="{Binding IsBenchmarking}" IsIndeterminate="False" Margin="0,8,0,0" />
 
     <!-- Status -->
     <TextBlock Grid.Row="8" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,6,0,0" />

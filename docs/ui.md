@@ -241,6 +241,8 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   reads `whisper` rather than a name guessed from the repository.
   The data is pinned at the tag this project binds; see
   [`catalog/`](../catalog/README.md) for how it was fetched and what it must not be used for.
+  With no model selected, the pane carries a line saying to pick one rather than an empty
+  half of the window.
 - **Licence and languages come from the model card.** The grid's Languages column
   shows the first four codes and counts the rest, because some models declare 99;
   the detail pane below carries the whole list and names where it came from. Every
@@ -253,16 +255,24 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   on this machine reports for itself, and wins — including when the load fails, in which
   case the cell says `?` rather than letting a catalog entry stand in for a result the
   machine could not produce. Until then the column reads what transcribe.cpp records
-  (`capabilities.diarize`), which covers four of the 76 models; the detail pane names the
-  source and says *unverified by them* where they mark it supported without claiming to
-  have checked it. *Check diarization* still loads each downloaded model once to find out
-  for yourself; it asks both the ASR `diarize` feature and the DIARIZE role, so a
-  Sortformer — whose whole product is speaker turns — reads *supported*. See
+  (`capabilities.diarize`), which answers for all 76 models — four `supported`, the rest not;
+  the detail pane names the source and says *unverified by them* where they mark it supported
+  without claiming to have checked it. *Check diarization* loads only the models whose answer
+  could still change: the ones the catalog records as supported — the four it marks
+  `verified: false` — and any it records nothing about. It skips the rest, whose answer the
+  catalog already gives, and rows already checked this session, and says how many it skipped.
+  It asks both the ASR `diarize` feature and the DIARIZE role, so a Sortformer — whose whole
+  product is speaker turns — reads *supported*. See
   [Long audio and diarization](diarization.md).
 - **On disk is a yes or a no.** The Size column beside it carries the download size and
   the line above the grid carries the total, so the per-row size was saying twice what
   the reader already had and costing the column its width. What the yes means — verified
   against the manifest's sha256 — is in the detail pane, next to the path.
+- **A download shows on its own row.** While a model is being fetched, its Download button
+  reads "Downloading…" and a progress bar appears beside it in the Action column, and the
+  status line names the model and the percentage. The bar at the bottom of the tab shows the
+  same progress; the benchmark bar beside it appears only while a model is being timed, not
+  during a download, so the two no longer overlap.
 - **Error rate is their figure.** One number per model, from transcribe.cpp's own
   measurement, for the quantization this project pins. Hover it for the metric, the
   dataset, the split, the language and their provenance flag — including *engine build not

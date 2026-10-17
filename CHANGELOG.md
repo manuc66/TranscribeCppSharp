@@ -40,6 +40,27 @@ to take the app — verified in the kernel log (`global_oom`, `Killed process �
 a load is in progress joins it instead of starting another. This lowers the startup peak to
 one model; it does not make the app safe on a machine that is already out of RAM.
 
+### UI: the Models tab's download feedback and empty detail pane
+
+Three things a reader hit on the Models tab. The two progress bars at the bottom shared one
+visibility rule, so the empty benchmark bar sat on top of the download bar for the whole
+download; each now shows only for its own action. A downloading row said nothing about
+itself — the button read "Download" and only the far-away bar moved — so the row now carries
+its own state: the button reads "Downloading…", a bar appears beside it, and the status line
+names the model and the percentage. And the detail pane reserved half the window while
+nothing was selected, which read as a broken pane; it now shows a line saying to select a
+model.
+
+### UI: the diarization check skips what the catalog already answers
+
+Upstream's catalog records `capabilities.diarize` for every model — four supported, the rest
+not. *Check diarization* loaded each downloaded model regardless, so a model the catalog
+already records as "no" was loaded only to re-ask an answered question, which is the
+expensive kind of wasted work on a machine short of memory. The check now loads only what
+could change the answer: models the catalog records as supported — the four it marks
+`verified: false` — and models it records nothing about. Rows already checked in the session
+are skipped too, and the status says how many were skipped and why.
+
 ### Release assets: SBOM and checksums
 
 Every GitHub Release now attaches `TranscribeCppSharp.sbom.spdx.json` (the SPDX

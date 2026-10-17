@@ -403,6 +403,43 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     /// <summary>Whether this row has a timing from this machine.</summary>
     public bool IsMeasured => Benchmark is not null;
 
+    /// <summary>True while this row's weights are being fetched.</summary>
+    /// <remarks>
+    /// Held on the row rather than read from the view model's single
+    /// <c>BusyAlias</c>, so the row itself can show it: the button and the progress
+    /// bar in the Action column bind to the item they belong to.
+    /// </remarks>
+    public bool IsDownloading { get; private set; }
+
+    /// <summary>Fraction fetched, 0 to 1, while <see cref="IsDownloading"/>.</summary>
+    public double DownloadProgress { get; private set; }
+
+    /// <summary>The Download button's label: it says what the row is doing.</summary>
+    public string DownloadButtonText => IsDownloading ? "Downloading…" : "Download";
+
+    /// <summary>Marks the row as downloading, or finished.</summary>
+    /// <param name="value">true while the fetch is in flight.</param>
+    public void SetDownloading(bool value)
+    {
+        IsDownloading = value;
+        if (!value)
+        {
+            DownloadProgress = 0;
+        }
+
+        Raise(nameof(IsDownloading));
+        Raise(nameof(DownloadButtonText));
+        Raise(nameof(DownloadProgress));
+    }
+
+    /// <summary>Records how much has been fetched.</summary>
+    /// <param name="value">Fraction, 0 to 1.</param>
+    public void SetDownloadProgress(double value)
+    {
+        DownloadProgress = value;
+        Raise(nameof(DownloadProgress));
+    }
+
     /// <summary>
     /// What is known about speaker diarization for this model.
     /// </summary>
@@ -434,7 +471,40 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
         LoadFailed,
     }
 
-    /// <summary>Short cell text for the diarization column.</summary>
+    /// <summary>
+    /// Upstream's diarize flag for this model, or null when it records none.
+    /// </summary>
+    /// <remarks>
+    /// Read straight from the catalog, independent of any local check, so a caller
+    /// can ask "what does upstream say?" rather than "what is shown?".
+    /// </remarks>
+    public bool? UpstreamDeclaresDiarization
+    {
+        get
+        {
+            Dictionary<string, UpstreamCatalog.Capability>? caps = Upstream?.Capabilities;
+            if (caps is null || !caps.TryGetValue("diarize", out UpstreamCatalog.Capability? cap))
+            {
+                return null;
+            }
+
+            return cap.Supported;
+        }
+    }
+
+    /// <summary>
+    /// Whether loading this model could change the diarization answer.
+    /// </summary>
+    /// <remarks>
+    /// False when upstream already records <c>diarize: false</c>: there is nothing
+    /// to confirm, and loading the weights to re-ask a question that is already
+    /// answered "no" is the waste the check used to do for 72 of the 76 models.
+    /// A model upstream records as supported is worth checking — those are the ones
+    /// it marks <c>verified: false</c> — and one it records nothing about is worth
+    /// checking too, because then nothing is known.
+    /// </remarks>
+    public bool DiarizationWorthChecking => UpstreamDeclaresDiarization != false;
+
     /// <summary>
     /// Whether upstream records diarization for this model, or null when unknown.
     /// </summary>
@@ -445,23 +515,7 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     /// a result the machine could not produce.
     /// </remarks>
     private bool? UpstreamDiarization
-    {
-        get
-        {
-            if (Diarization is not DiarizationSupport.Unknown)
-            {
-                return null;
-            }
-
-            Dictionary<string, UpstreamCatalog.Capability>? caps = Upstream?.Capabilities;
-            if (caps is null || !caps.TryGetValue("diarize", out UpstreamCatalog.Capability? cap))
-            {
-                return null;
-            }
-
-            return cap.Supported;
-        }
-    }
+        => Diarization is not DiarizationSupport.Unknown ? null : UpstreamDeclaresDiarization;
 
     /// <summary>True when upstream records the capability as checked, not merely claimed.</summary>
     private bool UpstreamDiarizationVerified
