@@ -2,11 +2,23 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="TranscribeCppSharp.UI.App"
              RequestedThemeVariant="Default">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- The design tokens: spacing, radii, type scale and the semantic
+             colours. Read from the styles below and from the views. -->
+        <ResourceInclude Source="avares://TranscribeCppSharp.UI/Styles/Tokens.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
   <Application.Styles>
     <FluentTheme />
     <!-- The DataGrid template lives in its own package's theme file; FluentTheme
          does not pull it in. Without this the grid has no template and draws
          nothing. -->
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <!-- The shared styles, after FluentTheme so they can build on it. -->
+    <StyleInclude Source="avares://TranscribeCppSharp.UI/Styles/Controls.axaml" />
   </Application.Styles>
 </Application>

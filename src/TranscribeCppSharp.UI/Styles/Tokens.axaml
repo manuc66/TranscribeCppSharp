@@ -1,0 +1,67 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Design tokens.
+
+       One place for the numbers and colours the views share, so a spacing, a
+       radius or a font size is changed once rather than hunted through six
+       .axaml files. Values are read with {DynamicResource} from Controls.axaml
+       and the views, which is also what makes the colour tokens follow the
+       system light/dark variant: the brushes below are defined per variant.
+
+       This is presentation only. Nothing here changes what the app does, and
+       no token carries a claim about the app's behaviour. -->
+
+  <!-- Spacing scale. A single step of 4, so margins line up instead of each
+       view inventing its own. -->
+  <x:Double x:Key="SpaceXs">4</x:Double>
+  <x:Double x:Key="SpaceSm">8</x:Double>
+  <x:Double x:Key="SpaceMd">12</x:Double>
+  <x:Double x:Key="SpaceLg">16</x:Double>
+  <x:Double x:Key="SpaceXl">24</x:Double>
+
+  <!-- Corner radii. -->
+  <CornerRadius x:Key="RadiusSm">4</CornerRadius>
+  <CornerRadius x:Key="RadiusMd">8</CornerRadius>
+
+  <!-- Type scale. Four steps: a field label, body text, a section heading and
+       the page title. -->
+  <x:Double x:Key="FontSizeCaption">11</x:Double>
+  <x:Double x:Key="FontSizeBody">13</x:Double>
+  <x:Double x:Key="FontSizeSection">14</x:Double>
+  <x:Double x:Key="FontSizeTitle">19</x:Double>
+
+  <!-- Page padding, used by every tab so they all start at the same inset. -->
+  <Thickness x:Key="PagePadding">16</Thickness>
+
+  <!-- Semantic colours, resolved per theme variant. Light and Dark carry the
+       real values; Default repeats Light so the tokens resolve before a variant
+       is known (design time, or a platform that reports none). -->
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="AppHintBrush" Color="#5B5B66" />
+      <SolidColorBrush x:Key="AppCardBrush" Color="#F6F7F9" />
+      <SolidColorBrush x:Key="AppCardBorderBrush" Color="#E3E5E9" />
+      <SolidColorBrush x:Key="AppDangerBrush" Color="#B3261E" />
+      <SolidColorBrush x:Key="AppTentativeBrush" Color="#F1F2F4" />
+      <SolidColorBrush x:Key="AppTentativeBorderBrush" Color="#D6D8DD" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="AppHintBrush" Color="#A8AAB3" />
+      <SolidColorBrush x:Key="AppCardBrush" Color="#26262B" />
+      <SolidColorBrush x:Key="AppCardBorderBrush" Color="#3A3B42" />
+      <SolidColorBrush x:Key="AppDangerBrush" Color="#F2B8B5" />
+      <SolidColorBrush x:Key="AppTentativeBrush" Color="#2C2D33" />
+      <SolidColorBrush x:Key="AppTentativeBorderBrush" Color="#43444C" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Default">
+      <SolidColorBrush x:Key="AppHintBrush" Color="#5B5B66" />
+      <SolidColorBrush x:Key="AppCardBrush" Color="#F6F7F9" />
+      <SolidColorBrush x:Key="AppCardBorderBrush" Color="#E3E5E9" />
+      <SolidColorBrush x:Key="AppDangerBrush" Color="#B3261E" />
+      <SolidColorBrush x:Key="AppTentativeBrush" Color="#F1F2F4" />
+      <SolidColorBrush x:Key="AppTentativeBorderBrush" Color="#D6D8DD" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+
+</ResourceDictionary>

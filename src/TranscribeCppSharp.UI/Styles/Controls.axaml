@@ -1,0 +1,73 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Reusable styles built on the tokens in Tokens.axaml.
+
+       Classes rather than per-control setters: a view writes Classes="hint" and
+       gets the shared size, colour and wrapping, and a change here reaches every
+       use. The tokens are read with {DynamicResource} because they live in a
+       different file (Tokens.axaml), and {StaticResource} only resolves within
+       the file it is written in. -->
+
+  <!-- Section heading: names a group of fields. -->
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeSection}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,0,0,6" />
+  </Style>
+
+  <!-- Field label: the caption above a control. -->
+  <Style Selector="TextBlock.label">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,0,0,4" />
+  </Style>
+
+  <!-- Helper text: the muted line under a control. Wraps, because these carry
+       the caveats the app is careful about and must not be clipped. -->
+  <Style Selector="TextBlock.hint">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="Foreground" Value="{DynamicResource AppHintBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <!-- Warning text, in the theme-aware danger colour rather than a hard-coded
+       red that only worked on a light background. -->
+  <Style Selector="TextBlock.danger">
+    <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <!-- A card: a panel that groups related controls, with a background and a
+       border that hold up in either theme. -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource AppCardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AppCardBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusMd}" />
+    <Setter Property="Padding" Value="{DynamicResource SpaceLg}" />
+  </Style>
+
+  <!-- The tentative half of the streaming view: same card shape, a background
+       that reads as provisional. -->
+  <Style Selector="Border.tentative">
+    <Setter Property="Background" Value="{DynamicResource AppTentativeBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AppTentativeBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusMd}" />
+    <Setter Property="Padding" Value="{DynamicResource SpaceMd}" />
+  </Style>
+
+  <!-- The one action that starts work on a tab. Fluent's own accent class
+       supplies the colour; this only gives it the padding of a primary action
+       so it reads as the main button beside the plain ones. -->
+  <Style Selector="Button.accent">
+    <Setter Property="Padding" Value="16,6" />
+  </Style>
+
+  <!-- A destructive action, in the danger colour. -->
+  <Style Selector="Button.danger">
+    <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+  </Style>
+
+</Styles>
