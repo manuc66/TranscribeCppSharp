@@ -62,6 +62,10 @@ counts whatever it has fetched. Regenerate them with:
 dotnet run --project samples/UIScreenshot           # writes into docs/assets/images
 ```
 
+The pictures on this page were taken before the shared style layer described under
+[Look and theme](#look-and-theme) landed, so they show the previous colours, button weights
+and flat panels. The behaviour and the layout they document are unchanged.
+
 **Where the grid scrolls.** The Models tab is the one tab not wrapped in the view's
 `ScrollViewer`. That wrapper measures its child against infinite height, and a star row
 given infinite height resolves to its content — the grid came out 2408 px tall in a 720 px
@@ -305,6 +309,27 @@ and a probed model replaces that list with the languages it actually reports. Th
 offer languages a model could not handle, and no way to ask for auto-detection at all.
 
 Capabilities are cached per alias for the session.
+
+## Look and theme
+
+The window follows the operating system's light or dark setting: it sets
+`RequestedThemeVariant="Default"` and pins no theme of its own. The colours it uses are
+defined once per variant, so changing the system theme changes the app with it rather than
+leaving a light panel on a dark window.
+
+What the views share lives in two files under `src/TranscribeCppSharp.UI/Styles`:
+
+- **`Tokens.axaml`** holds the numbers and the semantic colours — a spacing scale, two
+  corner radii, four font sizes, and brushes for helper text, cards, the tentative streaming
+  panel and warnings. Each brush is defined for Light, Dark and Default, which is what makes
+  the app theme-aware.
+- **`Controls.axaml`** turns them into classes the views apply by name: `section` for a
+  heading, `label` for a field caption, `hint` for muted helper text, `danger` for a
+  warning, `card` and `tentative` for panels, and `accent` for the one action that starts
+  work on a tab.
+
+It is presentation only. No token or class changes what the app does, and none carries a
+claim about it.
 
 ## What the app does not do
 
