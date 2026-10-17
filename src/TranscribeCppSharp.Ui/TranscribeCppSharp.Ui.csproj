@@ -8,6 +8,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <NoWarn>CS1591</NoWarn>
+    <!-- The window and .exe icon. Assets/icon.png (an AvaloniaResource, set as the
+         Window's Icon in MainWindow.axaml) is what the title bar and taskbar show;
+         this .ico is the Windows executable's own icon. Both are generated from
+         docs/assets/images/icon.svg by scripts/generate-icons.sh. -->
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\docs\assets\images\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

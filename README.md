@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/manuc66/TranscribeCppSharp/main/docs/assets/images/icon-512.png" alt="TranscribeCppSharp" width="112">
+</p>
+
 # TranscribeCppSharp
 
 [![CI](https://github.com/manuc66/TranscribeCppSharp/actions/workflows/ci.yml/badge.svg)](https://github.com/manuc66/TranscribeCppSharp/actions/workflows/ci.yml)

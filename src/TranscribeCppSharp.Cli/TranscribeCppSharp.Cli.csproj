@@ -14,6 +14,11 @@
     <ToolCommandName>transcribe</ToolCommandName>
     <PackageId>TranscribeCppSharp.Cli</PackageId>
     <IsPackable>true</IsPackable>
+    <!-- The Windows .exe icon. A CLI has no window, but the icon still shows in
+         Explorer, the Start menu and the tool's package listing. Cross-platform
+         builds simply carry an unused Win32 resource. Generated (with the rest)
+         from docs/assets/images/icon.svg by scripts/generate-icons.sh. -->
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\docs\assets\images\icon.ico</ApplicationIcon>
     <!-- A user-facing tool: follows the wrapper's SemVer (not the upstream ABI). -->
     <Version>$(WrapperVersionFile)</Version>
 

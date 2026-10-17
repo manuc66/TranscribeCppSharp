@@ -26,6 +26,12 @@
     <RepositoryUrl>https://github.com/manuc66/TranscribeCppSharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- One icon for every package (wrapper, Interop, Bundle, Native.*, CLI).
+         It is the project's existing waveform mark packed into a rounded square;
+         docs/assets/images/icon.svg is the source, scripts/generate-icons.sh the
+         only thing that produces the PNG. NuGet wants a 128x128 PNG at the package
+         root, which the None item below places there. -->
+    <PackageIcon>icon-128.png</PackageIcon>
 
     <!-- The native library and its components are authored upstream
          (https://github.com/handy-computer/transcribe.cpp, MIT); this project
@@ -54,5 +60,6 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.*" PrivateAssets="All" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)docs/assets/images/icon-128.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 </Project>

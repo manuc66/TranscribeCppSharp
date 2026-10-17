@@ -25,6 +25,8 @@ color_scheme: waveform
 
 # A waveform, because that is the subject. The palette and this logo are the
 # only identity this site has; there is no separate branding to keep in sync.
+# This is the wide header wordmark; the square `icon.svg` (favicon, NuGet package
+# icon, desktop app icon) is the same mark packed into a rounded tile.
 site_logo: "/assets/images/waveform.svg"
 logo_alt: "TranscribeCppSharp"
 

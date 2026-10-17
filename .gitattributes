@@ -13,3 +13,7 @@
 *.yaml text eol=lf
 *.md text eol=lf
 *.csx text eol=lf
+
+# Icon bitmaps are binary; never let git normalise line endings inside them.
+*.png binary
+*.ico binary

@@ -9,6 +9,20 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### One icon across every surface
+
+The project already had an identity — a signal-teal waveform on the dark
+"listening-room" ground, drawn once as the docs header logo. This adds the square
+form of that same mark and puts it on every surface that had none: the NuGet
+packages (`PackageIcon`), the Windows `.exe` of the CLI and the desktop app
+(`ApplicationIcon`), the desktop app's window icon (title bar and taskbar), and
+the docs favicon, README and docs home page.
+
+No new identity was invented: the two colours are the ones already declared in
+`docs/_sass/color_schemes/waveform.scss`. `docs/assets/images/icon.svg` is the
+only authored file; `scripts/generate-icons.sh` derives the PNGs and the
+multi-resolution `.ico` from it, so no committed bitmap can drift from the vector.
+
 ### Bind transcribe.cpp v0.4.0 (roles; diarize/langid/vad; backend allowlist)
 
 The pinned upstream version moves from v0.3.0 to v0.4.0 (released 2026-10-12;

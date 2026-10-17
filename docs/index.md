@@ -6,6 +6,10 @@ nav_order: 1
 
 # TranscribeCppSharp
 
+<p align="center">
+  <img src="{{ '/assets/images/icon-512.png' | relative_url }}" alt="TranscribeCppSharp" width="112">
+</p>
+
 A `transcribe` command-line tool, a desktop app and .NET bindings for
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (speech-to-text): get a
 transcript from a shell with no code, from a window, or load GGUF models from C#.

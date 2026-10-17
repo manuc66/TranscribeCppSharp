@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="TranscribeCppSharp">
+  <!--
+    The square app/package icon.
+
+    This is not a new identity: it reuses the one the project already had — the
+    signal-teal waveform and the dark listening-room ground — and simply packs it
+    into a rounded square so it can serve as a favicon, a window icon, a Windows
+    .exe icon and a NuGet package icon. The wide docs wordmark stays in
+    `waveform.svg`; both draw on the same two colours declared in
+    `docs/_sass/color_schemes/waveform.scss` (#3fd0c9 accent, #0b0f14 ground).
+
+    The SVG is the source of truth. `scripts/generate-icons.sh` regenerates every
+    raster (PNG + multi-resolution .ico) from it.
+  -->
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141d26"/>
+      <stop offset="1" stop-color="#0b0f14"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8bf2eb"/>
+      <stop offset="0.5" stop-color="#3fd0c9"/>
+      <stop offset="1" stop-color="#239e99"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#ground)"/>
+  <rect x="1" y="1" width="510" height="510" rx="111" fill="none" stroke="#3fd0c9" stroke-opacity="0.28" stroke-width="2"/>
+
+  <g fill="url(#signal)">
+    <rect x="88"  y="208" width="48" height="96"  rx="24"/>
+    <rect x="160" y="164" width="48" height="184" rx="24"/>
+    <rect x="232" y="124" width="48" height="264" rx="24"/>
+    <rect x="304" y="164" width="48" height="184" rx="24"/>
+    <rect x="376" y="208" width="48" height="96"  rx="24"/>
+  </g>
+</svg>

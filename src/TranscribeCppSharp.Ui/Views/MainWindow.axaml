@@ -4,6 +4,7 @@
         xmlns:views="using:TranscribeCppSharp.Ui.Views"
         x:Class="TranscribeCppSharp.Ui.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/icon.png"
         Title="{Binding Title}"
         Width="1100" Height="880"
         MinWidth="640" MinHeight="640"
