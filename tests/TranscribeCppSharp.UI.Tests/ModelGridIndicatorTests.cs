@@ -1,6 +1,5 @@
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.UI.Models;
-using TranscribeCppSharp.UI.ViewModels;
 using Xunit;
 
 namespace TranscribeCppSharp.UI.Tests;

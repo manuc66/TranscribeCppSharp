@@ -1,10 +1,8 @@
-using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using TranscribeCppSharp.Models;
-using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.ViewModels;
 using TranscribeCppSharp.UI.Views;
 using Xunit;

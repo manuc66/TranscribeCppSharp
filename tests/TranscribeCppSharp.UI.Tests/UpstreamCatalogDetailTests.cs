@@ -1,7 +1,5 @@
-using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
-using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 using System.IO.Compression;
 using System.Reflection;
