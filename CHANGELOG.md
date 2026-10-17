@@ -7,6 +7,15 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 `TranscribeCppSharp.Interop` and `TranscribeCppSharp.Native.*` track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
+## Unreleased
+
+### Release assets: SBOM and checksums
+
+Every GitHub Release now attaches `TranscribeCppSharp.sbom.spdx.json` (the SPDX
+SBOM the `sbom` job already produced) and `SHA256SUMS.txt` — one `sha256sum` line
+per shipped file, computed over the exact bytes uploaded — so a download can be
+verified. v0.4.0 was published before this and had both attached by hand.
+
 ## [0.4.0] - wrapper release
 
 ### Desktop app: self-contained archives per platform

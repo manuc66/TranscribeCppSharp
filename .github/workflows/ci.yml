@@ -443,26 +443,49 @@ jobs:
 
   create-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [push-nugets, pack-ui]
+    needs: [push-nugets, pack-ui, sbom]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+
+      - name: Download the NuGet packages
+        uses: actions/download-artifact@v8
         with:
           path: nupkgs
           pattern: '*-nupkg'
           merge-multiple: true
+
       - name: Download the desktop-app archives
         uses: actions/download-artifact@v8
         with:
           name: ui-release
           path: ui
+
+      - name: Download the SBOM
+        uses: actions/download-artifact@v8
+        with:
+          name: sbom.spdx.json
+          path: sbom
+
+      - name: Assemble the release files and their checksums
+        # The SBOM is renamed so the asset names the project and the format it is
+        # in. SHA256SUMS.txt is one sha256sum line per shipped file, computed here
+        # over the exact bytes that are uploaded, so a download can be verified.
+        run: |
+          set -euo pipefail
+          mv "$(find sbom -type f -name '*.json' | head -1)" TranscribeCppSharp.sbom.spdx.json
+          mkdir -p release
+          cp nupkgs/*.nupkg release/
+          cp ui/*.zip release/
+          cp TranscribeCppSharp.sbom.spdx.json release/
+          ( cd release && sha256sum * | sort -k2 > SHA256SUMS.txt )
+          ls -la release
+
       - name: Create Release
         uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e
         with:
           files: |
-            nupkgs/*.nupkg
-            ui/*.zip
+            release/*
           generate_release_notes: true
