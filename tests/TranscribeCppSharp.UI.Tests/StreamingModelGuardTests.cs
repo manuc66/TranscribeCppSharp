@@ -205,6 +205,52 @@ public class StreamingModelGuardTests
         });
     }
 
+    /// <summary>
+    /// A model removed after the picker listed it drops out of the picker, and no
+    /// failure is logged for a file the reader has already deleted.
+    /// </summary>
+    [AvaloniaFact]
+    public void AModelDeletedWhileProbingDropsOutWithoutAFailureLog()
+    {
+        string log = Path.Combine(
+            Path.GetTempPath(), "tcsharp-stream-guard-" + Guid.NewGuid().ToString("N"), "ui.log");
+        string? previousLog = UiLog.FilePathOverride;
+        UiLog.FilePathOverride = log;
+        try
+        {
+            InCache(() =>
+            {
+                ModelDescriptor descriptor = Descriptor(Moonshine);
+                Plant(descriptor);
+                string path = ModelStore.CachedPath(descriptor);
+
+                var cache = new ModelCapabilityCache
+                {
+                    Probe = _ =>
+                    {
+                        // The reader deleted it in the Models tab while this load ran.
+                        File.Delete(path);
+                        throw new FileNotFoundException("gone");
+                    },
+                };
+
+                var viewModel = new StreamingViewModel(
+                    new RecordingStreamingService(), new SettingsViewModel(), cache);
+                Settle(viewModel);
+
+                Assert.Empty(viewModel.AvailableModels);
+                Assert.False(viewModel.HasStreamableModels);
+                Assert.False(viewModel.CanStartStreaming);
+            });
+
+            Assert.False(File.Exists(log), "a deleted model was logged as a capability failure");
+        }
+        finally
+        {
+            UiLog.FilePathOverride = previousLog;
+        }
+    }
+
     /// <summary>Counts attempts, so a refused Start can be shown not to have run.</summary>
     private sealed class RecordingStreamingService : ITranscriptionService
     {

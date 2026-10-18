@@ -9,6 +9,15 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: a model deleted while its streaming capabilities are read drops out quietly
+
+The Streaming tab reads the selected model's capabilities when it opens. A model deleted
+between the picker listing it and that read failed with `ErrFileNotFound` and was written to
+the log with a full stack trace — for a file the reader had already removed. The read now
+notices the file is gone, re-reads the cache so the model leaves the picker, and logs nothing:
+a deleted file is not a capability failure. A model that is present but cannot be loaded —
+a corrupt or foreign GGUF — is still logged as before.
+
 ### UI: each tab reselects the model it last ran
 
 The pickers opened on the first alias alphabetically, so a reader who uses one model had to

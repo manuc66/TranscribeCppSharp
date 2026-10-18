@@ -376,7 +376,10 @@ exception type, message, inner exceptions and stack trace — to
 status line is not selectable, so the file is where to look for what actually happened; when
 a message reports a failure it also names that path. The file is appended to and never
 rotated. Not every failure in the app goes through it — only the ones the view models catch
-and report.
+and report. One that deliberately does not: a model deleted while the Streaming tab was
+reading its capabilities leaves the picker without a log entry, because a file the reader has
+already removed is not a capability failure. A model that is present but cannot be loaded is
+logged as usual.
 
 ## Look and theme
 

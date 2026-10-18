@@ -341,9 +341,9 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         _probing = true;
         IsCheckingCapabilities = true;
         CapabilityStatus = $"Checking what {alias} supports...";
+        string path = ModelStore.CachedPath(descriptor);
         try
         {
-            string path = ModelStore.CachedPath(descriptor);
             // The shared cache: another tab asking for the same alias joins this
             // load rather than starting a second one. The probe is not
             // cancellable — Model.Load takes no token, and this is not part of
@@ -356,6 +356,14 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
                 ApplyCapabilities(alias, snapshot);
                 CapabilityStatus = string.Empty;
             }
+        }
+        catch (Exception) when (!File.Exists(path))
+        {
+            // The model was removed after the picker listed it, so the load failed
+            // on a file that is no longer there. That is not a capability failure
+            // to log: re-read the cache so it drops out of the picker, rather than
+            // writing a stack trace for a model the reader has already deleted.
+            LoadModels();
         }
         catch (Exception ex)
         {
