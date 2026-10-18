@@ -76,6 +76,16 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int? _stablePrefixAgreement;
 
+    /// <summary>
+    /// Seconds of audio per utterance before the stream is closed and a new one
+    /// started on the same stream. This bounds the native working set, which
+    /// otherwise grows with how long the stream has run; the cost is the model's
+    /// audio context across the boundary. 0 keeps one utterance for the whole
+    /// session, which is what the tab did before this existed.
+    /// </summary>
+    [ObservableProperty]
+    private int _utteranceSeconds = 30;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasAnyStreamingExtension))]
     private int? _moonshineMinDecodeIntervalMs;
@@ -468,6 +478,7 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
                 Device = _settings.SelectedDevice,
                 CommitPolicy = SelectedCommitPolicy,
                 StablePrefixAgreement = (uint?)StablePrefixAgreement,
+                UtteranceSeconds = UtteranceSeconds,
                 MoonshineMinDecodeIntervalMs = MoonshineMinDecodeIntervalMs,
                 ParakeetAttContextRight = ParakeetAttContextRight,
                 ParakeetLeftMs = ParakeetLeftMs,

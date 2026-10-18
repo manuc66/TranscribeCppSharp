@@ -30,8 +30,8 @@
                  AutomationProperties.Name="Model capabilities status" />
     </StackPanel>
 
-    <!-- Commit policy and stable prefix -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,0,0,8">
+    <!-- Commit policy, stable prefix, and utterance length -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Commit Policy" Classes="label"
                    ToolTip.Tip="When text is moved out of the tentative area and treated as final. Auto lets the model decide. On Finalize commits only when the model says the segment is final, so text appears later but is steadier. Stable Prefix commits as soon as a prefix has stopped changing, so text appears sooner but can be revised if the model changes its mind." />
@@ -39,12 +39,19 @@
                   AutomationProperties.AutomationId="streaming-commit-policy"
                   AutomationProperties.Name="Commit policy" />
       </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0">
+      <StackPanel Grid.Column="1" Margin="8,0,8,0">
         <TextBlock Text="Stable Prefix Agreement" Classes="label"
                    ToolTip.Tip="How many times a prefix has to stay unchanged before it is committed, used by the Stable Prefix policy. Higher values mean steadier text and later appearance." />
         <NumericUpDown Value="{Binding StablePrefixAgreement}" Minimum="0" Maximum="100" Increment="1"
                        AutomationProperties.AutomationId="streaming-stable-prefix-agreement"
                        AutomationProperties.Name="Stable prefix agreement" />
+      </StackPanel>
+      <StackPanel Grid.Column="2" Margin="8,0,0,0">
+        <TextBlock Text="Utterance (s)" Classes="label"
+                   ToolTip.Tip="How many seconds of audio one streamed utterance may run before the stream is closed and a new one started on the same model. This bounds the memory the native stream holds, which otherwise grows with how long you stream; the cost is that the model loses its audio context across the boundary, and a word split across it can be broken. 0 keeps one utterance for the whole session." />
+        <NumericUpDown Value="{Binding UtteranceSeconds}" Minimum="0" Maximum="600" Increment="5"
+                       AutomationProperties.AutomationId="streaming-utterance-seconds"
+                       AutomationProperties.Name="Utterance seconds" />
       </StackPanel>
     </Grid>
 

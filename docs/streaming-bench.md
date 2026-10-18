@@ -146,6 +146,55 @@ Reproduced across five attempts on an idle machine, and also with
 or 32768, which failed identically, so a larger context window is not the fix.
 The Vulkan backend did not abort at 198 s; it just got slower.
 
+### 4. Memory grows with the stream, and ending the utterance bounds it
+
+The pages above measure time. Memory is the other half, and it grows too — for
+the same reason, the working set of the current utterance. On this machine (Linux
+x64, CPU backend, the Moonshine model above), feeding one stream and sampling the
+process RSS:
+
+| Audio fed | one utterance | utterance closed every 30 s |
+|-----------|---------------|-----------------------------|
+| 10 s | 204 MiB | 204 MiB |
+| 20 s | 237 MiB | 237 MiB |
+| 30 s | 254 MiB | 255 MiB |
+| 40 s | 284 MiB | 243 MiB |
+| 66 s | 362 MiB | — |
+| 80 s | 389 MiB, then SIGABRT | 251 MiB |
+| 150 s | (aborted) | 258 MiB (5 rotations) |
+
+Roughly **2.8 MiB per second of audio** (2.6–2.9 across the points above), and it
+is not the managed heap: the .NET heap stayed flat at ~0.8 MiB throughout. Three
+controls pin it to the audio duration and nothing else:
+
+- **Feed size does not matter.** 1320 feeds of 800 samples and 66 feeds of
+  16 000 samples reach the same RSS at 66 s.
+- **Content does not matter.** Feeding digital silence grows it exactly as speech
+  does, so it is not the decode output.
+- **Reading text does not matter.** The same slope with and without
+  `StreamGetText()` after every feed.
+
+It is not a cache the caller can cap, either: the session reports
+`effective_n_ctx = 0` and `max_kv_bytes = 0` for this family, so
+`transcribe_session_params::n_ctx` is ignored — `WithContextSize(4096)` and
+`WithContextSize(2048)` grow the same. The memory is released when the stream
+ends (`StreamSession.Dispose` → session free): four Start/Stop cycles ended at
+58–78 MiB, with no accumulation across them.
+
+The lever is **ending the utterance**. The streaming API is per-utterance:
+`transcribe_stream_reset` clears the family's per-utterance state, and
+`transcribe_stream_begin` starts a new one reusing the stream's buffers. Closing
+the utterance (finalize, then reset, then begin) stops the working set from
+growing with the session; the numbers in the right-hand column are that code
+running. It also sidesteps the ~82 s CPU abort above, because no single utterance
+reaches it. The cost is the model's audio context across the boundary, at a
+point of the caller's choosing. This is what the desktop app's **Utterance (s)**
+field does (see [Desktop app](ui.md#streaming)); the wrapper itself takes no
+position on it.
+
+**One machine, one model, one backend.** Vulkan, other families and real
+long-form audio were not measured; only `moonshine-streaming-tiny` on the CPU was.
+
 ## What this means for a live pipeline
 
 - **Do not trust a short RTF on a short clip.** RTF went 0.218 → 2.705 purely by
@@ -205,3 +254,7 @@ so a run that aborts leaves evidence instead of an empty log.
 - Real long-form audio was never tested — see the tiling caveat at the top.
 - Whether the growth is context length or token count is unresolved.
 - The CPU abort is characterised by symptom and reproduction, not diagnosed.
+- The memory figures in §4 are one model, one backend. The slope per family is
+  unmeasured, and so is the accuracy cost of closing an utterance at a fixed
+  interval — a word split across a boundary can be broken, and whether that hurts
+  the transcript was not measured.

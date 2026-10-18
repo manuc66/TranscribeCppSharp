@@ -56,6 +56,7 @@ public class AutomationIdTests
         "streaming-capability-status",
         "streaming-commit-policy",
         "streaming-stable-prefix-agreement",
+        "streaming-utterance-seconds",
         "streaming-family-extensions",
         "streaming-moonshine-interval",
         "streaming-parakeet-att-right",

@@ -205,6 +205,17 @@ defaults to 6 tokens, and only 1 to 15 or 30 is accepted. The values the library
 initializes are exposed by the wrapper's builders and pinned by a test, rather than written
 into this page.
 
+**Utterance (s)** closes the native stream and starts a new one on the same model after that
+many seconds of audio, so the memory the stream holds does not grow with how long you stream.
+The streaming API works on one utterance at a time and keeps that utterance's working set,
+which for a model that re-decodes from the start on every feed grows with its audio — measured
+at roughly 2.8 MiB per second of audio. The committed text of each closed utterance is kept and
+prepended to the next, so nothing already transcribed disappears, but the model loses its audio
+context across the boundary and a word split across it can be broken. The default is 30 s; `0`
+keeps one utterance for the whole session, which is the behaviour before this field existed.
+The numbers, the controls behind them, and what is still unverified are on
+[Streaming benchmarks](streaming-bench.md#4-memory-grows-with-the-stream-and-ending-the-utterance-bounds-it).
+
 Start is enabled only for a model that can stream. The picker offers only the downloaded
 models upstream records as able to stream — the same pinned-catalog source the Models tab's
 capability filter reads. MOSS, the default model, is not one of them: it declares
@@ -229,7 +240,9 @@ keep up with live audio on the CPU backend, setting a decode interval or the com
 not optional for a live pipeline, and on the CPU backend a stream of roughly 88 s of audio
 **aborts the process inside ggml**. That abort is native, so no `try`/`catch` in the app
 intercepts it and no status line will ever report it. It is upstream behaviour in
-transcribe.cpp, not a bug in this app.
+transcribe.cpp, not a bug in this app. **Utterance (s)**, above, is the one mitigation the tab
+offers: the default 30 s closes the stream before a single utterance reaches the abort or
+grows the memory further, at a cost to the model's context across the boundary.
 
 ### Batch
 

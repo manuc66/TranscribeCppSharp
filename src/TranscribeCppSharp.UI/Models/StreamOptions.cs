@@ -8,6 +8,14 @@ public class StreamOptions
     public BackendRequest? BackendRequest { get; set; }
     public BackendDevice? Device { get; set; }
 
+    /// <summary>
+    /// Seconds of audio per utterance before the stream is closed and a new one
+    /// started, to bound the native working set. 0 keeps one utterance for the
+    /// whole session. The reason and the cost are documented on
+    /// <c>UtteranceRotation</c> (internal) and in docs/streaming-bench.md.
+    /// </summary>
+    public int UtteranceSeconds { get; set; } = 30;
+
     // Streaming extensions
     public uint? StablePrefixAgreement { get; set; }
     public int? MoonshineMinDecodeIntervalMs { get; set; }

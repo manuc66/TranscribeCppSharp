@@ -9,6 +9,19 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the streaming tab bounds memory by closing the stream into utterances
+
+A live stream's memory grows with its audio — measured at roughly 2.8 MiB per second of the
+current utterance on one machine and model, because the native stream keeps the current
+utterance and a family that re-decodes from the start on every feed grows with it
+(`docs/streaming-bench.md`). The tab fed one utterance for the whole session, so a long stream
+grew without bound and reached the native ~82 s CPU abort sooner. A new **Utterance (s)** field,
+default 30 s, finalizes the stream, resets it, and begins a new utterance on the same model at
+that interval. The committed text of each closed utterance is kept and prepended to the next, so
+nothing already transcribed disappears; the model loses its audio context across the boundary,
+and the accuracy cost of the interval is not measured. `0` keeps one utterance for the whole
+session, which is the previous behaviour.
+
 ### UI: a model upstream calls streaming but the machine says has no ASR stream drops out
 
 Sortformer (`diar_streaming_sortformer_4spk-v2.1`) is recorded upstream as
