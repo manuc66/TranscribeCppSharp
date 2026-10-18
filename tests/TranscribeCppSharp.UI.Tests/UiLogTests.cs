@@ -10,6 +10,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// A failure the UI catches is also written to a file, so it can be read after
 /// the fact instead of only as a status line that cannot be copied.
 /// </summary>
+[Collection("UiGlobalState")]
 public class UiLogTests
 {
     private static string TempLog()

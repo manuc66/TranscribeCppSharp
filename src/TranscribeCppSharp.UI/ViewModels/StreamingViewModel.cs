@@ -27,8 +27,23 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     private bool _probing;
     private string? _pendingProbeAlias;
 
+    /// <summary>How many characters of the stream's committed text are hidden
+    /// because the reader cleared the text. The native committed prefix is
+    /// append-only, so everything before this offset is what the reader asked
+    /// not to see again.</summary>
+    private int _committedOffset;
+
+    /// <summary>The stream's committed text as last reported. Kept so
+    /// <see cref="ClearText"/> can measure how much to hide without reading the
+    /// native stream, whose prefix only ever grows.</summary>
+    private string _rawCommittedText = string.Empty;
+
+    /// <summary>How many aliases are on disk, streamable or not, for the picker
+    /// hint: it says how many of them the picker can offer.</summary>
+    private int _onDiskCount;
+
     [ObservableProperty]
-    private string _modelAlias = "moss-transcribe-diarize";
+    private string _modelAlias = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanStartStreaming))]
@@ -141,10 +156,10 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         VoxtralMinDecodeIntervalMs = null;
     }
 
-    /// <summary>False while streaming, while a capability check runs, with no model
-    /// on disk, or when the selected model cannot stream.</summary>
+    /// <summary>False while streaming, while a capability check runs, with no
+    /// streamable model on disk, or when the selected model cannot stream.</summary>
     public bool CanStartStreaming
-        => HasDownloadedModels && !IsStreaming && !IsCheckingCapabilities && SelectedModelStreams;
+        => HasStreamableModels && !IsStreaming && !IsCheckingCapabilities && SelectedModelStreams;
 
     /// <summary>
     /// Whether the selected model can stream.
@@ -157,9 +172,9 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     /// entry, or a probe that failed — the answer is yes: refusing on unknown
     /// would block a model that works.
     /// <para>
-    /// This is what stops the default model, MOSS, from being started on this tab:
-    /// upstream records <c>streaming.supported = false</c> for it, and the native
-    /// library refuses with <c>ErrNotImplemented</c>. The two agree.
+    /// The picker already leaves out the models upstream records as unable to
+    /// stream, MOSS among them, so in practice this only overrides upstream when
+    /// the machine's own answer disagrees with it.
     /// </para>
     /// </remarks>
     public bool SelectedModelStreams
@@ -192,15 +207,16 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         return streaming.Supported;
     }
 
-    /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
-    public bool HasDownloadedModels => AvailableModels.Count > 0;
+    /// <summary>Whether any downloaded model can stream, which is what the picker
+    /// offers.</summary>
+    public bool HasStreamableModels => AvailableModels.Count > 0;
 
     /// <summary>
     /// What sits under the model picker. Present even when the list is full: the
     /// route to the other models should not appear only once you have run out.
     /// </summary>
     public string ModelPickerHint
-        => DownloadedModelCatalog.Hint(AvailableModels.Count, ModelStore.Catalog.Count);
+        => DownloadedModelCatalog.StreamingHint(AvailableModels.Count, _onDiskCount);
 
     /// <summary>Raised when the reader asks to go and fetch more models.</summary>
     public event Action? OpenModelManagerRequested;
@@ -218,8 +234,9 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         _settings = settings;
         _capabilityCache = capabilityCache;
         LoadModels();
-        // The default alias is a fixed one (MOSS, ~700 MB); this bounds the
-        // startup probe to that single model. A model not on disk is not loaded.
+        // The alias the picker settled on — the streaming model last run, else the
+        // first offered — bounds the startup probe to a single model. A model not
+        // on disk is not loaded.
         RequestCapabilityProbe(ModelAlias);
     }
 
@@ -227,29 +244,39 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     /// Rebuilds the picker from what is on disk and repairs the selection.
     /// </summary>
     /// <remarks>
+    /// Only downloaded models that may stream are offered. The test is upstream's
+    /// pinned declaration — the same source the Models tab's capability filter
+    /// reads — because asking each model would load every downloaded one. A model
+    /// upstream records as unable to stream is left out; one it says nothing about
+    /// is kept, because unknown is not a no.
+    /// <para>
     /// The selection has to be repaired rather than left alone: the picker only
-    /// offers downloaded models, so an alias that was deleted would show as no
-    /// selection while still starting a stream against a file that is not there.
+    /// offers downloaded models, so an alias that was deleted — or filtered out —
+    /// would show as no selection while still starting a stream against it. The
+    /// repaired selection is the streaming model this tab last ran when it is still
+    /// offered, so reopening the app lands on the model you were using; see
+    /// <see cref="DownloadedModelCatalog.Selection"/>.
+    /// </para>
     /// </remarks>
     private void LoadModels()
     {
+        IReadOnlyList<string> onDisk = DownloadedModelCatalog.Aliases();
+        _onDiskCount = onDisk.Count;
+
         AvailableModels.Clear();
-        foreach (string alias in DownloadedModelCatalog.Aliases())
+        foreach (string alias in onDisk)
         {
-            AvailableModels.Add(alias);
+            if (DeclaredStreaming(alias))
+            {
+                AvailableModels.Add(alias);
+            }
         }
 
-        if (AvailableModels.Count == 0)
-        {
-            ModelAlias = string.Empty;
-        }
-        else if (!AvailableModels.Contains(ModelAlias))
-        {
-            ModelAlias = AvailableModels[0];
-        }
+        ModelAlias = DownloadedModelCatalog.Selection(
+            ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.StreamingTab));
 
         OnPropertyChanged(nameof(ModelPickerHint));
-        OnPropertyChanged(nameof(HasDownloadedModels));
+        OnPropertyChanged(nameof(HasStreamableModels));
         OnPropertyChanged(nameof(CanStartStreaming));
     }
 
@@ -385,8 +412,11 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
         IsStreaming = true;
         StatusMessage = "Streaming...";
+        UiSettings.SetLastModel(UiSettings.StreamingTab, ModelAlias);
         CommittedText = string.Empty;
         TentativeText = string.Empty;
+        _committedOffset = 0;
+        _rawCommittedText = string.Empty;
         _cts = new CancellationTokenSource();
 
         try
@@ -411,7 +441,8 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
             await foreach (var update in _transcriptionService.StreamTranscribeAsync(
                 ModelAlias, options, _cts.Token))
             {
-                CommittedText = update.CommittedText;
+                _rawCommittedText = update.CommittedText;
+                CommittedText = _rawCommittedText[Math.Min(_committedOffset, _rawCommittedText.Length)..];
                 TentativeText = update.TentativeText;
             }
 
@@ -437,6 +468,21 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     {
         _cts?.Cancel();
         StatusMessage = "Stopping...";
+    }
+
+    /// <summary>
+    /// Empties the two text areas. While streaming, only text produced after the
+    /// click appears again: the native committed prefix is append-only, so what
+    /// it holds when the reader clears is hidden up to that point. The native
+    /// stream is not reset — the model keeps the audio context it has — so this
+    /// is a display reset, not a new stream.
+    /// </summary>
+    [RelayCommand]
+    private void ClearText()
+    {
+        _committedOffset = _rawCommittedText.Length;
+        CommittedText = string.Empty;
+        TentativeText = string.Empty;
     }
 
     public void Dispose()

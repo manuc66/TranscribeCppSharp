@@ -85,12 +85,21 @@ which is where the Models tab stops being usable.
 
 **What the three model pickers offer.** Transcription, Streaming and Batch list only the
 aliases already on disk, so an entry means you can run it now — with a fresh cache the list
-is empty and the button that starts a run is disabled. Under each picker sits a count and a
+is empty and the button that starts a run is disabled. Streaming narrows that further to the
+models upstream records as able to stream, because a model that cannot stream has nothing to
+do on that tab. Under each picker sits a count and a
 `Get more…` button that switches to the Models tab, always visible rather than only once the
 list has run out: a picker with one entry does not tell you the other 71 exist. The list is
 re-read on every tab change, because downloads happen in Models while the pickers are built
 once when the window opens — without that, the guidance would point at a download that never
 appears.
+
+**Which entry is selected.** A tab reselects the model it last *ran*, not the first alias
+alphabetically: the app records it in `ui-settings.json` beside the log (`<cache>/../ui-settings.json`)
+and reads it when the picker is built. Picking a model in the list and not running it is not a
+use and is not recorded. A model that has since been deleted, or that no longer passes the
+streaming filter, is ignored — the picker falls back to the first entry. With nothing recorded
+yet, or a settings file that cannot be read, the first alias is selected as before.
 
 ### Transcription
 
@@ -145,7 +154,8 @@ the result. See [Long audio and diarization](diarization.md).
 The result is shown four ways: as text, as segments with timings, as words with timings, and
 as speaker-attributed segments. `Export` writes `.txt`, `.vtt` or `.json`, picked by the
 extension you type; the formats themselves are the same as
-[the CLI's](exporting.md).
+[the CLI's](exporting.md). The Text tab's text is selectable, so a passage can be copied out by
+hand instead of exporting the whole result.
 
 ### Streaming
 
@@ -166,6 +176,12 @@ text), and `Stable Prefix` commits once a prefix has stopped changing (sooner te
 can still be revised). The Stable Prefix agreement count is how many unchanged passes a
 prefix needs before it is committed.
 
+Both text areas are selectable: drag for a range, double-click for a word, and the right-click
+Copy item or Ctrl+C copies the selection. `Clear`, beside Stop, empties both. During a run it
+does not reset the native stream — committed text is append-only — so it hides what was shown
+up to the click and displays what comes after it; the model keeps the audio context it has
+already captured. After a run, Clear just empties the two panels.
+
 Family extensions appear only for a model that both streams and has the matching extension
 builder: a decode interval for Moonshine, buffered-streaming context and attention for
 Parakeet, delay tokens and a decode interval for Voxtral.
@@ -181,14 +197,15 @@ defaults to 6 tokens, and only 1 to 15 or 30 is accepted. The values the library
 initializes are exposed by the wrapper's builders and pinned by a test, rather than written
 into this page.
 
-Start is enabled only for a model that can stream. The loaded model answers when it has been
-checked on this machine; until then, upstream's pinned catalog entry for the alias does —
-the same source the Models tab's capability filter reads. Ten of the seventy-two aliases
-declare `streaming` support. MOSS, the default model, is not one of them: it declares
+Start is enabled only for a model that can stream. The picker offers only the downloaded
+models upstream records as able to stream — the same pinned-catalog source the Models tab's
+capability filter reads. MOSS, the default model, is not one of them: it declares
 `streaming.supported = false`, the native library refuses `StreamBegin` with
-`ErrNotImplemented`, and the two agree. With only MOSS on disk there is no model to stream
-with, so the tab says so under the buttons and points at the Models tab rather than starting
-a run that fails. A model that declares nothing is not blocked: unknown is not a no.
+`ErrNotImplemented`, and the two agree. With only MOSS on disk the picker is empty and the
+line under it points at the Models tab rather than offering a run that fails. A model upstream
+says nothing about is still offered — unknown is not a no — and Start then falls back to
+upstream's record until this machine has loaded the model and answered for itself, at which
+point the machine's answer wins.
 
 Read [Real-time streaming](streaming.md) and [Streaming benchmarks](streaming-bench.md)
 before relying on this tab. In short, and unchanged by the GUI: the model default does not

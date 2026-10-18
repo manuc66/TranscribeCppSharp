@@ -27,7 +27,7 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _audioPath = string.Empty;
 
     [ObservableProperty]
-    private string _modelAlias = "moss-transcribe-diarize";
+    private string _modelAlias = string.Empty;
 
     [ObservableProperty]
     private string _language = "en";
@@ -325,9 +325,10 @@ public partial class TranscriptionViewModel : ObservableObject
         AddFallbackLanguages();
 
         LoadModels();
-        // The default alias is a fixed one (MOSS, ~700 MB), so this bounds the
-        // startup probe to a single known model. It runs off the UI thread; a
-        // model that is not on disk is not loaded and the options stay unfiltered.
+        // The alias the picker settled on (the one last run, else the first),
+        // bounds the startup probe to a single known model. It runs off the UI
+        // thread; a model that is not on disk is not loaded and the options stay
+        // unfiltered.
         RequestCapabilityProbe(ModelAlias);
     }
 
@@ -340,6 +341,11 @@ public partial class TranscriptionViewModel : ObservableObject
     /// would show as no selection while still letting a run start against a file
     /// that is not there. With nothing on disk the alias is emptied, which is what
     /// disables the button.
+    /// <para>
+    /// The repaired selection is the model this tab last ran when it is still
+    /// offered, so reopening the app lands on the model you were using; see
+    /// <see cref="DownloadedModelCatalog.Selection"/>.
+    /// </para>
     /// </remarks>
     private void LoadModels()
     {
@@ -349,14 +355,8 @@ public partial class TranscriptionViewModel : ObservableObject
             AvailableModels.Add(alias);
         }
 
-        if (AvailableModels.Count == 0)
-        {
-            ModelAlias = string.Empty;
-        }
-        else if (!AvailableModels.Contains(ModelAlias))
-        {
-            ModelAlias = AvailableModels[0];
-        }
+        ModelAlias = DownloadedModelCatalog.Selection(
+            ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.TranscriptionTab));
 
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
@@ -631,6 +631,7 @@ public partial class TranscriptionViewModel : ObservableObject
         Progress = 0;
         StatusMessage = "Transcribing...";
         HasResult = false;
+        UiSettings.SetLastModel(UiSettings.TranscriptionTab, ModelAlias);
 
         try
         {

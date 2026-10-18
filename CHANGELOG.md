@@ -9,6 +9,45 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: each tab reselects the model it last ran
+
+The pickers opened on the first alias alphabetically, so a reader who uses one model had to
+pick it again on every launch. Each tab now records the model a run actually started with, in
+`ui-settings.json` beside the log (`<cache>/../ui-settings.json`), and reselects it when the
+picker is built. Picking a model and not running it is not recorded. A recorded alias that is
+no longer offered — deleted, or, on the Streaming tab, no longer passing the streaming filter —
+is ignored and the first entry is selected; a missing or unreadable settings file falls back to
+the same first entry. The file holds only this note: no model, backend or device selection is
+persisted beyond it.
+
+### UI: the streaming tab's picker offers only models that can stream
+
+The picker listed every downloaded model, MOSS — the default — among them, and MOSS cannot
+stream. Choosing it and pressing Start was refused by the native library with
+`ErrNotImplemented`, which came back as a status line. The picker now leaves out the models
+upstream records as unable to stream (`streaming.supported = false`), reading the same pinned
+catalog the Models tab's capability filter does; a model upstream says nothing about is still
+offered, because unknown is not a no. Start is still gated on the loaded model's own answer
+for the models that remain, so a model this machine cannot stream is refused with a reason
+instead of a failed run. With only MOSS on disk the picker is empty and the line under it
+points at the Models tab rather than starting a run that cannot work.
+
+### UI: the streaming tab's Clear empties the text
+
+The committed and tentative areas filled up over a session with no way to start the display
+over. A Clear button beside Stop empties both. It does not reset the native stream: the
+committed prefix is append-only, so a clear during a run hides what was committed up to the
+click and shows what comes after it, and the model keeps the audio context it already has.
+After a run, Clear just empties the two panels.
+
+### UI: transcription and streaming text can be selected and copied
+
+The transcription result and the streaming committed/tentative areas were plain `TextBlock`s,
+which draw text but take no selection. They are `SelectableTextBlock`s now: drag for a range,
+double-click a word, triple-click for all of it, Ctrl+C to copy, and a right-click Copy flyout
+from the Fluent theme. Nothing in the wrapper changed; the text is still produced by the native
+run or stream.
+
 ### UI: the streaming tab refuses a model that cannot stream
 
 MOSS, the default model on the Streaming tab, declares `streaming.supported = false` in

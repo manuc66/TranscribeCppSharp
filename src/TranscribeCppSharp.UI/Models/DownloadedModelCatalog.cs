@@ -1,3 +1,4 @@
+using System.Linq;
 using TranscribeCppSharp.Models;
 
 namespace TranscribeCppSharp.UI.Models;
@@ -55,4 +56,47 @@ public static class DownloadedModelCatalog
         => onDisk == 0
             ? "Nothing on disk yet. The Models tab downloads one."
             : $"{onDisk} of {catalogued} on disk — the Models tab downloads more.";
+
+    /// <summary>
+    /// What sits under the streaming picker, which offers only models that may
+    /// stream.
+    /// </summary>
+    /// <param name="offered">How many of the downloaded aliases may stream.</param>
+    /// <param name="onDisk">How many aliases are downloaded in total.</param>
+    /// <returns>Never empty: an empty picker still has to say where to go.</returns>
+    /// <remarks>
+    /// The count is the offer, not what is on disk: a cache holding only models
+    /// that cannot stream would read "0 of 1" with no reason, so the two empty
+    /// cases are told apart — nothing downloaded, and nothing downloaded that
+    /// streams — and both name the capability filter that gets you there.
+    /// </remarks>
+    public static string StreamingHint(int offered, int onDisk)
+        => offered > 0
+            ? $"{offered} of {onDisk} on disk can stream — the Models tab downloads more."
+            : onDisk == 0
+                ? "Nothing on disk yet. The Models tab can filter on the 'streaming' capability."
+                : "No streaming model on disk. The Models tab can filter on the 'streaming' capability.";
+
+    /// <summary>
+    /// Which alias a picker selects.
+    /// </summary>
+    /// <param name="current">The picker's present selection.</param>
+    /// <param name="offered">The aliases the picker offers, in catalogue order.</param>
+    /// <param name="remembered">The alias this tab last ran, or null.</param>
+    /// <returns>An alias from <paramref name="offered"/>, or empty when there are none.</returns>
+    /// <remarks>
+    /// The current selection wins so that a rebuild after a download or a delete
+    /// does not move a choice the reader already made; what was last run is the
+    /// fallback for a fresh start, and the first alias is the last resort. A
+    /// remembered alias that is no longer offered — deleted, or not streamable —
+    /// is ignored rather than reselected.
+    /// </remarks>
+    public static string Selection(string current, IReadOnlyList<string> offered, string? remembered)
+        => offered.Count == 0
+            ? string.Empty
+            : offered.Contains(current)
+                ? current
+                : remembered is not null && offered.Contains(remembered)
+                    ? remembered
+                    : offered[0];
 }

@@ -14,6 +14,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// native default — the -1 sentinel the <c>*ExtInit</c> sets — applies. There was no
 /// way back to that state once a field had been filled, which is what Reset is for.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class StreamingExtensionResetTests
 {
     private static StreamingViewModel ViewModel()

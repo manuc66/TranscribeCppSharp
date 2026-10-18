@@ -66,6 +66,7 @@ public class AutomationIdTests
         "streaming-extensions-reset",
         "streaming-start",
         "streaming-stop",
+        "streaming-clear",
         "streaming-support-hint",
         "streaming-status",
         "streaming-committed-text",

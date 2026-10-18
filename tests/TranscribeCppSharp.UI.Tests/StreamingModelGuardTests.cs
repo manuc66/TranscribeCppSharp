@@ -14,18 +14,25 @@ using StreamUpdate = TranscribeCppSharp.UI.Models.StreamUpdate;
 namespace TranscribeCppSharp.UI.Tests;
 
 /// <summary>
-/// The streaming tab does not start a model that cannot stream.
+/// The streaming tab only offers models that may stream.
 /// </summary>
 /// <remarks>
 /// MOSS is the default model here and upstream records <c>streaming.supported =
-/// false</c> for it, so the tab used to offer Start for a model the native library
-/// refuses with <c>ErrNotImplemented</c> — an error that reached the user as one
-/// uncopyable line of status text. These tests pin the gate, on the loaded model's
-/// answer and on the pinned catalog's, and that Start never reaches the service.
+/// false</c> for it, so the tab used to list it, let it be picked, and then refused
+/// to start it — reaching the user as one uncopyable line of status text. The picker
+/// now leaves out what upstream records as unable to stream (MOSS among them), and
+/// Start is still gated on the loaded model's own answer for the rest, so a model
+/// this machine cannot stream is not offered a run either. Both were asserted here
+/// before this one change; the tests pin the new split: the picker reads upstream,
+/// Start reads the machine.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class StreamingModelGuardTests
 {
     private const string Moss = "moss-transcribe-diarize";
+
+    /// <summary>An alias upstream records as streaming-capable.</summary>
+    private const string Moonshine = "moonshine-streaming-tiny";
 
     private static string WithEmptyCache()
     {
@@ -34,6 +41,9 @@ public class StreamingModelGuardTests
         ModelStore.CacheRootOverride = root;
         return root;
     }
+
+    private static ModelDescriptor Descriptor(string alias)
+        => ModelStore.Catalog.Single(m => m.Alias == alias);
 
     private static void Plant(ModelDescriptor descriptor)
     {
@@ -99,84 +109,94 @@ public class StreamingModelGuardTests
         }
     }
 
+    /// <summary>
+    /// MOSS is downloaded and upstream records it as unable to stream, so the
+    /// picker leaves it out rather than offering a run that will be refused.
+    /// </summary>
     [AvaloniaFact]
-    public void AModelThatCannotStreamDisablesStartAndSaysWhy()
+    public void AModelUpstreamSaysCannotStreamIsNotOffered()
     {
         InCache(() =>
         {
-            Plant(ModelStore.Catalog.Single(m => m.Alias == Moss));
-            var cache = new ModelCapabilityCache { Probe = _ => Snapshot(streams: false) };
+            Plant(Descriptor(Moss));
             var viewModel = new StreamingViewModel(
-                new RecordingStreamingService(), new SettingsViewModel(), cache);
+                new RecordingStreamingService(), new SettingsViewModel(),
+                new ModelCapabilityCache { Probe = _ => Snapshot(streams: false) });
             Settle(viewModel);
 
+            Assert.Empty(viewModel.AvailableModels);
+            Assert.False(viewModel.HasStreamableModels);
             Assert.False(viewModel.CanStartStreaming);
-            Assert.False(viewModel.SelectedModelStreams);
-            Assert.Contains("does not support streaming", viewModel.StreamingSupportHint,
-                StringComparison.Ordinal);
-            Assert.Contains(Moss, viewModel.StreamingSupportHint, StringComparison.Ordinal);
+
+            // It says the picker is empty without pretending nothing is on disk.
+            Assert.Contains("No streaming model on disk", viewModel.ModelPickerHint, StringComparison.Ordinal);
+            Assert.Contains("streaming", viewModel.ModelPickerHint, StringComparison.Ordinal);
         });
     }
 
+    /// <summary>A streaming model is offered alongside it, and chosen.</summary>
     [AvaloniaFact]
-    public async Task StartOnSuchAModelNeverReachesTheService()
+    public void OnlyModelsThatMayStreamAreOffered()
+    {
+        InCache(() =>
+        {
+            Plant(Descriptor(Moss));
+            Plant(Descriptor(Moonshine));
+            var viewModel = new StreamingViewModel(
+                new RecordingStreamingService(), new SettingsViewModel(),
+                new ModelCapabilityCache { Probe = _ => Snapshot(streams: true) });
+            Settle(viewModel);
+
+            Assert.Equal(new[] { Moonshine }, viewModel.AvailableModels);
+            Assert.Equal(Moonshine, viewModel.ModelAlias);
+            Assert.Contains("1 of 2 on disk can stream", viewModel.ModelPickerHint, StringComparison.Ordinal);
+            Assert.True(viewModel.CanStartStreaming);
+        });
+    }
+
+    /// <summary>
+    /// Upstream records the model as able to stream, but this machine's own answer
+    /// is that it cannot; the picker keeps it (upstream's record is a real one) and
+    /// Start is refused with a reason.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AModelTheMachineSaysCannotStreamIsNotStarted()
     {
         RecordingStreamingService service = null!;
         StreamingViewModel viewModel = null!;
 
         InCache(() =>
         {
-            Plant(ModelStore.Catalog.Single(m => m.Alias == Moss));
-            var cache = new ModelCapabilityCache { Probe = _ => Snapshot(streams: false) };
+            Plant(Descriptor(Moonshine));
             service = new RecordingStreamingService();
-            viewModel = new StreamingViewModel(service, new SettingsViewModel(), cache);
+            viewModel = new StreamingViewModel(
+                service, new SettingsViewModel(),
+                new ModelCapabilityCache { Probe = _ => Snapshot(streams: false) });
             Settle(viewModel);
         });
+
+        Assert.Equal(new[] { Moonshine }, viewModel.AvailableModels);
+        Assert.False(viewModel.SelectedModelStreams);
+        Assert.False(viewModel.CanStartStreaming);
+        Assert.Contains("does not support streaming", viewModel.StreamingSupportHint, StringComparison.Ordinal);
 
         await viewModel.StartStreamingCommand.ExecuteAsync(null);
 
         Assert.Equal(0, service.StreamCalls);
-        Assert.Contains("does not support streaming", viewModel.StatusMessage, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// With no probe answer, upstream's catalog is what says no — the same source
-    /// the Models tab filters on.
+    /// A model the machine confirms streams leaves Start enabled and the hint empty.
     /// </summary>
     [AvaloniaFact]
-    public void UpstreamCatalogBlocksAModelWhoseProbeFailed()
+    public void AStreamingModelIsAllowed()
     {
         InCache(() =>
         {
-            Plant(ModelStore.Catalog.Single(m => m.Alias == Moss));
-            var cache = new ModelCapabilityCache
-            {
-                Probe = _ => throw new InvalidOperationException("cannot load"),
-            };
+            Plant(Descriptor(Moonshine));
             var viewModel = new StreamingViewModel(
-                new RecordingStreamingService(), new SettingsViewModel(), cache);
-            Settle(viewModel);
-
-            // The probe failed, so the loaded model has no answer; upstream does.
-            Assert.False(viewModel.CanStartStreaming);
-            Assert.Contains("does not support streaming", viewModel.StreamingSupportHint,
-                StringComparison.Ordinal);
-        });
-    }
-
-    /// <summary>
-    /// A model that streams is not blocked by upstream's "false": the loaded model
-    /// is the authoritative answer once it has been asked.
-    /// </summary>
-    [AvaloniaFact]
-    public void TheLoadedModelOverridesUpstreamWhenItStreams()
-    {
-        InCache(() =>
-        {
-            Plant(ModelStore.Catalog.Single(m => m.Alias == Moss));
-            var cache = new ModelCapabilityCache { Probe = _ => Snapshot(streams: true) };
-            var viewModel = new StreamingViewModel(
-                new RecordingStreamingService(), new SettingsViewModel(), cache);
+                new RecordingStreamingService(), new SettingsViewModel(),
+                new ModelCapabilityCache { Probe = _ => Snapshot(streams: true) });
             Settle(viewModel);
 
             Assert.True(viewModel.SelectedModelStreams);

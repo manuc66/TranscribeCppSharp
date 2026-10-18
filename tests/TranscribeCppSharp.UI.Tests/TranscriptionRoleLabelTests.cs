@@ -14,6 +14,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// of why a diarization-only model looked unsupported. The label now follows the
 /// model's role: transcribe, diarize, identify the language, or detect speech.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class TranscriptionRoleLabelTests
 {
     private static ModelCapabilitySnapshot Snapshot(TranscribeRole roles)

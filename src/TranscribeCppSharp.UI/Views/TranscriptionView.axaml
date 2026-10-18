@@ -216,7 +216,7 @@
                 AutomationProperties.Name="Transcription results">
       <TabItem Header="Text">
         <ScrollViewer>
-          <TextBlock Text="{Binding FullText}" TextWrapping="Wrap" />
+          <SelectableTextBlock Text="{Binding FullText}" TextWrapping="Wrap" />
         </ScrollViewer>
       </TabItem>
       <TabItem Header="Segments">

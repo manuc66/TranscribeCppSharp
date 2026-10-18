@@ -9,6 +9,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// The model manager's own state: which rows are worth a diarization check, and
 /// what a row shows while it is downloading.
 /// </summary>
+[Collection("UiGlobalState")]
 public class ModelManagerStateTests
 {
     private const string Moss = "moss-transcribe-diarize";

@@ -8,7 +8,7 @@
     <!-- Model selection -->
     <StackPanel Grid.Row="0" Margin="0,0,0,8">
       <TextBlock Text="Model" Classes="label"
-                 ToolTip.Tip="Which speech-to-text model to run. Downloaded from HuggingFace on first use and cached. Pick a family that supports streaming: the family-specific settings below only apply to the matching model." />
+                 ToolTip.Tip="Which speech-to-text model to run. Only downloaded models that can stream are listed — the Models tab filters the catalogue on the 'streaming' capability. A model is downloaded from HuggingFace on first use and cached." />
       <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch"
                 AutomationProperties.AutomationId="streaming-model"
                 AutomationProperties.Name="Model" />
@@ -134,9 +134,14 @@
               AutomationProperties.AutomationId="streaming-stop"
               AutomationProperties.Name="Stop streaming"
               ToolTip.Tip="Stop capturing and finalize the stream." />
-      <!-- Why Start is disabled when the selected model cannot stream. MOSS, the
-           default here, is one: upstream records streaming.supported = false and
-           the native library refuses with ErrNotImplemented. -->
+      <Button Content="Clear" Command="{Binding ClearTextCommand}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="streaming-clear"
+              AutomationProperties.Name="Clear text"
+              ToolTip.Tip="Empty the two text areas. While streaming, only text produced after the click appears again; the model keeps the audio context it already has." />
+      <!-- Why Start is disabled when the loaded model says the selected model
+           cannot stream. Models upstream records as unable to stream — MOSS, the
+           default, among them — are already left out of the picker, so this shows
+           when the machine's own answer disagrees with upstream's record. -->
       <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" Classes="danger"
                  Text="{Binding StreamingSupportHint}"
                  IsVisible="{Binding StreamingSupportHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
@@ -153,14 +158,14 @@
     <Grid Grid.Row="5" ColumnDefinitions="*,*" Margin="0,0,0,8">
       <Border Grid.Column="0" Classes="card" Padding="12" Margin="0,0,4,0">
         <ScrollViewer>
-          <TextBlock Text="{Binding CommittedText}" TextWrapping="Wrap"
+          <SelectableTextBlock Text="{Binding CommittedText}" TextWrapping="Wrap"
                      AutomationProperties.AutomationId="streaming-committed-text"
                      AutomationProperties.Name="Committed text" />
         </ScrollViewer>
       </Border>
       <Border Grid.Column="1" Classes="tentative">
         <ScrollViewer>
-          <TextBlock Text="{Binding TentativeText}" TextWrapping="Wrap" FontStyle="Italic"
+          <SelectableTextBlock Text="{Binding TentativeText}" TextWrapping="Wrap" FontStyle="Italic"
                      AutomationProperties.AutomationId="streaming-tentative-text"
                      AutomationProperties.Name="Tentative text" />
         </ScrollViewer>

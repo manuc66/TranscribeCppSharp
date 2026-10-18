@@ -15,7 +15,7 @@ public partial class BatchViewModel : ObservableObject
     private readonly SettingsViewModel _settings;
 
     [ObservableProperty]
-    private string _modelAlias = "moss-transcribe-diarize";
+    private string _modelAlias = string.Empty;
 
     [ObservableProperty]
     private string _language = "en";
@@ -83,7 +83,10 @@ public partial class BatchViewModel : ObservableObject
     /// <remarks>
     /// The selection has to be repaired rather than left alone: the picker only
     /// offers downloaded models, so an alias that was deleted would show as no
-    /// selection while still running a batch against a file that is not there.
+    /// selection while still running a batch against a file that is not there. The
+    /// repaired selection is the model this tab last ran when it is still offered,
+    /// so reopening the app lands on the model you were using; see
+    /// <see cref="DownloadedModelCatalog.Selection"/>.
     /// </remarks>
     private void LoadModels()
     {
@@ -93,14 +96,8 @@ public partial class BatchViewModel : ObservableObject
             AvailableModels.Add(alias);
         }
 
-        if (AvailableModels.Count == 0)
-        {
-            ModelAlias = string.Empty;
-        }
-        else if (!AvailableModels.Contains(ModelAlias))
-        {
-            ModelAlias = AvailableModels[0];
-        }
+        ModelAlias = DownloadedModelCatalog.Selection(
+            ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.BatchTab));
 
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
@@ -171,6 +168,7 @@ public partial class BatchViewModel : ObservableObject
         Progress = 0;
         StatusMessage = "Processing...";
         Results.Clear();
+        UiSettings.SetLastModel(UiSettings.BatchTab, ModelAlias);
 
         try
         {
