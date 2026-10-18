@@ -9,6 +9,17 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: a model upstream calls streaming but the machine says has no ASR stream drops out
+
+Sortformer (`diar_streaming_sortformer_4spk-v2.1`) is recorded upstream as
+`streaming.supported = true`, but that flag covers its streaming *diarization* API; this tab
+runs the ASR stream, which the loaded model reports it does not have. Upstream and the machine
+can therefore disagree, and the tab used to keep the model in the picker under a "does not
+support streaming" warning. The picker now reads the machine's answer once a model has been
+checked — from the capability cache shared with the Transcription tab — and leaves out a model
+the machine reports cannot stream, selecting the next one. Start is still gated on that same
+answer.
+
 ### UI: a model deleted while its streaming capabilities are read drops out quietly
 
 The Streaming tab reads the selected model's capabilities when it opens. A model deleted

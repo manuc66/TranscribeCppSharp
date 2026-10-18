@@ -173,8 +173,9 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     /// would block a model that works.
     /// <para>
     /// The picker already leaves out the models upstream records as unable to
-    /// stream, MOSS among them, so in practice this only overrides upstream when
-    /// the machine's own answer disagrees with it.
+    /// stream, and — once this machine has read one — any it reports has no ASR
+    /// stream (a diarizer such as Sortformer), so in practice this answers only
+    /// during the window before a check comes back.
     /// </para>
     /// </remarks>
     public bool SelectedModelStreams
@@ -206,6 +207,22 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
 
         return streaming.Supported;
     }
+
+    /// <summary>
+    /// Whether the picker should offer <paramref name="alias"/>.
+    /// </summary>
+    /// <remarks>
+    /// This machine's answer wins once it has been read; until then upstream's
+    /// declaration does. The two disagree for a model upstream marks as streaming
+    /// that has no ASR stream to drive — Sortformer, whose streaming API is
+    /// diarization, which this tab does not run. Reading the shared cache is what
+    /// lets the picker drop such a model after it has been checked, and lets it
+    /// use a check the Transcription tab already made.
+    /// </remarks>
+    private bool MayStream(string alias)
+        => _capabilityCache.TryGet(alias, out ModelCapabilitySnapshot? known)
+            ? known.SupportsStreaming
+            : DeclaredStreaming(alias);
 
     /// <summary>Whether any downloaded model can stream, which is what the picker
     /// offers.</summary>
@@ -244,11 +261,15 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
     /// Rebuilds the picker from what is on disk and repairs the selection.
     /// </summary>
     /// <remarks>
-    /// Only downloaded models that may stream are offered. The test is upstream's
-    /// pinned declaration — the same source the Models tab's capability filter
-    /// reads — because asking each model would load every downloaded one. A model
+    /// Only downloaded models that may stream are offered. The test is this
+    /// machine's own answer when it has been read, otherwise upstream's pinned
+    /// declaration — the same source the Models tab's capability filter reads —
+    /// because asking each model would load every downloaded one. A model
     /// upstream records as unable to stream is left out; one it says nothing about
-    /// is kept, because unknown is not a no.
+    /// is kept, because unknown is not a no. The two can disagree: upstream marks
+    /// Sortformer as streaming, but that is its streaming <em>diarization</em> API,
+    /// and this tab runs the ASR stream, which the loaded model reports it does not
+    /// have — so once checked it drops out too (see <see cref="MayStream"/>).
     /// <para>
     /// The selection has to be repaired rather than left alone: the picker only
     /// offers downloaded models, so an alias that was deleted — or filtered out —
@@ -266,7 +287,7 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         AvailableModels.Clear();
         foreach (string alias in onDisk)
         {
-            if (DeclaredStreaming(alias))
+            if (MayStream(alias))
             {
                 AvailableModels.Add(alias);
             }
@@ -355,6 +376,16 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
             {
                 ApplyCapabilities(alias, snapshot);
                 CapabilityStatus = string.Empty;
+
+                // The machine disagrees with upstream's record: it has no ASR
+                // stream to drive (Sortformer streams diarization, which this tab
+                // does not run). Rebuild the picker, which now reads this answer
+                // from the cache and leaves the model out, so the tab does not
+                // offer a model it would then refuse.
+                if (!snapshot.SupportsStreaming && AvailableModels.Contains(alias))
+                {
+                    LoadModels();
+                }
             }
         }
         catch (Exception) when (!File.Exists(path))

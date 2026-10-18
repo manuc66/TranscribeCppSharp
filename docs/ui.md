@@ -86,7 +86,8 @@ which is where the Models tab stops being usable.
 **What the three model pickers offer.** Transcription, Streaming and Batch list only the
 aliases already on disk, so an entry means you can run it now — with a fresh cache the list
 is empty and the button that starts a run is disabled. Streaming narrows that further to the
-models upstream records as able to stream, because a model that cannot stream has nothing to
+models that can stream — upstream's declaration when nothing has been checked, this machine's
+own answer once the model has been loaded — because a model that cannot stream has nothing to
 do on that tab. Under each picker sits a count and a
 `Get more…` button that switches to the Models tab, always visible rather than only once the
 list has run out: a picker with one entry does not tell you the other 71 exist. The list is
@@ -204,8 +205,16 @@ capability filter reads. MOSS, the default model, is not one of them: it declare
 `ErrNotImplemented`, and the two agree. With only MOSS on disk the picker is empty and the
 line under it points at the Models tab rather than offering a run that fails. A model upstream
 says nothing about is still offered — unknown is not a no — and Start then falls back to
-upstream's record until this machine has loaded the model and answered for itself, at which
-point the machine's answer wins.
+upstream's record until this machine has loaded the model and answered for itself.
+
+**Upstream and this machine can disagree, and the machine wins.** A Sortformer diarizer is
+recorded upstream as `streaming.supported = true`, but that is its streaming *diarization*
+API; this tab runs the ASR stream, and the loaded model reports it has none. Rather than keep
+such a model in the picker under a "does not support streaming" warning, the tab leaves it out
+once it has been checked — the same way it leaves out a model upstream itself records as unable
+to stream — and selects the next streaming model. This is why the tab can offer a model whose
+name says "streaming" only after it has actually loaded it and confirmed the ASR stream is
+there.
 
 Read [Real-time streaming](streaming.md) and [Streaming benchmarks](streaming-bench.md)
 before relying on this tab. In short, and unchanged by the GUI: the model default does not

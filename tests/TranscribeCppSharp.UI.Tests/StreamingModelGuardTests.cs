@@ -20,11 +20,11 @@ namespace TranscribeCppSharp.UI.Tests;
 /// MOSS is the default model here and upstream records <c>streaming.supported =
 /// false</c> for it, so the tab used to list it, let it be picked, and then refused
 /// to start it — reaching the user as one uncopyable line of status text. The picker
-/// now leaves out what upstream records as unable to stream (MOSS among them), and
-/// Start is still gated on the loaded model's own answer for the rest, so a model
-/// this machine cannot stream is not offered a run either. Both were asserted here
-/// before this one change; the tests pin the new split: the picker reads upstream,
-/// Start reads the machine.
+/// leaves out what upstream records as unable to stream. Upstream and this machine
+/// can still disagree — Sortformer is recorded as streaming, but that is its
+/// streaming diarization API, and the loaded model reports no ASR stream, which is
+/// what this tab runs — so once checked such a model drops out too, rather than
+/// sitting under a warning. Start stays gated on the loaded model as the last word.
 /// </remarks>
 [Collection("UiGlobalState")]
 public class StreamingModelGuardTests
@@ -33,6 +33,9 @@ public class StreamingModelGuardTests
 
     /// <summary>An alias upstream records as streaming-capable.</summary>
     private const string Moonshine = "moonshine-streaming-tiny";
+
+    /// <summary>A second streaming alias, to show the picker reselects.</summary>
+    private const string Nemotron = "nemotron-3.5-asr-streaming-0.6b";
 
     private static string WithEmptyCache()
     {
@@ -156,33 +159,53 @@ public class StreamingModelGuardTests
 
     /// <summary>
     /// Upstream records the model as able to stream, but this machine's own answer
-    /// is that it cannot; the picker keeps it (upstream's record is a real one) and
-    /// Start is refused with a reason.
+    /// is that it cannot. The model drops out of the picker rather than sitting
+    /// under a warning, and the next streaming model is selected instead.
     /// </summary>
     [AvaloniaFact]
-    public async Task AModelTheMachineSaysCannotStreamIsNotStarted()
+    public void AModelTheMachineSaysCannotStreamDropsOut()
     {
-        RecordingStreamingService service = null!;
-        StreamingViewModel viewModel = null!;
-
         InCache(() =>
         {
             Plant(Descriptor(Moonshine));
-            service = new RecordingStreamingService();
-            viewModel = new StreamingViewModel(
-                service, new SettingsViewModel(),
+            Plant(Descriptor(Nemotron));
+            var viewModel = new StreamingViewModel(
+                new RecordingStreamingService(), new SettingsViewModel(),
+                new ModelCapabilityCache
+                {
+                    Probe = path => Snapshot(streams: !path.Contains("moonshine", StringComparison.Ordinal)),
+                });
+            Settle(viewModel);
+
+            Assert.Equal(new[] { Nemotron }, viewModel.AvailableModels);
+            Assert.Equal(Nemotron, viewModel.ModelAlias);
+            Assert.True(viewModel.SelectedModelStreams);
+            Assert.True(viewModel.CanStartStreaming);
+            Assert.Empty(viewModel.StreamingSupportHint);
+        });
+    }
+
+    /// <summary>
+    /// The only model the machine says cannot stream leaves the picker empty, so
+    /// Start is refused and no per-model warning is shown for a model that is not
+    /// offered.
+    /// </summary>
+    [AvaloniaFact]
+    public void AModelTheMachineSaysCannotStreamLeavesNoOfferingWhenItIsAlone()
+    {
+        InCache(() =>
+        {
+            Plant(Descriptor(Moonshine));
+            var viewModel = new StreamingViewModel(
+                new RecordingStreamingService(), new SettingsViewModel(),
                 new ModelCapabilityCache { Probe = _ => Snapshot(streams: false) });
             Settle(viewModel);
+
+            Assert.Empty(viewModel.AvailableModels);
+            Assert.False(viewModel.HasStreamableModels);
+            Assert.False(viewModel.CanStartStreaming);
+            Assert.Empty(viewModel.StreamingSupportHint);
         });
-
-        Assert.Equal(new[] { Moonshine }, viewModel.AvailableModels);
-        Assert.False(viewModel.SelectedModelStreams);
-        Assert.False(viewModel.CanStartStreaming);
-        Assert.Contains("does not support streaming", viewModel.StreamingSupportHint, StringComparison.Ordinal);
-
-        await viewModel.StartStreamingCommand.ExecuteAsync(null);
-
-        Assert.Equal(0, service.StreamCalls);
     }
 
     /// <summary>
