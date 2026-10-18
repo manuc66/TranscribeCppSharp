@@ -142,6 +142,16 @@ is nothing to ask. The run button is also named for the model's role: Transcribe
 Identify language or Detect speech, so a diarization-only model no longer looks unsupported
 behind a button that says "Transcribe".
 
+### UI: a separate diarizer can be paired with a transcriber
+
+A model that cannot attribute speakers itself (Whisper, Parakeet) can now be paired with a
+downloaded model that serves only the DIARIZE role (Sortformer). The Transcription tab shows a
+Diarizer picker for such a model: it runs the transcriber, then the diarizer over the same
+audio, and gives each segment the speaker whose turn overlaps it most. The two run one after
+the other, so only one model is in memory at a time. The join is this app's, not the
+library's — transcribe.cpp has no combined ASR+diarizer entry point — and it is heuristic;
+nothing here claims the alignment is verified.
+
 ### Release assets: SBOM and checksums
 
 Every GitHub Release now attaches `TranscribeCppSharp.sbom.spdx.json` (the SPDX

@@ -16,27 +16,97 @@ public class TranscriptionService : ITranscriptionService
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        // Pass one: the selected model, through the role it serves.
+        TranscriptionResult result = await RunSelectedModel(
+            audioPath, modelPath, options, progress, cancellationToken).ConfigureAwait(false);
+
+        // Pass two: an optional separate diarizer, for a transcriber that cannot
+        // attribute speakers itself. It runs after pass one, with that model already
+        // disposed, so only one model is in memory at a time. A run that already has
+        // speaker turns — the model diarized, or a DIARIZE-role model — is left alone.
+        if (options.DiarizerModel is { Length: > 0 } diarizer
+            && result.SpeakerSegments.Count == 0)
+        {
+            List<SpeakerSegmentResult> turns = await RunDiarizer(
+                audioPath, diarizer, options, cancellationToken).ConfigureAwait(false);
+
+            result.SpeakerSegments = turns;
+            result.Segments = SpeakerAssignment.Apply(result.Segments, turns);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Runs the selected model through the role it serves.
+    /// </summary>
+    /// <remarks>
+    /// transcribe.cpp 0.4 gives the model roles; this runs the role the model serves
+    /// instead of always creating an ASR session (which throws UNSUPPORTED_ROLE on a
+    /// diarizer).
+    /// </remarks>
+    private static async Task<TranscriptionResult> RunSelectedModel(
+        string audioPath,
+        string modelPath,
+        TranscriptionOptions options,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
         var model = LoadModel(modelPath, options.BackendRequest, options.Device);
 
         try
         {
             using var audioSource = AudioLoader.Open(audioPath);
-
-            // transcribe.cpp 0.4 gives the model roles; this tab runs the role the
-            // model serves instead of always creating an ASR session (which throws
-            // UNSUPPORTED_ROLE on a diarizer).
             TranscribeRole roles = model.Roles;
 
             return await System.Threading.Tasks.Task.Run(
                 () => roles.HasFlag(TranscribeRole.Asr)
                     ? RunAsr(model, roles, options, audioSource, progress, cancellationToken)
                     : RunNonAsr(model, roles, options, audioSource, progress, cancellationToken),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             model.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Runs a DIARIZE-role model over the whole file and returns its speaker turns.
+    /// </summary>
+    /// <remarks>
+    /// The role is offline over a whole buffer — upstream has no streaming
+    /// diarization — so the whole file is read, as the role requires.
+    /// </remarks>
+    private static async Task<List<SpeakerSegmentResult>> RunDiarizer(
+        string audioPath,
+        string diarizerPath,
+        TranscriptionOptions options,
+        CancellationToken cancellationToken)
+    {
+        return await System.Threading.Tasks.Task.Run(() =>
+        {
+            var model = LoadModel(diarizerPath, options.BackendRequest, options.Device);
+
+            try
+            {
+                if (!model.Roles.HasFlag(TranscribeRole.Diarize))
+                {
+                    throw new InvalidOperationException(
+                        $"{diarizerPath} does not serve the DIARIZE role, so it cannot be used as a diarizer.");
+                }
+
+                using var audioSource = AudioLoader.Open(audioPath);
+                using var session = model.CreateDiarizeSession();
+                int total = (int)Math.Min(audioSource.LengthSamples, int.MaxValue);
+
+                return session.Run(audioSource.ReadWindow(0, total), ct: cancellationToken).ToList();
+            }
+            finally
+            {
+                model.Dispose();
+            }
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private static TranscriptionResult RunAsr(

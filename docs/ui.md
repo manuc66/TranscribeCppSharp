@@ -152,6 +152,13 @@ is nothing to ask — and the run button is named for what the model does (Trans
 Identify language or Detect speech) so the role is visible before the run rather than only in
 the result. See [Long audio and diarization](diarization.md).
 
+For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears
+instead: it offers the downloaded models that serve only the DIARIZE role (Sortformer). With
+one chosen, the tab runs the transcriber, then the diarizer over the same audio, and gives
+each segment the speaker whose turn overlaps it most. The two run one after the other, so
+only one model is in memory at a time. The join is this app's, not the library's, and it is
+heuristic — see [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
+
 The result is shown four ways: as text, as segments with timings, as words with timings, and
 as speaker-attributed segments. `Export` writes `.txt`, `.vtt` or `.json`, picked by the
 extension you type; the formats themselves are the same as

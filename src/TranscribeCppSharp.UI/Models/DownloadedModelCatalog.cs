@@ -1,5 +1,6 @@
 using System.Linq;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.SharedSource;
 
 namespace TranscribeCppSharp.UI.Models;
 
@@ -37,6 +38,41 @@ public static class DownloadedModelCatalog
             {
                 aliases.Add(descriptor.Alias);
             }
+        }
+
+        return aliases;
+    }
+
+    /// <summary>
+    /// Downloaded aliases that serve only the DIARIZE role — candidates for the
+    /// diarizer that is paired with a transcriber which cannot attribute speakers.
+    /// </summary>
+    /// <remarks>
+    /// Read from upstream's catalog (diarize supported, transcribe not), because a
+    /// model's roles are only known once it is loaded; the run confirms the role
+    /// before using it. Only one model qualifies today (Sortformer), but the list is
+    /// derived rather than written down.
+    /// </remarks>
+    public static IReadOnlyList<string> DiarizerAliases()
+    {
+        List<string> aliases = new();
+        foreach (ModelDescriptor descriptor in ModelStore.Catalog)
+        {
+            if (!ModelStore.IsCached(descriptor))
+            {
+                continue;
+            }
+
+            Dictionary<string, UpstreamCatalog.Capability>? caps =
+                UpstreamCatalog.Read(descriptor.Alias)?.Capabilities;
+            if (caps is null
+                || !caps.TryGetValue("diarize", out UpstreamCatalog.Capability? diarize) || !diarize.Supported
+                || !caps.TryGetValue("transcribe", out UpstreamCatalog.Capability? transcribe) || transcribe.Supported)
+            {
+                continue;
+            }
+
+            aliases.Add(descriptor.Alias);
         }
 
         return aliases;

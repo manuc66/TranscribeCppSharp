@@ -7,6 +7,18 @@ public class TranscriptionOptions
     public string Language { get; set; } = "en";
     public TimestampKind TimestampKind { get; set; } = TimestampKind.TimestampsSegment;
     public DiarizeMode DiarizeMode { get; set; } = DiarizeMode.DiarizeModeDefault;
+
+    /// <summary>
+    /// Alias of a separate diarizer to combine with the run, or null for none.
+    /// </summary>
+    /// <remarks>
+    /// For a transcriber that cannot attribute speakers itself: the model is run
+    /// over the same audio after the transcription, and its speaker turns are
+    /// joined to the segments by <see cref="Services.SpeakerAssignment"/>. The two
+    /// are separate native runs — transcribe.cpp has no combined entry point.
+    /// </remarks>
+    public string? DiarizerModel { get; set; }
+
     public PncMode? PncMode { get; set; }
     public ItnMode? ItnMode { get; set; }
     public BackendRequest? BackendRequest { get; set; }

@@ -220,6 +220,37 @@ public partial class TranscriptionViewModel : ObservableObject
         }
     }
 
+    /// <summary>The "no separate diarizer" entry, kept so the picker can reseat it.</summary>
+    private static readonly DiarizerOption NoDiarizer = new(null, "(none)");
+
+    /// <summary>
+    /// The diarizers that can be paired with the selected model: downloaded models
+    /// that serve only the DIARIZE role, plus "none".
+    /// </summary>
+    public ObservableCollection<DiarizerOption> DiarizerOptions { get; } = new();
+
+    /// <summary>
+    /// The diarizer to run after the transcription, or the "none" entry.
+    /// </summary>
+    [ObservableProperty]
+    private DiarizerOption? _selectedDiarizer;
+
+    /// <summary>
+    /// Whether the diarizer picker applies: a model that transcribes and cannot
+    /// attribute speakers itself.
+    /// </summary>
+    /// <remarks>
+    /// A model that already diarizes has no need of a second one, and a model that
+    /// only diarizes has nothing to pair with. Unknown shows nothing here, unlike
+    /// the other option groups: the picker is an addition to a run, and offering it
+    /// before the model has answered would add a control that may not apply.
+    /// </remarks>
+    public bool ShowDiarizerPicker
+        => _selectedCapabilities is { } caps
+        && caps.Roles.HasFlag(TranscribeRole.Asr)
+        && !caps.Supports(Feature.FeatureDiarization)
+        && !caps.Roles.HasFlag(TranscribeRole.Diarize);
+
     /// <summary>
     /// The work the selected model serves (transcribe.cpp 0.4 roles), shown under
     /// the picker so the tab says what it will run. Empty until the model answers.
@@ -318,6 +349,11 @@ public partial class TranscriptionViewModel : ObservableObject
         TargetOptions.Add(DefaultTargetOption);
         SelectedTargetOption = DefaultTargetOption;
 
+        // Seeded the same way: the picker must have an entry to match before
+        // LoadModels rebuilds the list from what is on disk.
+        DiarizerOptions.Add(NoDiarizer);
+        SelectedDiarizer = NoDiarizer;
+
         // The language list is seeded first, before LoadModels: that call can start
         // the capability probe, and a probe on a cache with nothing in it answers
         // synchronously by clearing this list and refilling it. Seeding afterwards
@@ -358,9 +394,33 @@ public partial class TranscriptionViewModel : ObservableObject
         ModelAlias = DownloadedModelCatalog.Selection(
             ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.TranscriptionTab));
 
+        LoadDiarizers();
+
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
         OnPropertyChanged(nameof(CanTranscribe));
+    }
+
+    /// <summary>
+    /// Rebuilds the diarizer picker from what is on disk, keeping the choice when it
+    /// is still offered.
+    /// </summary>
+    private void LoadDiarizers()
+    {
+        DiarizerOption? keep = SelectedDiarizer;
+
+        DiarizerOptions.Clear();
+        DiarizerOptions.Add(NoDiarizer);
+        foreach (string alias in DownloadedModelCatalog.DiarizerAliases())
+        {
+            DiarizerOptions.Add(new DiarizerOption(alias, alias));
+        }
+
+        // A remembered alias that is no longer offered — deleted — falls back to
+        // "none" rather than leaving the picker on something that is not there.
+        SelectedDiarizer = keep is not null
+            ? DiarizerOptions.FirstOrDefault(o => o.Alias == keep.Alias) ?? NoDiarizer
+            : NoDiarizer;
     }
 
     /// <summary>
@@ -470,6 +530,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowTranslate));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
         OnPropertyChanged(nameof(ShowDiarize));
+        OnPropertyChanged(nameof(ShowDiarizerPicker));
         OnPropertyChanged(nameof(RunButtonText));
         OnPropertyChanged(nameof(RolesHint));
         OnPropertyChanged(nameof(ShowAllowedLanguages));
@@ -644,6 +705,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 Language = Language,
                 TimestampKind = TimestampKind.TimestampsSegment,
                 DiarizeMode = DiarizeMode,
+                DiarizerModel = SelectedDiarizer?.Alias,
                 Threads = Threads,
                 KvType = SelectedKvType,
                 ContextSize = ContextSize,

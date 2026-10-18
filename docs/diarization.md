@@ -85,6 +85,30 @@ removed in 0.4. `transcribe_stream_params` has no `diarize` field in transcribe.
 v0.4.0 either, so the streaming API cannot request speaker attribution; we do not
 invent one.
 
+## Combining a diarizer with a transcriber
+
+The DIARIZE-role models (Sortformer) produce speaker turns and no text, so their use is to be
+paired with a transcriber that cannot attribute speakers itself. transcribe.cpp has **no
+combined entry point**: you run the two models separately and join the results.
+
+The app does exactly that. On the Transcription tab, a model that transcribes and cannot
+diarize shows a **Diarizer** picker, offering the downloaded DIARIZE-role models. With one
+chosen, the run is two passes: the transcriber over the audio, then the diarizer over the same
+audio, then a join — each transcript segment takes the speaker of the diarizer turn that
+overlaps it most, and a segment overlapping no turn keeps speaker 0. The two passes run one
+after the other, so only one model is in memory at a time.
+
+Two honest limits:
+
+- **The join is ours, not the library's**, and it is heuristic: the largest time overlap is a
+  choice, not a measurement. Nothing here claims it is verified against a reference alignment.
+- **The diarizer is offline and whole-buffer.** Sortformer reads the whole file at once and
+  the app loads it in memory for that pass; the transcriber's windowing does not apply to it.
+
+The wrapper exposes the two halves: `Model.CreateSession` with `WithDiarize` for an ASR model
+that can diarize, and `Model.CreateDiarizeSession` for one that only does. Pairing them is the
+caller's job.
+
 ## What is verified, and what CI does not run
 
 Verified end to end with MOSS Transcribe-Diarize Q4_K_M on the JFK sample:

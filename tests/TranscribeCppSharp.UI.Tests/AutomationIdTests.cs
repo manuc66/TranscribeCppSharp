@@ -38,6 +38,7 @@ public class AutomationIdTests
         "transcription-target-language",
         "transcription-window-seconds",
         "transcription-diarize",
+        "transcription-diarizer",
         "transcription-spec-k-drafts",
         "transcription-keep-special-tags",
         "transcription-run",
