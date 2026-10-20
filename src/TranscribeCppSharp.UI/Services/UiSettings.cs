@@ -209,14 +209,36 @@ public static class UiSettings
 
     private static void Write(Document document)
     {
+        // Write a sibling and rename it into place: a crash during
+        // File.WriteAllText would otherwise leave a truncated file that the next
+        // launch reads as "no settings at all". The rename is atomic on the file
+        // systems the app targets, so a reader sees either the old file or the
+        // new one, never a half-written one.
+        string path = FilePath;
+        string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(document, Json));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(temporary, JsonSerializer.Serialize(document, Json));
+            File.Move(temporary, path, overwrite: true);
         }
         catch (Exception)
         {
             // Losing the preference must not become the failure the reader sees.
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temporary))
+                {
+                    File.Delete(temporary);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A leftover .tmp is harmless; the next write uses a new name.
+            }
         }
     }
 
