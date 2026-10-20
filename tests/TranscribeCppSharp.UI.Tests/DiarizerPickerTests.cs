@@ -15,7 +15,10 @@ public class DiarizerPickerTests
 {
     private const string Sortformer = "diar_streaming_sortformer_4spk-v2.1";
 
-    private static ModelCapabilitySnapshot Snapshot(TranscribeRole roles, bool diarizeFeature = false)
+    private static ModelCapabilitySnapshot Snapshot(
+        TranscribeRole roles,
+        bool diarizeFeature = false,
+        TimestampKind maxTimestamps = TimestampKind.TimestampsSegment)
         => new(
             Architecture: "test",
             Variant: "test",
@@ -26,7 +29,8 @@ public class DiarizerPickerTests
             SupportsSpecDecode: false,
             Features: diarizeFeature ? new HashSet<Feature> { Feature.FeatureDiarization } : new HashSet<Feature>(),
             Languages: Array.Empty<string>(),
-            TranslateTargetLanguages: Array.Empty<string>());
+            TranslateTargetLanguages: Array.Empty<string>(),
+            MaxTimestampKind: maxTimestamps);
 
     private static void Plant(string alias)
     {
@@ -104,6 +108,84 @@ public class DiarizerPickerTests
 
             Assert.Single(viewModel.DiarizerOptions);
             Assert.Null(viewModel.DiarizerOptions[0].Alias);
+        });
+    }
+
+    [Fact]
+    public void ThePickerNeedsSegmentTimingsAndSaysWhyWhenTheyAreMissing()
+    {
+        // Without timings there is nothing to overlap a speaker turn with, so the
+        // join cannot work. Offering the picker anyway would promise an attribution
+        // the app cannot produce.
+        InCache(() =>
+        {
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+
+            viewModel.ApplyCapabilities(
+                Snapshot(TranscribeRole.Asr, maxTimestamps: TimestampKind.TimestampsNone));
+            Assert.False(viewModel.ShowDiarizerPicker);
+            Assert.True(viewModel.ShowDiarizerUnavailableHint);
+            Assert.Contains("timings", viewModel.DiarizerUnavailableHint, StringComparison.OrdinalIgnoreCase);
+
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+            Assert.True(viewModel.ShowDiarizerPicker);
+            Assert.False(viewModel.ShowDiarizerUnavailableHint);
+        });
+    }
+
+    [Fact]
+    public void ThePickerSaysWhichTwoModelsWillRun()
+    {
+        InCache(() =>
+        {
+            Plant(Sortformer);
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            // The alias first: changing it starts a probe that clears the snapshot
+            // when the model is not on disk, which would undo the one below.
+            viewModel.ModelAlias = "whisper-tiny";
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+
+            // Nothing chained: say what that means rather than leaving the reader to
+            // assume the model attributes speakers.
+            Assert.Contains("Speaker 0", viewModel.DiarizerPlan);
+
+            viewModel.SelectedDiarizer = viewModel.DiarizerOptions.Single(o => o.Alias == Sortformer);
+
+            Assert.Contains("whisper-tiny", viewModel.DiarizerPlan);
+            Assert.Contains(Sortformer, viewModel.DiarizerPlan);
+            Assert.Contains("two passes", viewModel.DiarizerPlan, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    [Fact]
+    public void ADiarizerThatDeclaresOneLanguageWarnsWhenAnotherIsSelected()
+    {
+        // Sortformer's catalog record declares English only. Pairing it with a
+        // French transcription is possible, and the app must say so instead of
+        // letting the reader believe the attribution is language-agnostic.
+        InCache(() =>
+        {
+            Plant(Sortformer);
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+            viewModel.SelectedDiarizer = viewModel.DiarizerOptions.Single(o => o.Alias == Sortformer);
+
+            viewModel.Language = "en";
+            Assert.False(viewModel.HasDiarizerLanguageWarning);
+
+            viewModel.Language = "fr";
+            Assert.True(viewModel.HasDiarizerLanguageWarning);
+            Assert.Contains(Sortformer, viewModel.DiarizerLanguageWarning);
+            Assert.Contains("fr", viewModel.DiarizerLanguageWarning);
+            Assert.Contains("en", viewModel.DiarizerLanguageWarning);
+
+            // Auto-detection has not chosen a language yet, so there is nothing to
+            // contradict.
+            viewModel.Language = "auto";
+            Assert.False(viewModel.HasDiarizerLanguageWarning);
         });
     }
 }

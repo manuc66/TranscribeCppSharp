@@ -14,27 +14,53 @@ public class TranscriptionService : ITranscriptionService
         string modelPath,
         TranscriptionOptions options,
         IProgress<double>? progress = null,
+        IProgress<TranscriptionPhase>? phase = null,
         CancellationToken cancellationToken = default)
     {
+        bool chain = options.DiarizerModel is { Length: > 0 };
+
+        // Pass one covers 90% of the bar when a second pass follows, so the bar
+        // reaching 100% means the whole run is done and not just the transcript.
+        // The split is a phase marker, not a measured estimate: pass two reports no
+        // finer progress because the diarizer runs the whole buffer in one call.
+        IProgress<double>? passOneProgress = chain && progress is not null
+            ? new ScaledProgress(progress, 0.9)
+            : progress;
+
         // Pass one: the selected model, through the role it serves.
         TranscriptionResult result = await RunSelectedModel(
-            audioPath, modelPath, options, progress, cancellationToken).ConfigureAwait(false);
+            audioPath, modelPath, options, passOneProgress, cancellationToken).ConfigureAwait(false);
 
         // Pass two: an optional separate diarizer, for a transcriber that cannot
         // attribute speakers itself. It runs after pass one, with that model already
         // disposed, so only one model is in memory at a time. A run that already has
         // speaker turns — the model diarized, or a DIARIZE-role model — is left alone.
-        if (options.DiarizerModel is { Length: > 0 } diarizer
-            && result.SpeakerSegments.Count == 0)
+        if (chain && result.SpeakerSegments.Count == 0)
         {
+            phase?.Report(TranscriptionPhase.Diarizing);
+            progress?.Report(0.95);
+
             List<SpeakerSegmentResult> turns = await RunDiarizer(
-                audioPath, diarizer, options, cancellationToken).ConfigureAwait(false);
+                audioPath, options.DiarizerModel!, options, cancellationToken).ConfigureAwait(false);
 
             result.SpeakerSegments = turns;
             result.Segments = SpeakerAssignment.Apply(result.Segments, turns);
+            progress?.Report(1.0);
+        }
+        else
+        {
+            // Nothing chained, or the model attributed speakers itself: pass one was
+            // the whole run.
+            progress?.Report(1.0);
         }
 
         return result;
+    }
+
+    /// <summary>Maps a pass's 0–1 progress onto a sub-range of the whole run.</summary>
+    private sealed class ScaledProgress(IProgress<double> inner, double factor) : IProgress<double>
+    {
+        public void Report(double value) => inner.Report(value * factor);
     }
 
     /// <summary>

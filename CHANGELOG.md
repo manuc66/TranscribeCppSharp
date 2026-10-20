@@ -9,6 +9,26 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the diarizer picker refuses the combinations that cannot work, and explains the ones that might
+
+The **Diarizer** picker is now offered only when the transcriber reports at least segment
+timings. 37 of the 73 ASR aliases in the pinned catalog declare no timestamps, and a speaker
+turn cannot be joined to segments that carry no time — the run would have left every segment as
+`Speaker 0` without saying so. Those models get a note in the picker's place instead of a
+control that cannot deliver.
+
+Under the picker, a plan line names the two models and says the second pass adds speaker turns,
+not text. A warning quotes the diarizer's catalog record when the chosen language is not among
+its declared languages — Sortformer's record declares English only — and says that the catalog
+is upstream's statement, not a measurement made here. A language left to detection shows no
+warning.
+
+A chained run is now two visible phases: pass one covers 90% of the bar, the status says
+**Diarizing…** while the second pass runs, and the bar holds at 95% until the diarizer returns.
+The split is a phase marker, not a time estimate. The service exposes `TranscriptionPhase`
+through the progress callback for this, and the view model reports progress inline so a phase
+update cannot arrive after the run has completed.
+
 ### UI: a local history, saved automatically
 
 A finished transcription is now written to `<cache>/../history/<timestamp>.json`, beside the log

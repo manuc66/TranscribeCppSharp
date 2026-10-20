@@ -109,6 +109,26 @@ The wrapper exposes the two halves: `Model.CreateSession` with `WithDiarize` for
 that can diarize, and `Model.CreateDiarizeSession` for one that only does. Pairing them is the
 caller's job.
 
+### What the picker says before the run
+
+The **Diarizer** picker is offered only for a transcriber that reports at least segment
+timestamps. A model that emits no timings cannot be joined — there is nothing to overlap a
+speaker turn with — so the tab shows a note in the picker's place instead of a control that
+would silently leave every segment as `Speaker 0`. (37 of the 73 ASR aliases in the pinned
+catalog declare no timestamps.)
+
+Under the picker, a plan line names the two models — for example *"Two passes: whisper-tiny,
+then diar_streaming_sortformer_4spk-v2.1 over the same audio. The second pass adds speaker
+turns, not text."* — and a warning appears when the diarizer's catalog record does not declare
+the chosen language. Sortformer's record declares **English only**, so a French transcription
+shows that warning before the run rather than after it. The warning quotes the pinned catalog,
+which is upstream's statement; this project has not measured the diarizer on French audio.
+
+During the second pass the status says **Diarizing…** and the bar holds at 95%: the diarizer
+runs the whole buffer in one call and reports no finer progress. Reaching 100% means the whole
+run is done, not just the transcript. The 90% / 95% split is a phase marker, not a measured
+estimate of how long each pass takes.
+
 ## What is verified, and what CI does not run
 
 Verified end to end with MOSS Transcribe-Diarize Q4_K_M on the JFK sample:

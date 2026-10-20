@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 
@@ -298,7 +299,89 @@ public partial class TranscriptionViewModel : ObservableObject
         => _selectedCapabilities is { } caps
         && caps.Roles.HasFlag(TranscribeRole.Asr)
         && !caps.Supports(Feature.FeatureDiarization)
-        && !caps.Roles.HasFlag(TranscribeRole.Diarize);
+        && !caps.Roles.HasFlag(TranscribeRole.Diarize)
+        && caps.MaxTimestampKind >= TimestampKind.TimestampsSegment;
+
+    /// <summary>
+    /// Whether the tab has to explain why no diarizer can be chained: the model
+    /// transcribes, cannot attribute speakers, and reports no segment timings.
+    /// </summary>
+    /// <remarks>
+    /// Without timings there is nothing to overlap a speaker turn with, so the join
+    /// would silently leave every segment as Speaker 0. Hiding the picker silently
+    /// would be just as misleading, hence the note in its place.
+    /// </remarks>
+    public bool ShowDiarizerUnavailableHint
+        => _selectedCapabilities is { } caps
+        && caps.Roles.HasFlag(TranscribeRole.Asr)
+        && !caps.Supports(Feature.FeatureDiarization)
+        && !caps.Roles.HasFlag(TranscribeRole.Diarize)
+        && caps.MaxTimestampKind < TimestampKind.TimestampsSegment;
+
+    /// <summary>Why the diarizer picker is absent, in the reader's terms.</summary>
+    public string DiarizerUnavailableHint
+    {
+        get
+        {
+            string model = string.IsNullOrEmpty(ModelAlias) ? "This model" : ModelAlias;
+            return $"{model} reports no segment timings, so a separate diarizer cannot be "
+                + "joined to it: there is nothing to overlap a speaker turn with. Pick a model "
+                + "that emits timestamps, or one that attributes speakers itself.";
+        }
+    }
+
+    /// <summary>
+    /// What the run will actually do about speaker attribution, said before it
+    /// starts rather than inferred from two controls with similar names.
+    /// </summary>
+    public string DiarizerPlan
+    {
+        get
+        {
+            if (!ShowDiarizerPicker)
+            {
+                return string.Empty;
+            }
+
+            if (SelectedDiarizer?.Alias is not { } alias)
+            {
+                return "No separate diarizer: every segment stays Speaker 0.";
+            }
+
+            string model = string.IsNullOrEmpty(ModelAlias) ? "the selected model" : ModelAlias;
+            return $"Two passes: {model}, then {alias} over the same audio. "
+                + "The second pass adds speaker turns, not text.";
+        }
+    }
+
+    /// <summary>
+    /// A warning when the diarizer's catalog record does not declare the chosen
+    /// language. Empty while no diarizer is chosen, the model declares nothing, or
+    /// the language is left to detection.
+    /// </summary>
+    public string DiarizerLanguageWarning
+    {
+        get
+        {
+            if (SelectedDiarizer is not { Alias: not null, Languages: { Count: > 0 } languages } option)
+            {
+                return string.Empty;
+            }
+
+            if (Language is "auto" or "")
+            {
+                return string.Empty;
+            }
+
+            return languages.Contains(Language, StringComparer.OrdinalIgnoreCase)
+                ? string.Empty
+                : $"{option.Label} declares {string.Join(", ", languages)} only; "
+                    + $"the selected language is {Language}.";
+        }
+    }
+
+    /// <summary>Whether <see cref="DiarizerLanguageWarning"/> has something to say.</summary>
+    public bool HasDiarizerLanguageWarning => DiarizerLanguageWarning.Length > 0;
 
     /// <summary>
     /// The work the selected model serves (transcribe.cpp 0.4 roles), shown under
@@ -491,7 +574,8 @@ public partial class TranscriptionViewModel : ObservableObject
         DiarizerOptions.Add(NoDiarizer);
         foreach (string alias in DownloadedModelCatalog.DiarizerAliases())
         {
-            DiarizerOptions.Add(new DiarizerOption(alias, alias));
+            IReadOnlyList<string> languages = UpstreamCatalog.Read(alias)?.Languages ?? [];
+            DiarizerOptions.Add(new DiarizerOption(alias, alias, languages));
         }
 
         // A remembered alias that is no longer offered — deleted — falls back to
@@ -507,7 +591,24 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </summary>
     public void RefreshModels() => LoadModels();
 
-    partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
+    partial void OnModelAliasChanged(string value)
+    {
+        RequestCapabilityProbe(value);
+        OnPropertyChanged(nameof(DiarizerPlan));
+    }
+
+    partial void OnSelectedDiarizerChanged(DiarizerOption? value)
+    {
+        OnPropertyChanged(nameof(DiarizerPlan));
+        OnPropertyChanged(nameof(DiarizerLanguageWarning));
+        OnPropertyChanged(nameof(HasDiarizerLanguageWarning));
+    }
+
+    partial void OnLanguageChanged(string value)
+    {
+        OnPropertyChanged(nameof(DiarizerLanguageWarning));
+        OnPropertyChanged(nameof(HasDiarizerLanguageWarning));
+    }
 
     partial void OnMarkPausesChanged(bool value) => PersistExportOptions();
 
@@ -674,6 +775,9 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowVocabulary));
         OnPropertyChanged(nameof(ShowDiarize));
         OnPropertyChanged(nameof(ShowDiarizerPicker));
+        OnPropertyChanged(nameof(ShowDiarizerUnavailableHint));
+        OnPropertyChanged(nameof(DiarizerUnavailableHint));
+        OnPropertyChanged(nameof(DiarizerPlan));
         OnPropertyChanged(nameof(RunButtonText));
         OnPropertyChanged(nameof(RolesHint));
         OnPropertyChanged(nameof(ShowAllowedLanguages));
@@ -922,10 +1026,19 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             var options = BuildTranscriptionOptions();
 
-            var progress = new Progress<double>(p => Progress = p);
+            // Inline rather than Progress<T>: the updates are already reported on the
+            // thread the run resumes on, and posting them would let "Diarizing…"
+            // arrive after the run has finished.
+            var progress = new InlineProgress<double>(p => Progress = p);
+            var phase = new InlineProgress<TranscriptionPhase>(p => StatusMessage = p switch
+            {
+                TranscriptionPhase.Diarizing =>
+                    "Diarizing… the transcript is complete; a separate diarizer is attributing speakers.",
+                _ => "Transcribing...",
+            });
 
             Result = await _transcriptionService.TranscribeAsync(
-                AudioPath, ModelAlias, options, progress, cancellation.Token);
+                AudioPath, ModelAlias, options, progress, phase, cancellation.Token);
 
             ShowResult(
                 Result,
@@ -1042,6 +1155,16 @@ public partial class TranscriptionViewModel : ObservableObject
         string Language,
         string Diarize,
         int WindowSeconds);
+
+    /// <summary>
+    /// Reports on the calling thread instead of posting to the captured context.
+    /// The service already resumes on the UI thread, and posting let a phase update
+    /// land after the run had completed and overwritten the status.
+    /// </summary>
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
 
     [RelayCommand]
     private async System.Threading.Tasks.Task ExportAsync()

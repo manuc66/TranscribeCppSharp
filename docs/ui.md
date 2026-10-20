@@ -175,6 +175,11 @@ one chosen, the tab runs the transcriber, then the diarizer over the same audio,
 each segment the speaker whose turn overlaps it most. The two run one after the other, so
 only one model is in memory at a time. The join is this app's, not the library's, and it is
 heuristic — see [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
+The picker appears only when the transcriber reports segment timings, and the note in its
+place explains the absence when it does not. Under it, a plan line names the two models, and a
+warning quotes the diarizer's declared languages when the chosen language is not among them
+(Sortformer declares English only). During the second pass the status says **Diarizing…** and
+the bar holds at 95%, because the diarizer reports no finer progress.
 
 The result is shown four ways: as text, as segments with timings, as words with timings, and
 as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html`, `.md` or `.json`, picked by the

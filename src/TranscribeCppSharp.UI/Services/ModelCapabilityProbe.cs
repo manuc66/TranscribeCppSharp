@@ -21,7 +21,8 @@ public sealed record ModelCapabilitySnapshot(
     bool SupportsSpecDecode,
     IReadOnlySet<Feature> Features,
     IReadOnlyList<string> Languages,
-    IReadOnlyList<string> TranslateTargetLanguages)
+    IReadOnlyList<string> TranslateTargetLanguages,
+    TimestampKind MaxTimestampKind = TimestampKind.TimestampsSegment)
 {
     /// <summary>Whether the model reports a given feature.</summary>
     public bool Supports(Feature feature) => Features.Contains(feature);
@@ -70,7 +71,8 @@ public static class ModelCapabilityProbe
             SupportsSpecDecode: capabilities?.SupportsSpecDecode ?? false,
             Features: features,
             Languages: capabilities?.Languages ?? [],
-            TranslateTargetLanguages: capabilities?.TranslateTargetLanguages ?? []);
+            TranslateTargetLanguages: capabilities?.TranslateTargetLanguages ?? [],
+            MaxTimestampKind: capabilities?.MaxTimestampKind ?? TimestampKind.TimestampsNone);
     }
 }
 

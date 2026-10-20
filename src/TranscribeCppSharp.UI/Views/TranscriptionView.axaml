@@ -227,6 +227,21 @@
             </DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
+        <TextBlock Text="{Binding DiarizerPlan}" Classes="hint" TextWrapping="Wrap" Margin="0,4,0,0"
+                   AutomationProperties.AutomationId="transcription-diarizer-plan"
+                   AutomationProperties.Name="Diarizer plan" />
+        <TextBlock Text="{Binding DiarizerLanguageWarning}" Classes="danger" TextWrapping="Wrap" Margin="0,4,0,0"
+                   IsVisible="{Binding HasDiarizerLanguageWarning}"
+                   AutomationProperties.AutomationId="transcription-diarizer-language-warning"
+                   AutomationProperties.Name="Diarizer language warning" />
+      </StackPanel>
+      <!-- The same place, when there is no join to offer: saying why is better
+           than a control that silently disappears. -->
+      <StackPanel Grid.Column="2" Margin="8,0,0,0" IsVisible="{Binding ShowDiarizerUnavailableHint}">
+        <TextBlock Text="Speaker attribution" Classes="label" />
+        <TextBlock Text="{Binding DiarizerUnavailableHint}" Classes="hint" TextWrapping="Wrap"
+                   AutomationProperties.AutomationId="transcription-diarizer-unavailable"
+                   AutomationProperties.Name="Diarizer unavailable" />
       </StackPanel>
     </Grid>
 

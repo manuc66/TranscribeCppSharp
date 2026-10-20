@@ -16,7 +16,7 @@ internal sealed class StubTranscriptionService : ITranscriptionService
     /// <inheritdoc/>
     public Task<TranscriptionResult> TranscribeAsync(
         string audioPath, string modelPath, TranscriptionOptions options,
-        IProgress<double>? progress = null, CancellationToken cancellationToken = default)
+        IProgress<double>? progress = null, IProgress<TranscriptionPhase>? phase = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 
     /// <inheritdoc/>
