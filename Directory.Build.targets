@@ -35,4 +35,33 @@
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="All" />
   </ItemGroup>
 
+  <!-- Keep a local Debug build from carrying every platform's native assets.
+
+       A build without a RuntimeIdentifier copies the whole runtimes/ tree of the
+       UI's dependencies (SkiaSharp, HarfBuzzSharp): every OS and architecture,
+       including about 320 MiB of Windows .pdb files that are never loaded. On
+       this Linux machine that made src/TranscribeCppSharp.UI/bin/Debug 629 MiB,
+       of which 356 MiB was the Windows trees and 19 MiB the macOS one. Only the
+       host's family is loadable there, so after a Debug build with no RID this
+       removes the other families' directories. The host's own assets and the
+       native libraries CopyNativeLib.targets places at the output root are
+       untouched, and a publish (-r <rid>) keeps the full portable output. -->
+  <Target Name="TrimForeignNativeAssets"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Debug'
+                     and '$(RuntimeIdentifier)' == ''
+                     and Exists('$(OutDir)runtimes')">
+    <ItemGroup>
+      <!-- Directory.GetDirectories, not an Include glob: MSBuild globs expand to
+           files, and runtimes/ holds only directories, so a glob matched nothing. -->
+      <_ForeignNativeAsset Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes', 'win*'))"
+                           Condition="$([MSBuild]::IsOSPlatform('Linux')) Or $([MSBuild]::IsOSPlatform('OSX'))" />
+      <_ForeignNativeAsset Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes', 'osx*'))"
+                           Condition="$([MSBuild]::IsOSPlatform('Linux')) Or $([MSBuild]::IsOSPlatform('Windows'))" />
+      <_ForeignNativeAsset Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes', 'linux*'))"
+                           Condition="$([MSBuild]::IsOSPlatform('Windows')) Or $([MSBuild]::IsOSPlatform('OSX'))" />
+    </ItemGroup>
+    <RemoveDir Directories="@(_ForeignNativeAsset)" />
+  </Target>
+
 </Project>

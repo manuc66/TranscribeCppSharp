@@ -38,6 +38,15 @@ Every command above needs `tools/FetchNative` to have run first, so the native
 libraries are in the output directory. The screenshot generator does too — it
 opens the real window, which initializes the compute backends.
 
+A local **Debug** build prunes the other platforms' native assets from its
+output. A build with no `RuntimeIdentifier` otherwise carries every
+`runtimes/<rid>` tree of Avalonia's SkiaSharp and HarfBuzzSharp dependencies —
+about 375 MiB of Windows and macOS files on Linux, which this host cannot load
+(measured here: the UI's Debug output went from 629 MiB to 256 MiB). The host's
+own tree and the native libraries `CopyNativeLib.targets` places at the output
+root are kept, and a publish (`-r <rid>`) keeps the full portable output. See the
+target and its comment in `Directory.Build.targets`.
+
 The screenshots are byte-identical across runs **on one machine**, which is what
 makes regenerating them safe: on that machine, a changed PNG means something in
 the UI changed. They are **not** reproducible between machines. The fonts, the
