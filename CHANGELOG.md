@@ -9,6 +9,28 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Robustness: failures are reported, not thrown out of the app
+
+Several failure paths used to end in an unhandled exception or in lost work rather than a
+message:
+
+- `ui-settings.json` is written to a sibling file and renamed into place, so a crash mid-write
+  no longer leaves a truncated file that the next launch reads as "no settings at all".
+- The History tab returns the entries it could read when its folder cannot be enumerated,
+  instead of failing to construct the tab; a delete that races another delete is not an error.
+- Exporting a single transcript or a batch result reports a write failure in the status line
+  and the log. It used to throw out of the async command on a read-only, full or vanished disk.
+- A batch records a file it cannot read as an `Error:` row and continues with the rest. Before,
+  one missing file discarded the items that had finished and skipped every file after it. The
+  progress and summary now describe the queue the batch started with, even if files are added
+  while it runs.
+- A cached weight file whose size disagrees with the manifest/LFS record is downloaded again
+  instead of being reused as a permanent cache hit. A same-size corruption is still not
+  detected: hashing multi-GB weights on every resolve would cost more than it prevents.
+- The CLI catches a failure that has no specific handler (for example a file that is not a
+  GGUF reaching `Model.Load`) and prints one line with exit code 1, as its help promises,
+  instead of a stack trace and a crash.
+
 ### UI: say what can be said about memory before a run
 
 The Settings tab now shows **Total** and **Free** per device and names the device the current
