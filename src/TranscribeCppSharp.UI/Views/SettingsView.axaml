@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TranscribeCppSharp.UI.ViewModels"
              xmlns:c="using:TranscribeCppSharp.UI.Converters"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="TranscribeCppSharp.UI.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
 
@@ -13,7 +14,19 @@
        a star row for the grid pushed the About footer to the bottom of the
        viewport and left a screenful of empty space between them. The tab scrolls
        when there are more devices than fit, which is what the list needed. -->
-  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+  <DockPanel Margin="{DynamicResource PagePadding}">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+      <Border Classes="pageIcon">
+        <materialIcons:MaterialIcon Kind="Cog" />
+      </Border>
+      <StackPanel>
+        <TextBlock Classes="pageTitle" Text="Settings" />
+        <TextBlock Classes="pageDescription"
+                   Text="Compute backend, cache directory and the devices this build and this machine can see." />
+      </StackPanel>
+    </StackPanel>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
     <!-- Backend and device -->
     <StackPanel Grid.Row="0" Margin="0,0,0,16">
       <Grid ColumnDefinitions="*,*">
@@ -70,10 +83,15 @@
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
         <TextBlock Grid.Column="0" Text="Available Devices" Classes="section"
                    ToolTip.Tip="Compute devices this build and this machine can see. Free is a live snapshot as of the last refresh; a dash means the device did not report it." />
-        <Button Grid.Column="1" Content="Refresh devices" Command="{Binding RefreshDevicesCommand}"
+        <Button Grid.Column="1" Command="{Binding RefreshDevicesCommand}"
                 AutomationProperties.AutomationId="settings-refresh-devices"
                 AutomationProperties.Name="Refresh devices"
-                ToolTip.Tip="Re-read the device list and its free-memory figures. The values are a snapshot, not a live monitor." />
+                ToolTip.Tip="Re-read the device list and its free-memory figures. The values are a snapshot, not a live monitor.">
+          <StackPanel Classes="buttonContent">
+            <materialIcons:MaterialIcon Kind="Refresh" />
+            <TextBlock Text="Refresh devices" />
+          </StackPanel>
+        </Button>
       </Grid>
       <DataGrid ItemsSource="{Binding Devices}" AutoGenerateColumns="False" IsReadOnly="True"
                 AutomationProperties.AutomationId="settings-devices"
@@ -102,5 +120,6 @@
       <SelectableTextBlock Text="https://github.com/manuc66/TranscribeCppSharp" Margin="0,6,0,0" />
       <SelectableTextBlock Text="https://github.com/handy-computer/transcribe.cpp" />
     </StackPanel>
-  </Grid>
+    </Grid>
+  </DockPanel>
 </UserControl>

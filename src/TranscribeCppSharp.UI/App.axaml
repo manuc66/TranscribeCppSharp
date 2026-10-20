@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="TranscribeCppSharp.UI.App"
              RequestedThemeVariant="Default">
   <Application.Resources>
@@ -14,6 +15,9 @@
 
   <Application.Styles>
     <FluentTheme />
+    <!-- The default template of MaterialIcon, from its own package. Without it
+         the control has no template and every icon draws nothing. -->
+    <materialIcons:MaterialIconStyles />
     <!-- The DataGrid template lives in its own package's theme file; FluentTheme
          does not pull it in. Without this the grid has no template and draws
          nothing. -->

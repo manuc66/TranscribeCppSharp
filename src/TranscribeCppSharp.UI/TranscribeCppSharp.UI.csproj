@@ -51,6 +51,11 @@
          error. Four of the five views use it. -->
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <!-- Vector icons, drawn from SVG paths: no image files to keep in sync, and
+         they inherit the foreground of the button or tab they sit in. 3.0.2 is
+         the version the sibling DuplicateFileAssistant app uses on the same
+         Avalonia 12.1.4, so the two apps render them the same way. -->
+    <PackageReference Include="Material.Icons.Avalonia" Version="3.0.2" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.402" />

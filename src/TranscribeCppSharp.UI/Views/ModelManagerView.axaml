@@ -3,6 +3,7 @@
              xmlns:vm="using:TranscribeCppSharp.UI.ViewModels"
              xmlns:m="using:TranscribeCppSharp.UI.Models"
              xmlns:c="using:TranscribeCppSharp.UI.Converters"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="TranscribeCppSharp.UI.Views.ModelManagerView"
              x:DataType="vm:ModelManagerViewModel">
 
@@ -23,8 +24,16 @@
     <!-- What to look for, and where the weights are -->
     <Border Grid.Row="0" Classes="card" Margin="0,0,0,8"
             ToolTip.Tip="72 models are published by the transcribe.cpp authors. This project publishes no accuracy comparison between them, so there is nothing here to rank them by. Pick on size, licence, or measure the ones you have.">
-      <TextBlock TextWrapping="Wrap"
-                 Text="No model is faster or more accurate than another as far as this project has measured: docs/streaming-bench.md is the only benchmark and it covers Moonshine streaming only. Start with the model marked 'default' if you have no reason not to, then narrow by size or licence. A model is fetched on first use and cached." />
+      <!-- A Grid, not a horizontal StackPanel: the panel measures its child
+           against infinite width, so the wrapping TextBlock would never wrap
+           and the caveat would be clipped at the window edge. -->
+      <Grid ColumnDefinitions="Auto,*">
+        <materialIcons:MaterialIcon Grid.Column="0" Classes="small" Kind="InformationOutline"
+                                   VerticalAlignment="Top" Margin="0,2,8,0"
+                                   Foreground="{DynamicResource AppAccentBrush}" />
+        <TextBlock Grid.Column="1" TextWrapping="Wrap"
+                   Text="No model is faster or more accurate than another as far as this project has measured: docs/streaming-bench.md is the only benchmark and it covers Moonshine streaming only. Start with the model marked 'default' if you have no reason not to, then narrow by size or licence. A model is fetched on first use and cached." />
+      </Grid>
     </Border>
 
     <!-- Quick filters -->
@@ -104,11 +113,16 @@
                 AutomationProperties.Name="Capability filter"
                 ToolTip.Tip="Show only the models transcribe.cpp records as supporting this capability — streaming, diarize, translate, timestamps, and the rest. The names are theirs, not translated. A model with no record is hidden while this is set, because unknown is not the same as yes." />
 
-      <Button Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="12,0,0,0"
+      <Button Command="{Binding ClearFiltersCommand}" Margin="12,0,0,0"
               IsEnabled="{Binding HasAnyQuickFilter}"
               AutomationProperties.AutomationId="models-clear-filters"
               AutomationProperties.Name="Clear filters"
-              ToolTip.Tip="Turn every filter off and show the whole catalogue." />
+              ToolTip.Tip="Turn every filter off and show the whole catalogue.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="FilterOff" />
+          <TextBlock Text="Clear" />
+        </StackPanel>
+      </Button>
     </WrapPanel>
 
     <!-- Sort and measure -->
@@ -132,11 +146,15 @@
                  Text="{Binding SortDescription}" />
 
       <Button Margin="12,0,0,0"
-              Content="{Binding BenchmarkAudioName, StringFormat='Audio: {0}'}"
               Command="{Binding PickBenchmarkAudioCommand}"
               AutomationProperties.AutomationId="models-benchmark-audio"
               AutomationProperties.Name="Benchmark audio"
-              ToolTip.Tip="Pick the audio the timings are taken over. A measurement is only meaningful for the audio it was measured on, so this is your own file rather than a bundled clip." />
+              ToolTip.Tip="Pick the audio the timings are taken over. A measurement is only meaningful for the audio it was measured on, so this is your own file rather than a bundled clip.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="MusicNote" />
+          <TextBlock Text="{Binding BenchmarkAudioName, StringFormat='Audio: {0}'}" />
+        </StackPanel>
+      </Button>
 
       <NumericUpDown Margin="8,0,0,0" Width="110"
                      Value="{Binding BenchmarkExcerptSeconds}" Minimum="5" Maximum="300" Increment="5"
@@ -152,12 +170,17 @@
                 AutomationProperties.Name="Benchmark backend"
                 ToolTip.Tip="Compute backend for the timing runs. Timings taken on different backends are not comparable, so the backend is recorded with every result." />
 
-      <Button Margin="8,0,0,0" Content="Measure all on disk"
+      <Button Margin="8,0,0,0"
               Command="{Binding BenchmarkAllCommand}"
               IsEnabled="{Binding !IsBusy}"
               AutomationProperties.AutomationId="models-benchmark-all"
               AutomationProperties.Name="Measure all downloaded models"
-              ToolTip.Tip="Time every downloaded model on the chosen audio. Each one is loaded and transcribed three times after a discarded warm-up, so this takes a while for large models. Results are kept for this session only." />
+              ToolTip.Tip="Time every downloaded model on the chosen audio. Each one is loaded and transcribed three times after a discarded warm-up, so this takes a while for large models. Results are kept for this session only.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Speedometer" />
+          <TextBlock Text="Measure all on disk" />
+        </StackPanel>
+      </Button>
     </WrapPanel>
 
     <!-- What the filters are doing, said out loud -->
@@ -252,6 +275,9 @@
         <DataGridTemplateColumn Header="Action" Width="390" CanUserSort="False">
           <DataTemplate x:DataType="m:ModelCatalogItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
+              <!-- Text only, unlike the toolbar buttons: this column is a fixed
+                   390px so the three actions stay reachable at the default window
+                   width, and an icon per button pushed Delete past the grid. -->
               <Button Content="{Binding DownloadButtonText}"
                       Command="{Binding $parent[DataGrid].((vm:ModelManagerViewModel)DataContext).DownloadCommand}"
                       CommandParameter="{Binding}"
@@ -355,33 +381,49 @@
 
     <!-- Bulk actions -->
     <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0">
-      <Button Content="Refresh"
-              Command="{Binding ReloadCommand}"
+      <Button Command="{Binding ReloadCommand}"
               AutomationProperties.AutomationId="models-refresh"
               AutomationProperties.Name="Refresh"
-              ToolTip.Tip="Re-read the cache, to pick up a model downloaded by the transcribe CLI or added by hand." />
-      <Button Content="Cancel download"
-              Command="{Binding CancelDownloadCommand}"
+              ToolTip.Tip="Re-read the cache, to pick up a model downloaded by the transcribe CLI or added by hand.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Refresh" />
+          <TextBlock Text="Refresh" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding CancelDownloadCommand}"
               IsEnabled="{Binding IsDownloading}"
               Margin="8,0,0,0"
               AutomationProperties.AutomationId="models-cancel-download"
               AutomationProperties.Name="Cancel the current download"
-              ToolTip.Tip="Stop the download in flight. Its partial file is deleted, so nothing half-written is cached, and the row can be downloaded again later." />
-      <Button Content="Delete all downloaded"
-              Classes="danger"
+              ToolTip.Tip="Stop the download in flight. Its partial file is deleted, so nothing half-written is cached, and the row can be downloaded again later.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Cancel" />
+          <TextBlock Text="Cancel download" />
+        </StackPanel>
+      </Button>
+      <Button Classes="danger"
               Command="{Binding DeleteAllCommand}"
               IsEnabled="{Binding !IsBusy}"
               Margin="8,0,0,0"
               AutomationProperties.AutomationId="models-delete-all"
               AutomationProperties.Name="Delete all downloaded models"
-              ToolTip.Tip="Delete every model currently on disk. Only the cached model files are touched." />
-      <Button Content="Check diarization"
-              Command="{Binding CheckDiarizationCommand}"
+              ToolTip.Tip="Delete every model currently on disk. Only the cached model files are touched.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="DeleteSweep" />
+          <TextBlock Text="Delete all downloaded" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding CheckDiarizationCommand}"
               IsEnabled="{Binding !IsBusy}"
               Margin="8,0,0,0"
               AutomationProperties.AutomationId="models-check-diarization"
               AutomationProperties.Name="Check diarization for downloaded models"
-              ToolTip.Tip="Load every downloaded model once and ask whether it can attribute speakers. The manifest declares no capabilities, so a model not on disk stays unknown (?)." />
+              ToolTip.Tip="Load every downloaded model once and ask whether it can attribute speakers. The manifest declares no capabilities, so a model not on disk stays unknown (?).">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="AccountVoice" />
+          <TextBlock Text="Check diarization" />
+        </StackPanel>
+      </Button>
     </StackPanel>
 
     <!-- Progress -->

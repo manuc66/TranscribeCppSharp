@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:TranscribeCppSharp.UI.ViewModels"
         xmlns:views="using:TranscribeCppSharp.UI.Views"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="TranscribeCppSharp.UI.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/icon.png"
@@ -32,28 +33,63 @@
        collapses and the window shrink-wraps to its minimum. Measuring against
        the viewport width is what lets those columns share the space. -->
   <TabControl SelectedIndex="{Binding SelectedTabIndex}" Padding="0">
-    <TabItem Header="Transcription">
+    <!-- Each tab carries an icon, and the text stays a plain TextBlock: the tab
+         header is a control, but the label is still the word a reader (or a
+         test) looks for. -->
+    <!-- The automation name is stated rather than inferred from the header: the
+         header is now a panel, and a panel does not name the tab by itself. -->
+    <TabItem AutomationProperties.Name="Transcription">
+      <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+          <materialIcons:MaterialIcon Classes="tabIcon" Kind="TextLong" />
+          <TextBlock Text="Transcription" VerticalAlignment="Center" />
+        </StackPanel>
+      </TabItem.Header>
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <views:TranscriptionView DataContext="{Binding Transcription}" />
       </ScrollViewer>
     </TabItem>
-    <TabItem Header="Streaming">
+    <TabItem AutomationProperties.Name="Streaming">
+      <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+          <materialIcons:MaterialIcon Classes="tabIcon" Kind="Waveform" />
+          <TextBlock Text="Streaming" VerticalAlignment="Center" />
+        </StackPanel>
+      </TabItem.Header>
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <views:StreamingView DataContext="{Binding Streaming}" />
       </ScrollViewer>
     </TabItem>
-    <TabItem Header="Batch">
+    <TabItem AutomationProperties.Name="Batch">
+      <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+          <materialIcons:MaterialIcon Classes="tabIcon" Kind="PlaylistPlay" />
+          <TextBlock Text="Batch" VerticalAlignment="Center" />
+        </StackPanel>
+      </TabItem.Header>
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <views:BatchView DataContext="{Binding Batch}" />
       </ScrollViewer>
     </TabItem>
-    <TabItem Header="History">
+    <TabItem AutomationProperties.Name="History">
+      <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+          <materialIcons:MaterialIcon Classes="tabIcon" Kind="History" />
+          <TextBlock Text="History" VerticalAlignment="Center" />
+        </StackPanel>
+      </TabItem.Header>
       <!-- Not wrapped in a ScrollViewer, unlike the form tabs: its grid is the
            scrollable part and needs the height the row is given, not an infinite
            measure that would collapse it. -->
       <views:HistoryView DataContext="{Binding History}" />
     </TabItem>
-    <TabItem Header="Models">
+    <TabItem AutomationProperties.Name="Models">
+      <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+          <materialIcons:MaterialIcon Classes="tabIcon" Kind="PackageVariantClosed" />
+          <TextBlock Text="Models" VerticalAlignment="Center" />
+        </StackPanel>
+      </TabItem.Header>
       <!-- Deliberately not wrapped in a ScrollViewer, unlike every other tab.
 
            The wrapper measures its child against infinite height, and a `*` row
@@ -68,7 +104,13 @@
            grid rather than by pushing it below the fold. -->
       <views:ModelManagerView DataContext="{Binding ModelManager}" />
     </TabItem>
-    <TabItem Header="Settings">
+    <TabItem AutomationProperties.Name="Settings">
+      <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+          <materialIcons:MaterialIcon Classes="tabIcon" Kind="Cog" />
+          <TextBlock Text="Settings" VerticalAlignment="Center" />
+        </StackPanel>
+      </TabItem.Header>
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <views:SettingsView DataContext="{Binding Settings}" />
       </ScrollViewer>

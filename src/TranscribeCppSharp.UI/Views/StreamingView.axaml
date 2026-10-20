@@ -1,10 +1,23 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TranscribeCppSharp.UI.ViewModels"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="TranscribeCppSharp.UI.Views.StreamingView"
              x:DataType="vm:StreamingViewModel">
 
-  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
+  <DockPanel Margin="{DynamicResource PagePadding}">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+      <Border Classes="pageIcon">
+        <materialIcons:MaterialIcon Kind="Waveform" />
+      </Border>
+      <StackPanel>
+        <TextBlock Classes="pageTitle" Text="Streaming" />
+        <TextBlock Classes="pageDescription"
+                   Text="Transcribe the microphone as it is spoken. Committed text is final; tentative text may still change when the model revises it." />
+      </StackPanel>
+    </StackPanel>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
     <!-- Model selection -->
     <StackPanel Grid.Row="0" Margin="0,0,0,8">
       <TextBlock Text="Model" Classes="label"
@@ -18,11 +31,16 @@
                    VerticalAlignment="Center"
                    AutomationProperties.AutomationId="streaming-model-hint"
                    AutomationProperties.Name="Model availability" />
-        <Button Grid.Column="1" Content="Get more…" Command="{Binding OpenModelManagerCommand}"
+        <Button Grid.Column="1" Command="{Binding OpenModelManagerCommand}"
                 Padding="8,2" Margin="8,0,0,0"
                 AutomationProperties.AutomationId="streaming-get-models"
                 AutomationProperties.Name="Get more models"
-                ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A model is fetched on first use and cached." />
+                ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A model is fetched on first use and cached.">
+          <StackPanel Classes="buttonContent">
+            <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
+            <TextBlock Text="Get more…" />
+          </StackPanel>
+        </Button>
       </Grid>
       <TextBlock Text="{Binding CapabilityStatus}" Classes="hint" Margin="0,4,0,0"
                  IsVisible="{Binding CapabilityStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
@@ -65,11 +83,16 @@
         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
           <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="hint" TextWrapping="Wrap"
                      Text="These apply only to the matching model family; other families ignore them. An empty field leaves the extension off, so the model uses its own default." />
-          <Button Grid.Column="1" Content="Reset" Command="{Binding ResetExtensionsCommand}"
+          <Button Grid.Column="1" Command="{Binding ResetExtensionsCommand}"
                   IsEnabled="{Binding HasAnyStreamingExtension}" Padding="8,2" Margin="8,0,0,0"
                   AutomationProperties.AutomationId="streaming-extensions-reset"
                   AutomationProperties.Name="Reset family extensions"
-                  ToolTip.Tip="Empty every family-extension field, so no extension is passed and each model uses its own default." />
+                  ToolTip.Tip="Empty every family-extension field, so no extension is passed and each model uses its own default.">
+            <StackPanel Classes="buttonContent">
+              <materialIcons:MaterialIcon Classes="small" Kind="Restart" />
+              <TextBlock Text="Reset" />
+            </StackPanel>
+          </Button>
         </Grid>
 
         <Grid ColumnDefinitions="*,*" Margin="0,0,0,4" IsVisible="{Binding ShowMoonshineExtensions}">
@@ -133,18 +156,33 @@
 
     <!-- Controls -->
     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Start" Classes="accent" Command="{Binding StartStreamingCommand}" IsEnabled="{Binding CanStartStreaming}"
+      <Button Classes="accent" Command="{Binding StartStreamingCommand}" IsEnabled="{Binding CanStartStreaming}"
               AutomationProperties.AutomationId="streaming-start"
               AutomationProperties.Name="Start streaming"
-              ToolTip.Tip="Start capturing the microphone and transcribing it live. The first run of a model needs a network connection to download it." />
-      <Button Content="Stop" Command="{Binding StopStreamingCommand}" IsEnabled="{Binding IsStreaming}" Margin="8,0,0,0"
+              ToolTip.Tip="Start capturing the microphone and transcribing it live. The first run of a model needs a network connection to download it.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Play" />
+          <TextBlock Text="Start" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding StopStreamingCommand}" IsEnabled="{Binding IsStreaming}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="streaming-stop"
               AutomationProperties.Name="Stop streaming"
-              ToolTip.Tip="Stop capturing and finalize the stream." />
-      <Button Content="Clear" Command="{Binding ClearTextCommand}" Margin="8,0,0,0"
+              ToolTip.Tip="Stop capturing and finalize the stream.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Stop" />
+          <TextBlock Text="Stop" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding ClearTextCommand}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="streaming-clear"
               AutomationProperties.Name="Clear text"
-              ToolTip.Tip="Empty the two text areas. While streaming, only text produced after the click appears again; the model keeps the audio context it already has." />
+              ToolTip.Tip="Empty the two text areas. While streaming, only text produced after the click appears again; the model keeps the audio context it already has.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Eraser" />
+          <TextBlock Text="Clear" />
+        </StackPanel>
+      </Button>
       <!-- Why Start is disabled when the loaded model says the selected model
            cannot stream. Models upstream records as unable to stream — MOSS, the
            default, among them — are already left out of the picker, so this shows
@@ -184,5 +222,6 @@
       <TextBlock Text="Left: committed, final." Classes="hint" />
       <TextBlock Text="Right: tentative, may still change." Classes="hint" />
     </StackPanel>
-  </Grid>
+    </Grid>
+  </DockPanel>
 </UserControl>

@@ -45,9 +45,13 @@ public class ModelGridFitsTests
 
             // Realized rows only: the grid virtualizes, so asking about rows that
             // were never rendered would compare nothing against nothing.
+            //
+            // By automation id, not by Content: the row's action buttons carry an
+            // icon and a label in a panel, so Content is no longer the word.
             List<Button> buttons = window.GetVisualDescendants()
                 .OfType<Button>()
-                .Where(b => b.IsVisible && b.Content is string c && c == "Delete")
+                .Where(b => b.IsVisible
+                    && AutomationProperties.GetAutomationId(b)?.StartsWith("models-delete-", StringComparison.Ordinal) == true)
                 .ToList();
             Assert.NotEmpty(buttons);
 

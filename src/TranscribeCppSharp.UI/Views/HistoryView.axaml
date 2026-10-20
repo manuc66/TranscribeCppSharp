@@ -1,34 +1,60 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TranscribeCppSharp.UI.ViewModels"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="TranscribeCppSharp.UI.Views.HistoryView"
              x:DataType="vm:HistoryViewModel">
 
-  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,*,Auto">
-    <!-- What is saved, where, and what it is not. -->
-    <TextBlock Grid.Row="0" Classes="hint" TextWrapping="Wrap" Margin="0,0,0,8"
-               Text="Every finished transcription is saved on this machine, so closing the app does not lose it. A saved run is self-contained: it opens even if the audio file has moved."
-               AutomationProperties.AutomationId="history-intro"
-               AutomationProperties.Name="History introduction" />
+  <DockPanel Margin="{DynamicResource PagePadding}">
+    <!-- What is saved, where, and what it is not. The paragraph keeps the
+         automation id the tests already look for. -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+      <Border Classes="pageIcon">
+        <materialIcons:MaterialIcon Kind="History" />
+      </Border>
+      <StackPanel>
+        <TextBlock Classes="pageTitle" Text="History" />
+        <TextBlock Classes="pageDescription"
+                   Text="Every finished transcription is saved on this machine, so closing the app does not lose it. A saved run is self-contained: it opens even if the audio file has moved."
+                   AutomationProperties.AutomationId="history-intro"
+                   AutomationProperties.Name="History introduction" />
+      </StackPanel>
+    </StackPanel>
 
-    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Content="Refresh" Command="{Binding RefreshCommand}"
+    <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+      <Button Command="{Binding RefreshCommand}"
               AutomationProperties.AutomationId="history-refresh"
-              AutomationProperties.Name="Refresh history" />
-      <Button Content="Open" Command="{Binding OpenCommand}" IsEnabled="{Binding Entries.Count}" Margin="8,0,0,0"
+              AutomationProperties.Name="Refresh history">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Refresh" />
+          <TextBlock Text="Refresh" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding OpenCommand}" IsEnabled="{Binding Entries.Count}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="history-open"
               AutomationProperties.Name="Open saved transcription"
-              ToolTip.Tip="Load the selected run into the Transcription tab, where it can be exported again." />
-      <Button Content="Delete" Command="{Binding DeleteCommand}" IsEnabled="{Binding Entries.Count}" Margin="8,0,0,0"
+              ToolTip.Tip="Load the selected run into the Transcription tab, where it can be exported again.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="FolderOpen" />
+          <TextBlock Text="Open" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding DeleteCommand}" IsEnabled="{Binding Entries.Count}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="history-delete"
               AutomationProperties.Name="Delete saved transcription"
-              ToolTip.Tip="Delete the selected entry's file from this machine." />
+              ToolTip.Tip="Delete the selected entry's file from this machine.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Delete" />
+          <TextBlock Text="Delete" />
+        </StackPanel>
+      </Button>
       <TextBlock Text="{Binding HistoryPath}" Classes="hint" VerticalAlignment="Center" Margin="16,0,0,0"
                  AutomationProperties.AutomationId="history-path"
                  AutomationProperties.Name="History folder" />
     </StackPanel>
 
-    <DataGrid Grid.Row="2" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
+    <DataGrid Grid.Row="1" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
               AutoGenerateColumns="False" IsReadOnly="True"
               AutomationProperties.AutomationId="history-grid"
               AutomationProperties.Name="Saved transcriptions">
@@ -41,8 +67,9 @@
       </DataGrid.Columns>
     </DataGrid>
 
-    <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,8,0,0"
+    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,8,0,0"
                AutomationProperties.AutomationId="history-status"
                AutomationProperties.Name="History status" />
-  </Grid>
+    </Grid>
+  </DockPanel>
 </UserControl>

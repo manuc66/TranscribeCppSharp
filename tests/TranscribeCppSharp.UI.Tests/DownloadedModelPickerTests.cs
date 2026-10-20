@@ -263,7 +263,16 @@ public class DownloadedModelPickerTests
             List<TabItem> tabs = main.GetLogicalChildren().OfType<TabItem>().ToList();
             Assert.True(MainWindowViewModel.ModelTabIndex < tabs.Count,
                 $"the constant says index {MainWindowViewModel.ModelTabIndex}, the window has {tabs.Count} tabs");
-            Assert.Equal("Models", tabs[MainWindowViewModel.ModelTabIndex].Header?.ToString());
+            // The header is a control now (an icon and a label), so read the label
+            // back rather than calling ToString on the panel.
+            string header = tabs[MainWindowViewModel.ModelTabIndex].Header switch
+            {
+                string text => text,
+                Control control => string.Concat(
+                    control.GetLogicalDescendants().OfType<TextBlock>().Select(t => t.Text)),
+                _ => string.Empty,
+            };
+            Assert.Equal("Models", header);
         }
         finally
         {

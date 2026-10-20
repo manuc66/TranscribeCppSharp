@@ -31,6 +31,12 @@
   <x:Double x:Key="FontSizeSection">14</x:Double>
   <x:Double x:Key="FontSizeTitle">19</x:Double>
 
+  <!-- Icon sizes. The default for an icon in a button or a tab is Md; the page
+       badge uses Lg so the badge itself stays readable with a 36px circle. -->
+  <x:Double x:Key="IconSm">14</x:Double>
+  <x:Double x:Key="IconMd">16</x:Double>
+  <x:Double x:Key="IconLg">20</x:Double>
+
   <!-- Page padding, used by every tab so they all start at the same inset. -->
   <Thickness x:Key="PagePadding">16</Thickness>
 
@@ -49,6 +55,8 @@
       <SolidColorBrush x:Key="AppDangerBrush" Color="#B3261E" />
       <SolidColorBrush x:Key="AppTentativeBrush" Color="#F1F2F4" />
       <SolidColorBrush x:Key="AppTentativeBorderBrush" Color="#D6D8DD" />
+      <SolidColorBrush x:Key="AppAccentBrush" Color="#2F6FEB" />
+      <SolidColorBrush x:Key="AppAccentSoftBrush" Color="#E8F0FE" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <SolidColorBrush x:Key="AppHintBrush" Color="#A8AAB3" />
@@ -57,6 +65,8 @@
       <SolidColorBrush x:Key="AppDangerBrush" Color="#F2B8B5" />
       <SolidColorBrush x:Key="AppTentativeBrush" Color="#2C2D33" />
       <SolidColorBrush x:Key="AppTentativeBorderBrush" Color="#43444C" />
+      <SolidColorBrush x:Key="AppAccentBrush" Color="#8AB4F8" />
+      <SolidColorBrush x:Key="AppAccentSoftBrush" Color="#1E2A3D" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Default">
       <SolidColorBrush x:Key="AppHintBrush" Color="#5B5B66" />
@@ -65,6 +75,8 @@
       <SolidColorBrush x:Key="AppDangerBrush" Color="#B3261E" />
       <SolidColorBrush x:Key="AppTentativeBrush" Color="#F1F2F4" />
       <SolidColorBrush x:Key="AppTentativeBorderBrush" Color="#D6D8DD" />
+      <SolidColorBrush x:Key="AppAccentBrush" Color="#2F6FEB" />
+      <SolidColorBrush x:Key="AppAccentSoftBrush" Color="#E8F0FE" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 
