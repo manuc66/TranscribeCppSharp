@@ -242,30 +242,62 @@ public partial class BatchViewModel : ObservableObject
 
         if (window == null) return;
 
-        var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        try
         {
-            Title = "Export batch results",
-            DefaultExtension = "json",
-            FileTypeChoices = new[]
+            var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
             {
-                new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
-                new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns }
+                Title = "Export batch results",
+                DefaultExtension = "json",
+                FileTypeChoices = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
+                    new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns }
+                }
+            });
+
+            if (file == null) return;
+
+            var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                StatusMessage = "Could not export: the chosen location has no local path.";
+                return;
             }
-        });
 
-        if (file == null) return;
-
-        var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
-        if (string.IsNullOrWhiteSpace(path)) return;
-
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        var content = ext switch
+            await ExportResultsToAsync(path);
+        }
+        catch (Exception ex)
         {
-            ".json" => System.Text.Json.JsonSerializer.Serialize(Results, JsonOptions),
-            _ => string.Join("\n\n", Results.Select(r => $"{Path.GetFileName(r.AudioPath)}:\n{r.FullText}"))
-        };
+            UiLog.Failure("batch export", ex);
+            StatusMessage = $"Could not export: {ex.Message} (logged to {UiLog.FilePath})";
+        }
+    }
 
-        await File.WriteAllTextAsync(path, content);
-        StatusMessage = $"Exported to {path}";
+    /// <summary>
+    /// Writes the results to <paramref name="path"/>, JSON for a .json name and
+    /// plain text otherwise. Internal so a disk failure is testable without a
+    /// file picker; it reports the failure rather than throwing.
+    /// </summary>
+    internal async System.Threading.Tasks.Task ExportResultsToAsync(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        try
+        {
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            var content = ext switch
+            {
+                ".json" => System.Text.Json.JsonSerializer.Serialize(Results, JsonOptions),
+                _ => string.Join("\n\n", Results.Select(r => $"{Path.GetFileName(r.AudioPath)}:\n{r.FullText}"))
+            };
+
+            await File.WriteAllTextAsync(path, content);
+            StatusMessage = $"Exported to {path}";
+        }
+        catch (Exception ex)
+        {
+            UiLog.Failure("batch export", ex);
+            StatusMessage = $"Could not export: {ex.Message} (logged to {UiLog.FilePath})";
+        }
     }
 }
