@@ -205,6 +205,28 @@ public class ModelStoreDownloadTests : IDisposable
     }
 
     [Fact]
+    public void ACachedFileOfTheWrongSizeIsDownloadedAgain()
+    {
+        const string repo = "someone/custom-model";
+        const string revision = "abc123";
+        const string file = "model-Q4_K_M.gguf";
+        byte[] content = Payload("truncated cache");
+        ServeTree(repo, revision, file, Sha256Of(content), content.Length);
+        ServeFile(repo, revision, file, content);
+
+        string resolved = ModelStore.Resolve($"{repo}/{file}@{revision}", null, TextWriter.Null);
+        File.WriteAllText(resolved, "truncated");
+
+        var error = new StringWriter();
+        string resolvedAgain = ModelStore.Resolve($"{repo}/{file}@{revision}", null, error);
+
+        Assert.Equal(resolved, resolvedAgain);
+        Assert.Equal(content, File.ReadAllBytes(resolvedAgain));
+        Assert.Contains("downloading it again", error.ToString());
+        Assert.Equal(2, _handler.Requests.Count(r => r.Contains("/resolve/", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void AFileThatIsNotStoredAsAnLfsObjectIsRefused()
     {
         const string repo = "someone/custom-model";

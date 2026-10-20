@@ -367,7 +367,20 @@ public static class ModelStore
         string dest = Path.Combine(dir, file.Replace('/', '_'));
         if (File.Exists(dest))
         {
-            return dest;
+            // The download verifies the sha256, but a cache written by an older
+            // build or interrupted by a disk error can be truncated. The size is
+            // in the manifest/LFS metadata and costs one stat, so compare it and
+            // fetch again when it disagrees. A same-size corruption is not caught
+            // here: hashing multi-GB weights on every resolve would cost more than
+            // the failure it prevents, and the load reports it.
+            long cached = new FileInfo(dest).Length;
+            if (size <= 0 || cached == size)
+            {
+                return dest;
+            }
+
+            error.WriteLine(
+                $"Cached '{file}' is {cached} bytes, expected {size}; downloading it again.");
         }
 
         Directory.CreateDirectory(dir);
