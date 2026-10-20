@@ -509,7 +509,12 @@ already removed is not a capability failure. A model that is present but cannot 
 logged as usual.
 
 An out-of-memory run (`ErrOom`) is named as such, with the next step that can help — a smaller
-quantization, a lower context size, or the CPU backend — rather than only the native sentence.
+**Window** (the most direct knob: it caps the audio and compute buffer of one native call), a
+smaller quantization or context size, or the CPU backend — rather than only the native sentence.
+The copied report also records the run's model, window, KV type, context size, backend, device
+and diarizer, because a native status without them is a dead end. None of those settings is
+changed automatically: the app does not retry with different values, since a silent retry would
+hide the cost and report a result for a configuration the reader did not choose.
 
 ## Look and theme
 

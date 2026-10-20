@@ -1089,9 +1089,11 @@ public partial class TranscriptionViewModel : ObservableObject
             // run has a next step worth naming. The details stay copyable.
             LastError = BuildErrorReport(ex, "transcription run");
             UiLog.Failure("transcription run", ex);
+            string model = string.IsNullOrEmpty(ModelAlias) ? "the selected model" : ModelAlias;
             StatusMessage = ex.StatusCode == Status.ErrOom
-                ? "Out of memory (ErrOom): the model did not fit. Try a smaller quantization, "
-                    + $"a lower context size, or the CPU backend in Settings. (logged to {UiLog.FilePath})"
+                ? $"Out of memory (ErrOom) while running {model}: lower Window (now {WindowSeconds} s), "
+                    + "use a smaller quantization or context size, or force the CPU backend in Settings. "
+                    + $"(logged to {UiLog.FilePath})"
                 : $"Error: {ex.Message} (logged to {UiLog.FilePath})";
         }
         catch (Exception ex)
@@ -1141,7 +1143,7 @@ public partial class TranscriptionViewModel : ObservableObject
     }
 
     /// <summary>The full report, with what the status line has no room for.</summary>
-    private static string BuildErrorReport(Exception exception, string what)
+    private string BuildErrorReport(Exception exception, string what)
     {
         var report = new System.Text.StringBuilder();
         report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
@@ -1150,6 +1152,8 @@ public partial class TranscriptionViewModel : ObservableObject
             $"exception: {exception.GetType().FullName}");
         report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"message: {exception.Message}");
+        report.AppendLine("run:");
+        report.Append(DescribeRun());
 
         if (exception is TranscribeException native)
         {
@@ -1164,6 +1168,29 @@ public partial class TranscriptionViewModel : ObservableObject
         report.AppendLine();
         report.Append(exception);
         return report.ToString();
+    }
+
+    /// <summary>
+    /// The settings that were used for the failed run. Without them a native status
+    /// is a dead end: the model, window and backend are what decide whether an
+    /// allocation fits.
+    /// </summary>
+    private string DescribeRun()
+    {
+        var run = new System.Text.StringBuilder();
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  model: {ModelAlias}");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  window: {WindowSeconds} s");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"  kv type: {SelectedKvType?.ToString() ?? "auto"}");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"  context size: {(ContextSize?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "model default")}");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"  backend: {_settings.SelectedBackend}");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"  device: {_settings.SelectedDevice?.Name ?? "(the backend chooses)"}");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"  diarizer: {SelectedDiarizer?.Alias ?? "(none)"}");
+        return run.ToString();
     }
 
     /// <summary>Puts a result into the views and grids the tab shows.</summary>

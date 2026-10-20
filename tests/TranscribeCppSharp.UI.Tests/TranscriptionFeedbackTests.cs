@@ -83,12 +83,17 @@ public class TranscriptionFeedbackTests
         var service = new FailingService(new TranscribeException(Status.ErrOom, "transcribe_run"));
         await WithViewModel(service, async viewModel =>
         {
+            viewModel.ModelAlias = "whisper-tiny";
             await viewModel.TranscribeCommand.ExecuteAsync(null);
 
             Assert.True(viewModel.CanCopyError);
             Assert.Contains("ErrOom", viewModel.LastError);
             Assert.Contains("transcribe_run", viewModel.LastError);
+            Assert.Contains("model: whisper-tiny", viewModel.LastError);
+            Assert.Contains("window: 300 s", viewModel.LastError);
             Assert.Contains("Out of memory", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("whisper-tiny", viewModel.StatusMessage);
+            Assert.Contains("Window", viewModel.StatusMessage);
             Assert.Contains("CPU", viewModel.StatusMessage);
             Assert.Contains("logged to", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
         });

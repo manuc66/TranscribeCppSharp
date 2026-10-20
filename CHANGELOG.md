@@ -9,6 +9,15 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: an ErrOom report that names the run, and Window first among the fixes
+
+The out-of-memory status now names the model and the window in use, and puts lowering
+**Window** first: it caps the audio and compute buffer of one native call, which is the most
+direct knob before quantization and context size. The copied error report also records the run's
+model, window, KV type, context size, backend, device and diarizer — a native status without
+them cannot be acted on. Nothing is retried automatically: a silent retry would report a result
+for settings the reader did not choose.
+
 ### UI: live text while a run is in flight, and a copyable error report
 
 The Transcription tab shows the text of the windows finished so far while a run is in progress,
