@@ -97,10 +97,11 @@ Usage: transcribe <audio> [model] [options]
                  long audio is split with 1 s overlap and deduplicated
   --no-diarize   disable speaker diarization
   --out <file>   write the report to a file; format controlled
-                 by --format (plain/vtt/json)
+                 by --format (plain/vtt/json/html)
   --format <fmt> report file format: plain (default, timestamped
-                 lines), vtt (WebVTT, speaker cues; ASR models only) or
-                 json
+                 lines), vtt (WebVTT, speaker cues; ASR models only),
+                 json, or html (numbered paragraphs with timestamps and
+                 speakers; ASR models only)
   --help         show this help
 ```
 

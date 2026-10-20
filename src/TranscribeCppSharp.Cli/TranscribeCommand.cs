@@ -65,10 +65,11 @@ internal static class TranscribeCommand
                          long audio is split with 1 s overlap and deduplicated
           --no-diarize   disable speaker diarization
           --out <file>   write the report to a file; format controlled
-                         by --format (plain/vtt/json)
+                         by --format (plain/vtt/json/html)
           --format <fmt> report file format: plain (default, timestamped
-                         lines), vtt (WebVTT, speaker cues; ASR models only) or
-                         json
+                         lines), vtt (WebVTT, speaker cues; ASR models only),
+                         json, or html (numbered paragraphs with timestamps and
+                         speakers; ASR models only)
           --help         show this help
         """;
 
@@ -334,13 +335,14 @@ internal static class TranscribeCommand
 
         var merged = new StringBuilder();
 
-        // Only JSON needs the segments kept. The plain and VTT writers emit each
+        // JSON and HTML need the segments kept: both documents are written once,
+        // at the end, from the complete list. The plain and VTT writers emit each
         // segment as it arrives and their footer ignores the list entirely, so
-        // accumulating it for those two formats retained a list entry and a
-        // string per segment that nothing ever read — one hour of speech is
-        // ~900 segments. JSON writes its whole document once at the end, from
-        // the complete list, so there the list is genuinely required.
-        var lines = options.Format == TranscriptFormat.Json ? new List<TranscriptLine>() : null;
+        // accumulating it there retained a list entry and a string per segment
+        // that nothing ever read — one hour of speech is ~900 segments.
+        var lines = options.Format is TranscriptFormat.Json or TranscriptFormat.Html
+            ? new List<TranscriptLine>()
+            : null;
 
         // The merger owns the seam bookkeeping (drop what the previous window
         // already reported, shift timestamps into file time) so the CLI and the
@@ -365,12 +367,17 @@ internal static class TranscribeCommand
 
         using (outFile)
         {
+            // One timestamp for the whole run: the header and the footer of a
+            // file must not disagree by the few seconds a long transcription
+            // takes, so both read generated from here.
+            var info = new TranscriptInfo(
+                options.AudioPath,
+                TimeSpan.FromSeconds(totalSamples / (double)WindowPlanner.SampleRate),
+                modelLabel, options.Language, options.Diarize, windowMs / 1000, DateTime.Now);
+
             if (outFile is not null)
             {
-                TranscriptWriter.WriteHeader(
-                    outFile, options.Format, options.AudioPath,
-                    TimeSpan.FromSeconds(totalSamples / (double)WindowPlanner.SampleRate),
-                    modelLabel, options.Language, options.Diarize, windowMs / 1000, DateTime.Now);
+                TranscriptWriter.WriteHeader(outFile, options.Format, info);
             }
 
             double audioTotalSec = totalSamples / (double)WindowPlanner.SampleRate;
@@ -440,8 +447,8 @@ internal static class TranscribeCommand
             if (outFile is not null)
             {
                 // The plain and VTT footers ignore the segment list, so passing
-                // an empty one is what the non-JSON path now has.
-                TranscriptWriter.WriteFooter(outFile, options.Format, options.Language, lines ?? [], DateTime.Now);
+                // an empty one is what the non-JSON/HTML path now has.
+                TranscriptWriter.WriteFooter(outFile, options.Format, info, lines ?? []);
                 stdout.WriteLine($"\ntranscript written to: {options.OutPath} ({FormatName(options.Format)})");
             }
 
@@ -475,9 +482,9 @@ internal static class TranscribeCommand
         long totalSamples,
         TranscribeRole roles)
     {
-        if (options.Format == TranscriptFormat.Vtt)
+        if (options.Format is TranscriptFormat.Vtt or TranscriptFormat.Html)
         {
-            stderr.WriteLine("--format vtt applies to a transcription (ASR) model; "
+            stderr.WriteLine($"--format {FormatName(options.Format)} applies to a transcription (ASR) model; "
                 + $"this model serves {DescribeRoles(roles)}. Use --format plain or json.");
             return 1;
         }
@@ -688,9 +695,11 @@ internal static class TranscribeCommand
     }
 
     /// <summary>The --format spelling, as accepted and as echoed back.</summary>
-    internal static string FormatName(TranscriptFormat format) => format switch    {
+    internal static string FormatName(TranscriptFormat format) => format switch
+    {
         TranscriptFormat.Vtt => "vtt",
         TranscriptFormat.Json => "json",
+        TranscriptFormat.Html => "html",
         _ => "plain",
     };
 

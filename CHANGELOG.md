@@ -9,6 +9,23 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Export: a standalone HTML transcript with line numbers, timestamps and speakers
+
+`--format html` writes a self-contained document — no external CSS, no JavaScript, no images —
+with one table row per segment, numbered from 1, and a speaker label per row. Timestamps
+(`[hh:mm:ss]`) appear on the first segment, on every speaker change, and at most once a minute.
+The numbers are literal table cells rather than a CSS counter, so a word processor's HTML import
+keeps them. The desktop app's **Export** now offers `.html` as well, through the same shared
+renderer; it does not keep the audio file's duration, so its document says `audio: unknown`
+instead of passing the last segment's end for it.
+
+The document records the source, the duration (CLI only), the model, the language, whether
+diarization was requested, the window and the segment count. It records no accuracy figure,
+because this project publishes none. It is a static report, not an editable transcript: the app
+still has no audio-follows-cursor editor, which remains the largest gap for review and
+correction. `html`, like `vtt`, applies to an ASR model only; a model serving another role is
+refused with a message pointing at `plain` or `json`.
+
 ### UI: the streaming tab bounds memory by closing the stream into utterances
 
 A live stream's memory grows with its audio — measured at roughly 2.8 MiB per second of the

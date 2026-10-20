@@ -22,6 +22,9 @@ internal enum TranscriptFormat
 
     /// <summary>Whisper-style JSON: language, full text, segments.</summary>
     Json,
+
+    /// <summary>Standalone HTML: numbered paragraphs, timestamps, speakers.</summary>
+    Html,
 }
 
 /// <summary>One transcript line, with its position on the original timeline.</summary>
@@ -278,8 +281,11 @@ internal sealed record CliOptions
             case "json":
                 format = TranscriptFormat.Json;
                 return true;
+            case "html":
+                format = TranscriptFormat.Html;
+                return true;
             default:
-                error = $"unknown --format: {name} (expected plain, vtt or json)";
+                error = $"unknown --format: {name} (expected plain, vtt, json or html)";
                 return false;
         }
     }

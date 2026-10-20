@@ -1,50 +1,60 @@
-// The three --format shapes, split out of the top-level statements so the exact
+// The four --format shapes, split out of the top-level statements so the exact
 // bytes of an exported transcript are unit tested: these files are consumed by
-// other tools (WebVTT players, whisper-style JSON readers) and the shapes are
-// documented in --help and in the README.
+// other tools (WebVTT players, whisper-style JSON readers, word processors), and
+// the shapes are documented in --help and in docs/exporting.md.
 
 using System.Text.Json;
 using TranscribeCppSharp.Interop;
+using TranscribeCppSharp.SharedSource;
 
 namespace TranscribeCppSharp.Cli;
+
+/// <summary>
+/// What every format says about the run: where the audio came from, which model
+/// decoded it and when. Passed once to the header and once to the footer instead
+/// of a growing argument list, so the HTML document and the plain header cannot
+/// disagree about the same run.
+/// </summary>
+internal readonly record struct TranscriptInfo(
+    string AudioPath,
+    TimeSpan Duration,
+    string ModelLabel,
+    string Language,
+    DiarizeMode Diarize,
+    int WindowSeconds,
+    DateTime Generated);
 
 internal static class TranscriptWriter
 {
     /// <summary>
-    /// Writes what is known before the first window. JSON has nothing yet: the
-    /// document is written once at the end, when every segment is known.
+    /// Writes what is known before the first window. JSON and HTML have nothing
+    /// yet: those documents are written once at the end, when every segment is
+    /// known.
     /// </summary>
-    internal static void WriteHeader(
-        TextWriter writer,
-        TranscriptFormat format,
-        string audioPath,
-        TimeSpan duration,
-        string modelLabel,
-        string language,
-        DiarizeMode diarize,
-        int windowSeconds,
-        DateTime generated)
+    internal static void WriteHeader(TextWriter writer, TranscriptFormat format, TranscriptInfo info)
     {
         switch (format)
         {
             case TranscriptFormat.Vtt:
                 WriteLine(writer, "WEBVTT");
-                WriteLine(writer, $"NOTE source: {audioPath}");
-                WriteLine(writer, 
-                    $"NOTE audio {duration:c} model {modelLabel} lang {language} diarize {Fmt.DiarizeState(diarize)} window {windowSeconds}s generated {generated:yyyy-MM-dd HH:mm:ss}");
+                WriteLine(writer, $"NOTE source: {info.AudioPath}");
+                WriteLine(writer,
+                    $"NOTE audio {info.Duration:c} model {info.ModelLabel} lang {info.Language} "
+                    + $"diarize {Fmt.DiarizeState(info.Diarize)} window {info.WindowSeconds}s generated {info.Generated:yyyy-MM-dd HH:mm:ss}");
                 WriteLine(writer);
                 break;
 
             case TranscriptFormat.Json:
+            case TranscriptFormat.Html:
                 break;
 
             default:
                 WriteLine(writer, "# TranscribeCppSharp diarization transcript");
-                WriteLine(writer, $"# source   : {audioPath}");
-                WriteLine(writer, $"# audio    : {duration:c}");
-                WriteLine(writer, $"# model    : {modelLabel}");
-                WriteLine(writer, $"# lang     : {language}   diarize: {Fmt.DiarizeState(diarize)}   window: {windowSeconds}s");
-                WriteLine(writer, $"# generated: {generated:yyyy-MM-dd HH:mm:ss}");
+                WriteLine(writer, $"# source   : {info.AudioPath}");
+                WriteLine(writer, $"# audio    : {info.Duration:c}");
+                WriteLine(writer, $"# model    : {info.ModelLabel}");
+                WriteLine(writer, $"# lang     : {info.Language}   diarize: {Fmt.DiarizeState(info.Diarize)}   window: {info.WindowSeconds}s");
+                WriteLine(writer, $"# generated: {info.Generated:yyyy-MM-dd HH:mm:ss}");
                 WriteLine(writer);
                 break;
         }
@@ -66,27 +76,41 @@ internal static class TranscriptWriter
                 break;
 
             case TranscriptFormat.Json:
-                // The JSON document is written once, at the end.
+            case TranscriptFormat.Html:
+                // Both documents are written once, at the end.
                 break;
         }
     }
 
     /// <summary>Writes what is known once every window has been transcribed.</summary>
-    internal static void WriteFooter(TextWriter writer, TranscriptFormat format, string language, IReadOnlyList<TranscriptLine> lines, DateTime generated)
+    internal static void WriteFooter(
+        TextWriter writer,
+        TranscriptFormat format,
+        TranscriptInfo info,
+        IReadOnlyList<TranscriptLine> lines)
     {
         switch (format)
         {
             case TranscriptFormat.Json:
-                WriteJson(writer, language, lines);
+                WriteJson(writer, info.Language, lines);
+                break;
+
+            case TranscriptFormat.Html:
+                HtmlTranscriptWriter.Write(
+                    writer,
+                    new HtmlTranscriptInfo(
+                        info.AudioPath, info.Duration, info.ModelLabel, info.Language,
+                        Fmt.DiarizeState(info.Diarize), info.WindowSeconds, info.Generated),
+                    lines.Select(l => new HtmlTranscriptSegment(l.StartMs, l.Speaker, l.Text)).ToArray());
                 break;
 
             case TranscriptFormat.Vtt:
-                WriteLine(writer, $"NOTE done {generated:yyyy-MM-dd HH:mm:ss}");
+                WriteLine(writer, $"NOTE done {info.Generated:yyyy-MM-dd HH:mm:ss}");
                 break;
 
             default:
                 WriteLine(writer);
-                WriteLine(writer, $"# done: {generated:yyyy-MM-dd HH:mm:ss}");
+                WriteLine(writer, $"# done: {info.Generated:yyyy-MM-dd HH:mm:ss}");
                 break;
         }
     }
@@ -128,8 +152,8 @@ internal static class TranscriptWriter
     /// .WriteLine emits "\r\n" on Windows, so relying on it made a WebVTT file
     /// written there differ byte-for-byte from the identical file written on
     /// Linux, and made the output depend on whichever writer happened to be
-    /// passed in. WebVTT is conventionally LF-terminated, and the plain and JSON
-    /// forms are only more consistent for being the same.
+    /// passed in. WebVTT is conventionally LF-terminated, and the plain, JSON and
+    /// HTML forms are only more consistent for being the same.
     /// </remarks>
     private static void WriteLine(TextWriter writer, string line)
     {

@@ -160,9 +160,11 @@ only one model is in memory at a time. The join is this app's, not the library's
 heuristic — see [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
 
 The result is shown four ways: as text, as segments with timings, as words with timings, and
-as speaker-attributed segments. `Export` writes `.txt`, `.vtt` or `.json`, picked by the
+as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html` or `.json`, picked by the
 extension you type; the formats themselves are the same as
-[the CLI's](exporting.md). The Text tab's text is selectable, so a passage can be copied out by
+[the CLI's](exporting.md) — the HTML document is produced by the same shared
+renderer, except that the app does not keep the audio file's duration and the
+document says `audio: unknown` rather than passing the last segment's end for it. The Text tab's text is selectable, so a passage can be copied out by
 hand instead of exporting the whole result.
 
 ### Streaming

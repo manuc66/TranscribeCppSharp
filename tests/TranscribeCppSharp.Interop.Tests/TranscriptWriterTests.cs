@@ -20,6 +20,10 @@ public class TranscriptWriterTests
         new(10_600, 21_000, 2, "Ask what you can do for your country."),
     ];
 
+    private static readonly TranscriptInfo Info = new(
+        "/audio/jfk.wav", TimeSpan.FromSeconds(11), "whisper/whisper-tiny", "en",
+        DiarizeMode.DiarizeModeOn, 300, Generated);
+
     private static string Write(Action<TextWriter> body)
     {
         var writer = new StringWriter();
@@ -37,19 +41,17 @@ public class TranscriptWriterTests
     {
         // The same three shapes through a CRLF writer, asserted on the whole
         // document: a stray \r anywhere would make the bytes differ per platform.
-        foreach (TranscriptFormat format in new[] { TranscriptFormat.Plain, TranscriptFormat.Vtt, TranscriptFormat.Json })
+        foreach (TranscriptFormat format in new[] { TranscriptFormat.Plain, TranscriptFormat.Vtt, TranscriptFormat.Json, TranscriptFormat.Html })
         {
             string content = Write(w =>
             {
-                TranscriptWriter.WriteHeader(
-                    w, format, "/audio/jfk.wav", TimeSpan.FromSeconds(11),
-                    "whisper/whisper-tiny", "en", DiarizeMode.DiarizeModeOn, 300, Generated);
+                TranscriptWriter.WriteHeader(w, format, Info);
                 foreach (TranscriptLine line in Lines)
                 {
                     TranscriptWriter.WriteSegment(w, format, line);
                 }
 
-                TranscriptWriter.WriteFooter(w, format, "en", Lines, Generated);
+                TranscriptWriter.WriteFooter(w, format, Info, Lines);
             });
 
             Assert.DoesNotContain("\r", content);
@@ -62,15 +64,14 @@ public class TranscriptWriterTests
     {
         string content = Write(w =>
         {
-            TranscriptWriter.WriteHeader(
-                w, TranscriptFormat.Plain, "/audio/jfk.wav", TimeSpan.FromSeconds(11),
-                "moss/moss-transcribe-diarize", "en", DiarizeMode.DiarizeModeOn, 300, Generated);
+            TranscriptInfo info = Info with { ModelLabel = "moss/moss-transcribe-diarize" };
+            TranscriptWriter.WriteHeader(w, TranscriptFormat.Plain, info);
             foreach (TranscriptLine line in Lines)
             {
                 TranscriptWriter.WriteSegment(w, TranscriptFormat.Plain, line);
             }
 
-            TranscriptWriter.WriteFooter(w, TranscriptFormat.Plain, "en", Lines, Generated);
+            TranscriptWriter.WriteFooter(w, TranscriptFormat.Plain, info, Lines);
         });
 
         Assert.StartsWith("# TranscribeCppSharp diarization transcript", content);
@@ -88,8 +89,14 @@ public class TranscriptWriterTests
     public void Plain_HeaderStatesThatDiarizationIsOff()
     {
         string content = Write(w => TranscriptWriter.WriteHeader(
-            w, TranscriptFormat.Plain, "/a.wav", TimeSpan.FromSeconds(1), "whisper/whisper-tiny", "en",
-            DiarizeMode.DiarizeModeOff, 300, Generated));
+            w, TranscriptFormat.Plain,
+            Info with
+            {
+                AudioPath = "/a.wav",
+                Duration = TimeSpan.FromSeconds(1),
+                ModelLabel = "whisper/whisper-tiny",
+                Diarize = DiarizeMode.DiarizeModeOff,
+            }));
 
         Assert.Contains("diarize: off", content);
     }
@@ -99,15 +106,13 @@ public class TranscriptWriterTests
     {
         string content = Write(w =>
         {
-            TranscriptWriter.WriteHeader(
-                w, TranscriptFormat.Vtt, "/audio/jfk.wav", TimeSpan.FromSeconds(11),
-                "whisper/whisper-tiny", "en", DiarizeMode.DiarizeModeOn, 300, Generated);
+            TranscriptWriter.WriteHeader(w, TranscriptFormat.Vtt, Info);
             foreach (TranscriptLine line in Lines)
             {
                 TranscriptWriter.WriteSegment(w, TranscriptFormat.Vtt, line);
             }
 
-            TranscriptWriter.WriteFooter(w, TranscriptFormat.Vtt, "en", Lines, Generated);
+            TranscriptWriter.WriteFooter(w, TranscriptFormat.Vtt, Info, Lines);
         });
 
         string[] lines = content.Split('\n');
@@ -133,7 +138,7 @@ public class TranscriptWriterTests
     [Fact]
     public void Json_IsValidJsonWithTheDocumentedShape()
     {
-        string content = Write(w => TranscriptWriter.WriteFooter(w, TranscriptFormat.Json, "en", Lines, Generated));
+        string content = Write(w => TranscriptWriter.WriteFooter(w, TranscriptFormat.Json, Info, Lines));
 
         // Parsed, not pattern-matched: a file that is not valid JSON is the bug
         // this guards against.
@@ -154,7 +159,8 @@ public class TranscriptWriterTests
     [Fact]
     public void Json_WithoutSegments_IsStillAValidDocument()
     {
-        string content = Write(w => TranscriptWriter.WriteFooter(w, TranscriptFormat.Json, "fr", [], Generated));
+        string content = Write(w => TranscriptWriter.WriteFooter(
+            w, TranscriptFormat.Json, Info with { Language = "fr" }, []));
 
         using JsonDocument doc = JsonDocument.Parse(content);
         Assert.Equal("fr", doc.RootElement.GetProperty("language").GetString());
@@ -173,7 +179,7 @@ public class TranscriptWriterTests
         {
             CultureInfo.CurrentCulture = new CultureInfo("fr-BE");
             string content = Write(w => TranscriptWriter.WriteFooter(
-                w, TranscriptFormat.Json, "en", [new TranscriptLine(1500, 10_500, 0, "x")], Generated));
+                w, TranscriptFormat.Json, Info, [new TranscriptLine(1500, 10_500, 0, "x")]));
 
             Assert.Contains("\"end\":10.5", content);
             using JsonDocument doc = JsonDocument.Parse(content);
@@ -189,7 +195,7 @@ public class TranscriptWriterTests
     public void Json_EscapesTextThatWouldBreakTheDocument()
     {
         string content = Write(w => TranscriptWriter.WriteFooter(
-            w, TranscriptFormat.Json, "en", [new TranscriptLine(0, 1, 0, "he said \"hi\"\nand left")], Generated));
+            w, TranscriptFormat.Json, Info, [new TranscriptLine(0, 1, 0, "he said \"hi\"\nand left")]));
 
         using JsonDocument doc = JsonDocument.Parse(content);
         Assert.Equal("he said \"hi\"\nand left", doc.RootElement.GetProperty("segments")[0].GetProperty("text").GetString());
@@ -199,10 +205,118 @@ public class TranscriptWriterTests
     public void Json_HeaderIsEmpty_BecauseTheDocumentIsWrittenOnceAtTheEnd()
     {
         string content = Write(w => TranscriptWriter.WriteHeader(
-            w, TranscriptFormat.Json, "/a.wav", TimeSpan.FromSeconds(1), "whisper/whisper-tiny", "en",
-            DiarizeMode.DiarizeModeOn, 300, Generated));
+            w, TranscriptFormat.Json,
+            Info with { AudioPath = "/a.wav", Duration = TimeSpan.FromSeconds(1) }));
 
         Assert.Equal(string.Empty, content);
+    }
+
+    [Fact]
+    public void Html_IsAStandaloneNumberedDocumentWithTimestampsAndSpeakers()
+    {
+        string content = Write(w => TranscriptWriter.WriteFooter(w, TranscriptFormat.Html, Info, Lines));
+
+        Assert.StartsWith("<!DOCTYPE html>", content);
+        Assert.Contains("<html lang=\"en\">", content);
+        Assert.Contains("<meta charset=\"utf-8\">", content);
+        Assert.Contains("<title>jfk.wav — transcript</title>", content);
+        Assert.EndsWith("</html>\n", content);
+
+        // One row per segment, numbered from 1: the numbers are literal cells,
+        // not a CSS counter, so a word processor's HTML import keeps them.
+        Assert.Contains("<tr><td class=\"ln\">1</td><td class=\"text\">", content);
+        Assert.Contains("<tr><td class=\"ln\">2</td><td class=\"text\">", content);
+
+        // A stamp on the first segment and on the speaker change.
+        Assert.Contains("[00:00:00]</span> <span class=\"speaker\">Speaker 0:</span> And so my fellow", content);
+        Assert.Contains("[00:00:10]</span> <span class=\"speaker\">Speaker 2:</span> Ask what you can do", content);
+
+        // The run is recorded, so the file says what produced it.
+        Assert.Contains("source: /audio/jfk.wav", content);
+        Assert.Contains("audio: 00:11 · model whisper/whisper-tiny · language en · diarize on · window 300s · segments 2", content);
+        Assert.Contains("generated: 2026-01-01 09:00:00", content);
+    }
+
+    [Fact]
+    public void Html_StampsAtMostOncePerMinute()
+    {
+        // Same speaker throughout: the stamps come from the 60 s rule, not from
+        // a speaker change. 0 s, 59 s (too soon), 60 s (stamped), 130 s (stamped).
+        TranscriptLine[] lines =
+        [
+            new(0, 1_000, 0, "a"),
+            new(59_000, 60_000, 0, "b"),
+            new(60_000, 61_000, 0, "c"),
+            new(130_000, 131_000, 0, "d"),
+        ];
+
+        string content = Write(w => TranscriptWriter.WriteFooter(w, TranscriptFormat.Html, Info, lines));
+
+        Assert.Contains("[00:00:00]", content);
+        Assert.DoesNotContain("[00:00:59]", content);
+        Assert.Contains("[00:01:00]", content);
+        Assert.Contains("[00:02:10]", content);
+    }
+
+    [Fact]
+    public void Html_EscapesTextInsteadOfLettingItBecomeMarkup()
+    {
+        string content = Write(w => TranscriptWriter.WriteFooter(
+            w, TranscriptFormat.Html, Info,
+            [new TranscriptLine(0, 1, 0, "he said \"<script>alert(1)</script>\" & left")]));
+
+        Assert.DoesNotContain("<script>", content);
+        Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", content);
+        Assert.Contains("&quot;", content);
+        Assert.Contains("&amp; left", content);
+    }
+
+    [Fact]
+    public void Html_WithoutSegmentsSaysSoInsteadOfAnEmptyTable()
+    {
+        string content = Write(w => TranscriptWriter.WriteFooter(w, TranscriptFormat.Html, Info, []));
+
+        Assert.Contains("<p class=\"empty\">No transcript segments were produced.</p>", content);
+        Assert.DoesNotContain("<table", content);
+    }
+
+    [Fact]
+    public void Html_OmitsTheLangAttributeWhenTheLanguageIsAuto()
+    {
+        // "auto" is what the CLI passes when the model decides for itself; it is
+        // not a BCP 47 tag, so the document must not claim it is one.
+        string content = Write(w => TranscriptWriter.WriteFooter(
+            w, TranscriptFormat.Html, Info with { Language = "auto" }, Lines));
+
+        Assert.Contains("<html>", content);
+        Assert.DoesNotContain("lang=\"auto\"", content);
+    }
+
+    [Fact]
+    public void Html_HeaderIsEmpty_BecauseTheDocumentIsWrittenOnceAtTheEnd()
+    {
+        string content = Write(w => TranscriptWriter.WriteHeader(
+            w, TranscriptFormat.Html,
+            Info with { AudioPath = "/a.wav", Duration = TimeSpan.FromSeconds(1) }));
+
+        Assert.Equal(string.Empty, content);
+    }
+
+    [Fact]
+    public void Html_SaysTheDurationIsUnknownWhenItIsNotKnown()
+    {
+        // The desktop app does not keep the audio file's length. Saying "unknown"
+        // is honest; passing the last segment's end would not be the duration.
+        var writer = new StringWriter();
+        TranscribeCppSharp.SharedSource.HtmlTranscriptWriter.Write(
+            writer,
+            new TranscribeCppSharp.SharedSource.HtmlTranscriptInfo(
+                "/a.wav", null, "whisper-tiny", "fr", "off", 30, Generated),
+            []);
+
+        string content = writer.ToString();
+        Assert.Contains("audio: unknown · model whisper-tiny · language fr · diarize off · window 30s · segments 0", content);
+        Assert.DoesNotContain("\r", content);
     }
 }
 

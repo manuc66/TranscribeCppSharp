@@ -304,6 +304,15 @@ public class TranscribeCommandTests(ITestOutputHelper output)
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(temp.Combine("out.json")));
         Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("text").GetString()));
         Assert.NotEmpty(doc.RootElement.GetProperty("segments").EnumerateArray());
+
+        Result html = Run(audio, model, "--out", temp.Combine("out.html"), "--format", "html");
+        Assert.Equal(0, html.ExitCode);
+        string htmlContent = File.ReadAllText(temp.Combine("out.html"));
+        Assert.StartsWith("<!DOCTYPE html>", htmlContent);
+        Assert.Contains("<td class=\"ln\">1</td>", htmlContent);
+        Assert.Contains("Speaker 0:", htmlContent);
+        Assert.EndsWith("</html>\n", htmlContent);
+        AssertNoCrash(html);
     }
 
     [SkippableFact]

@@ -163,7 +163,7 @@ Five tabs, one per job:
 
 | Tab | What it does |
 |---|---|
-| **Transcription** | Pick a file, a model and the decoder settings (language, threads, KV type, context size, window length, and the knobs that only some model families have). The result comes back as text, as segments, as words, or as speaker-attributed segments, and exports to `.txt`, `.vtt` or `.json`. |
+| **Transcription** | Pick a file, a model and the decoder settings (language, threads, KV type, context size, window length, and the knobs that only some model families have). The result comes back as text, as segments, as words, or as speaker-attributed segments, and exports to `.txt`, `.vtt`, `.html` or `.json`. |
 | **Streaming** | Transcribe the microphone live, with committed text on the left and the tentative part the model may still revise on the right. The commit policy and the family-specific knobs are there. |
 | **Batch** | Queue several files and run them one after another against one loaded model, then export the results as `.txt` or `.json`. |
 | **Models** | The 76 curated aliases, filterable by alias, family, size, licence, language, or what is already on disk, with per-row download, measure and delete. It can also time a model on audio you choose, on your machine, for this session only. |

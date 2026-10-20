@@ -333,6 +333,7 @@ public partial class TranscriptionViewModel : ObservableObject
     private static readonly string[] TextPatterns = ["*.txt"];
     private static readonly string[] VttPatterns = ["*.vtt"];
     private static readonly string[] JsonPatterns = ["*.json"];
+    private static readonly string[] HtmlPatterns = ["*.html"];
 
     public TranscriptionViewModel(
         ITranscriptionService transcriptionService,
@@ -766,7 +767,8 @@ public partial class TranscriptionViewModel : ObservableObject
             {
                 new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns },
                 new Avalonia.Platform.Storage.FilePickerFileType("WebVTT") { Patterns = VttPatterns },
-                new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns }
+                new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
+                new Avalonia.Platform.Storage.FilePickerFileType("HTML") { Patterns = HtmlPatterns }
             }
         });
 
@@ -780,6 +782,7 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             ".vtt" => ExportAsVtt(),
             ".json" => ExportAsJson(),
+            ".html" => ExportAsHtml(),
             _ => FullText
         };
 
@@ -804,6 +807,38 @@ public partial class TranscriptionViewModel : ObservableObject
     private string ExportAsJson()
     {
         return System.Text.Json.JsonSerializer.Serialize(Result, JsonOptions);
+    }
+
+    /// <summary>
+    /// The same document the CLI's --format html writes, through the shared
+    /// renderer. The duration is left unknown: the app does not keep the audio
+    /// file's length, and the last segment's end is not it.
+    /// </summary>
+    private string ExportAsHtml()
+    {
+        string detected = Result?.DetectedLanguage ?? string.Empty;
+        var info = new TranscribeCppSharp.SharedSource.HtmlTranscriptInfo(
+            AudioPath,
+            Duration: null,
+            ModelAlias,
+            string.IsNullOrEmpty(detected) ? Language : detected,
+            this.DiarizeMode switch
+            {
+                TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOff => "off",
+                TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOn => "on",
+                _ => "model default",
+            },
+            WindowSeconds,
+            DateTime.Now);
+
+        var segments = Segments
+            .Select(s => new TranscribeCppSharp.SharedSource.HtmlTranscriptSegment(
+                s.Start.TotalMilliseconds, s.SpeakerId, s.Text))
+            .ToArray();
+
+        using var writer = new StringWriter();
+        TranscribeCppSharp.SharedSource.HtmlTranscriptWriter.Write(writer, info, segments);
+        return writer.ToString();
     }
 
     private static string FormatTime(TimeSpan time)

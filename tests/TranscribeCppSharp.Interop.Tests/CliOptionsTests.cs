@@ -93,6 +93,7 @@ public class CliOptionsTests
     [InlineData("plain", TranscriptFormat.Plain)]
     [InlineData("vtt", TranscriptFormat.Vtt)]
     [InlineData("json", TranscriptFormat.Json)]
+    [InlineData("html", TranscriptFormat.Html)]
     public void TryParse_AcceptsTheDocumentedFormats(string name, object expected)
     {
         using var temp = new TempWorkspace();
@@ -118,7 +119,7 @@ public class CliOptionsTests
 
         Assert.False(CliOptions.TryParse([audio, "--format", name], out _, out var error));
 
-        Assert.Contains("plain, vtt or json", error);
+        Assert.Contains("plain, vtt, json or html", error);
     }
 
     [Fact]
