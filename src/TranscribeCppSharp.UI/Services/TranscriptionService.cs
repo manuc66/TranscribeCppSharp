@@ -393,12 +393,22 @@ public class TranscriptionService : ITranscriptionService
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        // Before the model is resolved: stopping a batch must not first spend a
+        // multi-gigabyte download on a model nobody is going to run.
+        cancellationToken.ThrowIfCancellationRequested();
+
         var model = LoadModel(modelPath, options.BackendRequest, options.Device);
+
+        // Declared outside the try so a cancellation can return what finished
+        // instead of throwing it away. The caller's token is what distinguishes
+        // "cancelled" from "complete"; the item in flight is dropped, because the
+        // wrapper turns a native abort into cancellation before reading its
+        // partial result.
+        var results = new List<BatchItemResult>();
 
         try
         {
             using var session = CreateSession(model, options);
-            var results = new List<BatchItemResult>();
 
             for (int i = 0; i < audioPaths.Count; i++)
             {
@@ -424,6 +434,10 @@ public class TranscriptionService : ITranscriptionService
                 progress?.Report(i + 1);
             }
 
+            return results;
+        }
+        catch (OperationCanceledException)
+        {
             return results;
         }
         finally

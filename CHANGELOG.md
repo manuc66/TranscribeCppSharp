@@ -9,6 +9,20 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: cancel a transcription or a batch
+
+The Transcription and Batch tabs can now stop a run in flight. The token goes through the
+service to `Session.Run`, which already turns the native abort into `OperationCanceledException`.
+A cancelled run is not a failure: the status says "cancelled", nothing is written to the log, and
+the tab returns to idle.
+
+Two limits are stated rather than hidden. The native abort is polled between decode steps, not
+inside the encoder, so stopping is not instant. And the wrapper turns the abort into cancellation
+before it reads the result, so the partial transcript is discarded — the Transcription tab says
+so. A batch keeps the items that finished before the token fired (the service returns them and
+the caller's own token distinguishes cancelled from complete); the file in flight is dropped. A
+batch cancelled before it starts never resolves or downloads the model.
+
 ### UI: a vocabulary field for the models that declare the feature
 
 `transcribe_run_params` has carried a vocabulary list all along (`vocabulary` /

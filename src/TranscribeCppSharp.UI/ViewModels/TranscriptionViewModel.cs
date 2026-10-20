@@ -23,6 +23,9 @@ public partial class TranscriptionViewModel : ObservableObject
 
     private string? _pendingProbeAlias;
 
+    /// <summary>The run's cancellation, while one is in flight.</summary>
+    private Action? _cancelTranscription;
+
     [ObservableProperty]
     private string _audioPath = string.Empty;
 
@@ -34,6 +37,7 @@ public partial class TranscriptionViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
+    [NotifyPropertyChangedFor(nameof(CanCancelTranscription))]
     private bool _isTranscribing;
 
     [ObservableProperty]
@@ -340,6 +344,9 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>False while a transcription or a capability check is running.</summary>
     public bool CanTranscribe
         => HasDownloadedModels && !IsTranscribing && !IsCheckingCapabilities;
+
+    /// <summary>True while a run is in flight and can still be stopped.</summary>
+    public bool CanCancelTranscription => IsTranscribing;
 
     /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
     public bool HasDownloadedModels => AvailableModels.Count > 0;
@@ -894,6 +901,10 @@ public partial class TranscriptionViewModel : ObservableObject
             return;
         }
 
+        // The CTS is owned by this method and cancelled through the action; the
+        // field is null outside a run, so the view model itself owns nothing.
+        using var cancellation = new CancellationTokenSource();
+        _cancelTranscription = cancellation.Cancel;
         IsTranscribing = true;
         Progress = 0;
         StatusMessage = "Transcribing...";
@@ -907,7 +918,7 @@ public partial class TranscriptionViewModel : ObservableObject
             var progress = new Progress<double>(p => Progress = p);
 
             Result = await _transcriptionService.TranscribeAsync(
-                AudioPath, ModelAlias, options, progress);
+                AudioPath, ModelAlias, options, progress, cancellation.Token);
 
             FullText = Result.FullText;
             Segments = new ObservableCollection<MergedSegment>(Result.Segments);
@@ -920,6 +931,13 @@ public partial class TranscriptionViewModel : ObservableObject
             HasResult = true;
             StatusMessage = "Transcription complete.";
         }
+        catch (OperationCanceledException)
+        {
+            // The wrapper turns the native abort into cancellation before it reads
+            // the partial result, so there is nothing to show. Say that rather than
+            // leaving a half-filled tab or logging a failure the reader caused.
+            StatusMessage = "Transcription cancelled. The partial result was discarded.";
+        }
         catch (Exception ex)
         {
             UiLog.Failure("transcription run", ex);
@@ -927,9 +945,14 @@ public partial class TranscriptionViewModel : ObservableObject
         }
         finally
         {
+            _cancelTranscription = null;
             IsTranscribing = false;
         }
     }
+
+    /// <summary>Stops the run in flight, if any.</summary>
+    [RelayCommand]
+    private void CancelTranscription() => _cancelTranscription?.Invoke();
 
     [RelayCommand]
     private async System.Threading.Tasks.Task ExportAsync()

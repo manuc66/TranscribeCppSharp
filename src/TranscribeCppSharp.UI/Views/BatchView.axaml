@@ -56,6 +56,10 @@
               AutomationProperties.AutomationId="batch-run"
               AutomationProperties.Name="Process batch"
               ToolTip.Tip="Transcribe every file in the queue, one after the other." />
+      <Button Content="Cancel" Command="{Binding CancelBatchCommand}" IsEnabled="{Binding CanCancelBatch}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="batch-cancel"
+              AutomationProperties.Name="Cancel batch"
+              ToolTip.Tip="Stop the batch. The file in flight is dropped; the items that already finished stay in the grid." />
       <Button Content="Export Results" Command="{Binding ExportResultsCommand}" IsEnabled="{Binding Results.Count}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="batch-export"
               AutomationProperties.Name="Export results"

@@ -163,6 +163,11 @@ is nothing to ask — and the run button is named for what the model does (Trans
 Identify language or Detect speech) so the role is visible before the run rather than only in
 the result. See [Long audio and diarization](diarization.md).
 
+**Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
+not instant, and the wrapper turns a native abort into cancellation *before* it reads the
+partial result — so the partial transcript is discarded rather than shown, and the status line
+says exactly that. A cancelled run is not a failure and is not written to the log.
+
 For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears
 instead: it offers the downloaded models that serve only the DIARIZE role (Sortformer). With
 one chosen, the tab runs the transcriber, then the diarizer over the same audio, and gives
@@ -291,6 +296,11 @@ Sequential is not an oversight: the library is
 [not thread-safe](concurrency.md#thread-safety), so one model at a time is what is safe.
 Results land in a grid with the detected language, the status and the text, and export as
 `.txt` or `.json`.
+
+**Cancel** stops the batch. The file in flight is dropped — the same partial-result rule as the
+Transcription tab — while the items that already finished stay in the grid; the status line
+counts how many of how many completed. A batch cancelled before it started does not resolve or
+download the model first.
 
 ### Models
 

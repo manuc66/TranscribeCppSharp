@@ -236,6 +236,10 @@
               AutomationProperties.AutomationId="transcription-run"
               AutomationProperties.Name="{Binding RunButtonText}"
               ToolTip.Tip="Run the selected model on the audio. The label names what it will do: transcribe, diarize, identify the language, or detect speech, according to the model's own role." />
+      <Button Content="Cancel" Command="{Binding CancelTranscriptionCommand}" IsEnabled="{Binding CanCancelTranscription}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="transcription-cancel"
+              AutomationProperties.Name="Cancel transcription"
+              ToolTip.Tip="Stop the run in flight. The native abort is polled between decode steps, so it is not instant. The partial result is discarded: the wrapper does not read it out, and the tab says so." />
       <Button Content="Export" Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="transcription-export"
               AutomationProperties.Name="Export transcript"

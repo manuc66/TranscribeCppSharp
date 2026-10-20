@@ -14,6 +14,9 @@ public partial class BatchViewModel : ObservableObject
 
     private readonly SettingsViewModel _settings;
 
+    /// <summary>The batch's cancellation, while one is in flight.</summary>
+    private Action? _cancelBatch;
+
     [ObservableProperty]
     private string _modelAlias = string.Empty;
 
@@ -22,6 +25,7 @@ public partial class BatchViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanProcessBatch))]
+    [NotifyPropertyChangedFor(nameof(CanCancelBatch))]
     private bool _isProcessing;
 
     [ObservableProperty]
@@ -59,6 +63,9 @@ public partial class BatchViewModel : ObservableObject
 
     /// <summary>Whether a batch can start at all: a model on disk, and no batch running.</summary>
     public bool CanProcessBatch => HasDownloadedModels && !IsProcessing;
+
+    /// <summary>True while a batch is in flight and can still be stopped.</summary>
+    public bool CanCancelBatch => IsProcessing;
 
     /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
     public bool HasDownloadedModels => AvailableModels.Count > 0;
@@ -170,6 +177,9 @@ public partial class BatchViewModel : ObservableObject
         Results.Clear();
         UiSettings.SetLastModel(UiSettings.BatchTab, ModelAlias);
 
+        using var cancellation = new CancellationTokenSource();
+        _cancelBatch = cancellation.Cancel;
+
         try
         {
             var options = new TranscriptionOptions
@@ -190,10 +200,19 @@ public partial class BatchViewModel : ObservableObject
             });
 
             var result = await _transcriptionService.BatchTranscribeAsync(
-                AudioFiles.ToList(), ModelAlias, options, progress);
+                AudioFiles.ToList(), ModelAlias, options, progress, cancellation.Token);
 
             Results = new ObservableCollection<BatchItemResult>(result);
-            StatusMessage = "Batch processing complete.";
+
+            // A cancelled batch is not a failed one: the service returns the items
+            // that finished, and the token is what says the rest did not run.
+            StatusMessage = cancellation.IsCancellationRequested
+                ? $"Batch cancelled — {result.Count} of {AudioFiles.Count} finished."
+                : "Batch processing complete.";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "Batch cancelled.";
         }
         catch (Exception ex)
         {
@@ -202,9 +221,14 @@ public partial class BatchViewModel : ObservableObject
         }
         finally
         {
+            _cancelBatch = null;
             IsProcessing = false;
         }
     }
+
+    /// <summary>Stops the batch in flight, if any; finished items stay in the grid.</summary>
+    [RelayCommand]
+    private void CancelBatch() => _cancelBatch?.Invoke();
 
     [RelayCommand]
     private async System.Threading.Tasks.Task ExportResultsAsync()
