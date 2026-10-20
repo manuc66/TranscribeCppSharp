@@ -458,21 +458,44 @@ public class TranscriptionService : ITranscriptionService
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var audioPath = audioPaths[i];
-                using var audioSource = AudioLoader.Open(audioPath);
 
-                var result = await System.Threading.Tasks.Task.Run(() =>
+                // Each file is independent: a file that cannot be opened, or one
+                // the model fails on, is recorded and the rest still run. Letting
+                // the exception out here would discard the items that already
+                // finished and skip every file after the bad one.
+                try
                 {
-                    var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
-                    return session.Run(samples, builder => Configure(builder, options), cancellationToken);
-                }, cancellationToken);
+                    using var audioSource = AudioLoader.Open(audioPath);
 
-                results.Add(new BatchItemResult
+                    var result = await System.Threading.Tasks.Task.Run(() =>
+                    {
+                        var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
+                        return session.Run(samples, builder => Configure(builder, options), cancellationToken);
+                    }, cancellationToken);
+
+                    results.Add(new BatchItemResult
+                    {
+                        AudioPath = audioPath,
+                        FullText = result.FullText,
+                        DetectedLanguage = result.DetectedLanguage,
+                        Status = result.WasAborted ? "Aborted" : "Ok"
+                    });
+                }
+                catch (OperationCanceledException)
                 {
-                    AudioPath = audioPath,
-                    FullText = result.FullText,
-                    DetectedLanguage = result.DetectedLanguage,
-                    Status = result.WasAborted ? "Aborted" : "Ok"
-                });
+                    // The reader stopped the batch: keep what finished and let the
+                    // caller see that the token, not a failure, ended it.
+                    throw;
+                }
+                catch (Exception ex) when (ex is AudioLoadException or IOException
+                                               or UnauthorizedAccessException or TranscribeException)
+                {
+                    results.Add(new BatchItemResult
+                    {
+                        AudioPath = audioPath,
+                        Status = $"Error: {ex.Message}"
+                    });
+                }
 
                 progress?.Report(i + 1);
             }
