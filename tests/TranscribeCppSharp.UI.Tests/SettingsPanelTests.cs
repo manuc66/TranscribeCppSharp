@@ -21,5 +21,6 @@ public class SettingsPanelTests
         Assert.Contains("Auto", viewModel.BackendAvailabilityHint);
         Assert.Contains("default", viewModel.BackendAvailabilityHint, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("force", viewModel.BackendAvailabilityHint, StringComparison.OrdinalIgnoreCase);
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.BackendTargetHint));
     }
 }

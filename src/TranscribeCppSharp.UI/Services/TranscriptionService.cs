@@ -147,6 +147,8 @@ public class TranscriptionService : ITranscriptionService
         CancellationToken cancellationToken)
     {
         using var session = CreateSession(model, options);
+        var memory = new MemorySampler(model);
+        memory.Sample();
 
         var words = new List<WordResult>();
         var speakerSegments = new List<SpeakerSegmentResult>();
@@ -184,6 +186,11 @@ public class TranscriptionService : ITranscriptionService
                 // callback, so this is not word-by-word, and the window setting is
                 // what decides how often it changes.
                 liveText?.Report(merger.BuildText());
+
+                // Best effort, between windows: the peak inside a window is not
+                // observable without polling from another thread, so this is a
+                // lower bound on the run's footprint, not a peak measurement.
+                memory.Sample();
             }
         }
         else
@@ -197,6 +204,7 @@ public class TranscriptionService : ITranscriptionService
             wasAborted = transcript.WasAborted;
             wasTruncated = transcript.WasTruncated;
             progress?.Report(1.0);
+            memory.Sample();
         }
 
         return new TranscriptionResult
@@ -208,7 +216,8 @@ public class TranscriptionService : ITranscriptionService
             SpeakerSegments = speakerSegments,
             DetectedLanguage = detectedLanguage,
             WasAborted = wasAborted,
-            WasTruncated = wasTruncated
+            WasTruncated = wasTruncated,
+            Memory = memory.Observation
         };
     }
 
@@ -495,6 +504,7 @@ public class TranscriptionService : ITranscriptionService
         BackendDevice? device)
     {
         string resolved = ModelStore.Resolve(modelArgument, null, TextWriter.Null);
+        EnforceWeightsFit(resolved, backend, device);
         return Model.Load(resolved, builder =>
         {
             if (backend != null)
@@ -502,6 +512,57 @@ public class TranscriptionService : ITranscriptionService
             if (device != null)
                 builder.WithDevice(device);
         });
+    }
+
+    /// <summary>
+    /// Refuses a model whose weight file alone cannot fit in the free memory of
+    /// the device the request resolves to.
+    /// </summary>
+    /// <remarks>
+    /// Only the certain case is refused: the compute graph's size is not exposed by
+    /// the native API, so a run that fits its weights can still run out of memory
+    /// later. When the device or its free figure is unknown, this says nothing and
+    /// lets the load report the real failure.
+    /// </remarks>
+    private static void EnforceWeightsFit(string modelPath, BackendRequest? backend, BackendDevice? device)
+    {
+        long modelBytes;
+        try
+        {
+            modelBytes = new FileInfo(modelPath).Length;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        IReadOnlyList<BackendDevice> devices;
+        try
+        {
+            devices = Backends.EnumerateDevices();
+        }
+        catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            // Without a live device list there is nothing factual to compare.
+            return;
+        }
+
+        // Prefer the live entry for a pinned device: its free figure is a snapshot.
+        BackendDevice? pinned = device is null
+            ? null
+            : devices.FirstOrDefault(d => d.Handle == device.Handle && d.Handle != IntPtr.Zero)
+                ?? devices.FirstOrDefault(d => !string.IsNullOrEmpty(d.DeviceId) && d.DeviceId == device.DeviceId)
+                ?? device;
+
+        BackendDevice? target = MemoryPreflight.Target(devices, backend, pinned);
+        if (!MemoryPreflight.WeightsFit(modelBytes, target))
+        {
+            throw new InvalidOperationException(
+                $"The model file is {MemoryPreflight.FormatBytes((ulong)modelBytes)}; "
+                + $"{target!.Name} reports {MemoryPreflight.FormatBytes(target.MemoryFree)} free of "
+                + $"{MemoryPreflight.FormatBytes(target.MemoryTotal)}. The weights alone do not fit on that device. "
+                + "Pin a device with more free memory in Settings, or choose a smaller quantization.");
+        }
     }
 
     /// <summary>
@@ -670,6 +731,59 @@ public class TranscriptionService : ITranscriptionService
         foreach (var speaker in transcript.SpeakerSegments)
         {
             speakerSegments.Add(TranscriptMerger.Shift(window, speaker));
+        }
+    }
+
+    /// <summary>
+    /// Records the lowest free figure the model's device reports while a run is in
+    /// progress. <see cref="Model.Device"/> queries the native device live, so a
+    /// sample costs one interop call per window.
+    /// </summary>
+    /// <remarks>
+    /// This is a lower bound, not a peak: the figure is read between windows, while
+    /// the per-window compute buffer is not visible from here. It is still the
+    /// number the next run is compared against, and it is a measurement rather than
+    /// an estimate. A device that reports no free figure yields no observation.
+    /// </remarks>
+    private sealed class MemorySampler(Model model)
+    {
+        private string _deviceName = string.Empty;
+        private ulong _total;
+        private ulong _minimumFree = ulong.MaxValue;
+        private bool _observed;
+
+        public MemoryObservation? Observation => _observed
+            ? new MemoryObservation(_deviceName, _total, _minimumFree, DateTimeOffset.Now)
+            : null;
+
+        public void Sample()
+        {
+            try
+            {
+                BackendDevice? device = model.Device;
+                if (device is null || device.MemoryFree == 0)
+                {
+                    return;
+                }
+
+                if (!_observed)
+                {
+                    _deviceName = device.Name;
+                    _total = device.MemoryTotal;
+                    _minimumFree = device.MemoryFree;
+                    _observed = true;
+                    return;
+                }
+
+                _total = Math.Max(_total, device.MemoryTotal);
+                _minimumFree = Math.Min(_minimumFree, device.MemoryFree);
+            }
+            catch (Exception ex) when (ex is TranscribeException or ObjectDisposedException
+                                          or DllNotFoundException or EntryPointNotFoundException)
+            {
+                // A measurement must never fail a run; without it the UI simply
+                // has nothing to compare next time.
+            }
         }
     }
 }

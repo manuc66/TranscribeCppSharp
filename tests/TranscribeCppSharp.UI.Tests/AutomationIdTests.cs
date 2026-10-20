@@ -59,6 +59,7 @@ public class AutomationIdTests
         "transcription-status",
         "transcription-copy-error",
         "transcription-live-text",
+        "transcription-memory-warning",
         "transcription-results",
     ];
 
@@ -123,6 +124,8 @@ public class AutomationIdTests
         "settings-backend-version",
         "settings-backend-error",
         "settings-backend-hint",
+        "settings-backend-target",
+        "settings-refresh-devices",
         "settings-devices",
         "settings-about",
         "settings-app-version",

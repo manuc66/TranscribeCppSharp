@@ -62,9 +62,11 @@ counts whatever it has fetched. Regenerate them with:
 dotnet run --project samples/UIScreenshot           # writes into docs/assets/images
 ```
 
-The pictures on this page were taken before the shared style layer described under
-[Look and theme](#look-and-theme) landed, so they show the previous colours, button weights
-and flat panels. The behaviour and the layout they document are unchanged.
+Each tab also carries an icon, and its page opens with that icon, the tab's name and a
+one-line description of what the tab is for. The icons come from
+[Material.Icons.Avalonia](https://github.com/AvaloniaUtils/Material.Icons.Avalonia) (MIT)
+and are decorative: every action still carries its text label, and the accessible names
+are unchanged.
 
 **Where the grid scrolls.** The Models tab is the one tab not wrapped in the view's
 `ScrollViewer`. That wrapper measures its child against infinite height, and a star row
@@ -175,7 +177,16 @@ result appears when the run ends. The panel is a preview, not a saved result: it
 the run finishes and the Text tab takes over.
 
 If a run fails, the status names the failure and the tab offers **Copy error** for the full
-report; see [When something fails](#when-something-fails). The progress
+report; see [When something fails](#when-something-fails).
+
+**Before a run, memory.** The tab states two facts, and only two. If the pinned model file is
+larger than the free memory of the device the run resolves to, the service refuses before
+loading it and names both figures — the weights alone would not fit. And if a previous run of
+the same model, window, backend and device recorded a lower free figure than the device has now,
+the tab warns with that measurement. The second is a measurement from this machine, not an
+estimate: the native API exposes free memory but not the compute graph's size, so a run whose
+weights fit can still run out of memory. Nothing is retried automatically; the warning names
+Window, the quantization and the device as the levers. The progress
 bar carries its percentage beside it while the run is in flight.
 
 For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears
@@ -468,6 +479,12 @@ pickers says so and names the backends this build and machine report as availabl
 seven-item list does not read as a choice that must be made. `Auto` probing and the exact
 fallback rules are on [Compute](compute.md).
 
+A second line states which device the current choice resolves to and how much memory it has
+free — `Auto` follows the native policy (discrete GPU before integrated, then CPU), a pinned
+device is named as pinned. The devices grid shows **Total** and **Free** per device; a dash means
+the device did not report the figure. Both are snapshots as of the last **Refresh devices**
+click, not a live monitor: re-read them after closing another GPU application.
+
 ## Asking the model
 
 Everywhere a model is chosen, the app loads it once and asks it what it can do, rather than
@@ -526,16 +543,19 @@ leaving a light panel on a dark window.
 What the views share lives in two files under `src/TranscribeCppSharp.UI/Styles`:
 
 - **`Tokens.axaml`** holds the numbers and the semantic colours — a spacing scale, two
-  corner radii, four font sizes, and brushes for helper text, cards, the tentative streaming
-  panel and warnings. Each brush is defined for Light, Dark and Default, which is what makes
-  the app theme-aware.
+  corner radii, four font sizes, three icon sizes, and brushes for helper text, cards, the
+  tentative streaming panel, warnings and the page-icon accent. Each brush is defined for
+  Light, Dark and Default, which is what makes the app theme-aware.
 - **`Controls.axaml`** turns them into classes the views apply by name: `section` for a
   heading, `label` for a field caption, `hint` for muted helper text, `danger` for a
-  warning, `card` and `tentative` for panels, and `accent` for the one action that starts
-  work on a tab.
+  warning, `card` and `tentative` for panels, `accent` for the one action that starts work
+  on a tab, and `pageTitle`, `pageDescription` and `pageIcon` for the heading at the top of
+  a tab. A button with an icon puts both in a `buttonContent` panel, so the icon and the
+  label are one line rather than two content items.
 
-It is presentation only. No token or class changes what the app does, and none carries a
-claim about it.
+The icons are a separate MIT-licensed package, `Material.Icons.Avalonia`; they are vector
+paths, so there are no icon image assets to keep in sync. It is presentation only. No token
+or class changes what the app does, and none carries a claim about it.
 
 ## What the app does not do
 

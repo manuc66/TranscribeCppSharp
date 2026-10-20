@@ -9,6 +9,31 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: say what can be said about memory before a run
+
+The Settings tab now shows **Total** and **Free** per device and names the device the current
+backend/device choice resolves to, with its live free figure; **Refresh devices** re-reads both,
+because the native figure is a snapshot, not a monitor. The Transcription tab can state two facts
+before a run: the pinned model file does not fit in the target's free memory (the service then
+refuses before loading it, naming both figures), or a previous run of the same model, window,
+backend and device recorded a lower free figure than the device has now.
+
+The second is a measured warning, not an estimate. `transcribe_device_info.memory_free` is read
+after the model loads and after each window; the lowest figure is stored per run configuration in
+`ui-settings.json`. The compute graph's size is not exposed by the native API, so a run whose
+weights fit can still run out of memory; the page says so, and nothing retries automatically.
+The copied error report also records the run's target device and memory.
+
+### UI: icons, page headings, and a Batch grid that uses its space
+
+The six tabs and the actions inside them now carry Material Design icons, and each tab opens
+with an icon, its name and a one-line description of what it is for. The icons come from
+`Material.Icons.Avalonia` (MIT) and are decorative: every action keeps its text label and
+its accessible name. The Transcription result tabs carry icons too.
+
+The Batch results grid now takes the height left over rather than sitting under a star-sized
+spacer, which had left only its column headers visible at the bottom of an empty window.
+
 ### UI: an ErrOom report that names the run, and Window first among the fixes
 
 The out-of-memory status now names the model and the window in use, and puts lowering

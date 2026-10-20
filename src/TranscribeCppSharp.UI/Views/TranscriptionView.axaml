@@ -306,15 +306,22 @@
     </Grid>
 
     <!-- Status -->
-    <Grid Grid.Row="10" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-      <SelectableTextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
+    <Grid Grid.Row="10" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+      <SelectableTextBlock Grid.Row="0" Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
                            AutomationProperties.AutomationId="transcription-status"
                            AutomationProperties.Name="Status" />
-      <Button Grid.Column="1" Content="Copy error" Command="{Binding CopyErrorCommand}"
+      <Button Grid.Row="0" Grid.Column="1" Content="Copy error" Command="{Binding CopyErrorCommand}"
               IsVisible="{Binding CanCopyError}" Margin="8,0,0,0" VerticalAlignment="Top"
               AutomationProperties.AutomationId="transcription-copy-error"
               AutomationProperties.Name="Copy error details"
               ToolTip.Tip="Copy the last failure in full — type, message, native status, failed method, log path and stack trace — so it can be pasted into a bug report." />
+      <!-- What can be said about memory before a run, in two facts only: the
+           weights do not fit, or a previous run of this configuration went lower
+           than the free memory now. See docs/ui.md. -->
+      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding MemoryWarning}" Classes="danger"
+                 TextWrapping="Wrap" Margin="0,4,0,0" IsVisible="{Binding HasMemoryWarning}"
+                 AutomationProperties.AutomationId="transcription-memory-warning"
+                 AutomationProperties.Name="Memory warning" />
     </Grid>
 
     <!-- Live text, one update per finished window. Not word by word: the offline

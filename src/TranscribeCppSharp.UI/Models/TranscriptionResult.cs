@@ -26,4 +26,10 @@ public class TranscriptionResult
 
     /// <summary>Speech segments, for a model that serves the VAD role.</summary>
     public List<VadSession.VadSegmentResult> VadSegments { get; set; } = new();
+
+    /// <summary>
+    /// The lowest free memory observed on the model's device during the run, when
+    /// it could be read. Null when the device reports no free figure.
+    /// </summary>
+    public MemoryObservation? Memory { get; set; }
 }

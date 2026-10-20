@@ -91,6 +91,7 @@ public class TranscriptionFeedbackTests
             Assert.Contains("transcribe_run", viewModel.LastError);
             Assert.Contains("model: whisper-tiny", viewModel.LastError);
             Assert.Contains("window: 300 s", viewModel.LastError);
+            Assert.Contains("target device:", viewModel.LastError);
             Assert.Contains("Out of memory", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("whisper-tiny", viewModel.StatusMessage);
             Assert.Contains("Window", viewModel.StatusMessage);

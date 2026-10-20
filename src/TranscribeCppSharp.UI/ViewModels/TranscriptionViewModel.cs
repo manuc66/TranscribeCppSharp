@@ -464,6 +464,18 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>True while a run is in flight and can still be stopped.</summary>
     public bool CanCancelTranscription => IsTranscribing;
 
+    /// <summary>
+    /// What can be said about memory before a run: the weights do not fit, or a
+    /// previous run of the same configuration went lower than the current free
+    /// figure. Empty when there is nothing factual to say.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMemoryWarning))]
+    private string _memoryWarning = string.Empty;
+
+    /// <summary>Whether <see cref="MemoryWarning"/> has something to say.</summary>
+    public bool HasMemoryWarning => MemoryWarning.Length > 0;
+
     /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
     public bool HasDownloadedModels => AvailableModels.Count > 0;
 
@@ -522,6 +534,18 @@ public partial class TranscriptionViewModel : ObservableObject
         _settings = settings;
         _capabilityCache = capabilityCache;
 
+        // The memory warning depends on the backend and the pinned device, which
+        // live on the Settings tab. The event is the only way this tab learns that
+        // they changed.
+        _settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(SettingsViewModel.SelectedBackend)
+                or nameof(SettingsViewModel.SelectedDevice))
+            {
+                UpdateMemoryWarning();
+            }
+        };
+
         // Restore the export options before anything can change them: the partial
         // change handlers save on every edit, and assigning through the generated
         // properties here would write the file once per field on every launch.
@@ -553,6 +577,7 @@ public partial class TranscriptionViewModel : ObservableObject
         // thread; a model that is not on disk is not loaded and the options stay
         // unfiltered.
         RequestCapabilityProbe(ModelAlias);
+        UpdateMemoryWarning();
     }
 
     /// <summary>
@@ -621,7 +646,10 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         RequestCapabilityProbe(value);
         OnPropertyChanged(nameof(DiarizerPlan));
+        UpdateMemoryWarning();
     }
+
+    partial void OnWindowSecondsChanged(int value) => UpdateMemoryWarning();
 
     partial void OnSelectedDiarizerChanged(DiarizerOption? value)
     {
@@ -1075,6 +1103,8 @@ public partial class TranscriptionViewModel : ObservableObject
                 new ResultProvenance(ModelAlias, EffectiveLanguage(), DiarizeLabel(), WindowSeconds));
             StatusMessage = "Transcription complete.";
             TrySaveHistory();
+            SaveMemoryObservation();
+            UpdateMemoryWarning();
         }
         catch (OperationCanceledException)
         {
@@ -1188,6 +1218,10 @@ public partial class TranscriptionViewModel : ObservableObject
             $"  backend: {_settings.SelectedBackend}");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"  device: {_settings.SelectedDevice?.Name ?? "(the backend chooses)"}");
+        BackendDevice? target = MemoryPreflight.Target(
+            _settings.Devices, _settings.SelectedBackend, _settings.SelectedDevice);
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"  target device: {MemoryPreflight.Describe(target)} (memory as of the last device refresh)");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"  diarizer: {SelectedDiarizer?.Alias ?? "(none)"}");
         return run.ToString();
@@ -1251,6 +1285,65 @@ public partial class TranscriptionViewModel : ObservableObject
             UiLog.Failure("history save", ex);
             StatusMessage = $"Transcription complete, but the history could not be saved: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Recomputes the warning shown before a run. It states only two facts: whether
+    /// the weight file fits in the target device's free memory, and whether a
+    /// previous run of this exact configuration went lower than the free memory now.
+    /// </summary>
+    /// <remarks>
+    /// The compute buffer's size is not exposed by the native API, so nothing here
+    /// estimates it. A run whose weights fit can still run out of memory; that is
+    /// why the second sentence is a measurement from an earlier run, not a promise.
+    /// </remarks>
+    private void UpdateMemoryWarning()
+    {
+        BackendDevice? target = MemoryPreflight.Target(
+            _settings.Devices, _settings.SelectedBackend, _settings.SelectedDevice);
+        if (target is not { MemoryFree: > 0 })
+        {
+            MemoryWarning = string.Empty;
+            return;
+        }
+
+        long modelBytes = ModelSize(ModelAlias);
+        if (modelBytes > 0 && !MemoryPreflight.WeightsFit(modelBytes, target))
+        {
+            MemoryWarning = $"The model file is {MemoryPreflight.FormatBytes((ulong)modelBytes)}; "
+                + $"{target.Name} has {MemoryPreflight.FormatBytes(target.MemoryFree)} free. "
+                + "The weights alone do not fit — pin another device in Settings, or choose a smaller quantization.";
+            return;
+        }
+
+        string key = MemoryPreflight.RunKey(
+            ModelAlias, WindowSeconds, _settings.SelectedBackend, target.Name);
+        MemoryObservation? measured = UiSettings.LoadMemoryObservation(key);
+        MemoryWarning = measured is not null && target.MemoryFree < measured.MinimumFreeBytes
+            ? $"A previous run of this configuration went down to "
+                + $"{MemoryPreflight.FormatBytes(measured.MinimumFreeBytes)} free on {target.Name}; "
+                + $"{MemoryPreflight.FormatBytes(target.MemoryFree)} is free now. Lower Window or pin another device."
+            : string.Empty;
+    }
+
+    /// <summary>The pinned file size from the manifest, or -1 when the alias is unknown.</summary>
+    private static long ModelSize(string alias)
+        => string.IsNullOrEmpty(alias)
+            ? -1
+            : ModelStore.Catalog.FirstOrDefault(model => model.Alias == alias)?.Size ?? -1;
+
+    /// <summary>Records what this run observed about its device, for the next run's warning.</summary>
+    private void SaveMemoryObservation()
+    {
+        if (Result?.Memory is not { } observation)
+        {
+            return;
+        }
+
+        UiSettings.SaveMemoryObservation(
+            MemoryPreflight.RunKey(
+                ModelAlias, WindowSeconds, _settings.SelectedBackend, observation.DeviceName),
+            observation);
     }
 
     /// <summary>

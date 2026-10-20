@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Models;
 
 namespace TranscribeCppSharp.UI.Services;
 
@@ -90,6 +91,56 @@ public static class UiSettings
     public static ExportSettings DefaultExportSettings { get; } = new(false, 1, 60);
 
     /// <summary>
+    /// The last measurement recorded for a run configuration, or null when that
+    /// configuration has not run on this machine.
+    /// </summary>
+    /// <param name="key">A key from <see cref="MemoryPreflight.RunKey"/>.</param>
+    public static MemoryObservation? LoadMemoryObservation(string key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return null;
+        }
+
+        lock (Gate)
+        {
+            if (!Read().Memory.TryGetValue(key, out MemoryRecord? record))
+            {
+                return null;
+            }
+
+            return new MemoryObservation(
+                record.DeviceName, record.TotalBytes, record.MinimumFreeBytes, record.MeasuredAt);
+        }
+    }
+
+    /// <summary>Records what one run observed about its device's free memory.</summary>
+    /// <param name="key">A key from <see cref="MemoryPreflight.RunKey"/>.</param>
+    /// <param name="observation">The measurement; ignored when the key is empty.</param>
+    public static void SaveMemoryObservation(string key, MemoryObservation observation)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+
+        if (string.IsNullOrEmpty(key))
+        {
+            return;
+        }
+
+        lock (Gate)
+        {
+            Document document = Read();
+            document.Memory[key] = new MemoryRecord
+            {
+                DeviceName = observation.DeviceName,
+                TotalBytes = observation.TotalBytes,
+                MinimumFreeBytes = observation.MinimumFreeBytes,
+                MeasuredAt = observation.MeasuredAt,
+            };
+            Write(document);
+        }
+    }
+
+    /// <summary>
     /// Where the settings are written. Null means the default location under the
     /// app's cache directory; tests point it at a temporary file.
     /// </summary>
@@ -177,6 +228,25 @@ public static class UiSettings
 
         [JsonPropertyName("export")]
         public ExportSection? Export { get; set; }
+
+        [JsonPropertyName("memory")]
+        public Dictionary<string, MemoryRecord> Memory { get; init; } = new(StringComparer.Ordinal);
+    }
+
+    /// <summary>One measured run, as it sits on disk.</summary>
+    private sealed class MemoryRecord
+    {
+        [JsonPropertyName("deviceName")]
+        public string DeviceName { get; init; } = string.Empty;
+
+        [JsonPropertyName("totalBytes")]
+        public ulong TotalBytes { get; init; }
+
+        [JsonPropertyName("minimumFreeBytes")]
+        public ulong MinimumFreeBytes { get; init; }
+
+        [JsonPropertyName("measuredAt")]
+        public DateTimeOffset MeasuredAt { get; init; }
     }
 
     /// <summary>The Transcription tab's export options as they sit on disk.</summary>

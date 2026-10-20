@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.UI.Services;
@@ -35,6 +36,13 @@ public partial class SettingsViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string _backendAvailabilityHint = BaselineBackendHint;
+
+    /// <summary>
+    /// Which device this configuration resolves to, with its live free figure.
+    /// "Auto resolves to" is the native policy, not a guess made here.
+    /// </summary>
+    [ObservableProperty]
+    private string _backendTargetHint = string.Empty;
 
     private const string BaselineBackendHint =
         "Auto is the default: the GPU is used when one initializes, otherwise the CPU. "
@@ -147,6 +155,62 @@ public partial class SettingsViewModel : ObservableObject
         catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
         {
             // The baseline is the part that matters; the list is a convenience.
+        }
+
+        UpdateTargetHint();
+    }
+
+    /// <summary>
+    /// States which device the current backend/device choice resolves to, and its
+    /// live free memory. It is the answer to "what will actually run?" before a
+    /// model is loaded.
+    /// </summary>
+    private void UpdateTargetHint()
+    {
+        BackendDevice? target = MemoryPreflight.Target(Devices, SelectedBackend, SelectedDevice);
+        BackendTargetHint = target is null
+            ? "No compute device reported, so there is nothing to say about memory."
+            : SelectedDevice is not null
+                ? $"Pinned device: {MemoryPreflight.Describe(target)}."
+                : SelectedBackend == BackendRequest.BackendAuto
+                    ? $"Auto resolves to: {MemoryPreflight.Describe(target)}."
+                    : $"{BackendLabel(SelectedBackend)} resolves to: {MemoryPreflight.Describe(target)}.";
+    }
+
+    partial void OnSelectedBackendChanged(BackendRequest value) => UpdateTargetHint();
+
+    partial void OnSelectedDeviceChanged(BackendDevice? value) => UpdateTargetHint();
+
+    /// <summary>
+    /// Re-reads the device list and its live free-memory figures. Keeps a pinned
+    /// device selected when it is still present, matching the runtime handle first
+    /// and the stable device id second.
+    /// </summary>
+    [RelayCommand]
+    private void RefreshDevices()
+    {
+        try
+        {
+            BackendDevice? keep = SelectedDevice;
+            IReadOnlyList<BackendDevice> fresh = Backends.EnumerateDevices();
+
+            Devices.Clear();
+            foreach (BackendDevice device in fresh)
+            {
+                Devices.Add(device);
+            }
+
+            SelectedDevice = keep is null
+                ? null
+                : Devices.FirstOrDefault(d => d.Handle == keep.Handle && d.Handle != IntPtr.Zero)
+                    ?? Devices.FirstOrDefault(d => !string.IsNullOrEmpty(d.DeviceId) && d.DeviceId == keep.DeviceId);
+
+            UpdateBackendAvailability();
+        }
+        catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            UiLog.Failure("device enumeration", ex);
+            BackendError = $"The device list could not be refreshed: {ex.Message} (logged to {UiLog.FilePath})";
         }
     }
 
