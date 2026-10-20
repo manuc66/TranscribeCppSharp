@@ -1168,8 +1168,18 @@ public partial class TranscriptionViewModel : ObservableObject
             return;
         }
 
-        await window.Clipboard.SetTextAsync(LastError);
-        StatusMessage = "Error details copied to the clipboard.";
+        try
+        {
+            await window.Clipboard.SetTextAsync(LastError);
+            StatusMessage = "Error details copied to the clipboard.";
+        }
+        catch (Exception ex)
+        {
+            // A desktop clipboard can refuse the write (no clipboard owner, a
+            // session without a display); that must not take the window down.
+            UiLog.Failure("clipboard copy", ex);
+            StatusMessage = $"Could not copy: {ex.Message} (logged to {UiLog.FilePath})";
+        }
     }
 
     /// <summary>The full report, with what the status line has no room for.</summary>
@@ -1385,37 +1395,72 @@ public partial class TranscriptionViewModel : ObservableObject
 
         if (window == null) return;
 
-        var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        try
         {
-            Title = "Export transcript",
-            DefaultExtension = "txt",
-            FileTypeChoices = new[]
+            var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
             {
-                new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns },
-                new Avalonia.Platform.Storage.FilePickerFileType("WebVTT") { Patterns = VttPatterns },
-                new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
-                new Avalonia.Platform.Storage.FilePickerFileType("HTML") { Patterns = HtmlPatterns },
-                new Avalonia.Platform.Storage.FilePickerFileType("Markdown") { Patterns = MarkdownPatterns }
+                Title = "Export transcript",
+                DefaultExtension = "txt",
+                FileTypeChoices = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns },
+                    new Avalonia.Platform.Storage.FilePickerFileType("WebVTT") { Patterns = VttPatterns },
+                    new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
+                    new Avalonia.Platform.Storage.FilePickerFileType("HTML") { Patterns = HtmlPatterns },
+                    new Avalonia.Platform.Storage.FilePickerFileType("Markdown") { Patterns = MarkdownPatterns }
+                }
+            });
+
+            if (file == null) return;
+
+            var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                StatusMessage = "Could not export: the chosen location has no local path.";
+                return;
             }
-        });
 
-        if (file == null) return;
-
-        var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
-        if (string.IsNullOrWhiteSpace(path)) return;
-
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        var content = ext switch
+            await ExportToAsync(path);
+        }
+        catch (Exception ex)
         {
-            ".vtt" => BuildVttExport(),
-            ".json" => ExportAsJson(),
-            ".html" => BuildHtmlExport(),
-            ".md" => BuildMarkdownExport(),
-            _ => FullText
-        };
+            // A failed write is the reader's disk (full, read-only, gone), not a
+            // reason for the whole window to come down. Say what happened, keep
+            // the transcript on screen, and leave the details in the log.
+            UiLog.Failure("export", ex);
+            StatusMessage = $"Could not export: {ex.Message} (logged to {UiLog.FilePath})";
+        }
+    }
 
-        await File.WriteAllTextAsync(path, content);
-        StatusMessage = $"Exported to {path}";
+    /// <summary>
+    /// Writes the result to <paramref name="path"/>, choosing the format from its
+    /// extension. Internal so the failure path is reachable without a file picker.
+    /// A disk error is reported, not thrown: the transcript remains on screen.
+    /// </summary>
+    internal async System.Threading.Tasks.Task ExportToAsync(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        try
+        {
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            var content = ext switch
+            {
+                ".vtt" => BuildVttExport(),
+                ".json" => ExportAsJson(),
+                ".html" => BuildHtmlExport(),
+                ".md" => BuildMarkdownExport(),
+                _ => FullText
+            };
+
+            await File.WriteAllTextAsync(path, content);
+            StatusMessage = $"Exported to {path}";
+        }
+        catch (Exception ex)
+        {
+            UiLog.Failure("export", ex);
+            StatusMessage = $"Could not export: {ex.Message} (logged to {UiLog.FilePath})";
+        }
     }
 
     /// <summary>
