@@ -33,7 +33,7 @@ internal static class Program
     /// Tab order as MainWindow.axaml declares it; the name is the file suffix.
     /// </summary>
     private static readonly string[] Tabs =
-        ["transcription", "streaming", "batch", "models", "settings"];
+        ["transcription", "streaming", "batch", "history", "models", "settings"];
 
     [STAThread]
     public static void Main(string[] args)

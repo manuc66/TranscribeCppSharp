@@ -305,6 +305,8 @@ download the model first.
 
 ### History
 
+![The History tab.]({{ '/assets/images/ui-history.png' | relative_url }})
+
 Every finished transcription is saved on this machine, so closing the app does not lose it.
 The file holds the transcript and the few facts that name it — audio path, model, language,
 requested diarization, window, date — under `<cache>/../history`, beside the log and the
