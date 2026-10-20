@@ -14,6 +14,7 @@ public class TranscriptionService : ITranscriptionService
         string modelPath,
         TranscriptionOptions options,
         IProgress<double>? progress = null,
+        IProgress<string>? liveText = null,
         IProgress<TranscriptionPhase>? phase = null,
         CancellationToken cancellationToken = default)
     {
@@ -29,7 +30,7 @@ public class TranscriptionService : ITranscriptionService
 
         // Pass one: the selected model, through the role it serves.
         TranscriptionResult result = await RunSelectedModel(
-            audioPath, modelPath, options, passOneProgress, cancellationToken).ConfigureAwait(false);
+            audioPath, modelPath, options, passOneProgress, liveText, cancellationToken).ConfigureAwait(false);
 
         // Pass two: an optional separate diarizer, for a transcriber that cannot
         // attribute speakers itself. It runs after pass one, with that model already
@@ -76,6 +77,7 @@ public class TranscriptionService : ITranscriptionService
         string modelPath,
         TranscriptionOptions options,
         IProgress<double>? progress,
+        IProgress<string>? liveText,
         CancellationToken cancellationToken)
     {
         var model = LoadModel(modelPath, options.BackendRequest, options.Device);
@@ -87,7 +89,7 @@ public class TranscriptionService : ITranscriptionService
 
             return await System.Threading.Tasks.Task.Run(
                 () => roles.HasFlag(TranscribeRole.Asr)
-                    ? RunAsr(model, roles, options, audioSource, progress, cancellationToken)
+                    ? RunAsr(model, roles, options, audioSource, progress, liveText, cancellationToken)
                     : RunNonAsr(model, roles, options, audioSource, progress, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
         }
@@ -141,6 +143,7 @@ public class TranscriptionService : ITranscriptionService
         TranscriptionOptions options,
         PcmSource audioSource,
         IProgress<double>? progress,
+        IProgress<string>? liveText,
         CancellationToken cancellationToken)
     {
         using var session = CreateSession(model, options);
@@ -176,6 +179,11 @@ public class TranscriptionService : ITranscriptionService
 
                 windowIndex++;
                 progress?.Report((double)windowIndex / windows.Count);
+
+                // One update per finished window: the offline run has no finer
+                // callback, so this is not word-by-word, and the window setting is
+                // what decides how often it changes.
+                liveText?.Report(merger.BuildText());
             }
         }
         else

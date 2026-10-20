@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
+using Avalonia.Input.Platform;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.UI.Models;
@@ -46,6 +47,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanCancelTranscription))]
+    [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     private bool _isTranscribing;
 
     [ObservableProperty]
@@ -98,6 +100,30 @@ public partial class TranscriptionViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _hasResult;
+
+    /// <summary>
+    /// The text of the windows finished so far, while a run is in flight. One
+    /// update per window, not word by word: the offline run offers no finer
+    /// callback, so the Window setting decides how often this changes.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLiveText))]
+    private string _liveText = string.Empty;
+
+    /// <summary>Whether the live preview has something to show.</summary>
+    public bool ShowLiveText => IsTranscribing && LiveText.Length > 0;
+
+    /// <summary>
+    /// The last failure in full, ready to copy: type, message, native status,
+    /// failed method, log path and stack trace. Null after a successful run.
+    /// </summary>
+    [ObservableProperty]
+    private string? _lastError;
+
+    /// <summary>Whether there is an error report to copy.</summary>
+    public bool CanCopyError => !string.IsNullOrEmpty(LastError);
+
+    partial void OnLastErrorChanged(string? value) => OnPropertyChanged(nameof(CanCopyError));
 
     /// <summary>
     /// Insert pause markers into the HTML export. Off, the export has none; the
@@ -1018,6 +1044,8 @@ public partial class TranscriptionViewModel : ObservableObject
         _cancelTranscription = cancellation.Cancel;
         IsTranscribing = true;
         Progress = 0;
+        LiveText = string.Empty;
+        LastError = null;
         StatusMessage = "Transcribing...";
         HasResult = false;
         UiSettings.SetLastModel(UiSettings.TranscriptionTab, ModelAlias);
@@ -1026,11 +1054,13 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             var options = BuildTranscriptionOptions();
 
-            // Inline rather than Progress<T>: the updates are already reported on the
-            // thread the run resumes on, and posting them would let "Diarizing…"
-            // arrive after the run has finished.
-            var progress = new InlineProgress<double>(p => Progress = p);
-            var phase = new InlineProgress<TranscriptionPhase>(p => StatusMessage = p switch
+            // Progress<T> posts to the UI context. The service reports from the
+            // worker thread that runs the windows, and from a continuation that
+            // used ConfigureAwait(false), so updating the bindings inline would be
+            // a cross-thread mutation.
+            var progress = new Progress<double>(p => Progress = p);
+            var liveText = new Progress<string>(text => LiveText = text);
+            var phase = new Progress<TranscriptionPhase>(p => StatusMessage = p switch
             {
                 TranscriptionPhase.Diarizing =>
                     "Diarizing… the transcript is complete; a separate diarizer is attributing speakers.",
@@ -1038,7 +1068,7 @@ public partial class TranscriptionViewModel : ObservableObject
             });
 
             Result = await _transcriptionService.TranscribeAsync(
-                AudioPath, ModelAlias, options, progress, phase, cancellation.Token);
+                AudioPath, ModelAlias, options, progress, liveText, phase, cancellation.Token);
 
             ShowResult(
                 Result,
@@ -1053,14 +1083,27 @@ public partial class TranscriptionViewModel : ObservableObject
             // leaving a half-filled tab or logging a failure the reader caused.
             StatusMessage = "Transcription cancelled. The partial result was discarded.";
         }
+        catch (TranscribeException ex)
+        {
+            // A native status is more useful than a sentence, and an out-of-memory
+            // run has a next step worth naming. The details stay copyable.
+            LastError = BuildErrorReport(ex, "transcription run");
+            UiLog.Failure("transcription run", ex);
+            StatusMessage = ex.StatusCode == Status.ErrOom
+                ? "Out of memory (ErrOom): the model did not fit. Try a smaller quantization, "
+                    + $"a lower context size, or the CPU backend in Settings. (logged to {UiLog.FilePath})"
+                : $"Error: {ex.Message} (logged to {UiLog.FilePath})";
+        }
         catch (Exception ex)
         {
+            LastError = BuildErrorReport(ex, "transcription run");
             UiLog.Failure("transcription run", ex);
             StatusMessage = $"Error: {ex.Message} (logged to {UiLog.FilePath})";
         }
         finally
         {
             _cancelTranscription = null;
+            LiveText = string.Empty;
             IsTranscribing = false;
         }
     }
@@ -1068,6 +1111,60 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Stops the run in flight, if any.</summary>
     [RelayCommand]
     private void CancelTranscription() => _cancelTranscription?.Invoke();
+
+    /// <summary>
+    /// Copies the last failure to the clipboard. The status line is a sentence; the
+    /// report is what a bug report or a developer needs, including the native
+    /// status and the log path.
+    /// </summary>
+    [RelayCommand]
+    private async System.Threading.Tasks.Task CopyErrorAsync()
+    {
+        if (string.IsNullOrEmpty(LastError))
+        {
+            return;
+        }
+
+        var window = Avalonia.Application.Current?.ApplicationLifetime
+            is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow
+            : null;
+
+        if (window?.Clipboard is null)
+        {
+            StatusMessage = "Could not copy: the clipboard is unavailable.";
+            return;
+        }
+
+        await window.Clipboard.SetTextAsync(LastError);
+        StatusMessage = "Error details copied to the clipboard.";
+    }
+
+    /// <summary>The full report, with what the status line has no room for.</summary>
+    private static string BuildErrorReport(Exception exception, string what)
+    {
+        var report = new System.Text.StringBuilder();
+        report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"{what} failed at {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz}");
+        report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"exception: {exception.GetType().FullName}");
+        report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"message: {exception.Message}");
+
+        if (exception is TranscribeException native)
+        {
+            report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+                $"native status: {native.StatusCode} ({(int)native.StatusCode})");
+            report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+                $"failed method: {native.FailedMethod ?? "unknown"}");
+        }
+
+        report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"log: {UiLog.FilePath}");
+        report.AppendLine();
+        report.Append(exception);
+        return report.ToString();
+    }
 
     /// <summary>Puts a result into the views and grids the tab shows.</summary>
     private void ShowResult(TranscriptionResult result, ResultProvenance provenance)
@@ -1155,16 +1252,6 @@ public partial class TranscriptionViewModel : ObservableObject
         string Language,
         string Diarize,
         int WindowSeconds);
-
-    /// <summary>
-    /// Reports on the calling thread instead of posting to the captured context.
-    /// The service already resumes on the UI thread, and posting let a phase update
-    /// land after the run had completed and overwritten the status.
-    /// </summary>
-    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
-    {
-        public void Report(T value) => report(value);
-    }
 
     [RelayCommand]
     private async System.Threading.Tasks.Task ExportAsync()

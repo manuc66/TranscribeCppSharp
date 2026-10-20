@@ -166,7 +166,16 @@ the result. See [Long audio and diarization](diarization.md).
 **Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
 not instant, and the wrapper turns a native abort into cancellation *before* it reads the
 partial result — so the partial transcript is discarded rather than shown, and the status line
-says exactly that. A cancelled run is not a failure and is not written to the log. The progress
+says exactly that. A cancelled run is not a failure and is not written to the log.
+
+While a run is in flight, a **live text** panel shows the text of the windows finished so far.
+It updates once per window — the Window setting decides how often — not word by word: the
+offline run offers no finer callback. A file shorter than one window shows no preview; the
+result appears when the run ends. The panel is a preview, not a saved result: it is cleared when
+the run finishes and the Text tab takes over.
+
+If a run fails, the status names the failure and the tab offers **Copy error** for the full
+report; see [When something fails](#when-something-fails). The progress
 bar carries its percentage beside it while the run is in flight.
 
 For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears
@@ -454,6 +463,11 @@ rather than silently falling back. Pinning a *device* is stricter still — it n
 back to another device, so a model that will not fit there fails instead of quietly running
 elsewhere. The backend and device picked here are what the three transcription tabs use.
 
+The panel is **optional**: leaving both controls alone is the normal case. A line under the
+pickers says so and names the backends this build and machine report as available, so the
+seven-item list does not read as a choice that must be made. `Auto` probing and the exact
+fallback rules are on [Compute](compute.md).
+
 ## Asking the model
 
 Everywhere a model is chosen, the app loads it once and asks it what it can do, rather than
@@ -481,16 +495,21 @@ while a load is in progress waits for it instead of starting another.
 
 ## When something fails
 
-A failure the app catches is shown as a line of status text and also appended, in full —
-exception type, message, inner exceptions and stack trace — to
+A failure the app catches is shown as a selectable line of status text and also appended, in
+full — exception type, message, inner exceptions and stack trace — to
 `<cache>/../logs/ui.log`, beside the `models` directory the Settings tab already names. The
-status line is not selectable, so the file is where to look for what actually happened; when
-a message reports a failure it also names that path. The file is appended to and never
-rotated. Not every failure in the app goes through it — only the ones the view models catch
-and report. One that deliberately does not: a model deleted while the Streaming tab was
+Transcription tab keeps the last failure and offers **Copy error**, which puts a report on the
+clipboard with the exception type, the message, the native status and failed method when there
+is one, the log path, and the stack trace — so a failure can be pasted into a bug report instead
+of retyped. A message that reports a failure also names the log path. The file is appended to
+and never rotated. Not every failure in the app goes through it — only the ones the view models
+catch and report. One that deliberately does not: a model deleted while the Streaming tab was
 reading its capabilities leaves the picker without a log entry, because a file the reader has
 already removed is not a capability failure. A model that is present but cannot be loaded is
 logged as usual.
+
+An out-of-memory run (`ErrOom`) is named as such, with the next step that can help — a smaller
+quantization, a lower context size, or the CPU backend — rather than only the native sentence.
 
 ## Look and theme
 

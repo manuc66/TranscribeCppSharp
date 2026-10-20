@@ -29,6 +29,18 @@ public partial class SettingsViewModel : ObservableObject
     private string _backendVersion = string.Empty;
 
     /// <summary>
+    /// What the compute controls mean here: Auto is the default and resolves a
+    /// backend by itself. Filled after enumeration so it can name the backends
+    /// this build and machine report.
+    /// </summary>
+    [ObservableProperty]
+    private string _backendAvailabilityHint = BaselineBackendHint;
+
+    private const string BaselineBackendHint =
+        "Auto is the default: the GPU is used when one initializes, otherwise the CPU. "
+        + "These controls are optional — use them to force a backend or pin a device.";
+
+    /// <summary>
     /// Why the backend list is unavailable, when it is.
     /// </summary>
     /// <remarks>
@@ -109,5 +121,43 @@ public partial class SettingsViewModel : ObservableObject
             UiLog.Failure("device enumeration", ex);
             BackendError = $"{Devices.Count} device(s) listed, then enumeration failed: {ex.Message} (logged to {UiLog.FilePath})";
         }
+
+        UpdateBackendAvailability();
     }
+
+    /// <summary>
+    /// Names the backends this build reports as available, after the baseline that
+    /// says the panel is optional. `BackendAvailable` answers from the native
+    /// library, so this can fail like any other backend call and is not worth an
+    /// error of its own: the baseline is still true without the list.
+    /// </summary>
+    private void UpdateBackendAvailability()
+    {
+        try
+        {
+            List<string> available = AvailableBackends
+                .Where(backend => backend != BackendRequest.BackendAuto && Backends.BackendAvailable(backend))
+                .Select(BackendLabel)
+                .ToList();
+
+            BackendAvailabilityHint = available.Count > 0
+                ? $"{BaselineBackendHint} Available on this machine: {string.Join(", ", available)}."
+                : $"{BaselineBackendHint} This build reports no usable device.";
+        }
+        catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            // The baseline is the part that matters; the list is a convenience.
+        }
+    }
+
+    private static string BackendLabel(BackendRequest backend) => backend switch
+    {
+        BackendRequest.BackendCpu => "CPU",
+        BackendRequest.BackendCpuAccel => "CPU (accelerated)",
+        BackendRequest.BackendMetal => "Metal",
+        BackendRequest.BackendVulkan => "Vulkan",
+        BackendRequest.BackendCuda => "CUDA",
+        BackendRequest.BackendRocm => "ROCm",
+        _ => backend.ToString(),
+    };
 }

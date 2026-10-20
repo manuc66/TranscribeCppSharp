@@ -9,6 +9,27 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: live text while a run is in flight, and a copyable error report
+
+The Transcription tab shows the text of the windows finished so far while a run is in progress,
+cleared when the result takes over. It is one update per window — the Window setting decides how
+often — not word by word: the offline run offers no finer callback, and the panel says so. A
+file shorter than one window shows no preview because there is nothing to show before the end.
+
+A failed run now keeps its full report and offers **Copy error**: exception type, message, the
+native status and failed method when there is one, the log path and the stack trace. The status
+line is selectable too; before, it was a plain label and the only copyable form was the log file.
+An `ErrOom` failure is named as such with the next step that can help — a smaller quantization, a
+lower context size, or the CPU backend.
+
+### UI: the Settings compute panel says it is optional
+
+The backend and device pickers are unchanged, but a line under them now says that `Auto` is the
+default and that the panel exists to force a backend or pin a device. It also names the backends
+this build and machine report as available, so the seven-item list no longer reads as a choice
+that must be made. The availability comes from `Backends.BackendAvailable`; when that call fails,
+the sentence without the list is still shown.
+
 ### UI: the diarizer picker refuses the combinations that cannot work, and explains the ones that might
 
 The **Diarizer** picker is now offered only when the transcriber reports at least segment

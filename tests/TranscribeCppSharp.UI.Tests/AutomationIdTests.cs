@@ -57,6 +57,8 @@ public class AutomationIdTests
         "transcription-progress",
         "transcription-progress-percent",
         "transcription-status",
+        "transcription-copy-error",
+        "transcription-live-text",
         "transcription-results",
     ];
 
@@ -120,6 +122,7 @@ public class AutomationIdTests
         "settings-cache-directory",
         "settings-backend-version",
         "settings-backend-error",
+        "settings-backend-hint",
         "settings-devices",
         "settings-about",
         "settings-app-version",

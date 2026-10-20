@@ -26,6 +26,7 @@ public interface ITranscriptionService
         string modelPath,
         TranscriptionOptions options,
         IProgress<double>? progress = null,
+        IProgress<string>? liveText = null,
         IProgress<TranscriptionPhase>? phase = null,
         CancellationToken cancellationToken = default);
 

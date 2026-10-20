@@ -281,7 +281,7 @@ public class StreamingModelGuardTests
 
         public Task<TranscriptionResult> TranscribeAsync(
             string audioPath, string modelPath, TranscriptionOptions options,
-            IProgress<double>? progress = null, IProgress<TranscriptionPhase>? phase = null, CancellationToken cancellationToken = default)
+            IProgress<double>? progress = null, IProgress<string>? liveText = null, IProgress<TranscriptionPhase>? phase = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(

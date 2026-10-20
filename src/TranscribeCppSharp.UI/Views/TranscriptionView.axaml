@@ -13,7 +13,7 @@
     <c:LanguageNameConverter x:Key="LanguageName" />
   </UserControl.Resources>
 
-  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
     <!-- Audio file selection -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
@@ -306,12 +306,33 @@
     </Grid>
 
     <!-- Status -->
-    <TextBlock Grid.Row="10" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap"
-               AutomationProperties.AutomationId="transcription-status"
-               AutomationProperties.Name="Status" />
+    <Grid Grid.Row="10" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+      <SelectableTextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
+                           AutomationProperties.AutomationId="transcription-status"
+                           AutomationProperties.Name="Status" />
+      <Button Grid.Column="1" Content="Copy error" Command="{Binding CopyErrorCommand}"
+              IsVisible="{Binding CanCopyError}" Margin="8,0,0,0" VerticalAlignment="Top"
+              AutomationProperties.AutomationId="transcription-copy-error"
+              AutomationProperties.Name="Copy error details"
+              ToolTip.Tip="Copy the last failure in full — type, message, native status, failed method, log path and stack trace — so it can be pasted into a bug report." />
+    </Grid>
+
+    <!-- Live text, one update per finished window. Not word by word: the offline
+         run has no finer callback, and the Window setting is what decides how
+         often this changes. -->
+    <Border Grid.Row="11" Classes="card" IsVisible="{Binding ShowLiveText}" MaxHeight="180" Margin="0,0,0,8">
+      <ScrollViewer>
+        <StackPanel>
+          <TextBlock Text="Live text — after each finished window" Classes="label" />
+          <SelectableTextBlock Text="{Binding LiveText}" TextWrapping="Wrap"
+                               AutomationProperties.AutomationId="transcription-live-text"
+                               AutomationProperties.Name="Live transcription text" />
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
 
     <!-- Results -->
-    <TabControl Grid.Row="11" IsVisible="{Binding HasResult}"
+    <TabControl Grid.Row="12" IsVisible="{Binding HasResult}"
                 AutomationProperties.AutomationId="transcription-results"
                 AutomationProperties.Name="Transcription results">
       <TabItem Header="Text">

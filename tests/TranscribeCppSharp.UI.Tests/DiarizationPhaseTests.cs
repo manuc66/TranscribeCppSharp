@@ -24,6 +24,8 @@ public class DiarizationPhaseTests
         using var settings = new UiSettingsScope();
         string audio = Path.Combine(Path.GetTempPath(), "tcsharp-phase-" + Guid.NewGuid().ToString("N") + ".wav");
         File.WriteAllText(audio, string.Empty);
+        SynchronizationContext? previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new ImmediateSynchronizationContext());
         try
         {
             var viewModel = new TranscriptionViewModel(
@@ -42,9 +44,16 @@ public class DiarizationPhaseTests
         }
         finally
         {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
             File.Delete(audio);
             ModelStore.CacheRootOverride = previous;
         }
+    }
+
+    /// <summary>Runs the callback inline, so Progress<T> updates are ordered in tests.</summary>
+    private sealed class ImmediateSynchronizationContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state) => callback(state);
     }
 
     /// <summary>Reports the second pass, waits, then returns a result.</summary>
@@ -57,6 +66,7 @@ public class DiarizationPhaseTests
         public async Task<TranscriptionResult> TranscribeAsync(
             string audioPath, string modelPath, TranscriptionOptions options,
             IProgress<double>? progress = null,
+            IProgress<string>? liveText = null,
             IProgress<TranscriptionPhase>? phase = null,
             CancellationToken cancellationToken = default)
         {

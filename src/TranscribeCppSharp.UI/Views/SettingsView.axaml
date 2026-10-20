@@ -15,25 +15,30 @@
        when there are more devices than fit, which is what the list needed. -->
   <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
     <!-- Backend and device -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,16">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0">
-        <TextBlock Text="Backend" Classes="section"
-                   ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back." />
-        <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="settings-backend"
-                  AutomationProperties.Name="Backend" />
-      </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0">
-        <TextBlock Text="Device" Classes="section"
-                   ToolTip.Tip="Pin transcription to one exact device. Stricter than a backend: it never falls back to another device, so a model that will not fit fails instead of quietly running elsewhere. Leave unselected to let the backend resolve one." />
-        <ComboBox ItemsSource="{Binding Devices}"
-                  SelectedItem="{Binding SelectedDevice}"
-                  PlaceholderText="Let the backend choose"
-                  HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="settings-device"
-                  AutomationProperties.Name="Device" />
-      </StackPanel>
-    </Grid>
+    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+      <Grid ColumnDefinitions="*,*">
+        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+          <TextBlock Text="Backend" Classes="section"
+                     ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back." />
+          <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedItem="{Binding SelectedBackend}" HorizontalAlignment="Stretch"
+                    AutomationProperties.AutomationId="settings-backend"
+                    AutomationProperties.Name="Backend" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+          <TextBlock Text="Device" Classes="section"
+                     ToolTip.Tip="Pin transcription to one exact device. Stricter than a backend: it never falls back to another device, so a model that will not fit fails instead of quietly running elsewhere. Leave unselected to let the backend resolve one." />
+          <ComboBox ItemsSource="{Binding Devices}"
+                    SelectedItem="{Binding SelectedDevice}"
+                    PlaceholderText="Let the backend choose"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.AutomationId="settings-device"
+                    AutomationProperties.Name="Device" />
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="{Binding BackendAvailabilityHint}" Classes="hint" TextWrapping="Wrap" Margin="0,8,0,0"
+                 AutomationProperties.AutomationId="settings-backend-hint"
+                 AutomationProperties.Name="Backend availability" />
+    </StackPanel>
 
     <!-- Cache directory -->
     <StackPanel Grid.Row="1" Margin="0,0,0,16">
