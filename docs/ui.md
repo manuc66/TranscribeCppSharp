@@ -503,7 +503,10 @@ What they cover is worth stating, because it is narrow: the automation ids on al
 which view models hide options a model does not support, the defaults, and the catalogue
 item's display states. The bindings inside a `DataTemplate` are verified by realizing the
 rows and reading the values back — a property with no binding fails silently, which is how
-the default-model mark stayed missing from the grid while its property existed.
+the default-model mark stayed missing from the grid while its property existed. One test
+also arranges the Transcription tab with a result and a model that declares a vocabulary, and
+checks that the vocabulary field and the export options are visible and do not overlap the rows
+around them — an id existing is not the same as a control being on screen.
 
 Two things they do **not** cover. The accessible names set in the XAML are not asserted by
 any test — only the ids are, and a name is not an id. And no test drives the window
