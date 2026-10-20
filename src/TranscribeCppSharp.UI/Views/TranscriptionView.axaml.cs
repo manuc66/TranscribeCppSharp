@@ -1,5 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using TranscribeCppSharp.UI.ViewModels;
@@ -16,6 +18,36 @@ public partial class TranscriptionView : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    /// <summary>
+    /// Copies the whole transcript, the counterpart to selecting a passage by
+    /// hand. The clipboard comes from the top level rather than a cached field,
+    /// so the handler works wherever the control is hosted.
+    /// </summary>
+    private async void OnCopyTranscript(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not TranscriptionViewModel viewModel)
+        {
+            return;
+        }
+
+        IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+        {
+            viewModel.StatusMessage = "This window has no clipboard to copy to.";
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(viewModel.FullText);
+            viewModel.StatusMessage = "Copied the transcript to the clipboard.";
+        }
+        catch (Exception ex)
+        {
+            viewModel.StatusMessage = $"Could not copy the transcript: {ex.Message}";
+        }
     }
 
     /// <summary>

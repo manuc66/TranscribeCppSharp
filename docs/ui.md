@@ -183,8 +183,8 @@ renderer, except that the app does not keep the audio file's duration and the
 document says `audio: unknown` rather than passing the last segment's end for it. The Markdown
 export is the app's own: a header, then one paragraph per segment with the speaker in bold and
 the timestamp in code, and the pause markers when they are on. The Text tab's text is
-selectable, so a passage can be copied out by hand instead of exporting the
-whole result.
+selectable, so a passage can be copied out by hand, and **Copy** beside Export writes the whole
+result to the clipboard without going through a file.
 
 An audio or video file can also be dropped onto the tab; the drop and the **Browse…** dialog
 accept the same extensions, and a drop of anything else leaves the current path alone.

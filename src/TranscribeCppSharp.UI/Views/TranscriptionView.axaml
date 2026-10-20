@@ -244,6 +244,10 @@
               AutomationProperties.AutomationId="transcription-export"
               AutomationProperties.Name="Export transcript"
               ToolTip.Tip="Write the transcript to a text file." />
+      <Button Content="Copy" Click="OnCopyTranscript" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="transcription-copy"
+              AutomationProperties.Name="Copy transcript"
+              ToolTip.Tip="Copy the whole transcript to the clipboard. A passage can also be selected in the Text tab and copied by hand." />
     </StackPanel>
 
     <!-- Export options. They change only the exported document: the transcript

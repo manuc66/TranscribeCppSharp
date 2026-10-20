@@ -45,6 +45,7 @@ public class AutomationIdTests
         "transcription-run",
         "transcription-cancel",
         "transcription-export",
+        "transcription-copy",
         "transcription-export-options",
         "transcription-timestamp-interval",
         "transcription-mark-pauses",

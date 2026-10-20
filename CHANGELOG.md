@@ -43,6 +43,14 @@ so. A batch keeps the items that finished before the token fired (the service re
 the caller's own token distinguishes cancelled from complete); the file in flight is dropped. A
 batch cancelled before it starts never resolves or downloads the model.
 
+### UI: Copy writes the whole transcript to the clipboard
+
+**Copy** sits beside **Export**. It writes the text the Text tab shows, unchanged, to the
+clipboard and confirms it on the status line; it does not build a new format. Selecting a
+passage in the Text tab still works for copying part of a result, and the button is the
+shortcut for all of it. `TranscriptionCopyTests` presses it in a headless window and reads the
+text back from that window's clipboard.
+
 ### UI: a vocabulary field for the models that declare the feature
 
 `transcribe_run_params` has carried a vocabulary list all along (`vocabulary` /
