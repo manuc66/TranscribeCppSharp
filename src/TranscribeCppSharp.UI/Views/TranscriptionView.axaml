@@ -18,11 +18,11 @@
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
                AutomationProperties.AutomationId="transcription-audio-path"
                AutomationProperties.Name="Audio file path"
-               ToolTip.Tip="A 16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, ...) is decoded with ffmpeg, which must be installed and on PATH." />
+               ToolTip.Tip="A 16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, ...) and the audio track of a video container (mp4, mkv, webm, ...) are decoded with ffmpeg, which must be installed and on PATH." />
       <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseAudioCommand}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="transcription-browse-audio"
               AutomationProperties.Name="Browse for audio file"
-              ToolTip.Tip="Pick an audio file to transcribe." />
+              ToolTip.Tip="Pick an audio file or a video file to transcribe. A video's audio track is decoded; the picture is ignored." />
     </Grid>
 
     <!-- Model and language -->

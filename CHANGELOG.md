@@ -22,6 +22,16 @@ The honesty limit is upstream's: a model without the feature ignores the list wi
 warning, and this project has not measured how much a vocabulary changes a transcript. The page
 says so instead of promising better accuracy.
 
+### UI: video containers are accepted by the file picker and by a drop
+
+The Transcription tab's **Browse…** dialog and its drop handler now accept the audio track of
+`mp4`, `m4v`, `mkv`, `mov`, `avi`, `webm` and `3gp` files, along with `aac`, `opus` and `wma`
+audio. `ffmpeg` already decoded these — it is asked for raw 16 kHz mono PCM, so no video stream
+is selected — but the picker filtered them out and a drop of one was refused before the decoder
+saw it. Each listed extension was decoded with the loader's own command rather than assumed from
+the container name. A container with no audio track still fails in the loader with `ffmpeg`'s
+error.
+
 ### UI: the export options are remembered, files can be dropped, and Markdown is offered
 
 The three export settings (timestamp interval, pause markers and their threshold) are now read

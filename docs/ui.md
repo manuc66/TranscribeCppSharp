@@ -125,9 +125,12 @@ boundaries at a seam can differ slightly from a single pass — the speech found
 the same. A diarizer is run whole — its speaker ids are per run, so splitting would
 renumber them at the seam.
 
-A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg`, `m4a`)
-is decoded with `ffmpeg`, which has to be installed and on `PATH` — see
-[Audio input](audio-input.md).
+A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg`, `m4a`,
+`aac`, `opus`, `wma`) and the audio track of a video container (`mp4`, `m4v`, `mkv`, `mov`,
+`avi`, `webm`, `3gp`) is decoded with `ffmpeg`, which has to be installed and on `PATH` — see
+[Audio input](audio-input.md). The video stream is not selected: the decoder is asked for raw
+16 kHz mono PCM, so the picture is ignored. A container with no audio track still fails, with
+`ffmpeg`'s error.
 
 | Setting | Default | Notes |
 |---|---|---|
@@ -178,8 +181,8 @@ the timestamp in code, and the pause markers when they are on. The Text tab's te
 selectable, so a passage can be copied out by hand instead of exporting the
 whole result.
 
-An audio file can also be dropped onto the tab; the drop and the **Browse…** dialog accept the
-same extensions, and a drop of anything else leaves the current path alone.
+An audio or video file can also be dropped onto the tab; the drop and the **Browse…** dialog
+accept the same extensions, and a drop of anything else leaves the current path alone.
 
 Beneath the result tabs sit three export options, which change the exported
 document and nothing else:

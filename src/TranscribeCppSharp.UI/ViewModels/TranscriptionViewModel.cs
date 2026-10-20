@@ -367,7 +367,23 @@ public partial class TranscriptionViewModel : ObservableObject
         WriteIndented = true
     };
 
-    private static readonly string[] AudioPatterns = ["*.wav", "*.mp3", "*.flac", "*.ogg", "*.m4a"];
+    /// <summary>
+    /// What the Browse dialog offers, and what a drop accepts.
+    /// </summary>
+    /// <remarks>
+    /// Video containers are here because the decoder is ffmpeg and it takes the
+    /// audio track out of one with the same command it uses for an audio file: the
+    /// output format is raw PCM, so no video stream is selected. A file with no
+    /// audio track still fails, in the loader, with ffmpeg's own error — the
+    /// extensions are what the picker filters on, not a claim about the file.
+    /// Every extension in this list was decoded with that command (ffmpeg 9.0.1)
+    /// rather than assumed from the container name; a WAV is read directly.
+    /// </remarks>
+    private static readonly string[] AudioPatterns =
+    [
+        "*.wav", "*.mp3", "*.flac", "*.ogg", "*.m4a", "*.aac", "*.opus", "*.wma",
+        "*.mp4", "*.m4v", "*.mkv", "*.mov", "*.avi", "*.webm", "*.3gp",
+    ];
     private static readonly string[] TextPatterns = ["*.txt"];
     private static readonly string[] VttPatterns = ["*.vtt"];
     private static readonly string[] JsonPatterns = ["*.json"];
