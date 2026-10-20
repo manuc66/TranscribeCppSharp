@@ -280,9 +280,15 @@
     </Grid>
 
     <!-- Progress -->
-    <ProgressBar Grid.Row="9" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8"
-                 AutomationProperties.AutomationId="transcription-progress"
-                 AutomationProperties.Name="Transcription progress" />
+    <Grid Grid.Row="9" ColumnDefinitions="*,Auto" Margin="0,0,0,8" IsVisible="{Binding IsTranscribing}">
+      <ProgressBar Grid.Column="0" Value="{Binding Progress}" Maximum="1"
+                   AutomationProperties.AutomationId="transcription-progress"
+                   AutomationProperties.Name="Transcription progress" />
+      <TextBlock Grid.Column="1" Text="{Binding Progress, StringFormat='{}{0:P0}'}"
+                 VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="44" TextAlignment="Right"
+                 AutomationProperties.AutomationId="transcription-progress-percent"
+                 AutomationProperties.Name="Transcription progress percentage" />
+    </Grid>
 
     <!-- Status -->
     <TextBlock Grid.Row="10" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap"

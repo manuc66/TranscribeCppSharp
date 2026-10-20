@@ -166,7 +166,8 @@ the result. See [Long audio and diarization](diarization.md).
 **Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
 not instant, and the wrapper turns a native abort into cancellation *before* it reads the
 partial result — so the partial transcript is discarded rather than shown, and the status line
-says exactly that. A cancelled run is not a failure and is not written to the log.
+says exactly that. A cancelled run is not a failure and is not written to the log. The progress
+bar carries its percentage beside it while the run is in flight.
 
 For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears
 instead: it offers the downloaded models that serve only the DIARIZE role (Sortformer). With

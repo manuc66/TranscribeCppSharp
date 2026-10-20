@@ -52,6 +52,7 @@ public class AutomationIdTests
         "transcription-pause-threshold",
         "transcription-speaker-names",
         "transcription-progress",
+        "transcription-progress-percent",
         "transcription-status",
         "transcription-results",
     ];

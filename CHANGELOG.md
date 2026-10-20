@@ -29,6 +29,13 @@ What is not saved is stated in the docs: a cancelled run (its partial result is 
 failed one, and a batch's per-file results. A failed history write does not turn a successful
 transcription into a failed one; the status line says the history could not be saved.
 
+### UI: the progress bar shows its percentage
+
+The Transcription tab's progress bar now carries the percentage it is filling to, beside it.
+It is a reading of the same `Progress` value the bar already used, not a second estimate.
+`ProgressPercentTests` sets 0.42 on an arranged view and reads the label back.
+
+
 ### UI: cancel a transcription or a batch
 
 The Transcription and Batch tabs can now stop a run in flight. The token goes through the
