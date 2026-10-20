@@ -88,11 +88,26 @@ rules for text, the number column and the timestamp. One table row is one
 segment, numbered from 1.
 
 **Timestamps** (`[hh:mm:ss]`) are inserted on the first segment, on every speaker
-change, and at most once a minute — so a long uninterrupted turn still carries a
-position every 60 s, and the text stays readable. The document records the model,
-the language, whether diarization was requested, the window and the segment count;
-it records nothing about accuracy, because this project publishes no accuracy
-figure.
+change, and at most once per interval — 60 s by default, so a long uninterrupted
+turn still carries a position every minute while the text stays readable. The
+interval is a setting in the desktop app's export options; `0` leaves only the
+first segment and the speaker changes stamped. The CLI writes the 60 s default.
+
+**Pauses** are opt-in, in the desktop app only: a gap of at least the chosen
+threshold (1 s by default) between two segments becomes its own unnumbered row,
+with one dot per whole second of silence, capped at ten. The dots are a marker of
+the silence *between recognized segments*; silence inside a segment is not
+visible to this export, and the transcript itself is never rewritten to include
+them.
+
+**Speaker names** are opt-in as well: the app's Speakers tab lists one field per
+speaker id, and a name typed there replaces `Speaker N` in the HTML and WebVTT
+exports. A blank field keeps `Speaker N`. The transcript text is untouched — a
+name is a label on the export, not a correction of what the model said.
+
+The document records the model, the language, whether diarization was requested,
+the window and the segment count; it records nothing about accuracy, because this
+project publishes no accuracy figure.
 
 **What it is not.** This is a static report, not an editable transcript. The
 desktop app has no editor: there is no audio-follows-cursor playback and no

@@ -16,8 +16,8 @@ using System.Net;
 
 namespace TranscribeCppSharp.SharedSource;
 
-/// <summary>One transcript paragraph, positioned by its start on the timeline.</summary>
-public readonly record struct HtmlTranscriptSegment(double StartMs, int Speaker, string Text);
+/// <summary>One transcript paragraph, positioned on the timeline.</summary>
+public readonly record struct HtmlTranscriptSegment(double StartMs, double EndMs, int Speaker, string Text);
 
 /// <summary>What the document records about the run that produced it.</summary>
 public readonly record struct HtmlTranscriptInfo(
@@ -37,14 +37,34 @@ public readonly record struct HtmlTranscriptInfo(
 /// </summary>
 public static class HtmlTranscriptWriter
 {
-    /// <summary>Longest gap the inline timestamps allow, in milliseconds.</summary>
+    /// <summary>Longest gap the inline timestamps allow, by default.</summary>
     public const int TimestampIntervalMs = 60_000;
 
+    /// <summary>Most dots one pause marker may hold, however long the silence.</summary>
+    public const int MaxPauseDots = 10;
+
     /// <summary>Writes the whole document, from &lt;!DOCTYPE html&gt; to &lt;/html&gt;.</summary>
+    /// <param name="writer">Where the document goes.</param>
+    /// <param name="info">What the document records about the run.</param>
+    /// <param name="segments">The transcript, one row per segment.</param>
+    /// <param name="timestampIntervalMs">
+    /// Longest gap between two inline timestamps. The first segment and every
+    /// speaker change are stamped regardless; zero leaves only those.
+    /// </param>
+    /// <param name="pauseThresholdMs">
+    /// Shortest gap between two segments that is marked as a pause. Zero turns
+    /// the markers off.
+    /// </param>
+    /// <param name="speakerNames">
+    /// Names by speaker id. A missing or blank name falls back to "Speaker N".
+    /// </param>
     public static void Write(
         TextWriter writer,
         HtmlTranscriptInfo info,
-        IReadOnlyList<HtmlTranscriptSegment> segments)
+        IReadOnlyList<HtmlTranscriptSegment> segments,
+        int timestampIntervalMs = TimestampIntervalMs,
+        int pauseThresholdMs = 0,
+        IReadOnlyDictionary<int, string>? speakerNames = null)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(segments);
@@ -71,6 +91,7 @@ public static class HtmlTranscriptWriter
         WriteLine(writer, "td.text { text-align: justify; line-height: 1.45; }");
         WriteLine(writer, "span.ts { color: #555; font-size: 9pt; white-space: nowrap; }");
         WriteLine(writer, "span.speaker { font-weight: bold; }");
+        WriteLine(writer, "span.pause { color: #888; }");
         WriteLine(writer, "tr { page-break-inside: avoid; }");
         WriteLine(writer, "</style>");
         WriteLine(writer, "</head>");
@@ -98,12 +119,26 @@ public static class HtmlTranscriptWriter
             {
                 HtmlTranscriptSegment segment = segments[i];
 
-                // A timestamp at the start, on a speaker change, and every minute
-                // at most. The speaker change resets the interval so the label
-                // that follows never looks like it belongs to an older turn.
+                // The silence between two segments gets its own unnumbered row,
+                // between them. It is not attached to either segment's number,
+                // so the numbering stays one number per segment. Only the gap
+                // between recognized segments is visible here; silence inside a
+                // segment is not.
+                if (pauseThresholdMs > 0 && i > 0)
+                {
+                    double gapMs = segment.StartMs - segments[i - 1].EndMs;
+                    if (gapMs >= pauseThresholdMs)
+                    {
+                        WriteLine(writer, PauseRow(gapMs));
+                    }
+                }
+
+                // A timestamp at the start, on a speaker change, and every
+                // interval at most. The speaker change resets the interval so the
+                // label that follows never looks like it belongs to an older turn.
                 bool timestamp = i == 0
                     || segment.Speaker != lastSpeaker
-                    || segment.StartMs - lastStampMs >= TimestampIntervalMs;
+                    || (timestampIntervalMs > 0 && segment.StartMs - lastStampMs >= timestampIntervalMs);
                 if (timestamp)
                 {
                     lastStampMs = segment.StartMs;
@@ -117,7 +152,7 @@ public static class HtmlTranscriptWriter
                     cell.Append("<span class=\"ts\">[").Append(FormatClock(segment.StartMs)).Append("]</span> ");
                 }
 
-                cell.Append("<span class=\"speaker\">Speaker ").Append(segment.Speaker).Append(":</span> ");
+                cell.Append("<span class=\"speaker\">").Append(Encode(SpeakerLabel(segment.Speaker, speakerNames))).Append(":</span> ");
                 cell.Append(Encode(segment.Text));
 
                 WriteLine(writer, $"<tr><td class=\"ln\">{i + 1}</td><td class=\"text\">{cell}</td></tr>");
@@ -129,6 +164,26 @@ public static class HtmlTranscriptWriter
         WriteLine(writer, "</body>");
         WriteLine(writer, "</html>");
     }
+
+    /// <summary>
+    /// The pause marker row: one dot per whole second of silence, capped so a
+    /// long gap stays a marker rather than a line of punctuation.
+    /// </summary>
+    private static string PauseRow(double gapMs)
+    {
+        int dots = Math.Clamp((int)Math.Floor(gapMs / 1000.0), 1, MaxPauseDots);
+        return "<tr class=\"pause\"><td class=\"ln\"></td><td class=\"text\"><span class=\"pause\">["
+            + new string('.', dots)
+            + "]</span></td></tr>";
+    }
+
+    /// <summary>The name the reader gave the speaker, or the id when there is none.</summary>
+    private static string SpeakerLabel(int speaker, IReadOnlyDictionary<int, string>? names)
+        => names is not null
+            && names.TryGetValue(speaker, out string? name)
+            && !string.IsNullOrWhiteSpace(name)
+                ? name.Trim()
+                : $"Speaker {speaker}";
 
     /// <summary>
     /// The lang attribute, or nothing when the value is not a language tag. The

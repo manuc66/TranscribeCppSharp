@@ -79,6 +79,33 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasResult;
 
+    /// <summary>
+    /// Insert pause markers into the HTML export. Off, the export has none; the
+    /// transcript itself never carries them.
+    /// </summary>
+    [ObservableProperty]
+    private bool _markPauses;
+
+    /// <summary>Shortest silence that counts as a pause, in seconds.</summary>
+    [ObservableProperty]
+    private int _pauseThresholdSeconds = 1;
+
+    /// <summary>
+    /// Longest gap between two inline timestamps in the HTML export. Zero leaves
+    /// only the first segment and each speaker change stamped.
+    /// </summary>
+    [ObservableProperty]
+    private int _timestampIntervalSeconds = 60;
+
+    /// <summary>
+    /// The speakers in the current result, with the name the reader may give
+    /// each. Empty unless the result has more than one speaker or speaker turns.
+    /// </summary>
+    public ObservableCollection<SpeakerNameEntry> SpeakerNames { get; } = new();
+
+    /// <summary>Whether the speaker-name editor has anything to show.</summary>
+    public bool HasSpeakerNames => SpeakerNames.Count > 0;
+
     public ObservableCollection<string> AvailableModels { get; } = new();
     public ObservableCollection<string> AvailableLanguages { get; } = new();
 
@@ -433,6 +460,59 @@ public partial class TranscriptionViewModel : ObservableObject
     partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
 
     /// <summary>
+    /// Rebuilds the speaker-name rows when a result arrives, keeping the names
+    /// already typed for the speakers that are still there.
+    /// </summary>
+    /// <remarks>
+    /// The rows appear only when there is something to name: a result with one
+    /// speaker and no speaker turns would show a single "Speaker 0" field, which
+    /// names nothing. A result the model produced without attribution therefore
+    /// leaves the editor hidden.
+    /// </remarks>
+    partial void OnResultChanged(TranscriptionResult? value)
+    {
+        var ids = new List<int>();
+        if (value is not null)
+        {
+            foreach (MergedSegment segment in value.Segments)
+            {
+                if (!ids.Contains(segment.SpeakerId))
+                {
+                    ids.Add(segment.SpeakerId);
+                }
+            }
+
+            foreach (SpeakerSegmentResult turn in value.SpeakerSegments)
+            {
+                if (!ids.Contains(turn.SpeakerId))
+                {
+                    ids.Add(turn.SpeakerId);
+                }
+            }
+        }
+
+        ids.Sort();
+        Dictionary<int, string> previous = SpeakerNames.ToDictionary(e => e.SpeakerId, e => e.Name);
+        SpeakerNames.Clear();
+
+        if (ids.Count > 1 || value?.SpeakerSegments.Count > 0)
+        {
+            foreach (int id in ids)
+            {
+                SpeakerNames.Add(new SpeakerNameEntry(id, previous.GetValueOrDefault(id, string.Empty)));
+            }
+        }
+
+        OnPropertyChanged(nameof(HasSpeakerNames));
+    }
+
+    /// <summary>The names that were actually typed, by speaker id.</summary>
+    private Dictionary<int, string> NamedSpeakers()
+        => SpeakerNames
+            .Where(e => !string.IsNullOrWhiteSpace(e.Name))
+            .ToDictionary(e => e.SpeakerId, e => e.Name.Trim());
+
+    /// <summary>
     /// Reads the capabilities of the selected model, once per alias. The answer
     /// is held by the shared <see cref="ModelCapabilityCache"/>.
     /// </summary>
@@ -780,9 +860,9 @@ public partial class TranscriptionViewModel : ObservableObject
         var ext = Path.GetExtension(path).ToLowerInvariant();
         var content = ext switch
         {
-            ".vtt" => ExportAsVtt(),
+            ".vtt" => BuildVttExport(),
             ".json" => ExportAsJson(),
-            ".html" => ExportAsHtml(),
+            ".html" => BuildHtmlExport(),
             _ => FullText
         };
 
@@ -790,17 +870,24 @@ public partial class TranscriptionViewModel : ObservableObject
         StatusMessage = $"Exported to {path}";
     }
 
-    private string ExportAsVtt()
+    /// <summary>
+    /// The WebVTT export. Speaker names are used when the reader typed one;
+    /// otherwise the cue says "Speaker N", as the CLI's does.
+    /// </summary>
+    internal string BuildVttExport()
     {
+        Dictionary<int, string> names = NamedSpeakers();
         var sb = new System.Text.StringBuilder();
-        sb.Append("WEBVTT").AppendLine();
-        sb.AppendLine();
+        sb.Append("WEBVTT\n\n");
         foreach (var segment in Segments)
         {
-            sb.Append(FormatTime(segment.Start)).Append(" --> ").Append(FormatTime(segment.End)).AppendLine();
-            sb.Append(segment.Text).AppendLine();
-            sb.AppendLine();
+            string speaker = names.TryGetValue(segment.SpeakerId, out string? name)
+                ? name
+                : $"Speaker {segment.SpeakerId}";
+            sb.Append(FormatTime(segment.Start)).Append(" --> ").Append(FormatTime(segment.End)).Append('\n');
+            sb.Append("<v ").Append(speaker).Append('>').Append(segment.Text).Append("</v>\n\n");
         }
+
         return sb.ToString();
     }
 
@@ -814,7 +901,12 @@ public partial class TranscriptionViewModel : ObservableObject
     /// renderer. The duration is left unknown: the app does not keep the audio
     /// file's length, and the last segment's end is not it.
     /// </summary>
-    private string ExportAsHtml()
+    /// <remarks>
+    /// The three export options are read here, not stored in the result: the same
+    /// transcript exported twice can differ only in the document that describes
+    /// it. The transcript itself is never rewritten.
+    /// </remarks>
+    internal string BuildHtmlExport()
     {
         string detected = Result?.DetectedLanguage ?? string.Empty;
         var info = new TranscribeCppSharp.SharedSource.HtmlTranscriptInfo(
@@ -833,11 +925,18 @@ public partial class TranscriptionViewModel : ObservableObject
 
         var segments = Segments
             .Select(s => new TranscribeCppSharp.SharedSource.HtmlTranscriptSegment(
-                s.Start.TotalMilliseconds, s.SpeakerId, s.Text))
+                s.Start.TotalMilliseconds, s.End.TotalMilliseconds, s.SpeakerId, s.Text))
             .ToArray();
 
+        Dictionary<int, string> names = NamedSpeakers();
         using var writer = new StringWriter();
-        TranscribeCppSharp.SharedSource.HtmlTranscriptWriter.Write(writer, info, segments);
+        TranscribeCppSharp.SharedSource.HtmlTranscriptWriter.Write(
+            writer,
+            info,
+            segments,
+            timestampIntervalMs: Math.Max(0, TimestampIntervalSeconds) * 1000,
+            pauseThresholdMs: MarkPauses ? Math.Max(1, PauseThresholdSeconds) * 1000 : 0,
+            speakerNames: names.Count > 0 ? names : null);
         return writer.ToString();
     }
 

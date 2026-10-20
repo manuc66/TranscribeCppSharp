@@ -9,7 +9,7 @@
     <c:KvTypeNameConverter x:Key="KvTypeName" />
   </UserControl.Resources>
 
-  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
     <!-- Audio file selection -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
@@ -217,18 +217,47 @@
               ToolTip.Tip="Write the transcript to a text file." />
     </StackPanel>
 
+    <!-- Export options. They change only the exported document: the transcript
+         the model produced is not rewritten, and the Text tab still shows it as
+         it came back. -->
+    <Grid Grid.Row="7" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,8"
+          IsVisible="{Binding HasResult}"
+          AutomationProperties.AutomationId="transcription-export-options"
+          AutomationProperties.Name="Export options">
+      <TextBlock Grid.Column="0" Text="Timestamps every" Classes="hint" VerticalAlignment="Center" Margin="0,0,6,0"
+                 ToolTip.Tip="How often a timestamp is written in the HTML export, in seconds. The first segment and every speaker change are always stamped. 0 leaves only those." />
+      <NumericUpDown Grid.Column="1" Value="{Binding TimestampIntervalSeconds}" Minimum="0" Maximum="600" Increment="10"
+                     Width="100" Margin="0,0,4,0"
+                     AutomationProperties.AutomationId="transcription-timestamp-interval"
+                     AutomationProperties.Name="Timestamp interval in seconds" />
+      <TextBlock Grid.Column="2" Text="s" Classes="hint" VerticalAlignment="Center" Margin="0,0,16,0" />
+      <CheckBox Grid.Column="3" Content="Mark pauses" IsChecked="{Binding MarkPauses}" VerticalAlignment="Center"
+                AutomationProperties.AutomationId="transcription-mark-pauses"
+                AutomationProperties.Name="Mark pauses"
+                ToolTip.Tip="Write a pause marker between two segments separated by silence. One dot per whole second, capped at ten. Only the silence between recognized segments is visible: silence inside a segment is not, and the marker appears in the HTML export only." />
+      <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0"
+                  IsEnabled="{Binding MarkPauses}">
+        <TextBlock Text="of at least" Classes="hint" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <NumericUpDown Value="{Binding PauseThresholdSeconds}" Minimum="1" Maximum="60" Increment="1"
+                       Width="100"
+                       AutomationProperties.AutomationId="transcription-pause-threshold"
+                       AutomationProperties.Name="Pause threshold in seconds" />
+        <TextBlock Text="s" Classes="hint" VerticalAlignment="Center" Margin="4,0,0,0" />
+      </StackPanel>
+    </Grid>
+
     <!-- Progress -->
-    <ProgressBar Grid.Row="7" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8"
+    <ProgressBar Grid.Row="8" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8"
                  AutomationProperties.AutomationId="transcription-progress"
                  AutomationProperties.Name="Transcription progress" />
 
     <!-- Status -->
-    <TextBlock Grid.Row="8" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap"
+    <TextBlock Grid.Row="9" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap"
                AutomationProperties.AutomationId="transcription-status"
                AutomationProperties.Name="Status" />
 
     <!-- Results -->
-    <TabControl Grid.Row="9" IsVisible="{Binding HasResult}"
+    <TabControl Grid.Row="10" IsVisible="{Binding HasResult}"
                 AutomationProperties.AutomationId="transcription-results"
                 AutomationProperties.Name="Transcription results">
       <TabItem Header="Text">
@@ -256,14 +285,38 @@
         </DataGrid>
       </TabItem>
       <TabItem Header="Speakers">
-        <DataGrid ItemsSource="{Binding SpeakerSegments}" AutoGenerateColumns="False" IsReadOnly="True">
-          <DataGrid.Columns>
-            <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
-            <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
-            <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
-            <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P0}}" />
-          </DataGrid.Columns>
-        </DataGrid>
+        <Grid RowDefinitions="Auto,*">
+          <StackPanel Grid.Row="0" Margin="0,0,0,8" IsVisible="{Binding HasSpeakerNames}"
+                      AutomationProperties.AutomationId="transcription-speaker-names"
+                      AutomationProperties.Name="Speaker names">
+            <TextBlock Text="Names" Classes="label"
+                       ToolTip.Tip="A name for each speaker id, used by the HTML and WebVTT exports. Leave a field empty to keep 'Speaker N'." />
+            <ItemsControl ItemsSource="{Binding SpeakerNames}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Margin="0,0,16,4">
+                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox Text="{Binding Name}" Width="160" PlaceholderText="Name"
+                             AutomationProperties.Name="{Binding Label}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <DataGrid Grid.Row="1" ItemsSource="{Binding SpeakerSegments}" AutoGenerateColumns="False" IsReadOnly="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
+              <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
+              <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
+              <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P0}}" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </Grid>
       </TabItem>
       <TabItem Header="Languages" IsVisible="{Binding ShowLangIdTab}"
                AutomationProperties.AutomationId="transcription-langid-grid"

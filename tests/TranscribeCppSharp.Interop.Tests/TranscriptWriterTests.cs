@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using TranscribeCppSharp.Cli;
+using TranscribeCppSharp.SharedSource;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -23,6 +24,9 @@ public class TranscriptWriterTests
     private static readonly TranscriptInfo Info = new(
         "/audio/jfk.wav", TimeSpan.FromSeconds(11), "whisper/whisper-tiny", "en",
         DiarizeMode.DiarizeModeOn, 300, Generated);
+
+    private static readonly HtmlTranscriptSegment[] HtmlSegments =
+        Lines.Select(l => new HtmlTranscriptSegment(l.StartMs, l.EndMs, l.Speaker, l.Text)).ToArray();
 
     private static string Write(Action<TextWriter> body)
     {
@@ -317,6 +321,159 @@ public class TranscriptWriterTests
         string content = writer.ToString();
         Assert.Contains("audio: unknown · model whisper-tiny · language fr · diarize off · window 30s · segments 0", content);
         Assert.DoesNotContain("\r", content);
+    }
+
+    private static string WriteHtml(
+        IReadOnlyList<HtmlTranscriptSegment> segments,
+        int timestampIntervalMs = HtmlTranscriptWriter.TimestampIntervalMs,
+        int pauseThresholdMs = 0,
+        IReadOnlyDictionary<int, string>? speakerNames = null)
+    {
+        var writer = new StringWriter();
+        HtmlTranscriptWriter.Write(
+            writer,
+            new HtmlTranscriptInfo(
+                "/audio/jfk.wav", TimeSpan.FromSeconds(11), "whisper/whisper-tiny", "en",
+                "on", 300, Generated),
+            segments, timestampIntervalMs, pauseThresholdMs, speakerNames);
+        return writer.ToString();
+    }
+
+    private static int Count(string content, string value)
+    {
+        int count = 0;
+        for (int i = content.IndexOf(value, StringComparison.Ordinal);
+             i >= 0;
+             i = content.IndexOf(value, i + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    [Fact]
+    public void Html_MarksAPauseBetweenSegmentsAsOneDotPerSecond()
+    {
+        HtmlTranscriptSegment[] segments =
+        [
+            new(0, 5_000, 0, "first"),
+            new(8_400, 10_000, 0, "second"),
+            new(10_500, 11_000, 0, "third"),
+        ];
+
+        string content = WriteHtml(segments, pauseThresholdMs: 1_000);
+
+        // 3.4 s of silence between the first two segments: three dots, in a row of
+        // its own so the segment numbering stays one number per segment.
+        Assert.Contains(
+            "<tr class=\"pause\"><td class=\"ln\"></td><td class=\"text\"><span class=\"pause\">[...]</span></td></tr>",
+            content);
+        // The 0.5 s gap is below the 1 s threshold and gets no marker.
+        Assert.Equal(1, Count(content, "<tr class=\"pause\">"));
+        // Numbering is untouched by the unnumbered row.
+        Assert.Contains("<td class=\"ln\">2</td>", content);
+        Assert.Contains("<td class=\"ln\">3</td>", content);
+    }
+
+    [Fact]
+    public void Html_DoesNotMarkAPauseShorterThanTheThreshold()
+    {
+        HtmlTranscriptSegment[] segments =
+        [
+            new(0, 5_000, 0, "first"),
+            new(5_900, 7_000, 0, "second"),
+        ];
+
+        string content = WriteHtml(segments, pauseThresholdMs: 1_000);
+
+        Assert.DoesNotContain("class=\"pause\"", content);
+    }
+
+    [Fact]
+    public void Html_MarksNoPauseWhenTheThresholdIsZero()
+    {
+        HtmlTranscriptSegment[] segments =
+        [
+            new(0, 5_000, 0, "first"),
+            new(35_000, 36_000, 0, "second"),
+        ];
+
+        string content = WriteHtml(segments, pauseThresholdMs: 0);
+
+        Assert.DoesNotContain("class=\"pause\"", content);
+    }
+
+    [Fact]
+    public void Html_CapsALongPauseAtTenDots()
+    {
+        // A minute of silence is still a pause marker, not sixty characters of
+        // punctuation in the middle of the transcript.
+        HtmlTranscriptSegment[] segments =
+        [
+            new(0, 1_000, 0, "first"),
+            new(61_000, 62_000, 0, "second"),
+        ];
+
+        string content = WriteHtml(segments, pauseThresholdMs: 1_000);
+
+        Assert.Contains("<span class=\"pause\">[..........]</span>", content);
+    }
+
+    [Fact]
+    public void Html_UsesTheSpeakerNameWhenOneIsGiven()
+    {
+        string content = WriteHtml(
+            HtmlSegments,
+            speakerNames: new Dictionary<int, string> { [0] = "Alice", [2] = "Bob" });
+
+        Assert.Contains("<span class=\"speaker\">Alice:</span>", content);
+        Assert.Contains("<span class=\"speaker\">Bob:</span>", content);
+        Assert.DoesNotContain("Speaker 0:", content);
+        Assert.DoesNotContain("Speaker 2:", content);
+    }
+
+    [Fact]
+    public void Html_FallsBackToTheSpeakerIdForABlankName()
+    {
+        string content = WriteHtml(
+            HtmlSegments,
+            speakerNames: new Dictionary<int, string> { [0] = "   " });
+
+        Assert.Contains("<span class=\"speaker\">Speaker 0:</span>", content);
+        Assert.Contains("<span class=\"speaker\">Speaker 2:</span>", content);
+    }
+
+    [Fact]
+    public void Html_TimestampIntervalIsConfigurable()
+    {
+        HtmlTranscriptSegment[] segments =
+        [
+            new(0, 1_000, 0, "a"),
+            new(30_000, 31_000, 0, "b"),
+            new(70_000, 71_000, 0, "c"),
+        ];
+
+        // Every 30 s: the stamps land at 0, 30 and 70 (40 s after the last one).
+        Assert.Equal(3, Count(WriteHtml(segments, timestampIntervalMs: 30_000), "class=\"ts\""));
+
+        // Zero means no timed stamp at all: only the first segment is stamped.
+        Assert.Equal(1, Count(WriteHtml(segments, timestampIntervalMs: 0), "class=\"ts\""));
+    }
+
+    [Fact]
+    public void Html_StampsOnASpeakerChangeEvenWhenTheIntervalIsOff()
+    {
+        HtmlTranscriptSegment[] segments =
+        [
+            new(0, 1_000, 0, "a"),
+            new(30_000, 31_000, 1, "b"),
+        ];
+
+        string content = WriteHtml(segments, timestampIntervalMs: 0);
+
+        Assert.Equal(2, Count(content, "class=\"ts\""));
+        Assert.Contains("[00:00:30]", content);
     }
 }
 

@@ -1,0 +1,203 @@
+using System.Collections.ObjectModel;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.LogicalTree;
+using TranscribeCppSharp.Audio;
+using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Models;
+using TranscribeCppSharp.UI.Services;
+using TranscribeCppSharp.UI.ViewModels;
+using TranscribeCppSharp.UI.Views;
+using Xunit;
+
+namespace TranscribeCppSharp.UI.Tests;
+
+/// <summary>
+/// The Transcription tab's export options: speaker names, pause markers, and how
+/// often a timestamp is written.
+/// </summary>
+/// <remarks>
+/// These change only what the exported document says. The transcript the model
+/// produced is untouched, and the Text tab still shows it as it came back — the
+/// pause markers exist in the export, not in the text.
+/// </remarks>
+[Collection("UiGlobalState")]
+public class ExportOptionsTests
+{
+    private static void WithViewModel(Action<TranscriptionViewModel> test)
+    {
+        // Keep the constructor's capability probe from loading a real model.
+        string? previous = ModelStore.CacheRootOverride;
+        ModelStore.CacheRootOverride = Path.Combine(
+            Path.GetTempPath(), "tcsharp-export-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            test(viewModel);
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = previous;
+        }
+    }
+
+    private static TranscriptionResult Result(params (double Start, double End, int Speaker, string Text)[] segments)
+        => new()
+        {
+            FullText = string.Join(' ', segments.Select(s => s.Text)),
+            Segments = segments
+                .Select(s => new MergedSegment(
+                    TimeSpan.FromSeconds(s.Start), TimeSpan.FromSeconds(s.End), s.Text, s.Speaker))
+                .ToList(),
+        };
+
+    private static void Load(TranscriptionViewModel viewModel, TranscriptionResult result)
+    {
+        // The real run sets both: Result, then the collection the grid shows.
+        viewModel.Result = result;
+        viewModel.Segments = new ObservableCollection<MergedSegment>(result.Segments);
+    }
+
+    [Fact]
+    public void ExportOptions_StartAtTheirDocumentedDefaults()
+    {
+        WithViewModel(viewModel =>
+        {
+            Assert.False(viewModel.MarkPauses);
+            Assert.Equal(1, viewModel.PauseThresholdSeconds);
+            Assert.Equal(60, viewModel.TimestampIntervalSeconds);
+            Assert.Empty(viewModel.SpeakerNames);
+            Assert.False(viewModel.HasSpeakerNames);
+        });
+    }
+
+    [Fact]
+    public void SpeakerNames_ListEverySpeakerInTheResult()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 1, 0, "a"), (1, 2, 2, "b")));
+
+            Assert.True(viewModel.HasSpeakerNames);
+            Assert.Equal([0, 2], viewModel.SpeakerNames.Select(e => e.SpeakerId));
+            Assert.Equal("Speaker 0", viewModel.SpeakerNames[0].Label);
+            Assert.All(viewModel.SpeakerNames, e => Assert.Equal(string.Empty, e.Name));
+        });
+    }
+
+    [Fact]
+    public void SpeakerNames_AreNotShownForASingleSpeakerResult()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 1, 0, "a"), (1, 2, 0, "b")));
+
+            Assert.False(viewModel.HasSpeakerNames);
+            Assert.Empty(viewModel.SpeakerNames);
+        });
+    }
+
+    [Fact]
+    public void SpeakerNames_SurviveARerunWithTheSameSpeakers()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 1, 0, "a"), (1, 2, 2, "b")));
+            viewModel.SpeakerNames[0].Name = "Alice";
+
+            Load(viewModel, Result((0, 1, 0, "a"), (1, 2, 2, "b")));
+
+            Assert.Equal("Alice", viewModel.SpeakerNames.Single(e => e.SpeakerId == 0).Name);
+            Assert.Equal(string.Empty, viewModel.SpeakerNames.Single(e => e.SpeakerId == 2).Name);
+        });
+    }
+
+    [Fact]
+    public void BuildHtmlExport_UsesTheNamesPausesAndInterval()
+    {
+        WithViewModel(viewModel =>
+        {
+            viewModel.AudioPath = "/audio/interview.wav";
+            Load(viewModel, Result((0, 5, 0, "first"), (9, 10, 2, "second")));
+            viewModel.SpeakerNames.Single(e => e.SpeakerId == 0).Name = "Alice";
+            viewModel.MarkPauses = true;
+            viewModel.PauseThresholdSeconds = 1;
+            viewModel.TimestampIntervalSeconds = 30;
+
+            string html = viewModel.BuildHtmlExport();
+
+            Assert.Contains("source: /audio/interview.wav", html);
+            Assert.Contains("audio: unknown", html);
+            Assert.Contains("<span class=\"speaker\">Alice:</span>", html);
+            Assert.Contains("<span class=\"speaker\">Speaker 2:</span>", html);
+            // 4 s of silence between the two segments: four dots.
+            Assert.Contains("<span class=\"pause\">[....]</span>", html);
+            // A separate test covers the interval itself; this one checks it is
+            // read from the view model's setting and not left at 60 s.
+            Assert.Contains("[00:00:09]", html);
+        });
+    }
+
+    [Fact]
+    public void BuildHtmlExport_LeavesPauseMarkersOutWhenTheBoxIsUnchecked()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 5, 0, "first"), (9, 10, 0, "second")));
+            viewModel.MarkPauses = false;
+            viewModel.PauseThresholdSeconds = 1;
+
+            Assert.DoesNotContain("class=\"pause\"", viewModel.BuildHtmlExport());
+        });
+    }
+
+    [Fact]
+    public void BuildVttExport_UsesTheSpeakerNames()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 1, 0, "a"), (1, 2, 2, "b")));
+            viewModel.SpeakerNames.Single(e => e.SpeakerId == 0).Name = "Alice";
+
+            string vtt = viewModel.BuildVttExport();
+
+            Assert.Contains("<v Alice>a</v>", vtt);
+            Assert.Contains("<v Speaker 2>b</v>", vtt);
+            Assert.DoesNotContain("<v Speaker 0>", vtt);
+        });
+    }
+
+    [AvaloniaFact]
+    public void ExportOptionControls_WriteIntoTheViewModel()
+    {
+        // The bindings are the one thing a view-model test cannot see: a control
+        // bound to nothing fails silently. This realizes the view and drives the
+        // two controls the export reads.
+        WithViewModel(viewModel =>
+        {
+            var view = new TranscriptionView { DataContext = viewModel };
+            var window = new Window { Content = view, Width = 1100, Height = 720 };
+            window.Show();
+
+            var markPauses = view.GetLogicalDescendants()
+                .OfType<CheckBox>()
+                .First(c => AutomationProperties.GetAutomationId(c) == "transcription-mark-pauses");
+            markPauses.IsChecked = true;
+            Assert.True(viewModel.MarkPauses);
+
+            var interval = view.GetLogicalDescendants()
+                .OfType<NumericUpDown>()
+                .First(c => AutomationProperties.GetAutomationId(c) == "transcription-timestamp-interval");
+            interval.Value = 30;
+            Assert.Equal(30, viewModel.TimestampIntervalSeconds);
+
+            var threshold = view.GetLogicalDescendants()
+                .OfType<NumericUpDown>()
+                .First(c => AutomationProperties.GetAutomationId(c) == "transcription-pause-threshold");
+            threshold.Value = 3;
+            Assert.Equal(3, viewModel.PauseThresholdSeconds);
+        });
+    }
+}

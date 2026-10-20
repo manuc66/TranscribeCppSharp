@@ -101,7 +101,7 @@ internal static class TranscriptWriter
                     new HtmlTranscriptInfo(
                         info.AudioPath, info.Duration, info.ModelLabel, info.Language,
                         Fmt.DiarizeState(info.Diarize), info.WindowSeconds, info.Generated),
-                    lines.Select(l => new HtmlTranscriptSegment(l.StartMs, l.Speaker, l.Text)).ToArray());
+                    lines.Select(l => new HtmlTranscriptSegment(l.StartMs, l.EndMs, l.Speaker, l.Text)).ToArray());
                 break;
 
             case TranscriptFormat.Vtt:

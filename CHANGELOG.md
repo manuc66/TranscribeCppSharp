@@ -9,6 +9,23 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: speaker names, pause markers and a configurable timestamp interval in the export
+
+The Transcription tab's export now reads three settings, all of which change the exported
+document and nothing else: **Timestamps every** (default 60 s; `0` leaves only the first
+segment and each speaker change stamped), **Mark pauses** (off by default, with a threshold in
+seconds; a longer silence between two segments becomes an unnumbered row with one dot per whole
+second, capped at ten), and a **Names** field per speaker in the Speakers tab, which replaces
+`Speaker N` in the HTML and WebVTT exports. A blank name keeps the id. The rows appear only when
+the result has more than one speaker or speaker turns, and a name typed before a rerun is kept
+when the same speaker is still there.
+
+None of the three rewrites the transcript: the Text tab still shows what the model returned, and
+the `.txt` export is unchanged. The pause markers describe the silence *between* recognized
+segments only; silence inside a segment is not visible to them, and that is what the page says.
+The CLI keeps the previous output — a 60 s interval and no pause markers — since it has no flag
+for the new settings.
+
 ### Export: a standalone HTML transcript with line numbers, timestamps and speakers
 
 `--format html` writes a self-contained document — no external CSS, no JavaScript, no images —

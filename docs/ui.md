@@ -167,6 +167,20 @@ renderer, except that the app does not keep the audio file's duration and the
 document says `audio: unknown` rather than passing the last segment's end for it. The Text tab's text is selectable, so a passage can be copied out by
 hand instead of exporting the whole result.
 
+Beneath the result tabs sit three export options, which change the exported
+document and nothing else:
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Timestamps every** | 60 s | Longest gap between two inline timestamps in the HTML export. The first segment and every speaker change are always stamped; `0` leaves only those |
+| **Mark pauses** | off | Writes a pause marker between two segments separated by silence, one dot per whole second, capped at ten. The threshold beside it is the shortest gap that counts. Only the silence *between* recognized segments is visible to it |
+| **Names** (Speakers tab) | empty | One field per speaker id, shown when the result has more than one speaker or speaker turns. A name replaces `Speaker N` in the HTML and WebVTT exports; a blank field keeps `Speaker N` |
+
+None of the three rewrites the transcript: the Text tab still shows the model's
+text as it came back, and the same result can be exported twice with different
+options. The pause markers and names are not carried into the `.txt` export, which
+has no speaker column to put them in.
+
 ### Streaming
 
 ![The Streaming tab.]({{ '/assets/images/ui-streaming.png' | relative_url }})
