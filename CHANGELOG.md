@@ -22,6 +22,15 @@ The honesty limit is upstream's: a model without the feature ignores the list wi
 warning, and this project has not measured how much a vocabulary changes a transcript. The page
 says so instead of promising better accuracy.
 
+### UI: the decoder-language picker names each language beside its code
+
+The list still comes from the loaded model, and the value passed to the run is still the code
+the model reported. What changes is the label: `fr` now reads `fr — French`, and `auto` reads
+`auto — detect the language`. The names are the app's table of the codes the Whisper family uses;
+a code outside it keeps its bare form, so an unrecognised language is not given a guessed name.
+A binding test renders the closed picker and checks both halves — the drawn text carries the
+name, the selected item is still the code.
+
 ### UI: video containers are accepted by the file picker and by a drop
 
 The Transcription tab's **Browse…** dialog and its drop handler now accept the audio track of

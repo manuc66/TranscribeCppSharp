@@ -10,6 +10,7 @@
 
   <UserControl.Resources>
     <c:KvTypeNameConverter x:Key="KvTypeName" />
+    <c:LanguageNameConverter x:Key="LanguageName" />
   </UserControl.Resources>
 
   <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
@@ -69,7 +70,15 @@
                    ToolTip.Tip="Language code for the decoder (default: en). This is the code the model assumes the audio is in; leave the default unless the audio is not English. Only Whisper-family models detect the language themselves." />
         <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding Language}" HorizontalAlignment="Stretch"
                   AutomationProperties.AutomationId="transcription-language"
-                  AutomationProperties.Name="Language" />
+                  AutomationProperties.Name="Language">
+          <!-- The item stays the code; only its label carries the name, so what
+               the run passes is still exactly what the model reported. -->
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Converter={StaticResource LanguageName}}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
       </StackPanel>
     </Grid>
 
