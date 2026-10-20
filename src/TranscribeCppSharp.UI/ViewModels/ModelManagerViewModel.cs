@@ -218,6 +218,18 @@ public partial class ModelManagerViewModel : ObservableObject
     /// <summary>True while <see cref="CheckDiarizationAsync"/> is walking the disk.</summary>
     private bool _checkingDiarization;
 
+    /// <summary>
+    /// Stops the download in flight, or null when none is running.
+    /// </summary>
+    /// <remarks>
+    /// One at a time: <see cref="DownloadAsync"/> refuses to start while another
+    /// row is busy, so one action covers every download this view model can run.
+    /// A delegate rather than the token source itself: the source is created and
+    /// disposed inside the download, and a disposable field would make this view
+    /// model disposable for no reason.
+    /// </remarks>
+    private Action? _cancelDownload;
+
     /// <summary>The audio the timing runs are taken over.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasBenchmarkAudio))]
@@ -482,7 +494,9 @@ public partial class ModelManagerViewModel : ObservableObject
     /// Runs on a worker thread because ModelStore blocks while it downloads.
     /// The status text carries what ModelStore writes about the source and the
     /// licence, which is why it is collected rather than replaced by a generic
-    /// "downloading" line.
+    /// "downloading" line. The token is what <see cref="CancelDownload"/> sets;
+    /// the store stops at the next chunk and deletes its partial file, so a
+    /// cancelled row is not left with a half-written model on disk.
     /// </remarks>
     [RelayCommand]
     private async Task DownloadAsync(ModelCatalogItem? item)
@@ -503,6 +517,8 @@ public partial class ModelManagerViewModel : ObservableObject
         DownloadProgress = 0;
         item.SetDownloading(true);
         StatusMessage = $"Downloading {item.Alias}…";
+        using var cancellation = new CancellationTokenSource();
+        _cancelDownload = cancellation.Cancel;
         var log = new StringWriter();
         try
         {
@@ -513,8 +529,8 @@ public partial class ModelManagerViewModel : ObservableObject
                 StatusMessage = $"Downloading {item.Alias}… {p:P0}";
             });
             await Task.Run(
-                () => ModelStore.Resolve(item.Alias, null, log, progress),
-                CancellationToken.None).ConfigureAwait(true);
+                () => ModelStore.Resolve(item.Alias, null, log, progress, cancellation.Token),
+                cancellation.Token).ConfigureAwait(true);
 
             item.Refresh();
             if (!DownloadedModels.Contains(item))
@@ -526,6 +542,13 @@ public partial class ModelManagerViewModel : ObservableObject
             Raise(nameof(DownloadedCount));
             StatusMessage = $"Downloaded {item.Alias} to {item.LocalPath}. {Describe(log)}".TrimEnd();
         }
+        catch (OperationCanceledException)
+        {
+            // Not a failure: the reader asked for it. ModelStore deletes its
+            // .part file in a finally, so nothing half-written is left behind.
+            item.Refresh();
+            StatusMessage = $"Download of {item.Alias} cancelled.";
+        }
         catch (Exception ex)
         {
             // ModelStore verifies sha256 before moving the file into place, so
@@ -536,11 +559,19 @@ public partial class ModelManagerViewModel : ObservableObject
         }
         finally
         {
+            _cancelDownload = null;
             item.SetDownloading(false);
             BusyAlias = null;
             BusyAction = null;
         }
     }
+
+    /// <summary>
+    /// Stops the download in flight, if any. The row's own progress bar keeps
+    /// the last value until the worker observes the token and clears the row.
+    /// </summary>
+    [RelayCommand]
+    private void CancelDownload() => _cancelDownload?.Invoke();
 
     /// <summary>
     /// Deletes one alias from disk.

@@ -284,6 +284,39 @@ public class ModelStoreDownloadTests : IDisposable
         Assert.DoesNotContain("   at ", stderr.ToString());
     }
 
+    [Fact]
+    public void ACancelledDownloadStopsAndLeavesNothingBehind()
+    {
+        const string repo = "nobody/cancel-download";
+        const string revision = "main";
+        const string file = "model.gguf";
+
+        // The sha256 is never compared: the transfer is cancelled from inside the
+        // body stream, after the first chunk, so the next read or write observes
+        // the token instead of waiting for the whole model.
+        byte[] content = Payload("cancel");
+        ServeTree(repo, revision, file, sha256: new string('0', 64), size: content.Length);
+
+        using var cancellation = new CancellationTokenSource();
+        _handler.OnStream(
+            $"huggingface.co/{repo}/resolve/{revision}/{file}",
+            () => new CancellingStream(content, cancellation));
+
+        Assert.ThrowsAny<OperationCanceledException>(() => ModelStore.Resolve(
+            $"{repo}/{file}@{revision}", null, TextWriter.Null, null, cancellation.Token));
+
+        Assert.True(cancellation.IsCancellationRequested);
+
+        // Nothing usable and nothing partial: the .part file is deleted in the
+        // store's finally, so the next attempt starts from zero rather than
+        // trusting a truncated model.
+        string cacheRoot = ModelStore.CacheRootOverride!;
+        if (Directory.Exists(cacheRoot))
+        {
+            Assert.Empty(Directory.EnumerateFiles(cacheRoot, "*", SearchOption.AllDirectories));
+        }
+    }
+
     private static (string Out, string Error) Capture(Action<TextWriter> body)
     {
         var stdout = new StringWriter();
@@ -303,6 +336,13 @@ public class ModelStoreDownloadTests : IDisposable
 
         public void On(string pathContains, byte[] content)
             => _routes.Add((pathContains, () => Binary(content)));
+
+        /// <summary>Serves a body from a stream the route builds per request.</summary>
+        public void OnStream(string pathContains, Func<Stream> content)
+            => _routes.Add((pathContains, () => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(content()),
+            }));
 
         public void On(string pathContains, HttpStatusCode status, string body)
             => _routes.Add((pathContains, () => new HttpResponseMessage(status)
@@ -338,6 +378,70 @@ public class ModelStoreDownloadTests : IDisposable
         {
             Content = new ByteArrayContent(content),
         };
+    }
+
+    /// <summary>
+    /// A response body that cancels the download after its first chunk. Without
+    /// it the only way to cancel mid-transfer would be a race with a timer; with
+    /// it the token is guaranteed to be set while the store is still reading.
+    /// </summary>
+    private sealed class CancellingStream : Stream
+    {
+        private const int Chunk = 16;
+
+        private readonly byte[] _content;
+        private readonly CancellationTokenSource _cancellation;
+        private int _position;
+
+        public CancellingStream(byte[] content, CancellationTokenSource cancellation)
+        {
+            _content = content;
+            _cancellation = cancellation;
+        }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => _content.Length;
+
+        public override long Position
+        {
+            get => _position;
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            _cancellation.Token.ThrowIfCancellationRequested();
+
+            int length = Math.Min(Math.Min(count, Chunk), _content.Length - _position);
+            if (length <= 0)
+            {
+                return 0;
+            }
+
+            _content.AsSpan(_position, length).CopyTo(buffer.AsSpan(offset, length));
+            _position += length;
+
+            // Cancel once the first chunk is in hand, so the store observes the
+            // token on its next read or write rather than after the whole body.
+            _cancellation.Cancel();
+            return length;
+        }
+
+        public override void Flush()
+        {
+            // Read-only body: nothing to flush.
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }
 

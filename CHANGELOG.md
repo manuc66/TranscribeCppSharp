@@ -22,6 +22,22 @@ The honesty limit is upstream's: a model without the feature ignores the list wi
 warning, and this project has not measured how much a vocabulary changes a transcript. The page
 says so instead of promising better accuracy.
 
+### Models: a download can be cancelled from the Models tab
+
+`ModelStore.Resolve` takes an optional `CancellationToken`; the token reaches the HuggingFace
+metadata lookups and the chunked body copy, so a transfer stops at its next chunk instead of at
+the end. The partial file is deleted in the same `finally` that already cleaned up after a
+checksum mismatch, so a cancelled download caches nothing truncated and can be retried.
+
+The Models tab adds **Cancel download**, enabled only while a download runs. It reports
+*cancelled* rather than *failed*, and the row returns to its idle state so the same alias can be
+started again. This is the first caller that passes a token: the CLI still resolves models
+without one and keeps its previous behaviour.
+
+`ACancelledDownloadStopsAndLeavesNothingBehind` drives the cancel from inside the response body,
+so it is deterministic rather than a race with a timer, and asserts that the cache is empty
+afterwards.
+
 ### UI: the decoder-language picker names each language beside its code
 
 The list still comes from the loaded model, and the value passed to the run is still the code

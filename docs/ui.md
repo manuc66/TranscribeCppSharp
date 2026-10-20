@@ -306,6 +306,10 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   manifest names no standard licence.
 - **Per row:** download, measure, delete. A download is verified against the sha256 in the
   manifest before it is cached, at the pinned revision.
+- **A download can be cancelled.** *Cancel download*, beside *Refresh*, stops the transfer in
+  flight. `ModelStore` deletes its `.part` file, so a cancelled download leaves nothing
+  truncated in the cache, and the row can be started again. The button is enabled only while a
+  download is running; the status line says *cancelled*, not *failed*.
 - **The default model is marked.** The alias the CLI uses when no `--model` is given is
   shown as `default` in the Alias column. It is a mark of which alias a command ends up
   using, not a claim about quality or speed.

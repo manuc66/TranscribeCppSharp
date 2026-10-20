@@ -128,6 +128,7 @@ public class AutomationIdTests
         "models-detail-hint",
         "models-headline-accuracy",
         "models-refresh",
+        "models-cancel-download",
         "models-delete-all",
         "models-check-diarization",
     ];

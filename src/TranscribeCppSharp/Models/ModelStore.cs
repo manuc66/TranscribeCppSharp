@@ -26,6 +26,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 /// <summary>
@@ -188,8 +189,15 @@ public static class ModelStore
     /// <param name="quant">Optional quantization override for a curated alias.</param>
     /// <param name="error">Where progress and diagnostics are reported.</param>
     /// <param name="progress">Optional download progress, 0 to 1.</param>
+    /// <param name="cancellationToken">Stops a download in flight.</param>
     /// <returns>An absolute path to a local model file.</returns>
-    public static string Resolve(string argument, string? quant, TextWriter error, IProgress<double>? progress = null)
+    /// <exception cref="OperationCanceledException">The token was cancelled; the partial download is deleted, so nothing corrupt is cached.</exception>
+    public static string Resolve(
+        string argument,
+        string? quant,
+        TextWriter error,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         if (File.Exists(argument))
         {
@@ -201,13 +209,13 @@ public static class ModelStore
         {
             if (quant is null || string.Equals(quant, info.Quant, StringComparison.OrdinalIgnoreCase))
             {
-                return EnsureLocal(info.Repo, info.Revision, info.File, info.Sha256, info.Size, info.License, info.LicenseUrl, error, progress);
+                return EnsureLocal(info.Repo, info.Revision, info.File, info.Sha256, info.Size, info.License, info.LicenseUrl, error, progress, cancellationToken);
             }
 
             using var http = HttpClientFactory();
-            HfFile file = ResolveHfFile(http, info.Repo, info.Revision, quant, isSuffix: true)
+            HfFile file = ResolveHfFile(http, info.Repo, info.Revision, quant, isSuffix: true, cancellationToken)
                 ?? throw new FileNotFoundException($"No '{quant}' quantization found for '{argument}' in {info.Repo}.");
-            return EnsureLocal(info.Repo, info.Revision, file.Path, file.Sha256, file.Size, info.License, info.LicenseUrl, error, progress);
+            return EnsureLocal(info.Repo, info.Revision, file.Path, file.Sha256, file.Size, info.License, info.LicenseUrl, error, progress, cancellationToken);
         }
 
         // HuggingFace spec: "<owner>/<repo>/<file>[@<revision>]".
@@ -225,10 +233,10 @@ public static class ModelStore
             }
 
             using var http = HttpClientFactory();
-            revision ??= ResolveRevision(http, repo);
-            HfFile resolved = ResolveHfFile(http, repo, revision, file, isSuffix: false)
+            revision ??= ResolveRevision(http, repo, cancellationToken);
+            HfFile resolved = ResolveHfFile(http, repo, revision, file, isSuffix: false, cancellationToken)
                 ?? throw new FileNotFoundException($"File '{file}' not found in {repo}@{revision}.");
-            return EnsureLocal(repo, revision, resolved.Path, resolved.Sha256, resolved.Size, license: "see the model card", licenseUrl: $"https://huggingface.co/{repo}", error, progress);
+            return EnsureLocal(repo, revision, resolved.Path, resolved.Sha256, resolved.Size, license: "see the model card", licenseUrl: $"https://huggingface.co/{repo}", error, progress, cancellationToken);
         }
 
         throw new FileNotFoundException(
@@ -352,7 +360,8 @@ public static class ModelStore
         string license,
         string licenseUrl,
         TextWriter error,
-        IProgress<double>? progress)
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
     {
         string dir = CacheDirectory(repo, revision);
         string dest = Path.Combine(dir, file.Replace('/', '_'));
@@ -373,7 +382,9 @@ public static class ModelStore
         string tmp = dest + ".part-" + Guid.NewGuid().ToString("N");
         try
         {
-            DownloadAsync(url, tmp, progress).GetAwaiter().GetResult();
+            DownloadAsync(url, tmp, progress, cancellationToken).GetAwaiter().GetResult();
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             string actual = Sha256(tmp);
             if (!string.Equals(actual, sha256, StringComparison.OrdinalIgnoreCase))
@@ -395,10 +406,17 @@ public static class ModelStore
         }
     }
 
-    private static HfFile? ResolveHfFile(HttpClient http, string repo, string revision, string fileOrQuant, bool isSuffix)
+    private static HfFile? ResolveHfFile(
+        HttpClient http,
+        string repo,
+        string revision,
+        string fileOrQuant,
+        bool isSuffix,
+        CancellationToken cancellationToken)
     {
         string treeUrl = $"https://huggingface.co/api/models/{repo}/tree/{revision}?recursive=true&expand=true";
-        using JsonDocument doc = JsonDocument.Parse(http.GetStringAsync(treeUrl).GetAwaiter().GetResult());
+        using JsonDocument doc = JsonDocument.Parse(
+            http.GetStringAsync(treeUrl, cancellationToken).GetAwaiter().GetResult());
 
         foreach (JsonElement entry in doc.RootElement.EnumerateArray())
         {
@@ -435,33 +453,39 @@ public static class ModelStore
         return null;
     }
 
-    private static string ResolveRevision(HttpClient http, string repo)
+    private static string ResolveRevision(HttpClient http, string repo, CancellationToken cancellationToken)
     {
         string url = $"https://huggingface.co/api/models/{repo}";
-        using JsonDocument doc = JsonDocument.Parse(http.GetStringAsync(url).GetAwaiter().GetResult());
+        using JsonDocument doc = JsonDocument.Parse(
+            http.GetStringAsync(url, cancellationToken).GetAwaiter().GetResult());
         return doc.RootElement.GetProperty("sha").GetString()
             ?? throw new InvalidDataException($"Could not resolve the current revision of {repo}.");
     }
 
-    private static async Task DownloadAsync(string url, string destination, IProgress<double>? progress)
+    private static async Task DownloadAsync(
+        string url,
+        string destination,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
     {
         using var http = HttpClientFactory();
-        using HttpResponseMessage response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        using HttpResponseMessage response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         long total = response.Content.Headers.ContentLength ?? -1L;
-        await using Stream source = await response.Content.ReadAsStreamAsync();
+        await using Stream source = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using FileStream target = File.Create(destination);
 
         // Copy in chunks so progress can be reported; CopyToAsync has no way to
         // surface how far it has got, and a multi-GB model gives the UI nothing
-        // to show for minutes otherwise.
+        // to show for minutes otherwise. The token reaches the read and the write,
+        // so a cancelled download stops at the next chunk instead of at the end.
         byte[] buffer = new byte[81920];
         long received = 0;
         int read;
-        while ((read = await source.ReadAsync(buffer)) > 0)
+        while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
         {
-            await target.WriteAsync(buffer.AsMemory(0, read));
+            await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             received += read;
             if (total > 0)
             {

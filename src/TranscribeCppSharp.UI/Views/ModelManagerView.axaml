@@ -360,6 +360,13 @@
               AutomationProperties.AutomationId="models-refresh"
               AutomationProperties.Name="Refresh"
               ToolTip.Tip="Re-read the cache, to pick up a model downloaded by the transcribe CLI or added by hand." />
+      <Button Content="Cancel download"
+              Command="{Binding CancelDownloadCommand}"
+              IsEnabled="{Binding IsDownloading}"
+              Margin="8,0,0,0"
+              AutomationProperties.AutomationId="models-cancel-download"
+              AutomationProperties.Name="Cancel the current download"
+              ToolTip.Tip="Stop the download in flight. Its partial file is deleted, so nothing half-written is cached, and the row can be downloaded again later." />
       <Button Content="Delete all downloaded"
               Classes="danger"
               Command="{Binding DeleteAllCommand}"
