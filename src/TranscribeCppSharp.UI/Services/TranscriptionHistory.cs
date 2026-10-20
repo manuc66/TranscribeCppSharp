@@ -88,9 +88,18 @@ public static class TranscriptionHistory
             }
             finally
             {
-                if (File.Exists(temporary))
+                try
                 {
-                    File.Delete(temporary);
+                    if (File.Exists(temporary))
+                    {
+                        File.Delete(temporary);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A leftover .tmp is harmless and is ignored by List; letting
+                    // the cleanup throw would hide the write failure that sent us
+                    // to this finally in the first place.
                 }
             }
 
@@ -99,6 +108,12 @@ public static class TranscriptionHistory
     }
 
     /// <summary>Every readable entry, newest first. A broken file is skipped.</summary>
+    /// <remarks>
+    /// A directory that cannot be enumerated is reported as empty rather than
+    /// taking the History tab down: the tab exists to show what is readable, and a
+    /// permission change on the folder is not a reason for the app to fail. A
+    /// failure part-way through keeps the entries read so far.
+    /// </remarks>
     public static IReadOnlyList<HistoryEntry> List()
     {
         lock (Gate)
@@ -109,13 +124,21 @@ public static class TranscriptionHistory
             }
 
             var entries = new List<HistoryEntry>();
-            foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json"))
+            try
             {
-                SavedRun? document = Read(path);
-                if (document?.Result is not null)
+                foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json"))
                 {
-                    entries.Add(Entry(path, document));
+                    SavedRun? document = Read(path);
+                    if (document?.Result is not null)
+                    {
+                        entries.Add(Entry(path, document));
+                    }
                 }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Return what was readable: an unreadable folder must not become
+                // a failure the History tab has to report and recover from.
             }
 
             return entries
@@ -143,9 +166,17 @@ public static class TranscriptionHistory
 
         lock (Gate)
         {
-            if (File.Exists(entry.FilePath))
+            try
             {
-                File.Delete(entry.FilePath);
+                if (File.Exists(entry.FilePath))
+                {
+                    File.Delete(entry.FilePath);
+                }
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                // Removed by someone else between the check and the delete; the
+                // postcondition (the file is gone) still holds.
             }
         }
     }
@@ -159,7 +190,7 @@ public static class TranscriptionHistory
     {
         string baseName = stamp.ToLocalTime().ToString("yyyyMMdd-HHmmss-fff", System.Globalization.CultureInfo.InvariantCulture);
         string path = Path.Combine(DirectoryPath, baseName + ".json");
-        for (int suffix = 1; File.Exists(path); suffix++)
+        for (int suffix = 1; Path.Exists(path); suffix++)
         {
             path = Path.Combine(DirectoryPath, $"{baseName}-{suffix}.json");
         }

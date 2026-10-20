@@ -114,4 +114,89 @@ public class HistoryStoreTests
         Assert.NotEqual(first.DirectoryPath, second.DirectoryPath);
         Assert.Equal(second.DirectoryPath, TranscriptionHistory.DirectoryPath);
     }
+
+    [Fact]
+    public void TwoRunsInTheSameMillisecondGetDistinctFiles()
+    {
+        using var directory = new HistoryDirectoryScope();
+        var stamp = new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
+
+        HistoryEntry first = TranscriptionHistory.Save(
+            "/audio/one.wav", "m", "en", "on", 300, Result("one"), stamp);
+        HistoryEntry second = TranscriptionHistory.Save(
+            "/audio/two.wav", "m", "en", "on", 300, Result("two"), stamp);
+
+        Assert.NotEqual(first.FilePath, second.FilePath);
+        Assert.Equal(2, TranscriptionHistory.List().Count);
+    }
+
+    [Fact]
+    public void SavingLeavesNoTemporaryFileBehind()
+    {
+        using var directory = new HistoryDirectoryScope();
+
+        TranscriptionHistory.Save(
+            "/audio/a.wav", "m", "en", "on", 300, Result(),
+            new DateTimeOffset(2026, 10, 20, 10, 0, 0, TimeSpan.Zero));
+
+        // The entry is written to a .tmp and renamed; the reader must see only
+        // the finished file, even when the write succeeded.
+        Assert.Empty(Directory.EnumerateFiles(directory.DirectoryPath, "*.tmp"));
+        Assert.Single(Directory.EnumerateFiles(directory.DirectoryPath, "*.json"));
+    }
+
+    [Fact]
+    public void AFileWithTheWrongShapeIsSkipped()
+    {
+        using var directory = new HistoryDirectoryScope();
+        TranscriptionHistory.Save(
+            "/audio/a.wav", "m", "en", "on", 300, Result(),
+            new DateTimeOffset(2026, 10, 20, 10, 0, 0, TimeSpan.Zero));
+
+        // Valid JSON whose values do not have the documented shape, and a document
+        // with no result at all. Both must be left out, not passed to the tab.
+        File.WriteAllText(
+            Path.Combine(directory.DirectoryPath, "wrong-type.json"),
+            """{"savedAt":"not-a-date"}""");
+        File.WriteAllText(
+            Path.Combine(directory.DirectoryPath, "no-result.json"),
+            """{"savedAt":"2026-10-20T10:00:00+00:00","audioPath":"/b.wav","result":null}""");
+
+        HistoryEntry entry = Assert.Single(TranscriptionHistory.List());
+        Assert.Equal("a.wav", entry.AudioName);
+    }
+
+    [Fact]
+    public void DeletingAnEntryWhoseFileIsAlreadyGoneIsNotAnError()
+    {
+        using var directory = new HistoryDirectoryScope();
+        TranscriptionHistory.Save(
+            "/audio/a.wav", "m", "en", "on", 300, Result(),
+            new DateTimeOffset(2026, 10, 20, 10, 0, 0, TimeSpan.Zero));
+        HistoryEntry entry = Assert.Single(TranscriptionHistory.List());
+        File.Delete(entry.FilePath);
+
+        TranscriptionHistory.Delete(entry);
+
+        Assert.Empty(TranscriptionHistory.List());
+    }
+
+    [Fact]
+    public void AHistoryDirectoryThatIsActuallyAFileIsAnEmptyHistory()
+    {
+        string path = Path.Combine(
+            Path.GetTempPath(), "tcsharp-history-file-" + Guid.NewGuid().ToString("N"));
+        File.WriteAllText(path, "not a directory");
+        string? previous = TranscriptionHistory.DirectoryOverride;
+        try
+        {
+            TranscriptionHistory.DirectoryOverride = path;
+            Assert.Empty(TranscriptionHistory.List());
+        }
+        finally
+        {
+            TranscriptionHistory.DirectoryOverride = previous;
+            File.Delete(path);
+        }
+    }
 }
