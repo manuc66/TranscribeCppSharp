@@ -346,6 +346,23 @@ public class TranscribeCommandTests(ITestOutputHelper output)
         AssertNoCrash(result);
     }
 
+    [Fact]
+    public void AFileThatIsNotAModelFailsWithOneLine()
+    {
+        using var temp = new TempWorkspace();
+        string audio = temp.WriteWav("silence.wav", new float[1600]);
+        string model = temp.WriteText("not-a-model.gguf", "not a GGUF");
+
+        Result result = Run(audio, model);
+
+        // Model.Load is reached before the run and used to throw out of Run: a
+        // stack trace on stderr and a process crash code, which is not the
+        // documented contract for a bad file.
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("gguf", result.Error, StringComparison.OrdinalIgnoreCase);
+        AssertNoCrash(result);
+    }
+
     private static bool IsIntegrationEnv => TestConfig.IsIntegrationTestEnvironment();
 
     private static string? LocalModel()

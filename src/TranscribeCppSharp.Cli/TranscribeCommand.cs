@@ -74,10 +74,6 @@ internal static class TranscribeCommand
         """;
 
     /// <summary>
-    /// Runs one command. Returns the process exit code: 0 on success, 1 on a
-    /// reported error (a message on stderr, never a stack trace).
-    /// </summary>
-    /// <summary>
     /// Prints what upstream's pinned catalog adds to what the manifest already said.
     /// </summary>
     /// <remarks>
@@ -170,7 +166,31 @@ internal static class TranscribeCommand
         static string? PinnedQuant(string alias) => ModelStore.Find(alias)?.Quant;
     }
 
+    /// <summary>
+    /// Runs one command. Returns the process exit code: 0 on success, 1 on a
+    /// reported error (a message on stderr, never a stack trace).
+    /// </summary>
     internal static int Run(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        try
+        {
+            return RunCore(args, stdout, stderr);
+        }
+        catch (Exception ex)
+        {
+            // The documented contract is a message on stderr and exit code 1, not
+            // a .NET stack trace. Everything with a useful message is caught where
+            // it can be explained; this is the last line of defence for the paths
+            // that were not (a corrupt model reaching Model.Load, a backend that
+            // fails to initialise, and so on).
+            stderr.WriteLine(ex is TranscribeException or IOException or UnauthorizedAccessException
+                ? ex.Message
+                : $"{ex.GetType().Name}: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static int RunCore(string[] args, TextWriter stdout, TextWriter stderr)
     {
         // Flags answered without touching the model or the network.
         if (Has(args, "--list-models"))
