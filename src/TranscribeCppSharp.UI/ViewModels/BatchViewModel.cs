@@ -177,6 +177,11 @@ public partial class BatchViewModel : ObservableObject
         Results.Clear();
         UiSettings.SetLastModel(UiSettings.BatchTab, ModelAlias);
 
+        // Snapshot the queue: the Add/Clear buttons stay available, and a file
+        // added while the run is in flight must not change the denominator of a
+        // progress bar that describes the list the service was given.
+        List<string> queue = AudioFiles.ToList();
+
         using var cancellation = new CancellationTokenSource();
         _cancelBatch = cancellation.Cancel;
 
@@ -195,19 +200,19 @@ public partial class BatchViewModel : ObservableObject
 
             var progress = new Progress<int>(p =>
             {
-                Progress = (double)p / AudioFiles.Count;
-                StatusMessage = $"Processing {p}/{AudioFiles.Count}...";
+                Progress = (double)p / queue.Count;
+                StatusMessage = $"Processing {p}/{queue.Count}...";
             });
 
             var result = await _transcriptionService.BatchTranscribeAsync(
-                AudioFiles.ToList(), ModelAlias, options, progress, cancellation.Token);
+                queue, ModelAlias, options, progress, cancellation.Token);
 
             Results = new ObservableCollection<BatchItemResult>(result);
 
             // A cancelled batch is not a failed one: the service returns the items
             // that finished, and the token is what says the rest did not run.
             StatusMessage = cancellation.IsCancellationRequested
-                ? $"Batch cancelled — {result.Count} of {AudioFiles.Count} finished."
+                ? $"Batch cancelled — {result.Count} of {queue.Count} finished."
                 : "Batch processing complete.";
         }
         catch (OperationCanceledException)

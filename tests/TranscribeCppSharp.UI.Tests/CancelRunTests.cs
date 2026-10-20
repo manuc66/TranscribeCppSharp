@@ -132,6 +132,42 @@ public class CancelRunTests
         }
     }
 
+    [Fact]
+    public async Task AddingAFileDuringABatchDoesNotChangeTheSizeItReports()
+    {
+        var service = new PartialBatchService();
+        string first = TempWav();
+        string second = TempWav();
+        string third = TempWav();
+        try
+        {
+            await WithBatch(service, async viewModel =>
+            {
+                viewModel.AudioFiles.Add(first);
+                viewModel.AudioFiles.Add(second);
+
+                Task run = viewModel.ProcessBatchCommand.ExecuteAsync(null);
+                await service.Started.Task;
+
+                // The queue buttons stay enabled, so this is a real state. The
+                // progress and the summary describe the list the service was
+                // given, not whatever the collection holds now.
+                viewModel.AudioFiles.Add(third);
+
+                viewModel.CancelBatchCommand.Execute(null);
+                await run;
+
+                Assert.Contains("1 of 2 finished", viewModel.StatusMessage, StringComparison.Ordinal);
+            });
+        }
+        finally
+        {
+            File.Delete(first);
+            File.Delete(second);
+            File.Delete(third);
+        }
+    }
+
     [AvaloniaFact]
     public async Task TheCancelButtonsAreBoundToTheirCommands()
     {
