@@ -1,9 +1,16 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using TranscribeCppSharp.UI.Models;
+using TranscribeCppSharp.UI.Services;
 
 namespace TranscribeCppSharp.UI.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
+    /// <summary>
+    /// Index of the Transcription tab, mirroring the order MainWindow.axaml declares.
+    /// </summary>
+    public const int TranscriptionTabIndex = 0;
+
     /// <summary>
     /// Index of the Models tab, mirroring the order MainWindow.axaml declares.
     /// </summary>
@@ -13,7 +20,7 @@ public partial class MainWindowViewModel : ObservableObject
     /// this constant fails the build's tests instead of quietly sending the reader
     /// to the Settings tab.
     /// </remarks>
-    public const int ModelTabIndex = 3;
+    public const int ModelTabIndex = 4;
 
     [ObservableProperty]
     private string _title = "TranscribeCppSharp";
@@ -26,19 +33,22 @@ public partial class MainWindowViewModel : ObservableObject
     public BatchViewModel Batch { get; }
     public ModelManagerViewModel ModelManager { get; }
     public SettingsViewModel Settings { get; }
+    public HistoryViewModel History { get; }
 
     public MainWindowViewModel(
         TranscriptionViewModel transcription,
         StreamingViewModel streaming,
         BatchViewModel batch,
         ModelManagerViewModel modelManager,
-        SettingsViewModel settings)
+        SettingsViewModel settings,
+        HistoryViewModel history)
     {
         Transcription = transcription;
         Streaming = streaming;
         Batch = batch;
         ModelManager = modelManager;
         Settings = settings;
+        History = history;
 
         // The three pickers each offer a way out to the catalogue, and none of them
         // can reach the window — they are constructed before it and hold no reference
@@ -47,6 +57,10 @@ public partial class MainWindowViewModel : ObservableObject
         Transcription.OpenModelManagerRequested += ShowModelManager;
         Streaming.OpenModelManagerRequested += ShowModelManager;
         Batch.OpenModelManagerRequested += ShowModelManager;
+
+        // Opening a saved run is the window's job: the History tab does not hold the
+        // Transcription tab, and the tab switch is the same decision as the one above.
+        History.OpenRequested += OpenHistoryEntry;
     }
 
     /// <summary>
@@ -58,14 +72,35 @@ public partial class MainWindowViewModel : ObservableObject
     /// would point at a download that never appears — the loop it opens would not
     /// close. It runs on every switch rather than only entering Models, so coming
     /// back from it is covered too, and it costs one <c>File.Exists</c> per catalogue
-    /// entry.
+    /// entry. The History tab is re-read the same way, because a run saves an entry
+    /// while that tab is not visible.
     /// </remarks>
     partial void OnSelectedTabIndexChanged(int value)
     {
         Transcription.RefreshModels();
         Streaming.RefreshModels();
         Batch.RefreshModels();
+        History.Refresh();
     }
 
     private void ShowModelManager() => SelectedTabIndex = ModelTabIndex;
+
+    /// <summary>
+    /// Loads a saved run and shows it in the Transcription tab. A file that has been
+    /// deleted or damaged is reported and dropped from the list instead of opening an
+    /// empty tab.
+    /// </summary>
+    private void OpenHistoryEntry(HistoryEntry entry)
+    {
+        TranscriptionResult? result = TranscriptionHistory.Load(entry);
+        if (result is null)
+        {
+            History.StatusMessage = "That entry could not be read; it may have been deleted or damaged.";
+            History.Refresh();
+            return;
+        }
+
+        Transcription.Restore(result, entry);
+        SelectedTabIndex = TranscriptionTabIndex;
+    }
 }

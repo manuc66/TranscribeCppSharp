@@ -9,6 +9,26 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: a local history, saved automatically
+
+A finished transcription is now written to `<cache>/../history/<timestamp>.json`, beside the log
+and the settings, instead of living only in memory. The file holds the transcript and the facts
+that name it (audio path, model, language, requested diarization, window, date), so an entry can
+be reopened after the audio file has moved or been deleted. Writes go through a temporary file
+and a move, so a crash mid-write leaves no half-written entry to skip on the next launch.
+
+The new **History** tab lists the entries newest first with **Open**, **Delete** and **Refresh**.
+Open loads the saved transcript into the Transcription tab, where it can be exported again;
+nothing is re-transcribed. The export then names the model, language, diarization request and
+window recorded with that run rather than the current pickers, so opening an old transcript after
+switching models cannot produce a header that lies. A file that cannot be parsed is left out
+rather than failing the tab, and the tab shows the folder so entries can be managed outside the
+app. Nothing is pruned automatically.
+
+What is not saved is stated in the docs: a cancelled run (its partial result is discarded), a
+failed one, and a batch's per-file results. A failed history write does not turn a successful
+transcription into a failed one; the status line says the history could not be saved.
+
 ### UI: cancel a transcription or a batch
 
 The Transcription and Batch tabs can now stop a run in flight. The token goes through the

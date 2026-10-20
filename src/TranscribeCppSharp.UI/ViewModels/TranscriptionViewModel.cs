@@ -26,6 +26,13 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>The run's cancellation, while one is in flight.</summary>
     private Action? _cancelTranscription;
 
+    /// <summary>
+    /// What produced the result on screen. Kept apart from the pickers so exporting
+    /// a restored run names the model and settings that actually ran, not whatever
+    /// the tab happens to have selected now.
+    /// </summary>
+    private ResultProvenance? _provenance;
+
     [ObservableProperty]
     private string _audioPath = string.Empty;
 
@@ -920,16 +927,11 @@ public partial class TranscriptionViewModel : ObservableObject
             Result = await _transcriptionService.TranscribeAsync(
                 AudioPath, ModelAlias, options, progress, cancellation.Token);
 
-            FullText = Result.FullText;
-            Segments = new ObservableCollection<MergedSegment>(Result.Segments);
-            Words = new ObservableCollection<WordResult>(Result.Words);
-            SpeakerSegments = new ObservableCollection<SpeakerSegmentResult>(Result.SpeakerSegments);
-            LangIdCandidates = new ObservableCollection<LangIdSession.LangIdCandidate>(Result.LangIdCandidates);
-            VadSegments = new ObservableCollection<VadSession.VadSegmentResult>(Result.VadSegments);
-            OnPropertyChanged(nameof(ShowLangIdTab));
-            OnPropertyChanged(nameof(ShowVadTab));
-            HasResult = true;
+            ShowResult(
+                Result,
+                new ResultProvenance(ModelAlias, EffectiveLanguage(), DiarizeLabel(), WindowSeconds));
             StatusMessage = "Transcription complete.";
+            TrySaveHistory();
         }
         catch (OperationCanceledException)
         {
@@ -953,6 +955,93 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Stops the run in flight, if any.</summary>
     [RelayCommand]
     private void CancelTranscription() => _cancelTranscription?.Invoke();
+
+    /// <summary>Puts a result into the views and grids the tab shows.</summary>
+    private void ShowResult(TranscriptionResult result, ResultProvenance provenance)
+    {
+        Result = result;
+        _provenance = provenance;
+        FullText = result.FullText;
+        Segments = new ObservableCollection<MergedSegment>(result.Segments);
+        Words = new ObservableCollection<WordResult>(result.Words);
+        SpeakerSegments = new ObservableCollection<SpeakerSegmentResult>(result.SpeakerSegments);
+        LangIdCandidates = new ObservableCollection<LangIdSession.LangIdCandidate>(result.LangIdCandidates);
+        VadSegments = new ObservableCollection<VadSession.VadSegmentResult>(result.VadSegments);
+        OnPropertyChanged(nameof(ShowLangIdTab));
+        OnPropertyChanged(nameof(ShowVadTab));
+        HasResult = true;
+    }
+
+    /// <summary>
+    /// Reopens a saved run as if it had just finished. Nothing is transcribed and
+    /// nothing is saved again; the entry it came from already holds it.
+    /// </summary>
+    public void Restore(TranscriptionResult result, HistoryEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(entry);
+
+        AudioPath = entry.AudioPath;
+        ShowResult(
+            result,
+            new ResultProvenance(entry.ModelAlias, entry.Language, entry.Diarize, entry.WindowSeconds));
+        string name = string.IsNullOrEmpty(entry.AudioPath)
+            ? "the saved result"
+            : Path.GetFileName(entry.AudioPath);
+        StatusMessage = $"Restored {name} from history.";
+    }
+
+    /// <summary>
+    /// Writes the finished run to the local history. A disk problem is reported
+    /// but does not turn a successful transcription into a failed one.
+    /// </summary>
+    private void TrySaveHistory()
+    {
+        if (Result is null)
+        {
+            return;
+        }
+
+        ResultProvenance provenance = Provenance();
+        try
+        {
+            TranscriptionHistory.Save(
+                AudioPath, provenance.ModelAlias, provenance.Language, provenance.Diarize,
+                provenance.WindowSeconds, Result);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            UiLog.Failure("history save", ex);
+            StatusMessage = $"Transcription complete, but the history could not be saved: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// The run the shown result came from: the recorded one when it exists, else
+    /// what the pickers say. Used by the exports so a restored run is described
+    /// truthfully.
+    /// </summary>
+    private ResultProvenance Provenance()
+    {
+        if (_provenance is not { } provenance)
+        {
+            return new ResultProvenance(ModelAlias, EffectiveLanguage(), DiarizeLabel(), WindowSeconds);
+        }
+
+        return provenance with
+        {
+            Language = string.IsNullOrEmpty(provenance.Language)
+                ? EffectiveLanguage()
+                : provenance.Language,
+        };
+    }
+
+    /// <summary>What produced the result currently shown.</summary>
+    private readonly record struct ResultProvenance(
+        string ModelAlias,
+        string Language,
+        string Diarize,
+        int WindowSeconds);
 
     [RelayCommand]
     private async System.Threading.Tasks.Task ExportAsync()
@@ -1037,13 +1126,14 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </remarks>
     internal string BuildHtmlExport()
     {
+        ResultProvenance provenance = Provenance();
         var info = new TranscribeCppSharp.SharedSource.HtmlTranscriptInfo(
             AudioPath,
             Duration: null,
-            ModelAlias,
-            EffectiveLanguage(),
-            DiarizeLabel(),
-            WindowSeconds,
+            provenance.ModelAlias,
+            provenance.Language,
+            provenance.Diarize,
+            provenance.WindowSeconds,
             DateTime.Now);
 
         var segments = Segments
@@ -1079,14 +1169,15 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         Dictionary<int, string> names = NamedSpeakers();
         string title = string.IsNullOrEmpty(AudioPath) ? "Transcript" : Path.GetFileName(AudioPath);
+        ResultProvenance provenance = Provenance();
 
         var sb = new System.Text.StringBuilder();
         sb.Append("# ").Append(EscapeMarkdown(title)).Append("\n\n");
         sb.Append("- **Source:** `").Append(AudioPath).Append("`\n");
-        sb.Append("- **Model:** `").Append(ModelAlias).Append("`\n");
-        sb.Append("- **Language:** `").Append(EffectiveLanguage()).Append("`\n");
-        sb.Append("- **Diarization:** ").Append(DiarizeLabel()).Append('\n');
-        sb.Append("- **Window:** ").Append(WindowSeconds).Append(" s\n");
+        sb.Append("- **Model:** `").Append(provenance.ModelAlias).Append("`\n");
+        sb.Append("- **Language:** `").Append(provenance.Language).Append("`\n");
+        sb.Append("- **Diarization:** ").Append(provenance.Diarize).Append('\n');
+        sb.Append("- **Window:** ").Append(provenance.WindowSeconds).Append(" s\n");
         sb.Append("- **Generated:** ")
             .Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture))
             .Append("\n\n");

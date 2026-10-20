@@ -42,7 +42,8 @@ public class ModelGridSortingTests
             new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),
             new BatchViewModel(new StubTranscriptionService(), new SettingsViewModel()),
             new ModelManagerViewModel(),
-            new SettingsViewModel());
+            new SettingsViewModel(),
+            new HistoryViewModel());
 
         var window = new MainWindow { DataContext = root };
         window.Show();

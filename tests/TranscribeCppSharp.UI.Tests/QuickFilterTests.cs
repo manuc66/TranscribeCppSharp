@@ -37,7 +37,8 @@ public class QuickFilterTests
             new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel(), cache),
             new BatchViewModel(new StubTranscriptionService(), new SettingsViewModel()),
             new ModelManagerViewModel(),
-            new SettingsViewModel());
+            new SettingsViewModel(),
+            new HistoryViewModel());
 
         var window = new MainWindow { DataContext = root };
         window.Show();

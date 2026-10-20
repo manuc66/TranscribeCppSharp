@@ -48,7 +48,7 @@ does not scroll horizontally — a horizontally scrollable panel would offer the
 infinite width, and a `DataGrid` given infinite width gives its star-sized columns no width
 at all.
 
-## The five tabs
+## The six tabs
 
 The pictures below are generated from the app itself by
 [`samples/UIScreenshot`](../samples/UIScreenshot), which drives the real window with the
@@ -302,6 +302,26 @@ Transcription tab — while the items that already finished stay in the grid; th
 counts how many of how many completed. A batch cancelled before it started does not resolve or
 download the model first.
 
+### History
+
+Every finished transcription is saved on this machine, so closing the app does not lose it.
+The file holds the transcript and the few facts that name it — audio path, model, language,
+requested diarization, window, date — under `<cache>/../history`, beside the log and the
+settings. It is self-contained: an entry opens after the audio file has moved or been deleted.
+
+The tab lists the entries newest first, with **Open**, **Delete** and **Refresh**. **Open**
+loads a saved transcript into the Transcription tab, where it can be exported again; nothing is
+re-transcribed and nothing is saved twice. The export then names the model and settings recorded
+with that run, not whatever the pickers happen to say now — an old transcript exported after
+switching models still describes the run that produced it. A file that cannot be parsed is left
+out of the list rather than failing the tab. Nothing is pruned automatically — entries stay until
+they are deleted — and the tab shows the folder path so it can be managed outside the app.
+
+What it does **not** save: a cancelled run (its partial result is discarded), a failed run, or a
+batch's per-file results. Only a finished run from the Transcription tab is written. If the
+write fails, the run still counts as successful and the status line says the history could not
+be saved, rather than hiding it.
+
 ### Models
 
 ![The Models tab.]({{ '/assets/images/ui-models.png' | relative_url }})
@@ -509,7 +529,7 @@ Headless Avalonia tests in `tests/TranscribeCppSharp.UI.Tests`, run by the same
 build the real `App` on Avalonia's headless backend, so the views load with the styles they
 get on screen.
 
-What they cover is worth stating, because it is narrow: the automation ids on all five views,
+What they cover is worth stating, because it is narrow: the automation ids on all six views,
 which view models hide options a model does not support, the defaults, and the catalogue
 item's display states. The bindings inside a `DataTemplate` are verified by realizing the
 rows and reading the values back — a property with no binding fails silently, which is how

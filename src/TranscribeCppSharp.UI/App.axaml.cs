@@ -47,6 +47,7 @@ public partial class App : Application
         services.AddSingleton<BatchViewModel>();
         services.AddSingleton<ModelManagerViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<HistoryViewModel>();
 
         return services.BuildServiceProvider();
     }

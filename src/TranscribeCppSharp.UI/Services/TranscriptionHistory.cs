@@ -1,0 +1,223 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Models;
+
+namespace TranscribeCppSharp.UI.Services;
+
+/// <summary>
+/// The local history: one JSON file per finished transcription, under
+/// <c>&lt;cache&gt;/../history</c>, beside the log and the settings.
+/// </summary>
+/// <remarks>
+/// Nothing leaves the machine, and nothing is inferred: the file holds the run's
+/// result and the few facts needed to name it (audio path, model, language). It
+/// is self-contained, so an entry can be reopened after the audio file has been
+/// moved or deleted. A file that cannot be parsed is skipped rather than taking
+/// the whole list down.
+/// <para>
+/// Writes go to a temporary file and are then moved into place, so a crash
+/// mid-write leaves no half-written entry for the next launch to skip.
+/// </para>
+/// </remarks>
+public static class TranscriptionHistory
+{
+    private static readonly object Gate = new();
+
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+    };
+
+    /// <summary>
+    /// Where the entries are written. Null means the default beside the log;
+    /// tests point it at a temporary directory.
+    /// </summary>
+    public static string? DirectoryOverride { get; set; }
+
+    /// <summary>The history directory's path.</summary>
+    public static string DirectoryPath
+        => DirectoryOverride
+        ?? Path.Combine(Path.GetDirectoryName(ModelStore.CacheRoot())!, "history");
+
+    /// <summary>
+    /// Saves one finished run and returns its entry.
+    /// </summary>
+    /// <param name="audioPath">The audio file the run read.</param>
+    /// <param name="modelAlias">The model the run used, as the picker spells it.</param>
+    /// <param name="language">The language the run reports, or was asked for.</param>
+    /// <param name="diarize">Whether attribution was requested, as the exports spell it.</param>
+    /// <param name="windowSeconds">The window the run used.</param>
+    /// <param name="result">The transcript to keep.</param>
+    /// <param name="savedAt">When to record it; now when omitted.</param>
+    /// <exception cref="IOException">The directory or file could not be written.</exception>
+    public static HistoryEntry Save(
+        string audioPath,
+        string modelAlias,
+        string language,
+        string diarize,
+        int windowSeconds,
+        TranscriptionResult result,
+        DateTimeOffset? savedAt = null)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        DateTimeOffset stamp = savedAt ?? DateTimeOffset.Now;
+        var document = new SavedRun
+        {
+            SavedAt = stamp,
+            AudioPath = audioPath,
+            ModelAlias = modelAlias,
+            Language = language,
+            Diarize = diarize,
+            WindowSeconds = windowSeconds,
+            Result = result,
+        };
+
+        lock (Gate)
+        {
+            Directory.CreateDirectory(DirectoryPath);
+            string path = UniquePath(stamp);
+            string temporary = path + ".tmp";
+            try
+            {
+                File.WriteAllText(temporary, JsonSerializer.Serialize(document, Json));
+                File.Move(temporary, path, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temporary))
+                {
+                    File.Delete(temporary);
+                }
+            }
+
+            return Entry(path, document);
+        }
+    }
+
+    /// <summary>Every readable entry, newest first. A broken file is skipped.</summary>
+    public static IReadOnlyList<HistoryEntry> List()
+    {
+        lock (Gate)
+        {
+            if (!Directory.Exists(DirectoryPath))
+            {
+                return [];
+            }
+
+            var entries = new List<HistoryEntry>();
+            foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json"))
+            {
+                SavedRun? document = Read(path);
+                if (document?.Result is not null)
+                {
+                    entries.Add(Entry(path, document));
+                }
+            }
+
+            return entries
+                .OrderByDescending(e => e.SavedAt)
+                .ThenByDescending(e => e.FilePath, StringComparer.Ordinal)
+                .ToList();
+        }
+    }
+
+    /// <summary>The run's result, or null when the file is gone or unreadable.</summary>
+    public static TranscriptionResult? Load(HistoryEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        lock (Gate)
+        {
+            return Read(entry.FilePath)?.Result;
+        }
+    }
+
+    /// <summary>Deletes the entry's file. A file already gone is not an error.</summary>
+    public static void Delete(HistoryEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        lock (Gate)
+        {
+            if (File.Exists(entry.FilePath))
+            {
+                File.Delete(entry.FilePath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// One file name per save, with a suffix when two runs land in the same
+    /// millisecond. The name sorts chronologically, which is what the list uses
+    /// as its tie-break.
+    /// </summary>
+    private static string UniquePath(DateTimeOffset stamp)
+    {
+        string baseName = stamp.ToLocalTime().ToString("yyyyMMdd-HHmmss-fff", System.Globalization.CultureInfo.InvariantCulture);
+        string path = Path.Combine(DirectoryPath, baseName + ".json");
+        for (int suffix = 1; File.Exists(path); suffix++)
+        {
+            path = Path.Combine(DirectoryPath, $"{baseName}-{suffix}.json");
+        }
+
+        return path;
+    }
+
+    private static HistoryEntry Entry(string path, SavedRun document)
+        => new()
+        {
+            FilePath = path,
+            SavedAt = document.SavedAt,
+            AudioPath = document.AudioPath,
+            ModelAlias = document.ModelAlias,
+            Language = document.Language,
+            Diarize = document.Diarize,
+            WindowSeconds = document.WindowSeconds,
+            SegmentCount = document.Result?.Segments.Count ?? 0,
+        };
+
+    private static SavedRun? Read(string path)
+    {
+        try
+        {
+            return File.Exists(path)
+                ? JsonSerializer.Deserialize<SavedRun>(File.ReadAllText(path), Json)
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // A damaged or unreadable entry is left out of the list rather than
+            // failing the tab. Deleting it from the folder is the reader's call.
+            return null;
+        }
+    }
+
+    /// <summary>The file's shape. A shape of its own, never read as anything else.</summary>
+    private sealed class SavedRun
+    {
+        [JsonPropertyName("savedAt")]
+        public DateTimeOffset SavedAt { get; init; }
+
+        [JsonPropertyName("audioPath")]
+        public string AudioPath { get; init; } = string.Empty;
+
+        [JsonPropertyName("modelAlias")]
+        public string ModelAlias { get; init; } = string.Empty;
+
+        [JsonPropertyName("language")]
+        public string Language { get; init; } = string.Empty;
+
+        [JsonPropertyName("diarize")]
+        public string Diarize { get; init; } = string.Empty;
+
+        [JsonPropertyName("windowSeconds")]
+        public int WindowSeconds { get; init; }
+
+        [JsonPropertyName("result")]
+        public TranscriptionResult? Result { get; init; }
+    }
+}

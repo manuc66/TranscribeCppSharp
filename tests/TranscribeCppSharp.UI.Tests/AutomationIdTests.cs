@@ -98,9 +98,19 @@ public class AutomationIdTests
         "batch-results",
     ];
 
-    private static readonly string[] SettingsIds =
+    private static readonly string[] HistoryIds =
     [
-        "settings-backend",
+        "history-intro",
+        "history-refresh",
+        "history-open",
+        "history-delete",
+        "history-path",
+        "history-grid",
+        "history-status",
+    ];
+
+    private static readonly string[] SettingsIds =
+    [        "settings-backend",
         "settings-device",
         "settings-cache-directory",
         "settings-backend-version",
@@ -146,6 +156,10 @@ public class AutomationIdTests
     [AvaloniaFact]
     public void BatchViewExposesItsIds()
         => AssertIds(new BatchView(), BatchIds);
+
+    [AvaloniaFact]
+    public void HistoryViewExposesItsIds()
+        => AssertIds(new HistoryView(), HistoryIds);
 
     [AvaloniaFact]
     public void SettingsViewExposesItsIds()

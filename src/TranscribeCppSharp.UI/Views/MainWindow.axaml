@@ -47,6 +47,12 @@
         <views:BatchView DataContext="{Binding Batch}" />
       </ScrollViewer>
     </TabItem>
+    <TabItem Header="History">
+      <!-- Not wrapped in a ScrollViewer, unlike the form tabs: its grid is the
+           scrollable part and needs the height the row is given, not an infinite
+           measure that would collapse it. -->
+      <views:HistoryView DataContext="{Binding History}" />
+    </TabItem>
     <TabItem Header="Models">
       <!-- Deliberately not wrapped in a ScrollViewer, unlike every other tab.
 

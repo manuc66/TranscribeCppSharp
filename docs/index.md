@@ -40,9 +40,10 @@ Every option, the export formats and what the tool does not do:
 
 ## Or use the desktop app
 
-`TranscribeCppSharp.UI` is an Avalonia GUI over the same wrapper: five tabs for
-transcribing a file, streaming the microphone, a batch, the model catalogue and the
-compute settings. Each [release](https://github.com/manuc66/TranscribeCppSharp/releases)
+`TranscribeCppSharp.UI` is an Avalonia GUI over the same wrapper: six tabs for
+transcribing a file, streaming the microphone, a batch, the local history of finished
+runs, the model catalogue and the compute settings. Each
+[release](https://github.com/manuc66/TranscribeCppSharp/releases)
 attaches a self-contained archive per platform (no NuGet package); you can also run it
 from a clone:
 
@@ -137,7 +138,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 | Page | What is in it |
 |---|---|
 | [Command-line tool](cli.md) | installing `transcribe`, a first run, the full `--help`, and what the tool does not do |
-| [Desktop app](ui.md) | the Avalonia GUI: the five tabs, running it from source, and what it does not do |
+| [Desktop app](ui.md) | the Avalonia GUI: the six tabs, running it from source, and what it does not do |
 | [Getting started](getting-started.md) | installing, the native packages, load-and-transcribe, batch, streaming, sample code |
 | [Compute](compute.md) | GPU by default, `--list-devices`, backend and device selection, CUDA |
 | [Models](models.md) | aliases vs. HuggingFace specs, `--list-models`, caching, capabilities, model licences |

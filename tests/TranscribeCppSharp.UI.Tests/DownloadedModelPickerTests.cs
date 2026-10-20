@@ -277,7 +277,8 @@ public class DownloadedModelPickerTests
             new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),
             new BatchViewModel(new StubTranscriptionService(), new SettingsViewModel()),
             new ModelManagerViewModel(),
-            new SettingsViewModel());
+            new SettingsViewModel(),
+            new HistoryViewModel());
 
     private static void Restore(string previous, bool hadOverride)
         => ModelStore.CacheRootOverride = hadOverride ? previous : null;
