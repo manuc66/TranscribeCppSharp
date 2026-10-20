@@ -160,21 +160,31 @@ only one model is in memory at a time. The join is this app's, not the library's
 heuristic — see [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
 
 The result is shown four ways: as text, as segments with timings, as words with timings, and
-as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html` or `.json`, picked by the
+as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html`, `.md` or `.json`, picked by the
 extension you type; the formats themselves are the same as
 [the CLI's](exporting.md) — the HTML document is produced by the same shared
 renderer, except that the app does not keep the audio file's duration and the
-document says `audio: unknown` rather than passing the last segment's end for it. The Text tab's text is selectable, so a passage can be copied out by
-hand instead of exporting the whole result.
+document says `audio: unknown` rather than passing the last segment's end for it. The Markdown
+export is the app's own: a header, then one paragraph per segment with the speaker in bold and
+the timestamp in code, and the pause markers when they are on. The Text tab's text is
+selectable, so a passage can be copied out by hand instead of exporting the
+whole result.
+
+An audio file can also be dropped onto the tab; the drop and the **Browse…** dialog accept the
+same extensions, and a drop of anything else leaves the current path alone.
 
 Beneath the result tabs sit three export options, which change the exported
 document and nothing else:
 
 | Setting | Default | What it does |
 |---|---|---|
-| **Timestamps every** | 60 s | Longest gap between two inline timestamps in the HTML export. The first segment and every speaker change are always stamped; `0` leaves only those |
+| **Timestamps every** | 60 s | Longest gap between two inline timestamps in the HTML and Markdown exports. The first segment and every speaker change are always stamped; `0` leaves only those |
 | **Mark pauses** | off | Writes a pause marker between two segments separated by silence, one dot per whole second, capped at ten. The threshold beside it is the shortest gap that counts. Only the silence *between* recognized segments is visible to it |
 | **Names** (Speakers tab) | empty | One field per speaker id, shown when the result has more than one speaker or speaker turns. A name replaces `Speaker N` in the HTML and WebVTT exports; a blank field keeps `Speaker N` |
+
+The three are remembered between launches, in `ui-settings.json` beside the log;
+a value outside the range the controls allow is read back as its default rather
+than passed to the export.
 
 None of the three rewrites the transcript: the Text tab still shows the model's
 text as it came back, and the same result can be exported twice with different

@@ -25,14 +25,18 @@ namespace TranscribeCppSharp.UI.Tests;
 [Collection("UiGlobalState")]
 public class ExportOptionsTests
 {
-    private static void WithViewModel(Action<TranscriptionViewModel> test)
+    private static void WithViewModel(Action<TranscriptionViewModel> test, Action? setup = null)
     {
-        // Keep the constructor's capability probe from loading a real model.
+        // Keep the constructor's capability probe from loading a real model, and
+        // point the settings file at a temporary one: the view model now restores
+        // and saves the export options there.
         string? previous = ModelStore.CacheRootOverride;
         ModelStore.CacheRootOverride = Path.Combine(
             Path.GetTempPath(), "tcsharp-export-" + Guid.NewGuid().ToString("N"));
+        using var settings = new UiSettingsScope();
         try
         {
+            setup?.Invoke();
             var viewModel = new TranscriptionViewModel(
                 new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
             test(viewModel);
@@ -198,6 +202,158 @@ public class ExportOptionsTests
                 .First(c => AutomationProperties.GetAutomationId(c) == "transcription-pause-threshold");
             threshold.Value = 3;
             Assert.Equal(3, viewModel.PauseThresholdSeconds);
+        });
+    }
+
+    [Fact]
+    public void ExportOptions_AreRestoredOnTheNextLaunch()
+    {
+        WithViewModel(
+            viewModel =>
+            {
+                Assert.True(viewModel.MarkPauses);
+                Assert.Equal(2, viewModel.PauseThresholdSeconds);
+                Assert.Equal(30, viewModel.TimestampIntervalSeconds);
+            },
+            setup: () => UiSettings.SaveExportSettings(new ExportSettings(true, 2, 30)));
+    }
+
+    [Fact]
+    public void ChangingAnExportOptionSavesItImmediately()
+    {
+        WithViewModel(viewModel =>
+        {
+            viewModel.MarkPauses = true;
+            viewModel.PauseThresholdSeconds = 3;
+            viewModel.TimestampIntervalSeconds = 15;
+
+            ExportSettings saved = UiSettings.LoadExportSettings();
+            Assert.True(saved.MarkPauses);
+            Assert.Equal(3, saved.PauseThresholdSeconds);
+            Assert.Equal(15, saved.TimestampIntervalSeconds);
+        });
+    }
+
+    [Fact]
+    public void ADroppedAudioFileBecomesTheSelectedAudio()
+    {
+        WithViewModel(viewModel =>
+        {
+            string path = Path.Combine(Path.GetTempPath(), "tcsharp-drop-" + Guid.NewGuid().ToString("N") + ".wav");
+            File.WriteAllText(path, string.Empty);
+            try
+            {
+                Assert.True(viewModel.TryAcceptDroppedFile(path));
+                Assert.Equal(path, viewModel.AudioPath);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
+
+    [Fact]
+    public void ADroppedFileWithAnotherExtensionIsRefused()
+    {
+        WithViewModel(viewModel =>
+        {
+            string path = Path.Combine(Path.GetTempPath(), "tcsharp-drop-" + Guid.NewGuid().ToString("N") + ".txt");
+            File.WriteAllText(path, "not audio");
+            try
+            {
+                Assert.False(viewModel.TryAcceptDroppedFile(path));
+                Assert.Equal(string.Empty, viewModel.AudioPath);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
+
+    [Fact]
+    public void AMissingDroppedFileIsRefused()
+    {
+        WithViewModel(viewModel =>
+            Assert.False(viewModel.TryAcceptDroppedFile(
+                Path.Combine(Path.GetTempPath(), "tcsharp-drop-missing.wav"))));
+    }
+
+    [Fact]
+    public void AnEmptyDroppedPathIsRefused()
+    {
+        WithViewModel(viewModel =>
+        {
+            Assert.False(viewModel.TryAcceptDroppedFile(null));
+            Assert.False(viewModel.TryAcceptDroppedFile("   "));
+        });
+    }
+
+    [Fact]
+    public void BuildMarkdownExport_WritesTheHeaderSpeakersAndTimestamps()
+    {
+        WithViewModel(viewModel =>
+        {
+            viewModel.AudioPath = "/audio/interview.wav";
+            viewModel.ModelAlias = "whisper-tiny";
+            Load(viewModel, Result((0, 5, 0, "first"), (9, 10, 2, "second")));
+            viewModel.SpeakerNames.Single(e => e.SpeakerId == 0).Name = "Alice";
+            viewModel.TimestampIntervalSeconds = 30;
+
+            string markdown = viewModel.BuildMarkdownExport();
+
+            Assert.StartsWith("# interview.wav\n", markdown);
+            Assert.Contains("- **Source:** `/audio/interview.wav`", markdown);
+            Assert.Contains("- **Model:** `whisper-tiny`", markdown);
+            Assert.Contains("**Alice** `[00:00:00]` — first", markdown);
+            Assert.Contains("**Speaker 2** `[00:00:09]` — second", markdown);
+        });
+    }
+
+    [Fact]
+    public void BuildMarkdownExport_MarksPausesWhenEnabled()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 5, 0, "first"), (9, 10, 0, "second")));
+            viewModel.MarkPauses = true;
+            viewModel.PauseThresholdSeconds = 1;
+
+            // 4 s of silence: four dots, on a line of their own.
+            Assert.Contains("*[....]*", viewModel.BuildMarkdownExport());
+        });
+    }
+
+    [Fact]
+    public void BuildMarkdownExport_StampsOnlyTheFirstSegmentAndSpeakerChangesWhenTheIntervalIsZero()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result(
+                (0, 1, 0, "a"),
+                (30, 31, 0, "b"),
+                (60, 61, 1, "c")));
+            viewModel.TimestampIntervalSeconds = 0;
+
+            string markdown = viewModel.BuildMarkdownExport();
+
+            Assert.Contains("`[00:00:00]`", markdown);
+            Assert.DoesNotContain("`[00:00:30]`", markdown);
+            Assert.Contains("`[00:01:00]`", markdown);
+        });
+    }
+
+    [Fact]
+    public void BuildMarkdownExport_EscapesMarkdownCharactersInTheText()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 1, 0, "he said *hi* and <left> [note]")));
+
+            string markdown = viewModel.BuildMarkdownExport();
+
+            Assert.Contains(@"he said \*hi\* and \<left\> \[note\]", markdown);
         });
     }
 }

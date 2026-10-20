@@ -361,6 +361,7 @@ public partial class TranscriptionViewModel : ObservableObject
     private static readonly string[] VttPatterns = ["*.vtt"];
     private static readonly string[] JsonPatterns = ["*.json"];
     private static readonly string[] HtmlPatterns = ["*.html"];
+    private static readonly string[] MarkdownPatterns = ["*.md"];
 
     public TranscriptionViewModel(
         ITranscriptionService transcriptionService,
@@ -370,6 +371,14 @@ public partial class TranscriptionViewModel : ObservableObject
         _transcriptionService = transcriptionService;
         _settings = settings;
         _capabilityCache = capabilityCache;
+
+        // Restore the export options before anything can change them: the partial
+        // change handlers save on every edit, and assigning through the generated
+        // properties here would write the file once per field on every launch.
+        ExportSettings export = UiSettings.LoadExportSettings();
+        _markPauses = export.MarkPauses;
+        _pauseThresholdSeconds = export.PauseThresholdSeconds;
+        _timestampIntervalSeconds = export.TimestampIntervalSeconds;
 
         // Both pickers are seeded first, before LoadModels: a ComboBox bound to an
         // empty list has nothing to match, and the reader sees a blank box until
@@ -458,6 +467,17 @@ public partial class TranscriptionViewModel : ObservableObject
     public void RefreshModels() => LoadModels();
 
     partial void OnModelAliasChanged(string value) => RequestCapabilityProbe(value);
+
+    partial void OnMarkPausesChanged(bool value) => PersistExportOptions();
+
+    partial void OnPauseThresholdSecondsChanged(int value) => PersistExportOptions();
+
+    partial void OnTimestampIntervalSecondsChanged(int value) => PersistExportOptions();
+
+    /// <summary>Writes the three export options to the settings file, best effort.</summary>
+    private void PersistExportOptions()
+        => UiSettings.SaveExportSettings(
+            new ExportSettings(MarkPauses, PauseThresholdSeconds, TimestampIntervalSeconds));
 
     /// <summary>
     /// Rebuilds the speaker-name rows when a result arrives, keeping the names
@@ -760,6 +780,43 @@ public partial class TranscriptionViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Takes the first dropped path this tab can run, and returns whether it did.
+    /// </summary>
+    /// <remarks>
+    /// The extension filter is the picker's own list, so a drop and the Browse
+    /// dialog accept the same files. The file must exist: a drop of a path that
+    /// has been moved or deleted would otherwise become an audio path that fails
+    /// only when the run starts. Returning false lets the caller leave the drop
+    /// unhandled instead of silently swallowing something it cannot use.
+    /// </remarks>
+    public bool TryAcceptDroppedFile(string? path)
+    {
+        if (!CanAcceptDroppedFile(path))
+        {
+            return false;
+        }
+
+        AudioPath = path!;
+        return true;
+    }
+
+    /// <summary>
+    /// Whether a drop would be accepted, without touching the current audio path.
+    /// The view uses it to show a copy cursor over a file it can take.
+    /// </summary>
+    public static bool CanAcceptDroppedFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return false;
+        }
+
+        string extension = Path.GetExtension(path);
+        return AudioPatterns.Any(
+            pattern => string.Equals(pattern, "*" + extension, StringComparison.OrdinalIgnoreCase));
+    }
+
     [RelayCommand]
     private async System.Threading.Tasks.Task TranscribeAsync()
     {
@@ -848,7 +905,8 @@ public partial class TranscriptionViewModel : ObservableObject
                 new Avalonia.Platform.Storage.FilePickerFileType("Text") { Patterns = TextPatterns },
                 new Avalonia.Platform.Storage.FilePickerFileType("WebVTT") { Patterns = VttPatterns },
                 new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
-                new Avalonia.Platform.Storage.FilePickerFileType("HTML") { Patterns = HtmlPatterns }
+                new Avalonia.Platform.Storage.FilePickerFileType("HTML") { Patterns = HtmlPatterns },
+                new Avalonia.Platform.Storage.FilePickerFileType("Markdown") { Patterns = MarkdownPatterns }
             }
         });
 
@@ -863,6 +921,7 @@ public partial class TranscriptionViewModel : ObservableObject
             ".vtt" => BuildVttExport(),
             ".json" => ExportAsJson(),
             ".html" => BuildHtmlExport(),
+            ".md" => BuildMarkdownExport(),
             _ => FullText
         };
 
@@ -908,18 +967,12 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </remarks>
     internal string BuildHtmlExport()
     {
-        string detected = Result?.DetectedLanguage ?? string.Empty;
         var info = new TranscribeCppSharp.SharedSource.HtmlTranscriptInfo(
             AudioPath,
             Duration: null,
             ModelAlias,
-            string.IsNullOrEmpty(detected) ? Language : detected,
-            this.DiarizeMode switch
-            {
-                TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOff => "off",
-                TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOn => "on",
-                _ => "model default",
-            },
+            EffectiveLanguage(),
+            DiarizeLabel(),
             WindowSeconds,
             DateTime.Now);
 
@@ -938,6 +991,115 @@ public partial class TranscriptionViewModel : ObservableObject
             pauseThresholdMs: MarkPauses ? Math.Max(1, PauseThresholdSeconds) * 1000 : 0,
             speakerNames: names.Count > 0 ? names : null);
         return writer.ToString();
+    }
+
+    /// <summary>
+    /// A Markdown note for the same result: a header, then one paragraph per
+    /// segment with the speaker in bold and the timestamp in code, plus the pause
+    /// markers when they are on.
+    /// </summary>
+    /// <remarks>
+    /// The text is escaped so a transcript containing <c>*</c>, <c>_</c> or angle
+    /// brackets renders as what was said rather than as markup. This is a note,
+    /// not another transcript format: there is no claim that a Markdown reader
+    /// aligns the times, and the timestamps follow the same setting as the HTML
+    /// export.
+    /// </remarks>
+    internal string BuildMarkdownExport()
+    {
+        Dictionary<int, string> names = NamedSpeakers();
+        string title = string.IsNullOrEmpty(AudioPath) ? "Transcript" : Path.GetFileName(AudioPath);
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append("# ").Append(EscapeMarkdown(title)).Append("\n\n");
+        sb.Append("- **Source:** `").Append(AudioPath).Append("`\n");
+        sb.Append("- **Model:** `").Append(ModelAlias).Append("`\n");
+        sb.Append("- **Language:** `").Append(EffectiveLanguage()).Append("`\n");
+        sb.Append("- **Diarization:** ").Append(DiarizeLabel()).Append('\n');
+        sb.Append("- **Window:** ").Append(WindowSeconds).Append(" s\n");
+        sb.Append("- **Generated:** ")
+            .Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture))
+            .Append("\n\n");
+
+        double lastStampMs = double.NegativeInfinity;
+        int lastSpeaker = int.MinValue;
+        for (int i = 0; i < Segments.Count; i++)
+        {
+            MergedSegment segment = Segments[i];
+
+            if (MarkPauses && i > 0)
+            {
+                double gapMs = (segment.Start - Segments[i - 1].End).TotalMilliseconds;
+                if (gapMs >= Math.Max(1, PauseThresholdSeconds) * 1000)
+                {
+                    int dots = Math.Clamp((int)Math.Floor(gapMs / 1000.0), 1, 10);
+                    sb.Append("*[")
+                      .Append(new string('.', dots))
+                      .Append("]*\n\n");
+                }
+            }
+
+            double startMs = segment.Start.TotalMilliseconds;
+            bool timestamp = i == 0
+                || segment.SpeakerId != lastSpeaker
+                || (TimestampIntervalSeconds > 0 && startMs - lastStampMs >= TimestampIntervalSeconds * 1000);
+            if (timestamp)
+            {
+                lastStampMs = startMs;
+            }
+
+            lastSpeaker = segment.SpeakerId;
+
+            string speaker = names.TryGetValue(segment.SpeakerId, out string? name)
+                ? name
+                : $"Speaker {segment.SpeakerId}";
+            sb.Append("**").Append(EscapeMarkdown(speaker)).Append("**");
+            if (timestamp)
+            {
+                sb.Append(" `[").Append(FormatClock(segment.Start)).Append("]`");
+            }
+
+            sb.Append(" — ").Append(EscapeMarkdown(segment.Text)).Append("\n\n");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>The language the result reports, or the requested one when it reports none.</summary>
+    private string EffectiveLanguage()
+        => string.IsNullOrEmpty(Result?.DetectedLanguage) ? Language : Result!.DetectedLanguage;
+
+    /// <summary>How the run's diarization request is described in the exports.</summary>
+    private string DiarizeLabel()
+        => this.DiarizeMode switch
+        {
+            TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOff => "off",
+            TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOn => "on",
+            _ => "model default",
+        };
+
+    /// <summary>HH:MM:SS, always with hours, as the HTML renderer writes it.</summary>
+    private static string FormatClock(TimeSpan time)
+        => $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}";
+
+    /// <summary>
+    /// Escapes the characters that would turn a sentence into markup, and turns
+    /// a line break into a space so one segment stays one paragraph.
+    /// </summary>
+    private static string EscapeMarkdown(string text)
+    {
+        var sb = new System.Text.StringBuilder(text.Length);
+        foreach (char c in text)
+        {
+            if (c is '\\' or '`' or '*' or '_' or '[' or ']' or '<' or '>')
+            {
+                sb.Append('\\');
+            }
+
+            sb.Append(c is '\n' or '\r' ? ' ' : c);
+        }
+
+        return sb.ToString();
     }
 
     private static string FormatTime(TimeSpan time)

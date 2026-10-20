@@ -9,6 +9,24 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the export options are remembered, files can be dropped, and Markdown is offered
+
+The three export settings (timestamp interval, pause markers and their threshold) are now read
+from `ui-settings.json` on launch and written on every change, in the same file that already
+held each tab's last model. A value outside the range the controls allow is read back as its
+default rather than passed to the export, and the two features share the file without erasing
+each other.
+
+An audio file can be dropped onto the Transcription tab. The drop handler uses the view model's
+own extension list, so a drop and the **Browse…** dialog accept the same files, and a file that
+is missing or has another extension leaves the current path alone. The cursor shows a copy
+effect only over a file that would be accepted.
+
+The app also exports Markdown (`.md`): a header, then one paragraph per segment with the speaker
+in bold and the timestamp in code, using the same interval and pause settings as the HTML
+export. Characters that would otherwise be read as markup are escaped. This is a note format for
+the app, not a new CLI format; the command-line tool is unchanged.
+
 ### UI: speaker names, pause markers and a configurable timestamp interval in the export
 
 The Transcription tab's export now reads three settings, all of which change the exported

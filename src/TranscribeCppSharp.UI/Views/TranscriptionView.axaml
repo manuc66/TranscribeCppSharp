@@ -3,7 +3,10 @@
              xmlns:vm="using:TranscribeCppSharp.UI.ViewModels"
              xmlns:c="using:TranscribeCppSharp.UI.Converters"
              x:Class="TranscribeCppSharp.UI.Views.TranscriptionView"
-             x:DataType="vm:TranscriptionViewModel">
+             x:DataType="vm:TranscriptionViewModel"
+             DragDrop.AllowDrop="True"
+             DragDrop.DragOver="OnDragOver"
+             DragDrop.Drop="OnDrop">
 
   <UserControl.Resources>
     <c:KvTypeNameConverter x:Key="KvTypeName" />
