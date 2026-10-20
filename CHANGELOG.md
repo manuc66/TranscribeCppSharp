@@ -43,6 +43,17 @@ so. A batch keeps the items that finished before the token fired (the service re
 the caller's own token distinguishes cancelled from complete); the file in flight is dropped. A
 batch cancelled before it starts never resolves or downloads the model.
 
+### UI: an About section, with the app's version and whose the native work is
+
+The Settings tab ends with **About**: the app version read from the assembly (the same number the
+release archive is named after, taken from `build/WRAPPER_VERSION`), a line saying that the native
+library is transcribe.cpp by its own authors and that this project only binds and packages it, and
+the two repository links as selectable text. The native version was already shown under **Backend
+Version**; the section points at it rather than repeating the number.
+
+`SettingsAboutTests` checks that the version is a parseable assembly version, not a placeholder.
+
+
 ### UI: Copy writes the whole transcript to the clipboard
 
 **Copy** sits beside **Export**. It writes the text the Text tab shows, unchanged, to the

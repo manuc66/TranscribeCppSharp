@@ -117,6 +117,8 @@ public class AutomationIdTests
         "settings-backend-version",
         "settings-backend-error",
         "settings-devices",
+        "settings-about",
+        "settings-app-version",
     ];
 
     private static readonly string[] ModelManagerStaticIds =

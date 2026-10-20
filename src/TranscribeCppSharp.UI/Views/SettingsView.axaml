@@ -9,7 +9,11 @@
     <c:DeviceMemoryConverter x:Key="DeviceMemory" />
   </UserControl.Resources>
 
-  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,*">
+  <!-- Every row sizes to its content: with only a handful of compute devices,
+       a star row for the grid pushed the About footer to the bottom of the
+       viewport and left a screenful of empty space between them. The tab scrolls
+       when there are more devices than fit, which is what the list needed. -->
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
     <!-- Backend and device -->
     <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,16">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
@@ -66,6 +70,22 @@
           <DataGridTextColumn Header="Memory" Binding="{Binding MemoryTotal, Converter={StaticResource DeviceMemory}}" />
         </DataGrid.Columns>
       </DataGrid>
+    </StackPanel>
+
+    <!-- About. Says whose the native work is, which is the one claim this pane
+         must not get wrong: the wrapper binds and packages transcribe.cpp, it
+         does not implement speech recognition. -->
+    <StackPanel Grid.Row="4" Margin="0,16,0,0"
+                AutomationProperties.AutomationId="settings-about"
+                AutomationProperties.Name="About">
+      <TextBlock Text="About" Classes="section" />
+      <TextBlock Text="{Binding AppVersion, StringFormat='TranscribeCppSharp {0}'}"
+                 AutomationProperties.AutomationId="settings-app-version"
+                 AutomationProperties.Name="Application version" />
+      <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,4,0,0"
+                 Text="MIT-licensed .NET bindings and desktop app. The native speech-to-text library is transcribe.cpp, written by its own authors and used under its own licence; this project binds and packages it and claims no credit for it. Its version is under Backend Version above." />
+      <SelectableTextBlock Text="https://github.com/manuc66/TranscribeCppSharp" Margin="0,6,0,0" />
+      <SelectableTextBlock Text="https://github.com/handy-computer/transcribe.cpp" />
     </StackPanel>
   </Grid>
 </UserControl>

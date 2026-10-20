@@ -43,6 +43,17 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<BackendDevice> _devices = new();
 
+    /// <summary>
+    /// The app's own version, which is the wrapper's SemVer.
+    /// </summary>
+    /// <remarks>
+    /// Read from the assembly rather than written here: the UI project takes its
+    /// version from <c>build/WRAPPER_VERSION</c> through Directory.Build.props, so
+    /// this is the same number the release archive is named after and cannot
+    /// drift from it. The native library's version is <see cref="BackendVersion"/>.
+    /// </remarks>
+    public string AppVersion { get; } = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+
     public ObservableCollection<BackendRequest> AvailableBackends { get; } = new()
     {
         BackendRequest.BackendAuto,

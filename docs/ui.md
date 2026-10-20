@@ -435,7 +435,10 @@ project has, and it covers Moonshine streaming only.
 ![The Settings tab.]({{ '/assets/images/ui-settings.png' | relative_url }})
 
 Backend and device selection, the cache directory, the version of the native library, and
-the compute devices this build and this machine can see.
+the compute devices this build and this machine can see. The tab ends with **About**: this app's
+version (the wrapper's SemVer, read from the assembly), a line naming transcribe.cpp as the
+native library and its authors as its authors, and the two repository links. This project binds
+and packages that library; it does not implement speech recognition.
 
 `Auto` is the default backend and its behaviour is the one described on
 [Compute](compute.md): the GPU is used when one initializes, and a forced backend fails
