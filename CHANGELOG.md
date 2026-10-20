@@ -9,6 +9,19 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: a vocabulary field for the models that declare the feature
+
+`transcribe_run_params` has carried a vocabulary list all along (`vocabulary` /
+`n_vocabulary`, gated by `TRANSCRIBE_FEATURE_VOCABULARY`), and the wrapper did not expose it.
+`RunParamsBuilder.WithVocabulary` now marshals the terms as UTF-8 in priority order, copies them
+into unmanaged memory and frees them with the builder; blank terms are dropped. The Transcription
+tab has a **Vocabulary** box, one term per line, shown while the selected model reports the
+feature (an unloaded model keeps it visible). It applies to offline runs; the CLI has no flag.
+
+The honesty limit is upstream's: a model without the feature ignores the list with a native
+warning, and this project has not measured how much a vocabulary changes a transcript. The page
+says so instead of promising better accuracy.
+
 ### UI: the export options are remembered, files can be dropped, and Markdown is offered
 
 The three export settings (timestamp interval, pause markers and their threshold) are now read

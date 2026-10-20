@@ -68,6 +68,16 @@ public class ModelOptionVisibilityTests
         Assert.False(snapshot.Supports(Feature.FeatureInitialPrompt));
     }
 
+    [Fact]
+    public void VocabularyShowsUnlessTheModelSaysItHasNone()
+    {
+        // Unknown is not a no: an unloaded model keeps the field visible.
+        Assert.True(ModelOptionVisibility.ShowVocabulary(null));
+        Assert.False(ModelOptionVisibility.ShowVocabulary(Snapshot()));
+        Assert.True(ModelOptionVisibility.ShowVocabulary(
+            Snapshot(features: new[] { Feature.FeatureVocabulary })));
+    }
+
     /// <summary>
     /// The diarization picker is for a model that transcribes *and* can diarize. A
     /// model whose whole job is speaker turns runs the DIARIZE role, where there is

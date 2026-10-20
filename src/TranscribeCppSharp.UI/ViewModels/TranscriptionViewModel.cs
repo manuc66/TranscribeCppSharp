@@ -76,6 +76,14 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     private string _allowedLanguages = string.Empty;
 
+    /// <summary>
+    /// Custom terms for a model that supports a vocabulary, one per line, in
+    /// priority order. Passed as the run's vocabulary list; a model that does not
+    /// support it ignores the list with a native warning.
+    /// </summary>
+    [ObservableProperty]
+    private string _vocabulary = string.Empty;
+
     [ObservableProperty]
     private bool _hasResult;
 
@@ -185,6 +193,9 @@ public partial class TranscriptionViewModel : ObservableObject
 
     /// <summary>Whether speculative decoding applies to the selected model.</summary>
     public bool ShowSpeculativeDecoding => ModelOptionVisibility.ShowSpeculativeDecoding(_selectedCapabilities);
+
+    /// <summary>Whether the vocabulary field applies to the selected model.</summary>
+    public bool ShowVocabulary => ModelOptionVisibility.ShowVocabulary(_selectedCapabilities);
 
     /// <summary>
     /// Whether the diarization picker applies: a model that transcribes and can also
@@ -630,6 +641,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowWhisperExtensions));
         OnPropertyChanged(nameof(ShowTranslate));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
+        OnPropertyChanged(nameof(ShowVocabulary));
         OnPropertyChanged(nameof(ShowDiarize));
         OnPropertyChanged(nameof(ShowDiarizerPicker));
         OnPropertyChanged(nameof(RunButtonText));
@@ -645,6 +657,46 @@ public partial class TranscriptionViewModel : ObservableObject
         string[] parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         return parts.Length == 0 ? null : parts;
     }
+
+    /// <summary>
+    /// Splits the vocabulary box into terms: one per line, trimmed, blank lines
+    /// dropped. Order is kept because upstream treats it as a priority order, and
+    /// duplicates are not removed here — the box says what the reader typed.
+    /// </summary>
+    internal static string[]? ParseVocabulary(string text)
+    {
+        string[] parts = text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? null : parts;
+    }
+
+    /// <summary>
+    /// Everything the selected controls say about one run. Extracted from the run
+    /// itself so the mapping can be asserted without a model.
+    /// </summary>
+    internal TranscriptionOptions BuildTranscriptionOptions()
+        => new()
+        {
+            // The backend and device chosen in Settings. These were displayed but
+            // read by nothing, so the pickers did nothing.
+            BackendRequest = _settings.SelectedBackend,
+            Device = _settings.SelectedDevice,
+            Language = Language,
+            TimestampKind = TimestampKind.TimestampsSegment,
+            DiarizeMode = DiarizeMode,
+            DiarizerModel = SelectedDiarizer?.Alias,
+            Threads = Threads,
+            KvType = SelectedKvType,
+            ContextSize = ContextSize,
+            WhisperInitialPrompt = WhisperInitialPrompt,
+            WhisperTemperature = (float?)WhisperTemperature,
+            Task = SelectedTask,
+            TargetLanguage = TargetLanguage,
+            SpecKDrafts = SpecKDrafts,
+            KeepSpecialTags = KeepSpecialTags,
+            WindowSeconds = WindowSeconds,
+            AllowedLanguages = ParseAllowed(AllowedLanguages),
+            Vocabulary = ParseVocabulary(Vocabulary),
+        };
 
     /// <summary>
     /// Rebuilds the language list from what a model reports, or fills the fallback
@@ -834,28 +886,7 @@ public partial class TranscriptionViewModel : ObservableObject
 
         try
         {
-            var options = new TranscriptionOptions
-            {
-                // The backend and device chosen in Settings. These were
-                // displayed but read by nothing, so the pickers did nothing.
-                BackendRequest = _settings.SelectedBackend,
-                Device = _settings.SelectedDevice,
-                Language = Language,
-                TimestampKind = TimestampKind.TimestampsSegment,
-                DiarizeMode = DiarizeMode,
-                DiarizerModel = SelectedDiarizer?.Alias,
-                Threads = Threads,
-                KvType = SelectedKvType,
-                ContextSize = ContextSize,
-                WhisperInitialPrompt = WhisperInitialPrompt,
-                WhisperTemperature = (float?)WhisperTemperature,
-                Task = SelectedTask,
-                TargetLanguage = TargetLanguage,
-                SpecKDrafts = SpecKDrafts,
-                KeepSpecialTags = KeepSpecialTags,
-                WindowSeconds = WindowSeconds,
-                AllowedLanguages = ParseAllowed(AllowedLanguages),
-            };
+            var options = BuildTranscriptionOptions();
 
             var progress = new Progress<double>(p => Progress = p);
 

@@ -36,6 +36,13 @@ public class TranscriptionOptions
     /// </summary>
     public string[]? AllowedLanguages { get; set; }
 
+    /// <summary>
+    /// Custom terms for a model that supports a vocabulary, in priority order.
+    /// Null/empty passes no list. A model without the feature ignores it with a
+    /// native warning, which the wrapper does not turn into an error.
+    /// </summary>
+    public string[]? Vocabulary { get; set; }
+
     // Session parameters
     public int? Threads { get; set; }
     public KvType? KvType { get; set; }

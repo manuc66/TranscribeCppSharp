@@ -12,7 +12,7 @@
     <c:KvTypeNameConverter x:Key="KvTypeName" />
   </UserControl.Resources>
 
-  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+  <Grid Margin="{DynamicResource PagePadding}" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
     <!-- Audio file selection -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
@@ -122,8 +122,21 @@
       </StackPanel>
     </Grid>
 
+    <!-- Vocabulary: custom terms for the models that declare the feature. It has
+         its own row because it is not Whisper-specific, unlike the row above. -->
+    <Grid Grid.Row="4" ColumnDefinitions="*" Margin="0,0,0,8" IsVisible="{Binding ShowVocabulary}">
+      <StackPanel>
+        <TextBlock Text="Vocabulary" Classes="label"
+                   ToolTip.Tip="Custom terms for the decoder, one per line, in priority order — names, jargon, acronyms. Passed as the run's vocabulary list. A model that does not report the vocabulary feature ignores it with a native warning; this project has not measured how much it changes the output." />
+        <TextBox Text="{Binding Vocabulary}" AcceptsReturn="True" TextWrapping="Wrap" Height="64"
+                 PlaceholderText="One term per line"
+                 AutomationProperties.AutomationId="transcription-vocabulary"
+                 AutomationProperties.Name="Vocabulary" />
+      </StackPanel>
+    </Grid>
+
     <!-- Task, target language, window size, diarization -->
-    <Grid Grid.Row="4" ColumnDefinitions="*,*,*,*" Margin="0,0,0,8">
+    <Grid Grid.Row="5" ColumnDefinitions="*,*,*,*" Margin="0,0,0,8">
       <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowTranslate}">
         <TextBlock Text="Task" Classes="label"
                    ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
@@ -175,7 +188,7 @@
     </Grid>
 
     <!-- Speculative decoding, keep special tags, separate diarizer -->
-    <Grid Grid.Row="5" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
+    <Grid Grid.Row="6" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
       <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowSpeculativeDecoding}">
         <TextBlock Text="Spec-K Drafts" Classes="label"
                    ToolTip.Tip="Number of speculative decoding drafts, 0 to disable. A draft is proposed and then verified, which can cut decoding time on some models. Whether it helps is unverified here: measure your own audio before trusting a speed claim." />
@@ -209,7 +222,7 @@
     </Grid>
 
     <!-- Action buttons -->
-    <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0,0,8">
+    <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,0,0,8">
       <Button Content="{Binding RunButtonText}" Classes="accent" Command="{Binding TranscribeCommand}" IsEnabled="{Binding CanTranscribe}"
               AutomationProperties.AutomationId="transcription-run"
               AutomationProperties.Name="{Binding RunButtonText}"
@@ -223,7 +236,7 @@
     <!-- Export options. They change only the exported document: the transcript
          the model produced is not rewritten, and the Text tab still shows it as
          it came back. -->
-    <Grid Grid.Row="7" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,8"
+    <Grid Grid.Row="8" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,8"
           IsVisible="{Binding HasResult}"
           AutomationProperties.AutomationId="transcription-export-options"
           AutomationProperties.Name="Export options">
@@ -250,17 +263,17 @@
     </Grid>
 
     <!-- Progress -->
-    <ProgressBar Grid.Row="8" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8"
+    <ProgressBar Grid.Row="9" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8"
                  AutomationProperties.AutomationId="transcription-progress"
                  AutomationProperties.Name="Transcription progress" />
 
     <!-- Status -->
-    <TextBlock Grid.Row="9" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap"
+    <TextBlock Grid.Row="10" Text="{Binding StatusMessage}" VerticalAlignment="Top" Margin="0,0,0,8" TextWrapping="Wrap"
                AutomationProperties.AutomationId="transcription-status"
                AutomationProperties.Name="Status" />
 
     <!-- Results -->
-    <TabControl Grid.Row="10" IsVisible="{Binding HasResult}"
+    <TabControl Grid.Row="11" IsVisible="{Binding HasResult}"
                 AutomationProperties.AutomationId="transcription-results"
                 AutomationProperties.Name="Transcription results">
       <TabItem Header="Text">

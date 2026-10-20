@@ -112,6 +112,13 @@ public static class ModelOptionVisibility
         => capabilities is null || capabilities.SupportsSpecDecode;
 
     /// <summary>
+    /// Vocabulary terms, only for models that declare the feature. Unknown shows
+    /// it, like every other group: hiding on an unloaded model would be a guess.
+    /// </summary>
+    public static bool ShowVocabulary(ModelCapabilitySnapshot? capabilities)
+        => capabilities is null || capabilities.Supports(Feature.FeatureVocabulary);
+
+    /// <summary>
     /// Whether the whole family-extensions group applies: a streaming model
     /// whose architecture has one of the extension builders.
     /// </summary>

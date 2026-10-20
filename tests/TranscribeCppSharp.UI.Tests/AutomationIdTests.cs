@@ -26,6 +26,7 @@ public class AutomationIdTests
         "transcription-capability-status",
         "transcription-roles",
         "transcription-allowed-languages",
+        "transcription-vocabulary",
         "transcription-langid-grid",
         "transcription-vad-grid",
         "transcription-language",

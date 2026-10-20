@@ -508,6 +508,8 @@ public class TranscriptionService : ITranscriptionService
             builder.WithSpecKDrafts(options.SpecKDrafts.Value);
         if (options.KeepSpecialTags.HasValue)
             builder.WithKeepSpecialTags(options.KeepSpecialTags.Value);
+        if (options.Vocabulary is { Length: > 0 })
+            builder.WithVocabulary(options.Vocabulary);
 
         if (!HasWhisperExtension(options))
             return;

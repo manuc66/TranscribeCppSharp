@@ -139,11 +139,19 @@ is decoded with `ffmpeg`, which has to be installed and on `PATH` — see
 | Window | 300 s | Longest audio passed in one call. Longer audio is split into windows overlapping by 1 s and merged; see [Long audio and diarization](diarization.md) |
 | Keep special tags | off | Off removes markers such as `<|notimestamps|>` from the text |
 
-Three settings appear only for models that have them: the Whisper initial prompt and
-temperature, the task and the target-language picker, and the speculative-decoding
-draft count. They are
+Four settings appear only for models that have them: the Whisper initial prompt and
+temperature, the task and the target-language picker, the speculative-decoding
+draft count, and the vocabulary list. They are
 hidden based on what the model reports, not on what its name suggests — see
 [Asking the model](#asking-the-model) below.
+
+**Vocabulary** is custom terms for the decoder, one per line, in priority order —
+names, jargon, acronyms. It is passed as the run's vocabulary list and the field is
+shown only while the model reports the vocabulary feature; an unloaded model keeps it
+visible, like every other group. Upstream ignores the list with a native warning on a
+model that does not implement it, and this project has not measured how much it changes
+a transcript: the field makes no accuracy claim. It applies to offline runs; the CLI has
+no flag for it.
 
 A fourth, diarization, appears only for a model that transcribes *and* can attribute
 speakers: it is passed as `WithDiarize` and the choices are *model default*, *off* and *on*.

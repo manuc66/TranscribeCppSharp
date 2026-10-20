@@ -1,6 +1,7 @@
 namespace TranscribeCppSharp;
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using TranscribeCppSharp.Interop;
 
@@ -20,9 +21,11 @@ public enum TranscriptionTask
 public sealed class RunParamsBuilder : IDisposable
 {
     private readonly IntPtr handle;
+    private readonly List<IntPtr> vocabularyStrings = new();
     private RunParams @params;
     private IntPtr languagePtr;
     private IntPtr targetLanguagePtr;
+    private IntPtr vocabularyArray;
     private WhisperExtBuilder? whisperExt;
     private bool disposed;
 
@@ -116,6 +119,44 @@ public sealed class RunParamsBuilder : IDisposable
     }
 
     /// <summary>
+    /// Custom terms the decoder should prefer, in priority order — names, jargon,
+    /// acronyms. Each term is trimmed; blank terms are dropped. The strings are
+    /// copied into unmanaged memory and released when this builder is disposed.
+    /// </summary>
+    /// <remarks>
+    /// A model that does not support the feature
+    /// (<see cref="Interop.Feature.FeatureVocabulary"/>) ignores the list with a
+    /// native warning; it is not an error. The size the wrapper passes is the
+    /// number of terms it kept.
+    /// </remarks>
+    public RunParamsBuilder WithVocabulary(IReadOnlyList<string> terms)
+    {
+        ArgumentNullException.ThrowIfNull(terms);
+        FreeVocabulary();
+
+        foreach (string term in terms)
+        {
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                vocabularyStrings.Add(Marshal.StringToCoTaskMemUTF8(term.Trim()));
+            }
+        }
+
+        if (vocabularyStrings.Count > 0)
+        {
+            vocabularyArray = Marshal.AllocCoTaskMem(IntPtr.Size * vocabularyStrings.Count);
+            for (int i = 0; i < vocabularyStrings.Count; i++)
+            {
+                Marshal.WriteIntPtr(vocabularyArray, i * IntPtr.Size, vocabularyStrings[i]);
+            }
+        }
+
+        @params.vocabulary = vocabularyArray;
+        @params.nVocabulary = vocabularyStrings.Count;
+        return this;
+    }
+
+    /// <summary>
     /// Whisper-specific extension parameters (prompt, temperature, etc.).
     /// Takes ownership of the builder — it will be disposed when this
     /// RunParamsBuilder is disposed or when another ext is set.
@@ -145,10 +186,28 @@ public sealed class RunParamsBuilder : IDisposable
         {
             FreePtr(ref languagePtr);
             FreePtr(ref targetLanguagePtr);
+            FreeVocabulary();
             whisperExt?.Dispose();
             whisperExt = null;
             Marshal.FreeHGlobal(handle);
             disposed = true;
+        }
+    }
+
+    /// <summary>Releases the term strings and the array that points at them.</summary>
+    private void FreeVocabulary()
+    {
+        foreach (IntPtr term in vocabularyStrings)
+        {
+            Marshal.FreeCoTaskMem(term);
+        }
+
+        vocabularyStrings.Clear();
+
+        if (vocabularyArray != IntPtr.Zero)
+        {
+            Marshal.FreeCoTaskMem(vocabularyArray);
+            vocabularyArray = IntPtr.Zero;
         }
     }
 
