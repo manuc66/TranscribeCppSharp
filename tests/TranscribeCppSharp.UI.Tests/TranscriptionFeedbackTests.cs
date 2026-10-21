@@ -1,8 +1,13 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.LogicalTree;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
+using TranscribeCppSharp.UI.Views;
 using Xunit;
 
 using Task = System.Threading.Tasks.Task;
@@ -128,6 +133,115 @@ public class TranscriptionFeedbackTests
             Assert.Null(viewModel.LastError);
             Assert.Equal("Transcription complete.", viewModel.StatusMessage);
         });
+    }
+
+    [Fact]
+    public async Task TheErrorReportDescribesTheRunThatStartedNotThePickersNow()
+    {
+        // A run works from the values at its start. Editing during it must not
+        // rewrite what the report says happened.
+        var service = new BlockingFailureService(new TranscribeException(Status.ErrOom, "Run"));
+        await WithViewModel(service, async viewModel =>
+        {
+            viewModel.ModelAlias = "parakeet-tdt-0.6b-v3";
+            viewModel.WindowSeconds = 5;
+
+            Task run = viewModel.TranscribeCommand.ExecuteAsync(null);
+            await service.Started.Task;
+
+            viewModel.ModelAlias = "whisper-tiny";
+            viewModel.WindowSeconds = 300;
+            viewModel.ContextSize = 32768;
+
+            service.Release.TrySetResult();
+            await run;
+
+            Assert.Contains("model: parakeet-tdt-0.6b-v3", viewModel.LastError);
+            Assert.Contains("window: 5 s", viewModel.LastError);
+            Assert.Contains("context size: model default", viewModel.LastError);
+            Assert.DoesNotContain("window: 300 s", viewModel.LastError);
+        });
+    }
+
+    [Fact]
+    public async Task TheSettingsAreLockedWhileARunOrAProbeIsActive()
+    {
+        await WithViewModel(new SucceedingService(), viewModel =>
+        {
+            Assert.True(viewModel.CanEditSettings);
+
+            viewModel.IsTranscribing = true;
+            Assert.False(viewModel.CanEditSettings);
+
+            viewModel.IsTranscribing = false;
+            viewModel.IsProbingMemory = true;
+            Assert.False(viewModel.CanEditSettings);
+
+            viewModel.IsProbingMemory = false;
+            Assert.True(viewModel.CanEditSettings);
+            return Task.CompletedTask;
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task TheSettingsControlsAreDisabledWhileARunIsActive()
+    {
+        await WithViewModel(new SucceedingService(), viewModel =>
+        {
+            var view = new TranscriptionView { DataContext = viewModel };
+            var window = new Window { Content = view, Width = 1100, Height = 900 };
+            window.Show();
+
+            NumericUpDown windowSeconds = view.GetLogicalDescendants()
+                .OfType<NumericUpDown>()
+                .First(c => AutomationProperties.GetAutomationId(c) == "transcription-window-seconds");
+
+            Assert.True(windowSeconds.IsEffectivelyEnabled);
+
+            viewModel.IsTranscribing = true;
+            Assert.False(windowSeconds.IsEffectivelyEnabled);
+
+            viewModel.IsTranscribing = false;
+            Assert.True(windowSeconds.IsEffectivelyEnabled);
+            return Task.CompletedTask;
+        });
+    }
+
+    /// <summary>Signals that the run started, waits, then throws the given failure.</summary>
+    private sealed class BlockingFailureService(Exception failure) : ITranscriptionService
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<TranscriptionResult> TranscribeAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            IProgress<double>? progress = null, IProgress<string>? liveText = null,
+            IProgress<TranscriptionPhase>? phase = null,
+            CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            throw failure;
+        }
+
+        public Task<MemoryProbeResult> ProbeMemoryAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(
+            string modelPath, StreamOptions options,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task<List<BatchItemResult>> BatchTranscribeAsync(
+            IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
+            IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 
     /// <summary>Reports one window's text, then waits to be released.</summary>

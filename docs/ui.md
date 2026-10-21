@@ -196,6 +196,11 @@ button's tooltip and the result line say so. A successful probe is stored like a
 the next warning uses its measurement. The progress
 bar carries its percentage beside it while the run is in flight.
 
+**The settings are locked while a run or a probe is active.** A run works from the values it
+started with, so an edit during it would not change what the run does — it would only change what
+the reader thinks it did. The error report and the saved provenance describe that snapshot, not
+the pickers at the moment a failure was caught.
+
 For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears
 instead: it offers the downloaded models that serve only the DIARIZE role (Sortformer). With
 one chosen, the tab runs the transcriber, then the diarizer over the same audio, and gives

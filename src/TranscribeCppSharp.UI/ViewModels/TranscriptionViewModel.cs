@@ -29,6 +29,15 @@ public partial class TranscriptionViewModel : ObservableObject
     private Action? _cancelTranscription;
 
     /// <summary>
+    /// The options and model the run started with. The report and the result's
+    /// provenance describe that snapshot, not whatever the pickers say when the
+    /// failure is caught — the two can differ if the reader edits during a run.
+    /// </summary>
+    private TranscriptionOptions? _runOptions;
+
+    private string _runModelAlias = string.Empty;
+
+    /// <summary>
     /// What produced the result on screen. Kept apart from the pickers so exporting
     /// a restored run names the model and settings that actually ran, not whatever
     /// the tab happens to have selected now.
@@ -48,6 +57,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanCancelTranscription))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
+    [NotifyPropertyChangedFor(nameof(CanEditSettings))]
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     private bool _isTranscribing;
 
@@ -481,6 +491,7 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>True while the one-window memory probe is running.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
+    [NotifyPropertyChangedFor(nameof(CanEditSettings))]
     private bool _isProbingMemory;
 
     /// <summary>The probe's outcome, and what it does and does not measure.</summary>
@@ -493,6 +504,13 @@ public partial class TranscriptionViewModel : ObservableObject
 
     /// <summary>Whether the memory probe can run: the same conditions as a run, and not already probing.</summary>
     public bool CanProbeMemory => CanTranscribe && !IsProbingMemory;
+
+    /// <summary>
+    /// Whether the run's settings may be edited. A run works from a snapshot, so an
+    /// edit made while it runs would change nothing it does but would change what
+    /// the reader believes it did — and the report would describe the wrong run.
+    /// </summary>
+    public bool CanEditSettings => !IsTranscribing && !IsProbingMemory;
 
     /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
     public bool HasDownloadedModels => AvailableModels.Count > 0;
@@ -1100,6 +1118,8 @@ public partial class TranscriptionViewModel : ObservableObject
         try
         {
             var options = BuildTranscriptionOptions();
+            _runOptions = options;
+            _runModelAlias = ModelAlias;
 
             // Progress<T> posts to the UI context. The service reports from the
             // worker thread that runs the windows, and from a continuation that
@@ -1119,7 +1139,8 @@ public partial class TranscriptionViewModel : ObservableObject
 
             ShowResult(
                 Result,
-                new ResultProvenance(ModelAlias, EffectiveLanguage(), DiarizeLabel(), WindowSeconds));
+                new ResultProvenance(
+                    _runModelAlias, EffectiveLanguage(), DiarizeLabel(options.DiarizeMode), options.WindowSeconds));
             StatusMessage = "Transcription complete.";
             TrySaveHistory();
             if (Result.Memory is { } observation)
@@ -1142,9 +1163,10 @@ public partial class TranscriptionViewModel : ObservableObject
             // run has a next step worth naming. The details stay copyable.
             LastError = BuildErrorReport(ex, "transcription run");
             UiLog.Failure("transcription run", ex);
-            string model = string.IsNullOrEmpty(ModelAlias) ? "the selected model" : ModelAlias;
+            string model = string.IsNullOrEmpty(_runModelAlias) ? "the selected model" : _runModelAlias;
+            int window = _runOptions?.WindowSeconds ?? WindowSeconds;
             StatusMessage = ex.StatusCode == Status.ErrOom
-                ? $"Out of memory (ErrOom) while running {model}: lower Window (now {WindowSeconds} s), "
+                ? $"Out of memory (ErrOom) while running {model}: lower Window (now {window} s), "
                     + "use a smaller quantization or context size, or force the CPU backend in Settings. "
                     + $"(logged to {UiLog.FilePath})"
                 : $"Error: {ex.Message} (logged to {UiLog.FilePath})";
@@ -1158,6 +1180,8 @@ public partial class TranscriptionViewModel : ObservableObject
         finally
         {
             _cancelTranscription = null;
+            _runOptions = null;
+            _runModelAlias = string.Empty;
             LiveText = string.Empty;
             IsTranscribing = false;
         }
@@ -1334,17 +1358,30 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </summary>
     private string DescribeRun()
     {
+        // The snapshot the run started with, not the pickers at report time. A
+        // reader can edit the tab while a run is in flight even though the run does
+        // not see it; the report must describe what actually ran.
+        TranscriptionOptions? snapshot = _runOptions;
+        string model = snapshot is null ? ModelAlias : _runModelAlias;
+        int window = snapshot is null ? WindowSeconds : snapshot.WindowSeconds;
+        KvType? kv = snapshot is null ? SelectedKvType : snapshot.KvType;
+        int? context = snapshot is null ? ContextSize : snapshot.ContextSize;
+        BackendRequest backend = snapshot?.BackendRequest ?? _settings.SelectedBackend;
+        BackendDevice? device = snapshot is null ? _settings.SelectedDevice : snapshot.Device;
+        string diarizer = snapshot is null
+            ? SelectedDiarizer?.Alias ?? "(none)"
+            : snapshot.DiarizerModel ?? "(none)";
+
         var run = new System.Text.StringBuilder();
-        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  model: {ModelAlias}");
-        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  window: {WindowSeconds} s");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  model: {model}");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  window: {window} s");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
-            $"  kv type: {SelectedKvType?.ToString() ?? "auto"}");
+            $"  kv type: {kv?.ToString() ?? "auto"}");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
-            $"  context size: {(ContextSize?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "model default")}");
+            $"  context size: {(context?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "model default")}");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  backend: {backend}");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
-            $"  backend: {_settings.SelectedBackend}");
-        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
-            $"  device: {_settings.SelectedDevice?.Name ?? "(the backend chooses)"}");
+            $"  device: {device?.Name ?? "(the backend chooses)"}");
 
         BackendDevice? target;
         string when;
@@ -1353,27 +1390,26 @@ public partial class TranscriptionViewModel : ObservableObject
             // The report is written after the failure: re-read the devices so it
             // says what the machine looked like then, not what a stale refresh said.
             IReadOnlyList<BackendDevice> live = Backends.EnumerateDevices();
-            BackendDevice? pinned = _settings.SelectedDevice;
+            BackendDevice? pinned = device;
             if (pinned is not null)
             {
                 pinned = live.FirstOrDefault(d => d.Handle == pinned.Handle && d.Handle != IntPtr.Zero)
                     ?? pinned;
             }
 
-            target = MemoryPreflight.Target(live, _settings.SelectedBackend, pinned);
+            target = MemoryPreflight.Target(live, backend, pinned);
             when = "live at report time";
         }
         catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
         {
-            target = MemoryPreflight.Target(
-                _settings.Devices, _settings.SelectedBackend, _settings.SelectedDevice);
+            target = MemoryPreflight.Target(_settings.Devices, backend, device);
             when = "as of the last device refresh";
         }
 
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"  target device: {MemoryPreflight.Describe(target)} ({when})");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
-            $"  diarizer: {SelectedDiarizer?.Alias ?? "(none)"}");
+            $"  diarizer: {diarizer}");
         return run.ToString();
     }
 
@@ -1741,8 +1777,10 @@ public partial class TranscriptionViewModel : ObservableObject
         => string.IsNullOrEmpty(Result?.DetectedLanguage) ? Language : Result!.DetectedLanguage;
 
     /// <summary>How the run's diarization request is described in the exports.</summary>
-    private string DiarizeLabel()
-        => this.DiarizeMode switch
+    private string DiarizeLabel() => DiarizeLabel(this.DiarizeMode);
+
+    private static string DiarizeLabel(TranscribeCppSharp.Interop.DiarizeMode mode)
+        => mode switch
         {
             TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOff => "off",
             TranscribeCppSharp.Interop.DiarizeMode.DiarizeModeOn => "on",

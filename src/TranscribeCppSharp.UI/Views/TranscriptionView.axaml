@@ -31,7 +31,7 @@
 
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
     <!-- Audio file selection -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
       <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
                AutomationProperties.AutomationId="transcription-audio-path"
                AutomationProperties.Name="Audio file path"
@@ -48,7 +48,7 @@
     </Grid>
 
     <!-- Model and language -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,0,0,8">
+    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Model" Classes="label"
                    ToolTip.Tip="Which speech-to-text model to run. Downloaded from HuggingFace on first use and cached, so the first run of a model needs a network connection. The Models tab shows what is already on disk and deletes it." />
@@ -109,7 +109,7 @@
     </Grid>
 
     <!-- Session parameters -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Threads" Classes="label"
                    ToolTip.Tip="CPU threads the decoder may use. Leave empty for the library default. Not a benchmarked recommendation: raising it past the core count usually makes it slower, not faster." />
@@ -140,7 +140,7 @@
     </Grid>
 
     <!-- Whisper extensions -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,0,0,8" IsVisible="{Binding ShowWhisperExtensions}">
+    <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,0,0,8" IsVisible="{Binding ShowWhisperExtensions}" IsEnabled="{Binding CanEditSettings}">
       <StackPanel Grid.Column="0" Margin="0,0,8,0">
         <TextBlock Text="Initial Prompt" Classes="label"
                    ToolTip.Tip="Text given to the decoder before the audio, to steer vocabulary and punctuation. Useful for names and jargon the model would otherwise misspell. Whisper models only; other families ignore it." />
@@ -159,7 +159,7 @@
 
     <!-- Vocabulary: custom terms for the models that declare the feature. It has
          its own row because it is not Whisper-specific, unlike the row above. -->
-    <Grid Grid.Row="4" ColumnDefinitions="*" Margin="0,0,0,8" IsVisible="{Binding ShowVocabulary}">
+    <Grid Grid.Row="4" ColumnDefinitions="*" Margin="0,0,0,8" IsVisible="{Binding ShowVocabulary}" IsEnabled="{Binding CanEditSettings}">
       <StackPanel>
         <TextBlock Text="Vocabulary" Classes="label"
                    ToolTip.Tip="Custom terms for the decoder, one per line, in priority order — names, jargon, acronyms. Passed as the run's vocabulary list. A model that does not report the vocabulary feature ignores it with a native warning; this project has not measured how much it changes the output." />
@@ -171,7 +171,7 @@
     </Grid>
 
     <!-- Task, target language, window size, diarization -->
-    <Grid Grid.Row="5" ColumnDefinitions="*,*,*,*" Margin="0,0,0,8">
+    <Grid Grid.Row="5" ColumnDefinitions="*,*,*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
       <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowTranslate}">
         <TextBlock Text="Task" Classes="label"
                    ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
@@ -223,7 +223,7 @@
     </Grid>
 
     <!-- Speculative decoding, keep special tags, separate diarizer -->
-    <Grid Grid.Row="6" ColumnDefinitions="*,*,*" Margin="0,0,0,8">
+    <Grid Grid.Row="6" ColumnDefinitions="*,*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
       <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowSpeculativeDecoding}">
         <TextBlock Text="Spec-K Drafts" Classes="label"
                    ToolTip.Tip="Number of speculative decoding drafts, 0 to disable. A draft is proposed and then verified, which can cut decoding time on some models. Whether it helps is unverified here: measure your own audio before trusting a speed claim." />

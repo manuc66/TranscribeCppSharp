@@ -9,6 +9,23 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: lock the settings during a run, and report the run that actually started
+
+The Transcription tab now disables its settings while a transcription or a memory probe is in
+flight. A run already worked from the values captured at its start, so an edit made during it
+changed nothing the run did — but it changed what the reader believed it did, and the error report
+read the pickers at the moment the failure was caught. That is how a report could name a window or
+a model that had never been used.
+
+The run now keeps its `TranscriptionOptions` and model alias as a snapshot. The error report, the
+result's provenance and the history entry are built from that snapshot; the live device and memory
+lines are still re-read at report time. The tab's settings are disabled through `CanEditSettings`
+for both the run and the probe.
+
+Tests: a blocked run whose pickers are changed mid-flight still reports the starting model, window
+and context; `CanEditSettings` follows both flags; and a headless check proves the Window control
+is effectively disabled while a run is active.
+
 ### UI: an ErrOom report that says which device and which window failed
 
 The copied error report already carried the run's settings. For an `ErrOom` it now also carries
