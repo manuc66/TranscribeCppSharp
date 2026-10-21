@@ -948,6 +948,7 @@ public partial class ModelManagerViewModel : ObservableObject
         var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
             Title = "Pick audio to measure models on",
+            SuggestedStartLocation = await PickerFolder.StartAsync(window.StorageProvider),
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
@@ -960,8 +961,9 @@ public partial class ModelManagerViewModel : ObservableObject
 
         if (files.Count > 0)
         {
-            BenchmarkAudioPath = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(files[0])
-                ?? string.Empty;
+            string? path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(files[0]);
+            BenchmarkAudioPath = path ?? string.Empty;
+            PickerFolder.Remember(path);
         }
     }
 

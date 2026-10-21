@@ -150,6 +150,46 @@ public static class UiSettings
     public static string FilePath => FilePathOverride ?? DefaultPath();
 
     /// <summary>
+    /// The folder the last file picker used, or null when none has or the folder
+    /// is no longer on disk.
+    /// </summary>
+    /// <remarks>
+    /// A path that no longer exists is not returned, so a picker built from this
+    /// answer falls back to its own default instead of opening on a folder the
+    /// user removed or unmounted. The path stays in the file: a drive that comes
+    /// back is still the last one used.
+    /// </remarks>
+    public static string? LastDirectory()
+    {
+        lock (Gate)
+        {
+            string? directory = Read().LastDirectory;
+            return !string.IsNullOrEmpty(directory) && Directory.Exists(directory)
+                ? directory
+                : null;
+        }
+    }
+
+    /// <summary>
+    /// Records the folder a picker was used in. An empty path is ignored, so a
+    /// picker that returns no local path does not erase the previous one.
+    /// </summary>
+    public static void SetLastDirectory(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return;
+        }
+
+        lock (Gate)
+        {
+            Document document = Read();
+            document.LastDirectory = directory;
+            Write(document);
+        }
+    }
+
+    /// <summary>
     /// The alias <paramref name="tab"/> last ran, or null when it never has.
     /// </summary>
     /// <param name="tab">One of the tab keys on this class.</param>
@@ -247,6 +287,9 @@ public static class UiSettings
     {
         [JsonPropertyName("lastModels")]
         public Dictionary<string, string> LastModels { get; init; } = new(StringComparer.Ordinal);
+
+        [JsonPropertyName("lastDirectory")]
+        public string? LastDirectory { get; set; }
 
         [JsonPropertyName("export")]
         public ExportSection? Export { get; set; }

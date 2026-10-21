@@ -130,6 +130,7 @@ public partial class BatchViewModel : ObservableObject
         var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
             Title = "Select audio files",
+            SuggestedStartLocation = await PickerFolder.StartAsync(window.StorageProvider),
             AllowMultiple = true,
             FileTypeFilter = new[]
             {
@@ -140,12 +141,19 @@ public partial class BatchViewModel : ObservableObject
             }
         });
 
+        string? firstPicked = null;
         foreach (var file in files)
         {
             var path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(file);
-            if (path != null && !AudioFiles.Contains(path))
-                AudioFiles.Add(path);
+            if (path != null)
+            {
+                firstPicked ??= path;
+                if (!AudioFiles.Contains(path))
+                    AudioFiles.Add(path);
+            }
         }
+
+        PickerFolder.Remember(firstPicked);
     }
 
     [RelayCommand]
@@ -252,6 +260,7 @@ public partial class BatchViewModel : ObservableObject
             var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
             {
                 Title = "Export batch results",
+                SuggestedStartLocation = await PickerFolder.StartAsync(window.StorageProvider),
                 DefaultExtension = "json",
                 FileTypeChoices = new[]
                 {
@@ -269,6 +278,7 @@ public partial class BatchViewModel : ObservableObject
                 return;
             }
 
+            PickerFolder.Remember(path);
             await ExportResultsToAsync(path);
         }
         catch (Exception ex)

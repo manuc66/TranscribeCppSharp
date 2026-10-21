@@ -227,6 +227,11 @@ result to the clipboard without going through a file.
 An audio or video file can also be dropped onto the tab; the drop and the **Browse…** dialog
 accept the same extensions, and a drop of anything else leaves the current path alone.
 
+Every file dialog in the app opens in the folder the last one used, and picking or exporting a
+file records its folder in `ui-settings.json` beside the log. A folder that has since been
+removed is ignored for that launch and the dialog falls back to its own default; the path stays
+in the file, so a drive that comes back is still the last one used.
+
 Beneath the result tabs sit three export options, which change the exported
 document and nothing else:
 

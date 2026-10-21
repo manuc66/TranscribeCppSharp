@@ -9,6 +9,21 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: file dialogs reopen in the last folder used
+
+The **Browse…** dialogs on the Transcription, Batch and Models tabs, and the two export
+dialogs, now start in the folder the last picker used. Picking a file or choosing where
+to export records that folder in `ui-settings.json` beside the log, in the same file that holds
+each tab's last model and the export options; none of the sections erases another. A folder
+that no longer exists makes `LastDirectory` return null for that launch, so the dialog keeps
+the platform's own default rather than failing; the path is left in the file, so a folder that
+comes back is used again. Only a local path is recorded: a selection whose storage item has
+none leaves the previous folder alone.
+
+Tests: the note round-trips under the `lastDirectory` key, shares the file with the other
+settings, ignores empty paths, and is withheld while the folder is missing. The dialogs
+themselves are not driven: a headless test has no native file picker.
+
 ### UI: lock the settings during a run, and report the run that actually started
 
 The Transcription tab now disables its settings while a transcription or a memory probe is in

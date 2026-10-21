@@ -1041,6 +1041,7 @@ public partial class TranscriptionViewModel : ObservableObject
         var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
             Title = "Select audio file",
+            SuggestedStartLocation = await PickerFolder.StartAsync(window.StorageProvider),
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
@@ -1053,7 +1054,12 @@ public partial class TranscriptionViewModel : ObservableObject
 
         if (files.Count > 0)
         {
-            AudioPath = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(files[0]) ?? string.Empty;
+            string? path = Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(files[0]);
+            AudioPath = path ?? string.Empty;
+
+            // Only a path the picker actually resolved is a folder the user
+            // used; a selection that has none leaves the previous note alone.
+            PickerFolder.Remember(path);
         }
     }
 
@@ -1571,6 +1577,7 @@ public partial class TranscriptionViewModel : ObservableObject
             var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
             {
                 Title = "Export transcript",
+                SuggestedStartLocation = await PickerFolder.StartAsync(window.StorageProvider),
                 DefaultExtension = "txt",
                 FileTypeChoices = new[]
                 {
@@ -1591,6 +1598,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 return;
             }
 
+            PickerFolder.Remember(path);
             await ExportToAsync(path);
         }
         catch (Exception ex)
