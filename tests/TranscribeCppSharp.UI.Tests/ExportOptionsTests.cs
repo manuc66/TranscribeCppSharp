@@ -291,6 +291,20 @@ public class ExportOptionsTests
     }
 
     [Fact]
+    public void BuildHtmlExport_UsesTheRecordedDuration()
+    {
+        WithViewModel(viewModel =>
+        {
+            viewModel.AudioPath = "/audio/interview.wav";
+            TranscriptionResult result = Result((0, 5, 0, "first"));
+            result.Duration = TimeSpan.FromSeconds(65);
+            Load(viewModel, result);
+
+            Assert.Contains("audio: 01:05", viewModel.BuildHtmlExport());
+        });
+    }
+
+    [Fact]
     public void BuildMarkdownExport_WritesTheHeaderSpeakersAndTimestamps()
     {
         WithViewModel(viewModel =>

@@ -9,6 +9,26 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the small review features — play a segment, find, copy with timestamps, real duration
+
+The result is now something to review, not only to export. Each row of the Segments grid has a
+play button: it plays that segment's audio with `ffplay` (shipped with ffmpeg, but a separate
+executable; its absence is reported in the status). Starting another segment stops the first.
+This is not an editor — playback does not follow the cursor and the text cannot be changed.
+
+The Text tab is a read-only text box with **Find next** over a search box, wrapping and
+case-insensitive; the selection is the match. **Copy + time** writes one `[hh:mm:ss] Speaker:
+text` line per segment, using the names given to the speakers.
+
+The service now records the audio file's length in the result, so the HTML `audio:` line is the
+real duration instead of `unknown`, and the History tab shows a **Length** column. A run restored
+from an older history entry that did not record it keeps saying `unknown` rather than guessing.
+
+Tests: the player is asked for the exact interval, a missing file does not call it, a refusal is
+reported, find advances and wraps and is case-insensitive, the timestamped copy uses names and
+clocks, the ffplay arguments are a list with invariant seconds, and the duration survives the
+history round trip and reaches the HTML. Full UI suite: 314 passed.
+
 ### UI: a countable step beside the progress bar
 
 A run now says what its percentage is of: `Transcribing — window 3 of 12` above the bar, or

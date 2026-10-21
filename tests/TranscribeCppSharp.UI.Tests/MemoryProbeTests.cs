@@ -53,6 +53,15 @@ public class MemoryProbeTests
         => new(DeviceName, 4_294_967_296, minimumFree,
             new DateTimeOffset(2026, 10, 21, 1, 0, 0, TimeSpan.Zero));
 
+    private static async Task WaitForIdleAsync(TranscriptionViewModel viewModel)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.IsCheckingCapabilities && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+    }
+
     [Fact]
     public async Task ASuccessfulProbeSaysItHoldsAndRemembersTheLowPoint()
     {
@@ -60,6 +69,7 @@ public class MemoryProbeTests
 
         await WithViewModel(service, async viewModel =>
         {
+            await WaitForIdleAsync(viewModel);
             await viewModel.ProbeMemoryCommand.ExecuteAsync(null);
 
             Assert.False(viewModel.IsProbingMemory);
@@ -80,6 +90,7 @@ public class MemoryProbeTests
 
         await WithViewModel(service, async viewModel =>
         {
+            await WaitForIdleAsync(viewModel);
             await viewModel.ProbeMemoryCommand.ExecuteAsync(null);
 
             Assert.False(viewModel.IsProbingMemory);

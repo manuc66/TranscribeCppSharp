@@ -63,6 +63,10 @@ public class AutomationIdTests
         "transcription-memory-warning",
         "transcription-probe-memory",
         "transcription-probe-result",
+        "transcription-text",
+        "transcription-search",
+        "transcription-find-next",
+        "transcription-copy-timestamps",
         "transcription-results",
     ];
 

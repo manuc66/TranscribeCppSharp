@@ -318,6 +318,15 @@
           <TextBlock Text="Copy" />
         </StackPanel>
       </Button>
+      <Button Click="OnCopyTimestamps" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="transcription-copy-timestamps"
+              AutomationProperties.Name="Copy transcript with timestamps"
+              ToolTip.Tip="Copy one line per segment as [hh:mm:ss] Speaker: text, with the names you gave the speakers.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="ClockOutline" />
+          <TextBlock Text="Copy + time" />
+        </StackPanel>
+      </Button>
     </StackPanel>
 
     <!-- Export options. They change only the exported document: the transcript
@@ -420,9 +429,25 @@
             <TextBlock Text="Text" VerticalAlignment="Center" />
           </StackPanel>
         </TabItem.Header>
-        <ScrollViewer>
-          <SelectableTextBlock Text="{Binding FullText}" TextWrapping="Wrap" />
-        </ScrollViewer>
+        <Grid RowDefinitions="Auto,*">
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBox Text="{Binding SearchQuery}" PlaceholderText="Find in transcript..." Width="240"
+                     KeyDown="OnSearchKeyDown"
+                     AutomationProperties.AutomationId="transcription-search"
+                     AutomationProperties.Name="Find in transcript" />
+            <Button Content="Find next" Click="OnFindNext" Margin="6,0,0,0"
+                    AutomationProperties.AutomationId="transcription-find-next"
+                    AutomationProperties.Name="Find next" />
+          </StackPanel>
+          <TextBox Grid.Row="1" x:Name="TranscriptTextBox"
+                   Text="{Binding FullText, Mode=OneWay}"
+                   IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                   SelectionStart="{Binding SearchSelectionStart, Mode=OneWay}"
+                   SelectionEnd="{Binding SearchSelectionEnd, Mode=OneWay}"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   AutomationProperties.AutomationId="transcription-text"
+                   AutomationProperties.Name="Transcript text" />
+        </Grid>
       </TabItem>
       <TabItem AutomationProperties.Name="Transcript segments">
         <TabItem.Header>
@@ -433,6 +458,17 @@
         </TabItem.Header>
         <DataGrid ItemsSource="{Binding Segments}" AutoGenerateColumns="False" IsReadOnly="True">
           <DataGrid.Columns>
+            <DataGridTemplateColumn Header="" Width="Auto">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button Click="OnPlaySegment" Padding="4"
+                          AutomationProperties.Name="Play segment"
+                          ToolTip.Tip="Play this segment's audio. Requires ffplay, which ships with ffmpeg; a missing player is reported in the status line.">
+                    <materialIcons:MaterialIcon Classes="small" Kind="Play" />
+                  </Button>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
             <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
             <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
             <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />

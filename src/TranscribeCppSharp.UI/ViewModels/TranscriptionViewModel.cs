@@ -15,6 +15,8 @@ public partial class TranscriptionViewModel : ObservableObject
 {
     private readonly ITranscriptionService _transcriptionService;
 
+    private readonly ISegmentPlayer _segmentPlayer;
+
     private readonly SettingsViewModel _settings;
 
     private readonly ModelCapabilityCache _capabilityCache;
@@ -92,6 +94,18 @@ public partial class TranscriptionViewModel : ObservableObject
 
     [ObservableProperty]
     private string _fullText = string.Empty;
+
+    /// <summary>The text searched for in the transcript.</summary>
+    [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    /// <summary>Start of the current match in <see cref="FullText"/>, for the text box's selection.</summary>
+    [ObservableProperty]
+    private int _searchSelectionStart;
+
+    /// <summary>End of the current match in <see cref="FullText"/>.</summary>
+    [ObservableProperty]
+    private int _searchSelectionEnd;
 
     [ObservableProperty]
     private ObservableCollection<MergedSegment> _segments = new();
@@ -574,9 +588,11 @@ public partial class TranscriptionViewModel : ObservableObject
     public TranscriptionViewModel(
         ITranscriptionService transcriptionService,
         SettingsViewModel settings,
-        ModelCapabilityCache capabilityCache)
+        ModelCapabilityCache capabilityCache,
+        ISegmentPlayer? segmentPlayer = null)
     {
         _transcriptionService = transcriptionService;
+        _segmentPlayer = segmentPlayer ?? new FfplaySegmentPlayer();
         _settings = settings;
         _capabilityCache = capabilityCache;
 
@@ -1222,6 +1238,77 @@ public partial class TranscriptionViewModel : ObservableObject
     private void CancelTranscription() => _cancelTranscription?.Invoke();
 
     /// <summary>
+    /// Selects the next occurrence of <see cref="SearchQuery"/> in the transcript,
+    /// wrapping at the end. Case-insensitive; an empty query does nothing.
+    /// </summary>
+    public void FindNext()
+    {
+        if (string.IsNullOrEmpty(SearchQuery) || string.IsNullOrEmpty(FullText))
+        {
+            return;
+        }
+
+        int from = Math.Clamp(SearchSelectionEnd, 0, FullText.Length);
+        int index = FullText.IndexOf(SearchQuery, from, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+        {
+            index = FullText.IndexOf(SearchQuery, 0, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (index < 0)
+        {
+            SearchSelectionStart = 0;
+            SearchSelectionEnd = 0;
+            StatusMessage = $"No match for \"{SearchQuery}\".";
+            return;
+        }
+
+        SearchSelectionStart = index;
+        SearchSelectionEnd = index + SearchQuery.Length;
+    }
+
+    /// <summary>
+    /// The transcript as one timestamped line per segment, with the speaker names the
+    /// reader gave. This is the shape a notes tool can take; the HTML export has the
+    /// same information in a document.
+    /// </summary>
+    internal string BuildTimestampedTranscript()
+    {
+        Dictionary<int, string> names = NamedSpeakers();
+        var text = new System.Text.StringBuilder();
+        foreach (MergedSegment segment in Segments)
+        {
+            string speaker = names.TryGetValue(segment.SpeakerId, out string? name)
+                ? name
+                : $"Speaker {segment.SpeakerId}";
+            text.Append('[').Append(FormatClock(segment.Start)).Append("] ")
+                .Append(speaker).Append(": ").Append(segment.Text).Append('\n');
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// Plays the audio behind one segment. This is the review step the tab can offer
+    /// without an editor: the player is external (<c>ffplay</c>), and its absence is
+    /// reported in the status rather than silently doing nothing.
+    /// </summary>
+    public void PlaySegment(MergedSegment segment)
+    {
+        ArgumentNullException.ThrowIfNull(segment);
+
+        if (string.IsNullOrEmpty(AudioPath) || !File.Exists(AudioPath))
+        {
+            StatusMessage = "Cannot play the segment: the audio file is no longer there.";
+            return;
+        }
+
+        StatusMessage = _segmentPlayer.TryPlay(AudioPath, segment.Start, segment.End, out string? error)
+            ? $"Playing {FormatClock(segment.Start)}–{FormatClock(segment.End)}."
+            : $"Cannot play the segment: {error}";
+    }
+
+    /// <summary>
     /// Copies the last failure to the clipboard. The status line is a sentence; the
     /// report is what a bug report or a developer needs, including the native
     /// status and the log path.
@@ -1707,7 +1794,7 @@ public partial class TranscriptionViewModel : ObservableObject
         ResultProvenance provenance = Provenance();
         var info = new TranscribeCppSharp.SharedSource.HtmlTranscriptInfo(
             AudioPath,
-            Duration: null,
+            Duration: Result?.Duration,
             provenance.ModelAlias,
             provenance.Language,
             provenance.Diarize,

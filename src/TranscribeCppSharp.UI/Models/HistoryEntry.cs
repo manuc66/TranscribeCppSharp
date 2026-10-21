@@ -30,8 +30,31 @@ public sealed class HistoryEntry
 
     public int SegmentCount { get; init; }
 
+    /// <summary>The audio's length, when the saved run recorded it.</summary>
+    public TimeSpan? Duration { get; init; }
+
     /// <summary>The saved time as the grid shows it, in the machine's time zone.</summary>
     public string SavedAtDisplay
         => SavedAt.ToLocalTime().ToString(
             "yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>The audio length as the grid shows it, or a dash when unknown.</summary>
+    public string DurationDisplay
+    {
+        get
+        {
+            if (Duration is not { } duration)
+            {
+                return "-";
+            }
+
+            return duration.TotalHours >= 1
+                ? string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"{(int)duration.TotalHours}:{duration.Minutes:00}:{duration.Seconds:00}")
+                : string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"{duration.Minutes:00}:{duration.Seconds:00}");
+        }
+    }
 }

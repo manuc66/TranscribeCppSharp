@@ -235,6 +235,7 @@ public class TranscriptionService : ITranscriptionService
             DetectedLanguage = detectedLanguage,
             WasAborted = wasAborted,
             WasTruncated = wasTruncated,
+            Duration = TimeSpan.FromSeconds(audioSource.LengthSamples / (double)WindowPlanner.SampleRate),
             Memory = memory.Observation
         };
     }
@@ -307,6 +308,7 @@ public class TranscriptionService : ITranscriptionService
             return new TranscriptionResult
             {
                 Roles = roles,
+                Duration = TimeSpan.FromSeconds(total / (double)sampleRate),
                 FullText = string.Join('\n', lines),
                 SpeakerSegments = segments.ToList(),
             };
@@ -340,6 +342,7 @@ public class TranscriptionService : ITranscriptionService
             return new TranscriptionResult
             {
                 Roles = roles,
+                Duration = TimeSpan.FromSeconds(total / (double)sampleRate),
                 DetectedLanguage = result.Candidates.Count > 0 ? result.Candidates[0].Code : string.Empty,
                 FullText = string.Join('\n', lines),
                 LangIdCandidates = result.Candidates.ToList(),
@@ -369,6 +372,7 @@ public class TranscriptionService : ITranscriptionService
             return new TranscriptionResult
             {
                 Roles = roles,
+                Duration = TimeSpan.FromSeconds(total / (double)sampleRate),
                 FullText = string.Join('\n', lines),
                 VadSegments = result.Segments.ToList(),
             };

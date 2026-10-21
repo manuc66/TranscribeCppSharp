@@ -11,6 +11,12 @@ public class TranscriptionResult
     public bool WasTruncated { get; set; }
 
     /// <summary>
+    /// The audio file's length, when the service read it. Null for a result from an
+    /// older history entry that did not record it.
+    /// </summary>
+    public TimeSpan? Duration { get; set; }
+
+    /// <summary>
     /// Segments timed against the whole file, with the seam between two
     /// windows deduplicated. <see cref="TranscribeCppSharp.Audio.MergedSegment"/>
     /// rather than the native <see cref="TranscribeCppSharp.SegmentResult"/>

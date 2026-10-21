@@ -209,6 +209,7 @@ public static class TranscriptionHistory
             Diarize = document.Diarize,
             WindowSeconds = document.WindowSeconds,
             SegmentCount = document.Result?.Segments.Count ?? 0,
+            Duration = document.Result?.Duration,
         };
 
     private static SavedRun? Read(string path)

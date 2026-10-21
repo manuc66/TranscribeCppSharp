@@ -225,12 +225,20 @@ The result is shown four ways: as text, as segments with timings, as words with 
 as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html`, `.md` or `.json`, picked by the
 extension you type; the formats themselves are the same as
 [the CLI's](exporting.md) — the HTML document is produced by the same shared
-renderer, except that the app does not keep the audio file's duration and the
-document says `audio: unknown` rather than passing the last segment's end for it. The Markdown
+renderer. The app now records the audio file's length from the samples it read, so the HTML
+`audio:` line is the real duration; a run restored from an older history entry that did not
+record it says `audio: unknown` rather than passing the last segment's end for it. The Markdown
 export is the app's own: a header, then one paragraph per segment with the speaker in bold and
-the timestamp in code, and the pause markers when they are on. The Text tab's text is
-selectable, so a passage can be copied out by hand, and **Copy** beside Export writes the whole
-result to the clipboard without going through a file.
+the timestamp in code, and the pause markers when they are on. The Text tab is a read-only text
+box: a passage can be selected and copied, **Find next** moves through the matches of the search
+box, and **Copy** writes the whole result to the clipboard without going through a file.
+**Copy + time** writes one `[hh:mm:ss] Speaker: text` line per segment, with the names you gave
+the speakers.
+
+Each row of the Segments grid has a **play** button: it plays that segment's audio with
+`ffplay`, which ships with ffmpeg but is a separate executable. If it is not on `PATH`, the
+status line says so. This is not an editor: playback does not follow the cursor, and the text
+cannot be changed.
 
 An audio or video file can also be dropped onto the tab; the drop and the **Browse…** dialog
 accept the same extensions, and a drop of anything else leaves the current path alone.
@@ -368,7 +376,8 @@ The file holds the transcript and the few facts that name it — audio path, mod
 requested diarization, window, date — under `<cache>/../history`, beside the log and the
 settings. It is self-contained: an entry opens after the audio file has moved or been deleted.
 
-The tab lists the entries newest first, with **Open**, **Delete** and **Refresh**. **Open**
+The tab lists the entries newest first with the date, audio name, model, language, length and
+segment count, with **Open**, **Delete** and **Refresh**. **Open**
 loads a saved transcript into the Transcription tab, where it can be exported again; nothing is
 re-transcribed and nothing is saved twice. The export then names the model and settings recorded
 with that run, not whatever the pickers happen to say now — an old transcript exported after

@@ -35,6 +35,7 @@ public partial class App : Application
         var services = new ServiceCollection();
 
         services.AddSingleton<ITranscriptionService, TranscriptionService>();
+        services.AddSingleton<ISegmentPlayer, FfplaySegmentPlayer>();
 
         // One cache for the whole window: the transcription tab and the streaming
         // tab both read the default model's capabilities at startup, and this is

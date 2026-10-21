@@ -17,6 +17,7 @@ public class HistoryStoreTests
         {
             FullText = text,
             DetectedLanguage = "en",
+            Duration = TimeSpan.FromSeconds(11),
             Segments =
             [
                 new MergedSegment(TimeSpan.Zero, TimeSpan.FromSeconds(2), text, 0),
@@ -41,6 +42,8 @@ public class HistoryStoreTests
         Assert.Equal("on", entry.Diarize);
         Assert.Equal(300, entry.WindowSeconds);
         Assert.Equal(1, entry.SegmentCount);
+        Assert.Equal(TimeSpan.FromSeconds(11), entry.Duration);
+        Assert.Equal("00:11", entry.DurationDisplay);
         Assert.Equal(new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero), entry.SavedAt);
 
         TranscriptionResult? loaded = TranscriptionHistory.Load(entry);

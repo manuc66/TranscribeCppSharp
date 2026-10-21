@@ -124,6 +124,8 @@ public class TranscriptionServiceRoleTests
 
         Assert.True(result.Roles.HasFlag(TranscribeRole.Asr));
         Assert.NotEmpty(result.FullText);
+        Assert.NotNull(result.Duration);
+        Assert.InRange(result.Duration.Value.TotalSeconds, 10.5, 11.5);
     }
 
     [Fact]

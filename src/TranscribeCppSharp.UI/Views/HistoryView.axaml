@@ -63,6 +63,7 @@
         <DataGridTextColumn Header="Audio" Binding="{Binding AudioName}" Width="*" />
         <DataGridTextColumn Header="Model" Binding="{Binding ModelAlias}" />
         <DataGridTextColumn Header="Language" Binding="{Binding Language}" />
+        <DataGridTextColumn Header="Length" Binding="{Binding DurationDisplay}" />
         <DataGridTextColumn Header="Segments" Binding="{Binding SegmentCount}" />
       </DataGrid.Columns>
     </DataGrid>
