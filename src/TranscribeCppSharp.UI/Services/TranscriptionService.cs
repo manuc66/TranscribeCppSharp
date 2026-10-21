@@ -172,7 +172,10 @@ public class TranscriptionService : ITranscriptionService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var samples = audioSource.ReadWindow(window.OffsetSamples, window.LengthSamples);
-                var transcript = session.Run(samples, builder => Configure(builder, options), cancellationToken);
+                var transcript = RunWindow(
+                    session, samples, options, memory,
+                    windowNumber: windowIndex + 1, windowCount: windows.Count,
+                    cancellationToken: cancellationToken);
                 Collect(merger, window, transcript, words, speakerSegments);
 
                 detectedLanguage = transcript.DetectedLanguage;
@@ -196,7 +199,9 @@ public class TranscriptionService : ITranscriptionService
         else
         {
             var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
-            var transcript = session.Run(samples, builder => Configure(builder, options), cancellationToken);
+            var transcript = RunWindow(
+                session, samples, options, memory,
+                windowNumber: 1, windowCount: 1, cancellationToken: cancellationToken);
             var window = new AudioWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
             Collect(merger, window, transcript, words, speakerSegments);
 
@@ -219,6 +224,45 @@ public class TranscriptionService : ITranscriptionService
             WasTruncated = wasTruncated,
             Memory = memory.Observation
         };
+    }
+
+    /// <summary>
+    /// Runs one window and, on a native out-of-memory failure, attaches what only
+    /// the service knows — the actual device's live memory and the session limits —
+    /// so the error report can name them instead of the requested policy.
+    /// </summary>
+    private static Transcript RunWindow(
+        Session session,
+        float[] samples,
+        TranscriptionOptions options,
+        MemorySampler memory,
+        int windowNumber,
+        int windowCount,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return session.Run(samples, builder => Configure(builder, options), cancellationToken);
+        }
+        catch (TranscribeException ex) when (ex.StatusCode == Status.ErrOom)
+        {
+            memory.Sample();
+            ex.Data["memory"] = memory.Observation;
+            ex.Data["window"] = string.Create(
+                System.Globalization.CultureInfo.InvariantCulture,
+                $"{windowNumber} of {windowCount}");
+
+            try
+            {
+                ex.Data["session limits"] = session.GetLimits();
+            }
+            catch (TranscribeException)
+            {
+                // The limits are a diagnostic, not a requirement for reporting.
+            }
+
+            throw;
+        }
     }
 
     /// <summary>

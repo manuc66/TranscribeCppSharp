@@ -1298,6 +1298,28 @@ public partial class TranscriptionViewModel : ObservableObject
                 $"failed method: {native.FailedMethod ?? "unknown"}");
         }
 
+        if (exception.Data["memory"] is MemoryObservation observed)
+        {
+            report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+                $"device at failure: {observed.DeviceName} — "
+                + $"{MemoryPreflight.FormatBytes(observed.MinimumFreeBytes)} free of "
+                + $"{MemoryPreflight.FormatBytes(observed.TotalBytes)}");
+        }
+
+        if (exception.Data["session limits"] is Session.SessionLimitsInfo limits)
+        {
+            report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+                $"session limits: n_ctx {limits.EffectiveNCtx}, "
+                + $"KV {MemoryPreflight.FormatBytes((ulong)Math.Max(0, limits.MaxKvBytes))}, "
+                + $"max audio {limits.EffectiveMaxAudioMs / 1000} s");
+        }
+
+        if (exception.Data["window"] is string window)
+        {
+            report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+                $"failed at window: {window}");
+        }
+
         report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"log: {UiLog.FilePath}");
         report.AppendLine();
@@ -1323,10 +1345,33 @@ public partial class TranscriptionViewModel : ObservableObject
             $"  backend: {_settings.SelectedBackend}");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"  device: {_settings.SelectedDevice?.Name ?? "(the backend chooses)"}");
-        BackendDevice? target = MemoryPreflight.Target(
-            _settings.Devices, _settings.SelectedBackend, _settings.SelectedDevice);
+
+        BackendDevice? target;
+        string when;
+        try
+        {
+            // The report is written after the failure: re-read the devices so it
+            // says what the machine looked like then, not what a stale refresh said.
+            IReadOnlyList<BackendDevice> live = Backends.EnumerateDevices();
+            BackendDevice? pinned = _settings.SelectedDevice;
+            if (pinned is not null)
+            {
+                pinned = live.FirstOrDefault(d => d.Handle == pinned.Handle && d.Handle != IntPtr.Zero)
+                    ?? pinned;
+            }
+
+            target = MemoryPreflight.Target(live, _settings.SelectedBackend, pinned);
+            when = "live at report time";
+        }
+        catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            target = MemoryPreflight.Target(
+                _settings.Devices, _settings.SelectedBackend, _settings.SelectedDevice);
+            when = "as of the last device refresh";
+        }
+
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
-            $"  target device: {MemoryPreflight.Describe(target)} (memory as of the last device refresh)");
+            $"  target device: {MemoryPreflight.Describe(target)} ({when})");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"  diarizer: {SelectedDiarizer?.Alias ?? "(none)"}");
         return run.ToString();

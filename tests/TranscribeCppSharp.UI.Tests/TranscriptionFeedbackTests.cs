@@ -80,7 +80,13 @@ public class TranscriptionFeedbackTests
     [Fact]
     public async Task AnOutOfMemoryRunSaysSoAndKeepsADiagnosticToCopy()
     {
-        var service = new FailingService(new TranscribeException(Status.ErrOom, "transcribe_run"));
+        var oom = new TranscribeException(Status.ErrOom, "transcribe_run");
+        oom.Data["memory"] = new MemoryObservation(
+            "Quadro P2000", 4_294_967_296, 300_000_000,
+            new DateTimeOffset(2026, 10, 21, 8, 5, 0, TimeSpan.Zero));
+        oom.Data["session limits"] = new Session.SessionLimitsInfo(32768, 0, 1_000_000_000);
+        oom.Data["window"] = "7 of 120";
+        var service = new FailingService(oom);
         await WithViewModel(service, async viewModel =>
         {
             viewModel.ModelAlias = "whisper-tiny";
@@ -92,6 +98,9 @@ public class TranscriptionFeedbackTests
             Assert.Contains("model: whisper-tiny", viewModel.LastError);
             Assert.Contains("window: 300 s", viewModel.LastError);
             Assert.Contains("target device:", viewModel.LastError);
+            Assert.Contains("device at failure: Quadro P2000", viewModel.LastError);
+            Assert.Contains("session limits: n_ctx 32768", viewModel.LastError);
+            Assert.Contains("failed at window: 7 of 120", viewModel.LastError);
             Assert.Contains("Out of memory", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("whisper-tiny", viewModel.StatusMessage);
             Assert.Contains("Window", viewModel.StatusMessage);

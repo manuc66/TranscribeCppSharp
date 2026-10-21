@@ -56,7 +56,7 @@ public class ModelGridIndicatorTests
         // and a number with no source in sight is the thing to avoid.
         Assert.Contains("transcribe.cpp", item.WerDetail, StringComparison.Ordinal);
         Assert.Contains("librispeech", item.WerDetail, StringComparison.Ordinal);
-        Assert.Contains("Not a measurement of your audio", item.WerDetail, StringComparison.Ordinal);
+        Assert.Contains("Not a measurement of your audio", item.WerDetail, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

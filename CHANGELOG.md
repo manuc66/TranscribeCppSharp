@@ -9,6 +9,19 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: an ErrOom report that says which device and which window failed
+
+The copied error report already carried the run's settings. For an `ErrOom` it now also carries
+what the service saw at the failure: the device the model actually ran on with its live free
+memory, the session limits (`n_ctx`, KV bytes, max audio), and which window of how many was
+running. That distinguishes a first-window allocation (configuration or transient pressure) from
+a later-window growth (a long file), which the settings alone cannot. `DescribeRun` re-reads the
+devices when the report is written, so the memory line says what the machine looked like then
+rather than what the last Settings refresh said.
+
+The `ModelGridIndicatorTests` assertion on the WER tooltip is case-insensitive again after the
+wording was lowercased.
+
 ### UI: a one-window memory probe before committing to a long run
 
 The Transcription tab offers **Test memory**: it runs at most one window of the selected file
