@@ -58,6 +58,7 @@ public class BatchServiceTests
             Model,
             Cpu(),
             progress,
+            null,
             TestContext.Current.CancellationToken);
 
         Assert.Equal(2, results.Count);

@@ -16,7 +16,7 @@ internal sealed class StubTranscriptionService : ITranscriptionService
     /// <inheritdoc/>
     public Task<TranscriptionResult> TranscribeAsync(
         string audioPath, string modelPath, TranscriptionOptions options,
-        IProgress<double>? progress = null, IProgress<string>? liveText = null, IProgress<TranscriptionPhase>? phase = null, CancellationToken cancellationToken = default)
+        IProgress<double>? progress = null, IProgress<string>? liveText = null, IProgress<TranscriptionPhase>? phase = null, IProgress<TranscriptionStep>? step = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 
     /// <inheritdoc/>
@@ -36,6 +36,6 @@ internal sealed class StubTranscriptionService : ITranscriptionService
 
     public Task<List<BatchItemResult>> BatchTranscribeAsync(
         IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
-        IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+        IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 }

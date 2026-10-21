@@ -19,6 +19,78 @@ namespace TranscribeCppSharp.UI.Tests;
 public class ProgressPercentTests
 {
     [AvaloniaFact]
+    public void TheCountableStageIsShownAboveTheBar()
+    {
+        string? previous = ModelStore.CacheRootOverride;
+        ModelStore.CacheRootOverride = Path.Combine(
+            Path.GetTempPath(), "tcsharp-stage-view-" + Guid.NewGuid().ToString("N"));
+        using var settings = new UiSettingsScope();
+        try
+        {
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache())
+            {
+                IsTranscribing = true,
+                Progress = 0.25,
+                ProgressStage = "Transcribing — window 3 of 12",
+            };
+            var view = new TranscriptionView { DataContext = viewModel };
+            var window = new Window { Content = view, Width = 1100, Height = 900 };
+            window.Show();
+            window.UpdateLayout();
+
+            var stage = view.GetLogicalDescendants()
+                .OfType<TextBlock>()
+                .First(t => AutomationProperties.GetAutomationId(t) == "transcription-progress-stage");
+
+            Assert.Equal("Transcribing — window 3 of 12", stage.Text);
+            Assert.True(stage.IsEffectivelyVisible, "the progress stage is not visible");
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = previous;
+        }
+    }
+
+    [AvaloniaFact]
+    public void TheBatchNamesTheFileInFlight()
+    {
+        string? previous = ModelStore.CacheRootOverride;
+        ModelStore.CacheRootOverride = Path.Combine(
+            Path.GetTempPath(), "tcsharp-batch-stage-view-" + Guid.NewGuid().ToString("N"));
+        using var settings = new UiSettingsScope();
+        try
+        {
+            var viewModel = new BatchViewModel(new StubTranscriptionService(), new SettingsViewModel())
+            {
+                IsProcessing = true,
+                Progress = 0.4,
+                CurrentFileStep = "File 2 of 5",
+                CurrentFile = "two.wav",
+                CurrentFileStatus = "Reading the audio and transcribing…",
+            };
+            var view = new BatchView { DataContext = viewModel };
+            var window = new Window { Content = view, Width = 1100, Height = 900 };
+            window.Show();
+            window.UpdateLayout();
+
+            Control Find(string id) => view.GetLogicalDescendants()
+                .OfType<Control>()
+                .First(c => AutomationProperties.GetAutomationId(c) == id);
+
+            Assert.Equal("File 2 of 5", ((TextBlock)Find("batch-current-file-step")).Text);
+            Assert.Equal("two.wav", ((TextBlock)Find("batch-current-file")).Text);
+            Assert.Contains("Reading", ((TextBlock)Find("batch-current-file-status")).Text, StringComparison.Ordinal);
+            Assert.True(Find("batch-current-file").IsEffectivelyVisible,
+                "the current file is not visible while the batch runs");
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = previous;
+        }
+    }
+
+    [AvaloniaFact]
     public void ThePercentageIsShownBesideTheBar()
     {
         string? previous = ModelStore.CacheRootOverride;

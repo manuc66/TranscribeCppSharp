@@ -31,6 +31,18 @@ public partial class BatchViewModel : ObservableObject
     [ObservableProperty]
     private double _progress;
 
+    /// <summary>The file in flight, by name, while the batch runs.</summary>
+    [ObservableProperty]
+    private string _currentFile = string.Empty;
+
+    /// <summary>Its position in the queue, e.g. "File 2 of 5".</summary>
+    [ObservableProperty]
+    private string _currentFileStep = string.Empty;
+
+    /// <summary>What is happening to it: started, done, or failed.</summary>
+    [ObservableProperty]
+    private string _currentFileStatus = string.Empty;
+
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
@@ -181,6 +193,9 @@ public partial class BatchViewModel : ObservableObject
 
         IsProcessing = true;
         Progress = 0;
+        CurrentFile = string.Empty;
+        CurrentFileStep = "Loading the model…";
+        CurrentFileStatus = string.Empty;
         StatusMessage = "Processing...";
         Results.Clear();
         UiSettings.SetLastModel(UiSettings.BatchTab, ModelAlias);
@@ -212,8 +227,25 @@ public partial class BatchViewModel : ObservableObject
                 StatusMessage = $"Processing {p}/{queue.Count}...";
             });
 
+            // The per-file step the service can state: there is no window
+            // callback inside one file, because a batch runs the whole file in
+            // one native call. Started names the file; Completed/Failed is what
+            // happened to it. No fraction is invented between them.
+            var fileStep = new Progress<BatchFileStep>(s =>
+            {
+                CurrentFileStep = $"File {s.Index} of {s.Count}";
+                CurrentFile = Path.GetFileName(s.AudioPath);
+                CurrentFileStatus = s.Phase switch
+                {
+                    BatchFilePhase.Started => "Reading the audio and transcribing…",
+                    BatchFilePhase.Completed => "Done.",
+                    BatchFilePhase.Failed => "Failed; the rest of the queue continues.",
+                    _ => string.Empty,
+                };
+            });
+
             var result = await _transcriptionService.BatchTranscribeAsync(
-                queue, ModelAlias, options, progress, cancellation.Token);
+                queue, ModelAlias, options, progress, fileStep, cancellation.Token);
 
             Results = new ObservableCollection<BatchItemResult>(result);
 

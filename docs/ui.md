@@ -193,8 +193,16 @@ producing a transcript, and reports the lowest free figure the device reached. I
 real allocation that fails in an `ErrOom` instead of estimating it, and it costs one window of
 compute. It does not test later windows, the diarizer, or the decoder's output length — the
 button's tooltip and the result line say so. A successful probe is stored like a finished run, so
-the next warning uses its measurement. The progress
-bar carries its percentage beside it while the run is in flight.
+the next warning uses its measurement.
+
+**While a run is in flight, the progress card names the step.** The bar carries its percentage
+beside it, and the line above it says what that percentage counts. It starts as the action the
+button names — `Transcribe…`, `Diarize…`, `Identify language…` or `Detect speech…` — and, on
+the offline ASR path, becomes `Transcribing — window 3 of 12` before the first window finishes.
+During a chained diarizer it reads `Diarizing — one pass, no finer progress`. The window count
+comes from the planner that splits the audio, so it is the same number of calls the run will
+make; it is not an estimate of time. A non-ASR role keeps the action label, because it has no
+window callback to count.
 
 **The settings are locked while a run or a probe is active.** A run works from the values it
 started with, so an edit during it would not change what the run does — it would only change what
@@ -339,6 +347,12 @@ Sequential is not an oversight: the library is
 [not thread-safe](concurrency.md#thread-safety), so one model at a time is what is safe.
 Results land in a grid with the detected language, the status and the text, and export as
 `.txt` or `.json`.
+
+While the queue runs, the progress card names the file in flight and its position — `File 2 of
+5` above the file name and its state (reading, done, failed). The bar counts finished files, so
+it moves once per file. That is the finest step the batch can state: each file is one native
+call, not the windowed path the Transcription tab uses, so there is no percentage inside a
+file to show.
 
 **Cancel** stops the batch. The file in flight is dropped — the same partial-result rule as the
 Transcription tab — while the items that already finished stay in the grid; the status line

@@ -113,10 +113,27 @@
       </Button>
     </StackPanel>
 
-    <!-- Progress -->
-    <ProgressBar Grid.Row="3" Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsProcessing}" Margin="0,0,0,8"
-                 AutomationProperties.AutomationId="batch-progress"
-                 AutomationProperties.Name="Batch progress" />
+    <!-- What is running now, and how far through the queue that is. A batch runs
+         a whole file in one native call, so the per-file line names the step
+         without inventing a fraction inside it; the bar counts finished files. -->
+    <Border Grid.Row="3" Classes="card" IsVisible="{Binding IsProcessing}" Margin="0,0,0,8">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding CurrentFileStep}" Classes="label" TextWrapping="Wrap"
+                   AutomationProperties.AutomationId="batch-current-file-step"
+                   AutomationProperties.Name="Batch current file position" />
+        <TextBlock Text="{Binding CurrentFile}" Classes="hint" TextWrapping="Wrap"
+                   IsVisible="{Binding CurrentFile, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   AutomationProperties.AutomationId="batch-current-file"
+                   AutomationProperties.Name="Batch current file" />
+        <TextBlock Text="{Binding CurrentFileStatus}" Classes="hint" TextWrapping="Wrap"
+                   IsVisible="{Binding CurrentFileStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   AutomationProperties.AutomationId="batch-current-file-status"
+                   AutomationProperties.Name="Batch current file status" />
+        <ProgressBar Value="{Binding Progress}" Maximum="1"
+                     AutomationProperties.AutomationId="batch-progress"
+                     AutomationProperties.Name="Batch progress" />
+      </StackPanel>
+    </Border>
 
     <!-- Status -->
     <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" Margin="0,0,0,8"

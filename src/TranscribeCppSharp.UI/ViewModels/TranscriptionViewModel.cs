@@ -64,6 +64,16 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     private double _progress;
 
+    /// <summary>
+    /// The run's countable step, e.g. "Transcribing — window 3 of 12".
+    /// </summary>
+    /// <remarks>
+    /// The percentage is the same work; this names it. It is set before the
+    /// first window has finished and cleared by the view when the run ends.
+    /// </remarks>
+    [ObservableProperty]
+    private string _progressStage = string.Empty;
+
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
@@ -1115,6 +1125,10 @@ public partial class TranscriptionViewModel : ObservableObject
         _cancelTranscription = cancellation.Cancel;
         IsTranscribing = true;
         Progress = 0;
+        // The action, not a stage the app cannot observe: for a non-ASR role
+        // there is no window callback, so the label stays truthful instead of
+        // claiming a load that has already finished. The ASR step replaces it.
+        ProgressStage = $"{RunButtonText}…";
         LiveText = string.Empty;
         LastError = null;
         StatusMessage = "Transcribing...";
@@ -1140,8 +1154,18 @@ public partial class TranscriptionViewModel : ObservableObject
                 _ => "Transcribing...",
             });
 
+            // The same windows the bar is filled from, named. Completed is 0 on
+            // the announcement made before the first window runs, so the text
+            // says "window 1" then rather than "window 0".
+            var stepProgress = new Progress<TranscriptionStep>(s =>
+            {
+                ProgressStage = s.Phase == TranscriptionPhase.Diarizing
+                    ? "Diarizing — one pass, no finer progress"
+                    : $"Transcribing — window {Math.Clamp(s.Completed == 0 ? 1 : s.Completed, 1, Math.Max(1, s.Total))} of {Math.Max(1, s.Total)}";
+            });
+
             Result = await _transcriptionService.TranscribeAsync(
-                AudioPath, ModelAlias, options, progress, liveText, phase, cancellation.Token);
+                AudioPath, ModelAlias, options, progress, liveText, phase, stepProgress, cancellation.Token);
 
             ShowResult(
                 Result,

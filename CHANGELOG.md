@@ -9,6 +9,16 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: a countable step beside the progress bar
+
+A run now says what its percentage is of: `Transcribing — window 3 of 12` above the bar, or
+`Diarizing — one pass, no finer progress` during the second pass. The window count is the
+planner's own, so it is the number of native calls the run will make, not a time estimate.
+
+The Batch tab names the file in flight and its position (`File 2 of 5`) and its state (reading,
+done, failed). Its bar still counts finished files: a batch runs each file in one native call,
+so there is no percentage inside one to report, and none is invented.
+
 ### UI: only offer backends and devices that can actually run
 
 The Backend picker listed all seven request values on every machine: Metal on Linux, CUDA and

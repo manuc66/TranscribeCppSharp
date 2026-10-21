@@ -218,6 +218,7 @@ public class TranscriptionFeedbackTests
             string audioPath, string modelPath, TranscriptionOptions options,
             IProgress<double>? progress = null, IProgress<string>? liveText = null,
             IProgress<TranscriptionPhase>? phase = null,
+            IProgress<TranscriptionStep>? step = null,
             CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
@@ -240,7 +241,7 @@ public class TranscriptionFeedbackTests
 
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
-            IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 
@@ -255,6 +256,7 @@ public class TranscriptionFeedbackTests
             string audioPath, string modelPath, TranscriptionOptions options,
             IProgress<double>? progress = null, IProgress<string>? liveText = null,
             IProgress<TranscriptionPhase>? phase = null,
+            IProgress<TranscriptionStep>? step = null,
             CancellationToken cancellationToken = default)
         {
             liveText?.Report("first window");
@@ -278,7 +280,7 @@ public class TranscriptionFeedbackTests
 
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
-            IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 
@@ -288,6 +290,7 @@ public class TranscriptionFeedbackTests
             string audioPath, string modelPath, TranscriptionOptions options,
             IProgress<double>? progress = null, IProgress<string>? liveText = null,
             IProgress<TranscriptionPhase>? phase = null,
+            IProgress<TranscriptionStep>? step = null,
             CancellationToken cancellationToken = default)
             => Task.FromException<TranscriptionResult>(failure);
 
@@ -306,7 +309,7 @@ public class TranscriptionFeedbackTests
 
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
-            IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 
@@ -316,6 +319,7 @@ public class TranscriptionFeedbackTests
             string audioPath, string modelPath, TranscriptionOptions options,
             IProgress<double>? progress = null, IProgress<string>? liveText = null,
             IProgress<TranscriptionPhase>? phase = null,
+            IProgress<TranscriptionStep>? step = null,
             CancellationToken cancellationToken = default)
             => Task.FromResult(new TranscriptionResult { FullText = "done" });
 
@@ -334,7 +338,7 @@ public class TranscriptionFeedbackTests
 
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
-            IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 }

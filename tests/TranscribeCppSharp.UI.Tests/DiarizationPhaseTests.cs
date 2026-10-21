@@ -68,6 +68,7 @@ public class DiarizationPhaseTests
             IProgress<double>? progress = null,
             IProgress<string>? liveText = null,
             IProgress<TranscriptionPhase>? phase = null,
+            IProgress<TranscriptionStep>? step = null,
             CancellationToken cancellationToken = default)
         {
             progress?.Report(1.0);
@@ -92,7 +93,7 @@ public class DiarizationPhaseTests
 
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
-            IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 }

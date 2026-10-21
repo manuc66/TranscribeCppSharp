@@ -16,6 +16,7 @@ public class TranscriptionService : ITranscriptionService
         IProgress<double>? progress = null,
         IProgress<string>? liveText = null,
         IProgress<TranscriptionPhase>? phase = null,
+        IProgress<TranscriptionStep>? stepProgress = null,
         CancellationToken cancellationToken = default)
     {
         bool chain = options.DiarizerModel is { Length: > 0 };
@@ -30,7 +31,7 @@ public class TranscriptionService : ITranscriptionService
 
         // Pass one: the selected model, through the role it serves.
         TranscriptionResult result = await RunSelectedModel(
-            audioPath, modelPath, options, passOneProgress, liveText, cancellationToken).ConfigureAwait(false);
+            audioPath, modelPath, options, passOneProgress, liveText, stepProgress, cancellationToken).ConfigureAwait(false);
 
         // Pass two: an optional separate diarizer, for a transcriber that cannot
         // attribute speakers itself. It runs after pass one, with that model already
@@ -39,6 +40,7 @@ public class TranscriptionService : ITranscriptionService
         if (chain && result.SpeakerSegments.Count == 0)
         {
             phase?.Report(TranscriptionPhase.Diarizing);
+            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Diarizing, 0, 1));
             progress?.Report(0.95);
 
             List<SpeakerSegmentResult> turns = await RunDiarizer(
@@ -46,6 +48,7 @@ public class TranscriptionService : ITranscriptionService
 
             result.SpeakerSegments = turns;
             result.Segments = SpeakerAssignment.Apply(result.Segments, turns);
+            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Diarizing, 1, 1));
             progress?.Report(1.0);
         }
         else
@@ -78,6 +81,7 @@ public class TranscriptionService : ITranscriptionService
         TranscriptionOptions options,
         IProgress<double>? progress,
         IProgress<string>? liveText,
+        IProgress<TranscriptionStep>? stepProgress,
         CancellationToken cancellationToken)
     {
         var model = LoadModel(modelPath, options.BackendRequest, options.Device);
@@ -89,7 +93,7 @@ public class TranscriptionService : ITranscriptionService
 
             return await System.Threading.Tasks.Task.Run(
                 () => roles.HasFlag(TranscribeRole.Asr)
-                    ? RunAsr(model, roles, options, audioSource, progress, liveText, cancellationToken)
+                    ? RunAsr(model, roles, options, audioSource, progress, liveText, stepProgress, cancellationToken)
                     : RunNonAsr(model, roles, options, audioSource, progress, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
         }
@@ -144,6 +148,7 @@ public class TranscriptionService : ITranscriptionService
         PcmSource audioSource,
         IProgress<double>? progress,
         IProgress<string>? liveText,
+        IProgress<TranscriptionStep>? stepProgress,
         CancellationToken cancellationToken)
     {
         using var session = CreateSession(model, options);
@@ -167,6 +172,10 @@ public class TranscriptionService : ITranscriptionService
             out var windows,
             out _))
         {
+            // Announced before the first window so the UI can say "window 1 of N"
+            // while the first one runs, not only after it finishes.
+            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Transcribing, 0, windows.Count));
+
             int windowIndex = 0;
             foreach (var window in windows)
             {
@@ -184,6 +193,8 @@ public class TranscriptionService : ITranscriptionService
 
                 windowIndex++;
                 progress?.Report((double)windowIndex / windows.Count);
+                stepProgress?.Report(new TranscriptionStep(
+                    TranscriptionPhase.Transcribing, windowIndex, windows.Count));
 
                 // One update per finished window: the offline run has no finer
                 // callback, so this is not word-by-word, and the window setting is
@@ -198,6 +209,7 @@ public class TranscriptionService : ITranscriptionService
         }
         else
         {
+            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Transcribing, 0, 1));
             var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
             var transcript = RunWindow(
                 session, samples, options, memory,
@@ -209,6 +221,7 @@ public class TranscriptionService : ITranscriptionService
             wasAborted = transcript.WasAborted;
             wasTruncated = transcript.WasTruncated;
             progress?.Report(1.0);
+            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Transcribing, 1, 1));
             memory.Sample();
         }
 
@@ -478,6 +491,7 @@ public class TranscriptionService : ITranscriptionService
         string modelPath,
         TranscriptionOptions options,
         IProgress<int>? progress = null,
+        IProgress<BatchFileStep>? fileStepProgress = null,
         CancellationToken cancellationToken = default)
     {
         // Before the model is resolved: stopping a batch must not first spend a
@@ -503,6 +517,11 @@ public class TranscriptionService : ITranscriptionService
 
                 var audioPath = audioPaths[i];
 
+                // Started is reported before the audio is opened, so the UI can
+                // name the file that is in flight rather than only the one that
+                // just finished. The native call has no finer callback.
+                fileStepProgress?.Report(new BatchFileStep(i + 1, audioPaths.Count, audioPath, BatchFilePhase.Started));
+
                 // Each file is independent: a file that cannot be opened, or one
                 // the model fails on, is recorded and the rest still run. Letting
                 // the exception out here would discard the items that already
@@ -524,6 +543,9 @@ public class TranscriptionService : ITranscriptionService
                         DetectedLanguage = result.DetectedLanguage,
                         Status = result.WasAborted ? "Aborted" : "Ok"
                     });
+
+                    fileStepProgress?.Report(new BatchFileStep(
+                        i + 1, audioPaths.Count, audioPath, BatchFilePhase.Completed));
                 }
                 catch (OperationCanceledException)
                 {
@@ -539,6 +561,9 @@ public class TranscriptionService : ITranscriptionService
                         AudioPath = audioPath,
                         Status = $"Error: {ex.Message}"
                     });
+
+                    fileStepProgress?.Report(new BatchFileStep(
+                        i + 1, audioPaths.Count, audioPath, BatchFilePhase.Failed));
                 }
 
                 progress?.Report(i + 1);

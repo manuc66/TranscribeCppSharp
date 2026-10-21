@@ -215,7 +215,7 @@ public class LastUsedModelTests
     {
         public Task<TranscriptionResult> TranscribeAsync(
             string audioPath, string modelPath, TranscriptionOptions options,
-            IProgress<double>? progress = null, IProgress<string>? liveText = null, IProgress<TranscriptionPhase>? phase = null, CancellationToken cancellationToken = default)
+            IProgress<double>? progress = null, IProgress<string>? liveText = null, IProgress<TranscriptionPhase>? phase = null, IProgress<TranscriptionStep>? step = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(
@@ -233,7 +233,7 @@ public class LastUsedModelTests
 
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
-            IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
             => Task.FromResult(new List<BatchItemResult>());
     }
 }
