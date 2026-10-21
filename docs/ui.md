@@ -186,7 +186,14 @@ the same model, window, backend and device recorded a lower free figure than the
 the tab warns with that measurement. The second is a measurement from this machine, not an
 estimate: the native API exposes free memory but not the compute graph's size, so a run whose
 weights fit can still run out of memory. Nothing is retried automatically; the warning names
-Window, the quantization and the device as the levers. The progress
+Window, the quantization and the device as the levers.
+
+**Test memory** runs one window of the selected file with the selected settings, without
+producing a transcript, and reports the lowest free figure the device reached. It measures the
+real allocation that fails in an `ErrOom` instead of estimating it, and it costs one window of
+compute. It does not test later windows, the diarizer, or the decoder's output length — the
+button's tooltip and the result line say so. A successful probe is stored like a finished run, so
+the next warning uses its measurement. The progress
 bar carries its percentage beside it while the run is in flight.
 
 For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears

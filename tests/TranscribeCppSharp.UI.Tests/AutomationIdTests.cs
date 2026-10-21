@@ -60,6 +60,8 @@ public class AutomationIdTests
         "transcription-copy-error",
         "transcription-live-text",
         "transcription-memory-warning",
+        "transcription-probe-memory",
+        "transcription-probe-result",
         "transcription-results",
     ];
 

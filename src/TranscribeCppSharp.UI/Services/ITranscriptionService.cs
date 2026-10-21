@@ -41,4 +41,20 @@ public interface ITranscriptionService
         TranscriptionOptions options,
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs at most one window of <paramref name="audioPath"/> with the selected
+    /// settings and reports whether it held, without producing a transcript.
+    /// </summary>
+    /// <remarks>
+    /// It exercises the same allocation as the first window of a real run, which is
+    /// what an out-of-memory failure at <c>Run</c> is about. It does not test later
+    /// windows, the diarizer, or the decoder's output length; the UI says so where
+    /// the button is.
+    /// </remarks>
+    Task<MemoryProbeResult> ProbeMemoryAsync(
+        string audioPath,
+        string modelPath,
+        TranscriptionOptions options,
+        CancellationToken cancellationToken = default);
 }

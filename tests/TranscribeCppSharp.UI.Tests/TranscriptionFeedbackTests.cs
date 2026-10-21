@@ -148,6 +148,11 @@ public class TranscriptionFeedbackTests
             yield break;
         }
 
+        public Task<MemoryProbeResult> ProbeMemoryAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
             IProgress<int>? progress = null, CancellationToken cancellationToken = default)
@@ -171,6 +176,11 @@ public class TranscriptionFeedbackTests
             yield break;
         }
 
+        public Task<MemoryProbeResult> ProbeMemoryAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
             IProgress<int>? progress = null, CancellationToken cancellationToken = default)
@@ -193,6 +203,11 @@ public class TranscriptionFeedbackTests
             await Task.CompletedTask;
             yield break;
         }
+
+        public Task<MemoryProbeResult> ProbeMemoryAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
 
         public Task<List<BatchItemResult>> BatchTranscribeAsync(
             IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,

@@ -125,4 +125,28 @@ public class TranscriptionServiceRoleTests
         Assert.True(result.Roles.HasFlag(TranscribeRole.Asr));
         Assert.NotEmpty(result.FullText);
     }
+
+    [Fact]
+    public async Task TheMemoryProbeRunsOneWindowOfTheSelectedFile()
+    {
+        string model = Model("ggml-tiny.bin");
+        Require(model);
+
+        TranscriptionOptions options = Cpu();
+        options.WindowSeconds = 5;
+
+        var service = new TranscriptionService();
+        MemoryProbeResult result = await service.ProbeMemoryAsync(
+            Audio, model, options, TestContext.Current.CancellationToken);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.OutOfMemory);
+
+        // A device may report no free figure; the probe still has to succeed.
+        if (result.Observation is { } observation)
+        {
+            Assert.True(observation.TotalBytes > 0);
+            Assert.True(observation.MinimumFreeBytes > 0);
+        }
+    }
 }

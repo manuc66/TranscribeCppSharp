@@ -291,6 +291,15 @@
           <TextBlock Text="Cancel" />
         </StackPanel>
       </Button>
+      <Button Command="{Binding ProbeMemoryCommand}" IsEnabled="{Binding CanProbeMemory}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="transcription-probe-memory"
+              AutomationProperties.Name="Test memory"
+              ToolTip.Tip="Run one window of the selected file with the selected settings, without producing a transcript, and report the free memory the device reached. It costs one window of compute. It does not test later windows or the diarizer.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Memory" />
+          <TextBlock Text="Test memory" />
+        </StackPanel>
+      </Button>
       <Button Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="transcription-export"
               AutomationProperties.Name="Export transcript"
@@ -352,7 +361,7 @@
     </Grid>
 
     <!-- Status -->
-    <Grid Grid.Row="10" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+    <Grid Grid.Row="10" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,8">
       <SelectableTextBlock Grid.Row="0" Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
                            AutomationProperties.AutomationId="transcription-status"
                            AutomationProperties.Name="Status" />
@@ -373,6 +382,10 @@
                  TextWrapping="Wrap" Margin="0,4,0,0" IsVisible="{Binding HasMemoryWarning}"
                  AutomationProperties.AutomationId="transcription-memory-warning"
                  AutomationProperties.Name="Memory warning" />
+      <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding MemoryProbeStatus}" Classes="hint"
+                 TextWrapping="Wrap" Margin="0,4,0,0" IsVisible="{Binding HasMemoryProbeStatus}"
+                 AutomationProperties.AutomationId="transcription-probe-result"
+                 AutomationProperties.Name="Memory probe result" />
     </Grid>
 
     <!-- Live text, one update per finished window. Not word by word: the offline

@@ -513,6 +513,61 @@ public class TranscriptionService : ITranscriptionService
     }
 
     /// <summary>
+    /// Runs at most one window of the audio with the selected settings and reports
+    /// whether it held, without producing a transcript.
+    /// </summary>
+    /// <remarks>
+    /// The allocation that fails in a real run happens when the native call builds
+    /// the graph for its input; running the same window is what exercises it. It
+    /// does not test later windows, the diarizer, or the decoder's output length —
+    /// the button's tooltip and the page say so.
+    /// </remarks>
+    public async Task<MemoryProbeResult> ProbeMemoryAsync(
+        string audioPath,
+        string modelPath,
+        TranscriptionOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        return await System.Threading.Tasks.Task.Run(() =>
+        {
+            Model model = LoadModel(modelPath, options.BackendRequest, options.Device);
+
+            try
+            {
+                using var audioSource = AudioLoader.Open(audioPath);
+                using var session = CreateSession(model, options);
+
+                long windowSamples = Math.Max(1, options.WindowSeconds) * (long)WindowPlanner.SampleRate;
+                int count = (int)Math.Min(audioSource.LengthSamples, Math.Min(windowSamples, int.MaxValue));
+                if (count <= 0)
+                {
+                    return new MemoryProbeResult(false, false, null, "The audio is empty.");
+                }
+
+                var samples = audioSource.ReadWindow(0, count);
+                var memory = new MemorySampler(model);
+                memory.Sample();
+
+                try
+                {
+                    session.Run(samples, builder => Configure(builder, options), cancellationToken);
+                    memory.Sample();
+                    return new MemoryProbeResult(true, false, memory.Observation, null);
+                }
+                catch (TranscribeException ex) when (ex.StatusCode == Status.ErrOom)
+                {
+                    memory.Sample();
+                    return new MemoryProbeResult(false, true, memory.Observation, ex.Message);
+                }
+            }
+            finally
+            {
+                model.Dispose();
+            }
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Resolves <paramref name="modelArgument"/> to a local file and loads it.
     /// </summary>
     /// <remarks>

@@ -47,6 +47,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanCancelTranscription))]
+    [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     private bool _isTranscribing;
 
@@ -59,6 +60,7 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>True while the selected model is being loaded to read its capabilities.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
+    [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     private bool _isCheckingCapabilities;
 
     /// <summary>What the capability check is doing, or why options are unfiltered.</summary>
@@ -476,6 +478,22 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether <see cref="MemoryWarning"/> has something to say.</summary>
     public bool HasMemoryWarning => MemoryWarning.Length > 0;
 
+    /// <summary>True while the one-window memory probe is running.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
+    private bool _isProbingMemory;
+
+    /// <summary>The probe's outcome, and what it does and does not measure.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMemoryProbeStatus))]
+    private string _memoryProbeStatus = string.Empty;
+
+    /// <summary>Whether <see cref="MemoryProbeStatus"/> has something to say.</summary>
+    public bool HasMemoryProbeStatus => MemoryProbeStatus.Length > 0;
+
+    /// <summary>Whether the memory probe can run: the same conditions as a run, and not already probing.</summary>
+    public bool CanProbeMemory => CanTranscribe && !IsProbingMemory;
+
     /// <summary>Whether any model is on disk, which is what the picker offers.</summary>
     public bool HasDownloadedModels => AvailableModels.Count > 0;
 
@@ -611,6 +629,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
         OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
     }
 
     /// <summary>
@@ -1103,7 +1122,11 @@ public partial class TranscriptionViewModel : ObservableObject
                 new ResultProvenance(ModelAlias, EffectiveLanguage(), DiarizeLabel(), WindowSeconds));
             StatusMessage = "Transcription complete.";
             TrySaveHistory();
-            SaveMemoryObservation();
+            if (Result.Memory is { } observation)
+            {
+                SaveMemoryObservation(observation);
+            }
+
             UpdateMemoryWarning();
         }
         catch (OperationCanceledException)
@@ -1179,6 +1202,78 @@ public partial class TranscriptionViewModel : ObservableObject
             // session without a display); that must not take the window down.
             UiLog.Failure("clipboard copy", ex);
             StatusMessage = $"Could not copy: {ex.Message} (logged to {UiLog.FilePath})";
+        }
+    }
+
+    /// <summary>
+    /// Runs one window of the selected file with the selected settings, without
+    /// producing a transcript, and reports whether it held.
+    /// </summary>
+    /// <remarks>
+    /// This is the closest thing to a prediction the app can offer for the compute
+    /// buffer: it measures the real allocation instead of estimating it. It costs
+    /// one window of compute, and it does not test later windows or the diarizer.
+    /// </remarks>
+    [RelayCommand]
+    private async System.Threading.Tasks.Task ProbeMemoryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(AudioPath) || !File.Exists(AudioPath))
+        {
+            StatusMessage = "Please select a valid audio file.";
+            return;
+        }
+
+        if (!CanProbeMemory)
+        {
+            return;
+        }
+
+        IsProbingMemory = true;
+        MemoryProbeStatus = string.Empty;
+        StatusMessage = $"Testing one window (up to {WindowSeconds} s)…";
+
+        try
+        {
+            MemoryProbeResult result = await _transcriptionService.ProbeMemoryAsync(
+                AudioPath, ModelAlias, BuildTranscriptionOptions());
+
+            if (result.Succeeded)
+            {
+                if (result.Observation is { } observation)
+                {
+                    SaveMemoryObservation(observation);
+                }
+
+                MemoryProbeStatus = result.Observation is { } measured
+                    ? $"Holds: {measured.DeviceName} went down to "
+                        + $"{MemoryPreflight.FormatBytes(measured.MinimumFreeBytes)} free. "
+                        + "That is a measurement of one window, not a guarantee for the whole file."
+                    : "Holds: the window completed, but this device reports no free-memory figure.";
+                StatusMessage = "Memory probe finished.";
+            }
+            else if (result.OutOfMemory)
+            {
+                MemoryProbeStatus = $"Did not hold (ErrOom): lower Window (now {WindowSeconds} s), "
+                    + "use a smaller quantization or context size, or force the CPU backend in Settings.";
+                StatusMessage = "Memory probe: out of memory.";
+            }
+            else
+            {
+                MemoryProbeStatus = $"The probe failed: {result.Message}";
+                StatusMessage = "Memory probe failed.";
+            }
+
+            UpdateMemoryWarning();
+        }
+        catch (Exception ex)
+        {
+            UiLog.Failure("memory probe", ex);
+            MemoryProbeStatus = $"The probe failed: {ex.Message}";
+            StatusMessage = "Memory probe failed.";
+        }
+        finally
+        {
+            IsProbingMemory = false;
         }
     }
 
@@ -1342,14 +1437,9 @@ public partial class TranscriptionViewModel : ObservableObject
             ? -1
             : ModelStore.Catalog.FirstOrDefault(model => model.Alias == alias)?.Size ?? -1;
 
-    /// <summary>Records what this run observed about its device, for the next run's warning.</summary>
-    private void SaveMemoryObservation()
+    /// <summary>Records what a run or a probe observed about its device, for the next warning.</summary>
+    private void SaveMemoryObservation(MemoryObservation observation)
     {
-        if (Result?.Memory is not { } observation)
-        {
-            return;
-        }
-
         UiSettings.SaveMemoryObservation(
             MemoryPreflight.RunKey(
                 ModelAlias, WindowSeconds, _settings.SelectedBackend, observation.DeviceName),

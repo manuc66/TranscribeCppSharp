@@ -9,6 +9,20 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: a one-window memory probe before committing to a long run
+
+The Transcription tab offers **Test memory**: it runs at most one window of the selected file
+with the selected settings, without producing a transcript, and reports the lowest free figure the
+device reached. That is the real allocation that fails in an `ErrOom`, measured rather than
+estimated, at the cost of one window of compute. It does not test later windows, the diarizer, or
+the decoder's output length, and the result line says so. An `ErrOom` names Window, the
+quantization and the CPU backend; a successful probe is stored like a finished run, so the next
+pre-run warning uses its measurement.
+
+The probe goes through `ITranscriptionService.ProbeMemoryAsync`, implemented by the real service
+with the model loaded, the first window read from the file and the same session settings as a run.
+The command is enabled under the same conditions as a run and is disabled while it runs.
+
 ### Robustness: failures are reported, not thrown out of the app
 
 Several failure paths used to end in an unhandled exception or in lost work rather than a
