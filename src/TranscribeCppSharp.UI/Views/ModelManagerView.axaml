@@ -23,7 +23,7 @@
 
     <!-- What to look for, and where the weights are -->
     <Border Grid.Row="0" Classes="card" Margin="0,0,0,8"
-            ToolTip.Tip="72 models are published by the transcribe.cpp authors. This project publishes no accuracy comparison between them, so there is nothing here to rank them by. Pick on size, licence, or measure the ones you have.">
+            ToolTip.Tip="76 models are published by the transcribe.cpp authors. The WER column quotes their headline error rate, with the metric, dataset, split and language in each cell's tooltip. Those figures are useful for narrowing the field, but they mix WER, CER and DER across datasets, so the grid does not rank models by them. Pick on size, licence or that figure, or measure the ones you have on your own audio.">
       <!-- A Grid, not a horizontal StackPanel: the panel measures its child
            against infinite width, so the wrapping TextBlock would never wrap
            and the caveat would be clipped at the window edge. -->
@@ -32,7 +32,7 @@
                                    VerticalAlignment="Top" Margin="0,2,8,0"
                                    Foreground="{DynamicResource AppAccentBrush}" />
         <TextBlock Grid.Column="1" TextWrapping="Wrap"
-                   Text="No model is faster or more accurate than another as far as this project has measured: docs/streaming-bench.md is the only benchmark and it covers Moonshine streaming only. Start with the model marked 'default' if you have no reason not to, then narrow by size or licence. A model is fetched on first use and cached." />
+                   Text="Accuracy is quoted from transcribe.cpp's own benchmark, not measured here: the WER column carries their headline error rate, and a cell's tooltip names the metric, dataset, split and language. Those figures mix WER, CER and DER across datasets, so they narrow the field but are not one ranking. For speed, Measure times a model on your audio; docs/streaming-bench.md is this project's only benchmark (Moonshine streaming). A model is fetched on first use and cached." />
       </Grid>
     </Border>
 
@@ -355,7 +355,7 @@
                      IsVisible="{Binding HeadlineAccuracyDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                      AutomationProperties.AutomationId="models-headline-accuracy"
                      AutomationProperties.Name="Upstream accuracy"
-                     ToolTip.Tip="Measured by transcribe.cpp on their benchmark, not by this project. Accuracy on your audio will differ, and nothing here measures it." />
+                     ToolTip.Tip="Measured by transcribe.cpp on their benchmark, not by this project: useful to narrow the field, but not a measurement of your audio." />
             <TextBlock Opacity="0.8" Text="{Binding SizeText, StringFormat='Download size: {0}'}" />
             <TextBlock Opacity="0.8" Text="{Binding OnDiskText}" />
             <TextBlock Opacity="0.8"

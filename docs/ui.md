@@ -449,8 +449,8 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   recorded upstream*, which several rows honestly carry. The header says **WER** because
   that is the majority of it, but 67 of the 74 figures are WER, six are CER and one is a
   DER, so read the tooltip rather than the column name when it matters. **It is not a
-  measurement of your audio, and this project publishes no accuracy figure of its own**;
-  the number is theirs.
+  measurement of your audio, but it is a useful screen from the people who built the
+  engine**; the number is theirs.
 - **Measure** times a model over an excerpt of audio *you* pick, because a timing is only
   meaningful for the audio it was taken on. One pass is discarded as warm-up and three are
   timed; the best is kept, since contention only ever makes a run slower. The backend is
@@ -460,10 +460,15 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
 `Sort by speed` orders the grid by what you measured here, and models you have not measured
 cannot be placed in a speed order, so they stay at the bottom in name order.
 
-**This app does not rank models by accuracy, and the WER column is not a ranking.** This project publishes no accuracy comparison
-between them, so there is none to show. `Measure` tells you how fast a model ran on your
-audio and nothing else. [Streaming benchmarks](streaming-bench.md) is the only benchmark the
-project has, and it covers Moonshine streaming only.
+**Accuracy figures are upstream's, and they are worth reading.** The WER column and the
+detail pane quote transcribe.cpp's headline error rate for each model, on their benchmark.
+Hover a cell for the metric, dataset, split, language and provenance. The column is not
+sortable because 67 of the 74 figures are WER, six are CER and one is a DER, over two
+datasets and eight languages — an order over them would rank numbers that do not measure the
+same thing. Those figures are useful for narrowing the field before you download; they are
+not a measurement of your audio. `Measure` answers speed on your audio, and
+[Streaming benchmarks](streaming-bench.md) is this project's only benchmark (Moonshine
+streaming).
 
 ### Settings
 
@@ -581,11 +586,11 @@ or class changes what the app does, and none carries a claim about it.
   Transcription tab, which runs offline.
 - **It does not time models for you against published numbers.** `Measure` runs on your
   machine, over your audio.
-- **No accuracy comparison is ours.** The grid quotes upstream's error rate per model, which
-  is their measurement on their benchmark and not a comparison this project made — let alone
-  one you could sort, since those figures come from three metrics and two datasets. What
-  this project's own judgement adds is filtering by licence, family, size, language and
-  what is on disk.
+- **It does not invent an accuracy comparison of its own.** Where a figure exists, the grid
+  quotes upstream's error rate per model — their measurement on their benchmark, with metric,
+  dataset and language in the tooltip — which is useful for narrowing the field but is not one
+  sortable ranking. What this project's own judgement adds is filtering by licence, family,
+  size, language, capability and what is on disk.
 
 ## How it is tested
 

@@ -181,10 +181,13 @@ Three things worth knowing before you rely on it:
   only way the native library answers — the manifest declares no capabilities — so a model
   that is not on disk keeps every option visible and the app says so underneath the picker.
   Options are hidden only once a loaded model has said it lacks the feature.
-- **It does not rank models by accuracy.** This project publishes no accuracy comparison
-  between them, so the app does not pretend to have one; `Measure` times a model, and speed
-  is all it tells you. See [Streaming benchmarks](docs/streaming-bench.md) for the one
-  benchmark the project does have, and what it does not cover.
+- **It quotes upstream's accuracy figures instead of inventing its own.** The `WER` column
+  and the model detail pane carry transcribe.cpp's own headline error rate, with the metric,
+  dataset, split and language in the tooltip — useful for narrowing the field, but not one
+  sortable ranking, because the figures mix WER, CER and DER across datasets. `Measure` times
+  a model on your audio and reports speed only, and
+  [Streaming benchmarks](docs/streaming-bench.md) is the one benchmark this project runs
+  (Moonshine streaming).
 
 The tab that carries the library's limits is Streaming: the app calls the same
 `StreamSession` the CLI and the library do, so the native abort documented in

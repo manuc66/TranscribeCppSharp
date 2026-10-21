@@ -279,8 +279,8 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
             string measured = row.MeasurementProvenance ?? "engine build not recorded upstream";
             return $"{row.Metric?.ToUpperInvariant()} {row.ErrPct:0.##} % on {headline!.Dataset} " +
                 $"{headline.Split}, {headline.Language}, {row.Quant ?? Descriptor.Quant} — " +
-                $"measured by transcribe.cpp ({measured}). Not a measurement of your audio; " +
-                "this project publishes no accuracy figure of its own.";
+                $"measured by transcribe.cpp ({measured}). Useful for narrowing the field, " +
+                "but not a measurement of your audio.";
         }
     }
 
