@@ -31,8 +31,18 @@
         <materialIcons:MaterialIcon Grid.Column="0" Classes="small" Kind="InformationOutline"
                                    VerticalAlignment="Top" Margin="0,2,8,0"
                                    Foreground="{DynamicResource AppAccentBrush}" />
-        <TextBlock Grid.Column="1" TextWrapping="Wrap"
-                   Text="Accuracy is quoted from transcribe.cpp's own benchmark, not measured here: the WER column carries their headline error rate, and a cell's tooltip names the metric, dataset, split and language. Those figures mix WER, CER and DER across datasets, so they narrow the field but are not one ranking. For speed, Measure times a model on your audio; docs/streaming-bench.md is this project's only benchmark (Moonshine streaming). A model is fetched on first use and cached." />
+        <StackPanel Grid.Column="1" Spacing="2">
+          <TextBlock TextWrapping="Wrap"
+                     Text="Accuracy is quoted from transcribe.cpp's own benchmark, not measured here: the WER column carries their headline error rate, and a cell's tooltip names the metric, dataset, split and language. Those figures mix WER, CER and DER across datasets, so they narrow the field but are not one ranking. For speed, Measure times a model on your audio; docs/streaming-bench.md is this project's only benchmark (Moonshine streaming). A model is fetched on first use and cached." />
+          <!-- The tag matches build/TRANSCRIBE_VERSION, the revision the
+               shipped catalog was read from. A link to main would show tables
+               that can disagree with the figures in this grid. -->
+          <HyperlinkButton Classes="link"
+                           Content="transcribe.cpp's per-model accuracy tables ↗"
+                           NavigateUri="https://github.com/handy-computer/transcribe.cpp/tree/v0.4.0/docs/models"
+                           AutomationProperties.Name="Open transcribe.cpp's per-model model docs"
+                           ToolTip.Tip="Open the upstream model docs for the pinned transcribe.cpp revision. Each family page carries the published WER tables and the model cards." />
+        </StackPanel>
       </Grid>
     </Border>
 
@@ -330,6 +340,12 @@
           <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
             <TextBlock Text="{Binding Alias}" FontWeight="Bold" FontSize="15" />
             <TextBlock Text="{Binding Repo}" Opacity="0.8" />
+            <HyperlinkButton Classes="link"
+                             Content="Model card and accuracy tables on Hugging Face ↗"
+                             NavigateUri="{Binding ModelCardUri}"
+                             Margin="0,2,0,2"
+                             AutomationProperties.Name="Open the model card on Hugging Face"
+                             ToolTip.Tip="Open this model's Hugging Face card. It carries the published WER table per quantization, the language matrix and the upstream model's own evaluation." />
             <TextBlock Text="{Binding Revision, StringFormat='revision {0}'}" Opacity="0.7" FontSize="11" />
             <TextBlock Opacity="0.8" Margin="0,4,0,0"
                        Text="{Binding License, StringFormat='Licence: {0}'}" />

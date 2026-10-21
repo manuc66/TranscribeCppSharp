@@ -28,6 +28,17 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
 
     public string Repo => Descriptor.Repo;
 
+    /// <summary>
+    /// The Hugging Face model card for this row's repository.
+    /// </summary>
+    /// <remarks>
+    /// The grid carries one headline figure; the card is where the rest is:
+    /// the published WER table per quantization, the full language matrix and
+    /// the upstream model's own evaluation. Derived from the repository the
+    /// manifest pins, so it cannot point at a different model than the row.
+    /// </remarks>
+    public Uri ModelCardUri => new($"https://huggingface.co/{Repo}");
+
     public string Revision => Descriptor.Revision;
 
     public string Quant => Descriptor.Quant;

@@ -45,7 +45,10 @@ The Models banner and the grid tooltips used to lead with what this project has 
 They now say where the useful numbers are: the **WER** column quotes transcribe.cpp's own
 headline error rate, and each cell's tooltip names the metric, dataset, split and language.
 The figures still mix WER, CER and DER across datasets, so they narrow the field but are not
-one ranking, and `Measure` reports speed on your audio only. No new measurement is claimed.
+one ranking, and `Measure` reports speed on your audio only. Two links make the source
+reachable: the banner opens transcribe.cpp's per-model accuracy tables at the pinned revision,
+and the detail pane opens the selected model's Hugging Face card with its full quant table and
+language matrix. No new measurement is claimed.
 
 ### UI: a one-window memory probe before committing to a long run
 

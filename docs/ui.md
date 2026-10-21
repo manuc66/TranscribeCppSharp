@@ -455,7 +455,9 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   that is the majority of it, but 67 of the 74 figures are WER, six are CER and one is a
   DER, so read the tooltip rather than the column name when it matters. **It is not a
   measurement of your audio, but it is a useful screen from the people who built the
-  engine**; the number is theirs.
+  engine**; the number is theirs. The banner links transcribe.cpp's per-model accuracy
+  tables at the pinned revision, and the detail pane links the selected model's Hugging
+  Face card, where the published WER per quantization and the full language matrix live.
 - **Measure** times a model over an excerpt of audio *you* pick, because a timing is only
   meaningful for the audio it was taken on. One pass is discarded as warm-up and three are
   timed; the best is kept, since contention only ever makes a run slower. The backend is

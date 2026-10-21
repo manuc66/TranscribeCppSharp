@@ -19,6 +19,16 @@ public class ModelCatalogItemTests
             Size: 1));
 
     [Fact]
+    public void TheModelCardLinkIsTheRepositorysHuggingFacePage()
+    {
+        ModelCatalogItem item = Item();
+
+        // The link is derived from the pinned repository, not from a second list
+        // that could point at a different model than the row.
+        Assert.Equal("https://huggingface.co/owner/sample-gguf", item.ModelCardUri.AbsoluteUri);
+    }
+
+    [Fact]
     public void DiarizationStartsUnknownAndSaysSo()
     {
         ModelCatalogItem item = Item();

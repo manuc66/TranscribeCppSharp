@@ -131,4 +131,18 @@
     <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
   </Style>
 
+  <!-- A link reads as text that can be clicked rather than as another button:
+       no padding or border, the accent colour and a hand cursor. The navigation
+       itself is HyperlinkButton's own (it asks the top level's launcher), so
+       nothing here invents a URL handler. -->
+  <Style Selector="HyperlinkButton.link">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource AppAccentBrush}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+  </Style>
+
 </Styles>

@@ -184,8 +184,9 @@ Three things worth knowing before you rely on it:
 - **It quotes upstream's accuracy figures instead of inventing its own.** The `WER` column
   and the model detail pane carry transcribe.cpp's own headline error rate, with the metric,
   dataset, split and language in the tooltip — useful for narrowing the field, but not one
-  sortable ranking, because the figures mix WER, CER and DER across datasets. `Measure` times
-  a model on your audio and reports speed only, and
+  sortable ranking, because the figures mix WER, CER and DER across datasets. The app links
+  transcribe.cpp's per-model tables and each model's Hugging Face card, where the full WER
+  and language matrices live. `Measure` times a model on your audio and reports speed only, and
   [Streaming benchmarks](docs/streaming-bench.md) is the one benchmark this project runs
   (Moonshine streaming).
 
