@@ -1,3 +1,4 @@
+using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.ViewModels;
@@ -24,6 +25,72 @@ public class SettingsPanelTests
         Assert.Contains("force", viewModel.BackendAvailabilityHint, StringComparison.OrdinalIgnoreCase);
         Assert.False(string.IsNullOrWhiteSpace(viewModel.BackendTargetHint));
     }
+
+    [Fact]
+    public void OnlyBackendsThisBuildCanSatisfyAreOffered()
+    {
+        var viewModel = new SettingsViewModel();
+
+        Assert.All(
+            viewModel.BackendOptions.Where(option => option.Value != BackendRequest.BackendAuto),
+            option => Assert.True(Backends.BackendAvailable(option.Value)));
+
+        bool hasHostAccelerator = viewModel.Devices.Any(
+            device => device.DeviceType == DeviceType.DeviceTypeAccel);
+        Assert.Equal(
+            hasHostAccelerator && Backends.BackendAvailable(BackendRequest.BackendCpuAccel),
+            viewModel.BackendOptions.Any(option => option.Value == BackendRequest.BackendCpuAccel));
+    }
+
+    [Fact]
+    public void TheDevicePickerOffersOnlyWhatTheBackendAccepts()
+    {
+        var viewModel = new SettingsViewModel();
+        viewModel.Devices.Clear();
+
+        BackendDevice cpu = Device("Fake CPU", "cpu", DeviceType.DeviceTypeCpu);
+        BackendDevice vulkan = Device("Fake GPU", "vulkan", DeviceType.DeviceTypeGpu);
+        BackendDevice accel = Device("Fake BLAS", "accel", DeviceType.DeviceTypeAccel);
+        viewModel.Devices.Add(cpu);
+        viewModel.Devices.Add(vulkan);
+        viewModel.Devices.Add(accel);
+
+        viewModel.SelectedBackend = BackendRequest.BackendCpu;
+        Assert.Single(viewModel.DeviceOptions.Skip(1));
+        Assert.Same(cpu, viewModel.DeviceOptions[1].Device);
+
+        viewModel.SelectedBackend = BackendRequest.BackendVulkan;
+        Assert.Single(viewModel.DeviceOptions.Skip(1));
+        Assert.Same(vulkan, viewModel.DeviceOptions[1].Device);
+
+        viewModel.SelectedBackend = BackendRequest.BackendAuto;
+        Assert.Equal(2, viewModel.DeviceOptions.Count - 1);
+        Assert.Contains(viewModel.DeviceOptions, option => option.Device == cpu);
+        Assert.Contains(viewModel.DeviceOptions, option => option.Device == vulkan);
+        Assert.DoesNotContain(viewModel.DeviceOptions, option => option.Device == accel);
+    }
+
+    [Fact]
+    public void APinnedDeviceThatTheNewBackendRejectsIsCleared()
+    {
+        var viewModel = new SettingsViewModel();
+        viewModel.Devices.Clear();
+        BackendDevice cpu = Device("Fake CPU", "cpu", DeviceType.DeviceTypeCpu);
+        BackendDevice vulkan = Device("Fake GPU", "vulkan", DeviceType.DeviceTypeGpu);
+        viewModel.Devices.Add(cpu);
+        viewModel.Devices.Add(vulkan);
+
+        viewModel.SelectedBackend = BackendRequest.BackendAuto;
+        viewModel.SelectedDeviceOption =
+            viewModel.DeviceOptions.Single(option => option.Device == vulkan);
+        Assert.Same(vulkan, viewModel.SelectedDevice);
+
+        viewModel.SelectedBackend = BackendRequest.BackendCpu;
+        Assert.Null(viewModel.SelectedDevice);
+    }
+
+    private static BackendDevice Device(string name, string kind, DeviceType type)
+        => new(name, name, kind, name, 0, 0, type);
 
     [Fact]
     public void TheBackendPickerShowsPlainNames()

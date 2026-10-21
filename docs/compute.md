@@ -36,10 +36,18 @@ index kind     type       memory  device
 `--backend` accepts `auto` (default), `cpu`, `cpu-accel`, `metal`, `vulkan`,
 `cuda`, `rocm`. A **forced** backend or device is never silently retried
 elsewhere: if it is unavailable, or does not match, the run fails with a clear
-message. The bundled runtimes include Vulkan (Windows/Linux) and Metal (macOS);
-CUDA needs your own build (see below). Whether the GPU is *faster* depends on the
-model, the audio length and your hardware — the tool reports the device it used
-and the measured time, it does not promise a speed-up.
+message.
+
+`cpu` is strict CPU: no GPU, no iGPU, and no host-memory accelerators.
+`cpu-accel` keeps the CPU primary but lets eligible matrix-multiply work go to a
+host accelerator (BLAS/AMX) when the build registers one — for example with
+`GGML_BLAS=ON`. With no accelerator registered it falls back to plain CPU, so the
+two behave the same. Neither one moves work to the GPU.
+
+The bundled runtimes include Vulkan (Windows/Linux) and Metal (macOS); CUDA needs
+your own build (see below). Whether the GPU is *faster* depends on the model, the
+audio length and your hardware — the tool reports the device it used and the
+measured time, it does not promise a speed-up.
 
 ## Backends.InitDefault
 

@@ -40,6 +40,24 @@ public class MemoryPreflightTests
     }
 
     [Fact]
+    public void OnlyAMatchingDeviceCanBeThePrimary()
+    {
+        BackendDevice accel =
+            Device("BLAS", DeviceType.DeviceTypeAccel, "accel", 0, 0);
+
+        Assert.True(MemoryPreflight.Accepts(BackendRequest.BackendCpu, Cpu));
+        Assert.False(MemoryPreflight.Accepts(BackendRequest.BackendCpu, DiscreteGpu));
+        Assert.False(MemoryPreflight.Accepts(BackendRequest.BackendCpuAccel, accel));
+
+        Assert.True(MemoryPreflight.Accepts(BackendRequest.BackendVulkan, DiscreteGpu));
+        Assert.False(MemoryPreflight.Accepts(BackendRequest.BackendCuda, DiscreteGpu));
+
+        Assert.True(MemoryPreflight.Accepts(BackendRequest.BackendAuto, Cpu));
+        Assert.True(MemoryPreflight.Accepts(BackendRequest.BackendAuto, DiscreteGpu));
+        Assert.False(MemoryPreflight.Accepts(BackendRequest.BackendAuto, accel));
+    }
+
+    [Fact]
     public void APinnedDeviceWinsOverThePolicy()
     {
         Assert.Same(

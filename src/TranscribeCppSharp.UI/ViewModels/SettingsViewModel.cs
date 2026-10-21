@@ -123,11 +123,12 @@ public partial class SettingsViewModel : ObservableObject
     public string AppVersion { get; } = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "unknown";
 
     /// <summary>
-    /// The backend choices, in the order the picker shows them. Labels are written
-    /// here because the enum members read "BackendAuto", "BackendCpu" and so on.
+    /// Every backend the native API names, in the order the picker would show
+    /// them. Labels are written here because the enum members read "BackendAuto",
+    /// "BackendCpu" and so on.
     /// </summary>
-    public ObservableCollection<BackendOption> BackendOptions { get; } = new()
-    {
+    private static readonly BackendOption[] AllBackendOptions =
+    [
         new(BackendRequest.BackendAuto, "Auto"),
         new(BackendRequest.BackendCpu, "CPU"),
         new(BackendRequest.BackendCpuAccel, "CPU (accelerated)"),
@@ -135,7 +136,21 @@ public partial class SettingsViewModel : ObservableObject
         new(BackendRequest.BackendVulkan, "Vulkan"),
         new(BackendRequest.BackendCuda, "CUDA"),
         new(BackendRequest.BackendRocm, "ROCm"),
-    };
+    ];
+
+    /// <summary>
+    /// The backend choices this build and machine can actually satisfy, plus Auto.
+    /// Rebuilt from <see cref="Backends.BackendAvailable"/> after device
+    /// enumeration and on every refresh.
+    /// </summary>
+    public ObservableCollection<BackendOption> BackendOptions { get; } =
+        new() { AllBackendOptions[0] };
+
+    /// <summary>
+    /// True when the native availability probe failed, so the picker shows the
+    /// full vocabulary instead of an incomplete one. The hint says so.
+    /// </summary>
+    private bool _backendListProbeFailed;
 
     /// <summary>
     /// The backend choice shown in the picker. Reading it maps
@@ -215,6 +230,7 @@ public partial class SettingsViewModel : ObservableObject
             BackendError = $"{Devices.Count} device(s) listed, then enumeration failed: {ex.Message} (logged to {UiLog.FilePath})";
         }
 
+        RebuildBackendOptions();
         RebuildDeviceOptions();
         if (_rememberSelection)
         {
@@ -232,24 +248,87 @@ public partial class SettingsViewModel : ObservableObject
     /// </summary>
     private void UpdateBackendAvailability()
     {
-        try
+        if (_backendListProbeFailed)
+        {
+            BackendAvailabilityHint =
+                $"{BaselineBackendHint} This build could not report which backends it has, "
+                + "so the full list is shown; a run that cannot use one reports the native error.";
+        }
+        else
         {
             List<string> available = BackendOptions
-                .Where(option => option.Value != BackendRequest.BackendAuto
-                    && Backends.BackendAvailable(option.Value))
+                .Where(option => option.Value != BackendRequest.BackendAuto)
                 .Select(option => option.Label)
                 .ToList();
 
             BackendAvailabilityHint = available.Count > 0
                 ? $"{BaselineBackendHint} Available on this machine: {string.Join(", ", available)}."
-                : $"{BaselineBackendHint} This build reports no usable device.";
-        }
-        catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
-        {
-            // The baseline is the part that matters; the list is a convenience.
+                : $"{BaselineBackendHint} This build reports no backend beyond Auto.";
         }
 
         UpdateTargetHint();
+    }
+
+    /// <summary>
+    /// Rebuilds the backend picker from what this build and machine can satisfy.
+    /// </summary>
+    /// <remarks>
+    /// A forced backend that no registered device matches is not offered: choosing
+    /// it would only fail at load. CPU_ACCEL is kept only when an ACCEL device
+    /// (BLAS/AMX) is actually registered, because without one the native library
+    /// falls back to plain CPU semantics and the two entries would do the same
+    /// thing. If the availability probe itself fails, the full vocabulary is shown
+    /// with a hint saying why, rather than hiding a backend on a failed guess.
+    /// </remarks>
+    private void RebuildBackendOptions()
+    {
+        try
+        {
+            bool hasHostAccelerator = Devices.Any(
+                device => device.DeviceType == DeviceType.DeviceTypeAccel);
+
+            List<BackendOption> available = AllBackendOptions
+                .Where(option => option.Value switch
+                {
+                    BackendRequest.BackendAuto => true,
+                    BackendRequest.BackendCpuAccel =>
+                        hasHostAccelerator && Backends.BackendAvailable(option.Value),
+                    _ => Backends.BackendAvailable(option.Value),
+                })
+                .ToList();
+
+            ReplaceBackendOptions(available);
+            _backendListProbeFailed = false;
+        }
+        catch (Exception ex) when (ex is TranscribeException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            UiLog.Failure("backend availability", ex);
+            ReplaceBackendOptions(AllBackendOptions);
+            _backendListProbeFailed = true;
+        }
+    }
+
+    /// <summary>
+    /// Replaces the picker's items and keeps a selection that is still offered.
+    /// A backend that is gone leaves Auto selected rather than a value the picker
+    /// cannot show.
+    /// </summary>
+    private void ReplaceBackendOptions(IReadOnlyList<BackendOption> options)
+    {
+        BackendOptions.Clear();
+        foreach (BackendOption option in options)
+        {
+            BackendOptions.Add(option);
+        }
+
+        if (!BackendOptions.Any(option => option.Value == SelectedBackend))
+        {
+            SelectedBackend = BackendRequest.BackendAuto;
+        }
+        else
+        {
+            OnPropertyChanged(nameof(SelectedBackendOption));
+        }
     }
 
     /// <summary>
@@ -272,6 +351,11 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnSelectedBackendChanged(BackendRequest value)
     {
         OnPropertyChanged(nameof(SelectedBackendOption));
+
+        // The device list is narrowed by the backend: a Vulkan GPU is not a valid
+        // pin when the CPU backend is forced, and the native load would reject it.
+        RebuildDeviceOptions();
+
         UpdateTargetHint();
         RememberComputeSelection();
     }
@@ -288,7 +372,13 @@ public partial class SettingsViewModel : ObservableObject
         _restoringSelection = true;
         try
         {
-            SelectedBackend = saved.Backend;
+            // A saved backend this launch cannot satisfy is left in the file but
+            // not selected: the picker shows Auto, and the choice returns with the
+            // device or build that made it available again.
+            SelectedBackend = BackendOptions.Any(option => option.Value == saved.Backend)
+                ? saved.Backend
+                : BackendRequest.BackendAuto;
+
             SelectedDeviceOption = saved.DeviceId is null
                 ? DeviceOption.Automatic
                 : DeviceOptions.FirstOrDefault(option =>
@@ -321,6 +411,9 @@ public partial class SettingsViewModel : ObservableObject
             return;
         }
 
+        // CPU_ACCEL is offered only while a host accelerator is registered, so a
+        // change to the device list can change the backend list too.
+        RebuildBackendOptions();
         RebuildDeviceOptions();
     }
 
@@ -341,7 +434,13 @@ public partial class SettingsViewModel : ObservableObject
         DeviceOptions.Add(DeviceOption.Automatic);
         foreach (BackendDevice device in Devices)
         {
-            DeviceOptions.Add(new DeviceOption(device));
+            // The picker offers only devices the selected backend accepts. The
+            // grid below still shows every device the machine reports, because
+            // that is an inventory, not a set of choices.
+            if (MemoryPreflight.Accepts(SelectedBackend, device))
+            {
+                DeviceOptions.Add(new DeviceOption(device));
+            }
         }
 
         SelectedDeviceOption = keep is null
@@ -383,6 +482,7 @@ public partial class SettingsViewModel : ObservableObject
                 _bulkDeviceEdit = false;
             }
 
+            RebuildBackendOptions();
             RebuildDeviceOptions(keep);
             UpdateBackendAvailability();
         }

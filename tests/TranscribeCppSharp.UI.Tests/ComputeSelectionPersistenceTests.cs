@@ -1,3 +1,4 @@
+using TranscribeCppSharp;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
@@ -71,8 +72,8 @@ public class ComputeSelectionPersistenceTests
         using var settings = new UiSettingsScope();
         var viewModel = new SettingsViewModel(rememberSelection: true);
         var device = new BackendDevice(
-            "Fake GPU", "Fake GPU", "vulkan", "fake", 4_294_967_296, 2_000_000_000,
-            DeviceType.DeviceTypeGpu);
+            "Fake CPU", "Fake CPU", "cpu", "fake", 4_294_967_296, 2_000_000_000,
+            DeviceType.DeviceTypeCpu);
 
         viewModel.Devices.Add(device);
         viewModel.SelectedBackend = BackendRequest.BackendCpu;
@@ -117,6 +118,24 @@ public class ComputeSelectionPersistenceTests
 
         Assert.NotNull(restored.SelectedDevice);
         Assert.Equal(device.DeviceId, restored.SelectedDevice!.DeviceId);
+    }
+
+    [Fact]
+    public void ASavedBackendThatIsNotAvailableLeavesAutoAndIsNotErased()
+    {
+        using var settings = new UiSettingsScope();
+        if (Backends.BackendAvailable(BackendRequest.BackendCuda))
+        {
+            Assert.Skip("CUDA is available on this machine");
+            return;
+        }
+
+        UiSettings.SaveComputeSelection(BackendRequest.BackendCuda, null);
+
+        var restored = new SettingsViewModel(rememberSelection: true);
+
+        Assert.Equal(BackendRequest.BackendAuto, restored.SelectedBackend);
+        Assert.Equal(BackendRequest.BackendCuda, UiSettings.LoadComputeSelection().Backend);
     }
 
     [Fact]

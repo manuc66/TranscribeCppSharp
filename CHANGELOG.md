@@ -9,14 +9,42 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: only offer backends and devices that can actually run
+
+The Backend picker listed all seven request values on every machine: Metal on Linux, CUDA and
+ROCm without the matching build, and CPU (accelerated) even when no host accelerator was
+registered. An unavailable backend could only fail at load, and CPU (accelerated) without an
+accelerator just fell back to plain CPU. The list now comes from the native
+`BackendAvailable` probe and contains Auto plus the backends this build and machine can
+satisfy. CPU (accelerated) is kept only when an ACCEL device (BLAS/AMX) is actually registered;
+without one the native library falls back to plain CPU, so the two entries would do the same
+thing. If the probe itself fails, the full list is shown with a hint saying why, rather than
+hiding a backend on a failed guess.
+
+The Device picker is narrowed in the same way: only devices the selected backend accepts are
+offered, so a Vulkan GPU disappears when the CPU backend is forced and an ACCEL device is never
+offered as a primary. A pin that the new backend rejects is cleared back to Auto when the
+backend changes, instead of producing an invalid load. The devices grid still shows the full
+inventory — it is information about the machine, not a set of choices — and its Type column now
+reads **GPU**, **iGPU**, **CPU** or **accelerator** instead of `DeviceTypeGpu`. A saved backend
+that is not available at launch leaves Auto selected and stays in the file, like a missing
+device id.
+
+Tests: every offered backend answers true to `BackendAvailable`; CPU (accelerated) follows the
+presence of an ACCEL device; the device list follows the backend for CPU, Vulkan and Auto; an
+incompatible pin is cleared by a backend change; `MemoryPreflight.Accepts` rejects ACCEL as a
+primary and non-matching devices for a forced backend; and the grid's type labels drop the
+enum prefix.
+
 ### UI: Auto is a device choice, and the compute choice is remembered
 
 The Settings tab's Device picker had no Auto row: the sentence "Let the backend choose" was
 only a placeholder, shown while nothing was selected. Once a device was picked there was no
 item to select to go back, so the only way to unpin it was to restart the app. **Auto — let
-the backend choose** is now the first item in the list. The Backend picker shows the same kind
-of labels — **Auto**, **CPU**, **CPU (accelerated)**, **Metal**, **Vulkan**, **CUDA**, **ROCm**
-— instead of the enum members' `BackendAuto` spelling.
+the backend choose** is now the first item in the list. The Backend picker uses plain labels
+— **Auto**, **CPU**, **CPU (accelerated)**, **Metal**, **Vulkan**, **CUDA**, **ROCm** — instead
+of the enum members' `BackendAuto` spelling; the newest entry above describes which of those
+are actually offered.
 
 The backend and device are also remembered between launches, in `ui-settings.json` beside the
 log. The backend is stored by name and the device by its stable `DeviceId` — the runtime handle

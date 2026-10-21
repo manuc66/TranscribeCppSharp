@@ -501,8 +501,9 @@ elsewhere. The backend and device picked here are what the three transcription t
 **Auto is a device choice too.** The Device list starts with **Auto — let the backend
 choose**, so a device that was pinned can be unpinned again; the box used to show that
 sentence only as a placeholder, with no row to select once a device had been picked. The
-Backend picker uses plain names — **Auto**, **CPU**, **CPU (accelerated)**, **Metal**,
-**Vulkan**, **CUDA**, **ROCm** — rather than the enum members' `BackendAuto` spelling.
+names the Backend picker does show are plain — **Auto**, **CPU**, **CPU (accelerated)**,
+**Metal**, **Vulkan**, **CUDA**, **ROCm** — rather than the enum members' `BackendAuto`
+spelling.
 
 There is no **Save** button. A change is used by the next run and written to
 `ui-settings.json` as it is made: the backend by name, the device by its stable id (the
@@ -512,10 +513,20 @@ the id stays in the file, so a device that comes back is used again.
 
 The panel is **optional**: leaving both controls alone is the normal case. A line under the
 pickers says so and names the backends this build and machine report as available, so the
-seven-item list does not read as a choice that must be made. `Auto` probing and the exact
-fallback rules are on [Compute](compute.md).
+list does not read as a choice that must be made. `Auto` probing and the exact fallback rules
+are on [Compute](compute.md).
 
-A second line states which device the current choice resolves to and how much memory it has
+**The pickers only offer what can actually run.** The Backend list is built from the native
+`BackendAvailable` probe, so a backend this build or machine cannot satisfy — Metal on Linux,
+CUDA without a CUDA build, CPU (accelerated) without a registered BLAS/AMX device — is not
+offered. If the probe itself fails, the full list is shown and the hint says so rather than
+hiding a backend on a failed guess. The Device list is narrowed to the devices the selected
+backend accepts: a Vulkan GPU is not offered when the CPU backend is forced, and an ACCEL
+device (BLAS/AMX) is never offered because it cannot be the primary. The grid below still
+shows every device the machine reports, including ones the selected backend cannot use: it
+is an inventory, not a set of choices.
+
+A line states which device the current choice resolves to and how much memory it has
 free — `Auto` follows the native policy (discrete GPU before integrated, then CPU), a pinned
 device is named as pinned. The devices grid shows **Total** and **Free** per device; a dash means
 the device did not report the figure. Both are snapshots as of the last **Refresh devices**

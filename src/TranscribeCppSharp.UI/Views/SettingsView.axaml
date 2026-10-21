@@ -9,6 +9,7 @@
 
   <UserControl.Resources>
     <c:DeviceMemoryConverter x:Key="DeviceMemory" />
+    <c:DeviceTypeNameConverter x:Key="DeviceTypeName" />
   </UserControl.Resources>
 
   <!-- Every row sizes to its content: with only a handful of compute devices,
@@ -33,7 +34,7 @@
       <Grid ColumnDefinitions="*,*">
         <StackPanel Grid.Column="0" Margin="0,0,8,0">
           <TextBlock Text="Backend" Classes="section"
-                     ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back." />
+                     ToolTip.Tip="Which compute backend to run on. Auto uses the GPU when one initializes (every discrete GPU is probed before the integrated ones) and falls back to the CPU otherwise; a forced backend fails instead of falling back. Only backends this build and machine can use are listed. CPU is pure CPU; CPU (accelerated) keeps the CPU primary and adds host-memory accelerators (BLAS/AMX) when the build has one." />
           <ComboBox ItemsSource="{Binding BackendOptions}" SelectedItem="{Binding SelectedBackendOption}"
                     HorizontalAlignment="Stretch"
                     AutomationProperties.AutomationId="settings-backend"
@@ -47,7 +48,7 @@
         </StackPanel>
         <StackPanel Grid.Column="1" Margin="8,0,0,0">
           <TextBlock Text="Device" Classes="section"
-                     ToolTip.Tip="Auto lets the backend resolve a device. Pinning one is stricter: it never falls back to another device, so a model that will not fit fails instead of quietly running elsewhere. Choose Auto again to unpin." />
+                     ToolTip.Tip="Auto lets the backend resolve a device. Pinning one is stricter: it never falls back to another device, so a model that will not fit fails instead of quietly running elsewhere. Only devices the selected backend accepts are listed; ACCEL devices (BLAS/AMX) cannot be the primary and are never offered. Choose Auto again to unpin." />
           <ComboBox ItemsSource="{Binding DeviceOptions}"
                     SelectedItem="{Binding SelectedDeviceOption}"
                     HorizontalAlignment="Stretch"
@@ -99,7 +100,7 @@
     <StackPanel Grid.Row="3">
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
         <TextBlock Grid.Column="0" Text="Available Devices" Classes="section"
-                   ToolTip.Tip="Compute devices this build and this machine can see. Free is a live snapshot as of the last refresh; a dash means the device did not report it." />
+                   ToolTip.Tip="Compute devices this build and this machine can see. Free is a live snapshot as of the last refresh; a dash means the device did not report it. This grid is the full inventory; the Device picker above offers only the devices the selected backend accepts." />
         <Button Grid.Column="1" Command="{Binding RefreshDevicesCommand}"
                 AutomationProperties.AutomationId="settings-refresh-devices"
                 AutomationProperties.Name="Refresh devices"
@@ -115,11 +116,15 @@
                 AutomationProperties.Name="Available devices">
         <DataGrid.Columns>
           <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
-          <DataGridTextColumn Header="Type" Binding="{Binding DeviceType}" />
+          <DataGridTextColumn Header="Type" Binding="{Binding DeviceType, Converter={StaticResource DeviceTypeName}}" />
           <DataGridTextColumn Header="Total" Binding="{Binding MemoryTotal, Converter={StaticResource DeviceMemory}}" />
           <DataGridTextColumn Header="Free" Binding="{Binding MemoryFree, Converter={StaticResource DeviceMemory}}" />
         </DataGrid.Columns>
       </DataGrid>
+      <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,6,0,0"
+                 Text="This grid lists every device the machine reports. The Device picker above offers only the devices the selected backend can use."
+                 AutomationProperties.AutomationId="settings-devices-note"
+                 AutomationProperties.Name="Devices and backend compatibility" />
     </StackPanel>
 
     <!-- About. Says whose the native work is, which is the one claim this pane

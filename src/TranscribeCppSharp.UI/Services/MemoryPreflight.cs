@@ -41,10 +41,38 @@ public static class MemoryPreflight
                 ?? devices.FirstOrDefault(d => d.DeviceType == DeviceType.DeviceTypeIgpu)
                 ?? devices.FirstOrDefault(d => d.DeviceType == DeviceType.DeviceTypeCpu),
 
-            BackendRequest.BackendCpu or BackendRequest.BackendCpuAccel =>
-                devices.FirstOrDefault(d => d.DeviceType == DeviceType.DeviceTypeCpu),
+            _ => devices.FirstOrDefault(d => Accepts(request, d)),
+        };
+    }
 
-            _ => devices.FirstOrDefault(d => KindMatches(d.Kind, request)),
+    /// <summary>
+    /// Whether <paramref name="device"/> can be the primary device for
+    /// <paramref name="backend"/>.
+    /// </summary>
+    /// <remarks>
+    /// This mirrors the native rule: an explicit backend accepts only a device of
+    /// its kind, CPU and CPU_ACCEL accept an exact CPU device, and an ACCEL device
+    /// (BLAS/AMX) can never be the primary. With AUTO any primary device is valid;
+    /// the selected device then decides the backend.
+    /// </remarks>
+    public static bool Accepts(BackendRequest backend, BackendDevice device)
+    {
+        ArgumentNullException.ThrowIfNull(device);
+
+        if (device.DeviceType == DeviceType.DeviceTypeAccel)
+        {
+            return false;
+        }
+
+        return backend switch
+        {
+            BackendRequest.BackendCpu or BackendRequest.BackendCpuAccel =>
+                device.DeviceType == DeviceType.DeviceTypeCpu,
+            BackendRequest.BackendMetal => KindMatches(device.Kind, BackendRequest.BackendMetal),
+            BackendRequest.BackendVulkan => KindMatches(device.Kind, BackendRequest.BackendVulkan),
+            BackendRequest.BackendCuda => KindMatches(device.Kind, BackendRequest.BackendCuda),
+            BackendRequest.BackendRocm => KindMatches(device.Kind, BackendRequest.BackendRocm),
+            _ => true,
         };
     }
 
@@ -65,7 +93,7 @@ public static class MemoryPreflight
             ? "no device reported"
             : string.Create(
                 CultureInfo.InvariantCulture,
-                $"{device.Name} ({KindLabel(device.DeviceType)}) — {FormatBytes(device.MemoryFree)} free of {FormatBytes(device.MemoryTotal)}");
+                $"{device.Name} ({DeviceTypeLabel(device.DeviceType)}) — {FormatBytes(device.MemoryFree)} free of {FormatBytes(device.MemoryTotal)}");
 
     /// <summary>Bytes in the units the rest of the UI uses.</summary>
     public static string FormatBytes(ulong bytes)
@@ -96,7 +124,8 @@ public static class MemoryPreflight
             CultureInfo.InvariantCulture,
             $"{modelAlias}|{windowSeconds}|{backend}|{deviceName}");
 
-    private static string KindLabel(DeviceType type) => type switch
+    /// <summary>The device type's short name, without the enum's "DeviceType" prefix.</summary>
+    public static string DeviceTypeLabel(DeviceType type) => type switch
     {
         DeviceType.DeviceTypeCpu => "CPU",
         DeviceType.DeviceTypeGpu => "GPU",

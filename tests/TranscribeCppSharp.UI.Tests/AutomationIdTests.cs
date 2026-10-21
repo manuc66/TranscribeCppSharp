@@ -130,6 +130,7 @@ public class AutomationIdTests
         "settings-backend-target",
         "settings-refresh-devices",
         "settings-devices",
+        "settings-devices-note",
         "settings-about",
         "settings-app-version",
     ];
