@@ -9,6 +9,29 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: Auto is a device choice, and the compute choice is remembered
+
+The Settings tab's Device picker had no Auto row: the sentence "Let the backend choose" was
+only a placeholder, shown while nothing was selected. Once a device was picked there was no
+item to select to go back, so the only way to unpin it was to restart the app. **Auto — let
+the backend choose** is now the first item in the list. The Backend picker shows the same kind
+of labels — **Auto**, **CPU**, **CPU (accelerated)**, **Metal**, **Vulkan**, **CUDA**, **ROCm**
+— instead of the enum members' `BackendAuto` spelling.
+
+The backend and device are also remembered between launches, in `ui-settings.json` beside the
+log. The backend is stored by name and the device by its stable `DeviceId` — the runtime handle
+is valid only in the process that enumerated it, which is why the id is what the wrapper's own
+documentation says to persist. A saved device that this launch no longer enumerates leaves Auto
+selected and its id in the file, so a device that comes back is used again. A line under the
+pickers now says that a change applies to the next run, is remembered for the next launch, and
+needs no Save button.
+
+Tests: Auto is an item and can be selected again after pinning; a device removed from the list
+leaves only Auto; the backend and device id round-trip and share the file with the other
+settings; an unknown backend name falls back to Auto; a saved device is reselected by id when
+present; a missing device leaves Auto without erasing the id; and the default constructor writes
+nothing, so a test cannot touch the developer's settings file.
+
 ### UI: file dialogs reopen in the last folder used
 
 The **Browse…** dialogs on the Transcription, Batch and Models tabs, and the two export

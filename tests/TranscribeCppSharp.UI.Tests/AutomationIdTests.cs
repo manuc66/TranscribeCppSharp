@@ -122,6 +122,7 @@ public class AutomationIdTests
     private static readonly string[] SettingsIds =
     [        "settings-backend",
         "settings-device",
+        "settings-apply-note",
         "settings-cache-directory",
         "settings-backend-version",
         "settings-backend-error",

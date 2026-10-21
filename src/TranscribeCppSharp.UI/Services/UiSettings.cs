@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.UI.Models;
 
@@ -150,6 +151,59 @@ public static class UiSettings
     public static string FilePath => FilePathOverride ?? DefaultPath();
 
     /// <summary>
+    /// The Settings tab's backend and pinned device, or Auto with no device when
+    /// nothing was saved.
+    /// </summary>
+    /// <remarks>
+    /// The device is stored by its stable <see cref="BackendDevice.DeviceId"/>, not
+    /// by its runtime handle: handles are process-local. A saved id is matched
+    /// against a fresh enumeration by the view model, and an id that is no longer
+    /// present leaves Auto selected.
+    /// </remarks>
+    public static ComputeSelection LoadComputeSelection()
+    {
+        lock (Gate)
+        {
+            ComputeSection? section = Read().Compute;
+            if (section is null)
+            {
+                return new ComputeSelection(BackendRequest.BackendAuto, null);
+            }
+
+            BackendRequest backend =
+                Enum.TryParse(section.Backend, ignoreCase: true, out BackendRequest parsed)
+                && Enum.IsDefined(parsed)
+                    ? parsed
+                    : BackendRequest.BackendAuto;
+            string? deviceId = string.IsNullOrWhiteSpace(section.DeviceId)
+                ? null
+                : section.DeviceId;
+
+            return new ComputeSelection(backend, deviceId);
+        }
+    }
+
+    /// <summary>Records the backend and pinned device chosen on the Settings tab.</summary>
+    /// <param name="backend">The backend to request.</param>
+    /// <param name="deviceId">
+    /// The device's stable id, or null/empty for Auto. A device without an id is
+    /// not remembered: its handle cannot be used in the next process.
+    /// </param>
+    public static void SaveComputeSelection(BackendRequest backend, string? deviceId)
+    {
+        lock (Gate)
+        {
+            Document document = Read();
+            document.Compute = new ComputeSection
+            {
+                Backend = backend.ToString(),
+                DeviceId = string.IsNullOrWhiteSpace(deviceId) ? null : deviceId,
+            };
+            Write(document);
+        }
+    }
+
+    /// <summary>
     /// The folder the last file picker used, or null when none has or the folder
     /// is no longer on disk.
     /// </summary>
@@ -291,11 +345,29 @@ public static class UiSettings
         [JsonPropertyName("lastDirectory")]
         public string? LastDirectory { get; set; }
 
+        [JsonPropertyName("compute")]
+        public ComputeSection? Compute { get; set; }
+
         [JsonPropertyName("export")]
         public ExportSection? Export { get; set; }
 
         [JsonPropertyName("memory")]
         public Dictionary<string, MemoryRecord> Memory { get; init; } = new(StringComparer.Ordinal);
+    }
+
+    /// <summary>The Settings tab's compute choice as it sits on disk.</summary>
+    /// <remarks>
+    /// The backend is a name rather than a number so the file stays readable and a
+    /// value this build does not know is rejected explicitly rather than mapped to
+    /// whatever enum member shares its number.
+    /// </remarks>
+    private sealed class ComputeSection
+    {
+        [JsonPropertyName("backend")]
+        public string? Backend { get; init; }
+
+        [JsonPropertyName("deviceId")]
+        public string? DeviceId { get; init; }
     }
 
     /// <summary>One measured run, as it sits on disk.</summary>

@@ -498,6 +498,18 @@ rather than silently falling back. Pinning a *device* is stricter still — it n
 back to another device, so a model that will not fit there fails instead of quietly running
 elsewhere. The backend and device picked here are what the three transcription tabs use.
 
+**Auto is a device choice too.** The Device list starts with **Auto — let the backend
+choose**, so a device that was pinned can be unpinned again; the box used to show that
+sentence only as a placeholder, with no row to select once a device had been picked. The
+Backend picker uses plain names — **Auto**, **CPU**, **CPU (accelerated)**, **Metal**,
+**Vulkan**, **CUDA**, **ROCm** — rather than the enum members' `BackendAuto` spelling.
+
+There is no **Save** button. A change is used by the next run and written to
+`ui-settings.json` as it is made: the backend by name, the device by its stable id (the
+runtime handle is valid only in the process that enumerated it). On the next launch the saved
+device is selected again when it is still enumerated; if it is missing, Auto is selected and
+the id stays in the file, so a device that comes back is used again.
+
 The panel is **optional**: leaving both controls alone is the normal case. A line under the
 pickers says so and names the backends this build and machine report as available, so the
 seven-item list does not read as a choice that must be made. `Auto` probing and the exact

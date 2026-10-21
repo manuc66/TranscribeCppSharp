@@ -46,7 +46,10 @@ public partial class App : Application
         services.AddSingleton<StreamingViewModel>();
         services.AddSingleton<BatchViewModel>();
         services.AddSingleton<ModelManagerViewModel>();
-        services.AddSingleton<SettingsViewModel>();
+        // The app remembers the backend and pinned device between launches; the
+        // default constructor does not, so a test constructing the tab neither
+        // reads nor writes the developer's settings file.
+        services.AddSingleton(_ => new SettingsViewModel(rememberSelection: true));
         services.AddSingleton<HistoryViewModel>();
 
         return services.BuildServiceProvider();
