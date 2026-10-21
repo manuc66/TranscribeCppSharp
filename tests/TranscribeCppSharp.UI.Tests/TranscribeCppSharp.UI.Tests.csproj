@@ -29,7 +29,7 @@
          both together, once Avalonia ships a Headless.XUnit built on xunit.v3
          4.x, and re-check the [AvaloniaFact] classes then. 3.2.2 is what this
          project had when CI was last green. -->
-    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
