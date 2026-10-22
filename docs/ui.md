@@ -153,8 +153,8 @@ A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg
 | Keep special tags | off | Off removes markers such as `<|notimestamps|>` from the text |
 
 Four settings appear only for models that have them: the Whisper initial prompt and
-temperature, the task and the target-language picker, the speculative-decoding
-draft count, and the vocabulary list. They are
+temperature, the task picker (and the target-language picker only while the task is
+Translate), the speculative-decoding draft count, and the vocabulary list. They are
 hidden based on what the model reports, not on what its name suggests — see
 [Asking the model](#asking-the-model) below.
 
