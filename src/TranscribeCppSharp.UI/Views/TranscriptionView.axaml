@@ -180,13 +180,13 @@
           </Grid>
           <StackPanel IsVisible="{Binding ShowWindow}">
             <TextBlock Text="Window (sec)" Classes="label"
-                       ToolTip.Tip="Longest audio passed to the model in one call, in seconds. Longer audio is split into windows of this size overlapping by 1 s, and the results are merged with the overlap removed. Raise it if the model supports more than 300 s; lower it if the windows are too large for the available memory." />
+                       ToolTip.Tip="Longest audio passed to the model in one call, in seconds. Longer audio is split into windows of this size overlapping by 1 s, and the results are merged with the overlap removed. The compute buffer grows with this value, and the native API does not report its size: start small, and use Test memory before raising it." />
             <NumericUpDown Value="{Binding WindowSeconds}" Minimum="2" Maximum="3600" Increment="10"
                            IsEnabled="{Binding CanEditSettings}"
                            AutomationProperties.AutomationId="transcription-window-seconds"
                            AutomationProperties.Name="Window seconds" />
             <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,4,0,0"
-                       Text="A long file is split into windows of this length; each finished window is one step on the progress bar."
+                       Text="A long file is split into windows of this length; each finished window is one step on the progress bar. The compute buffer grows with this window, so raise it only after Test memory holds."
                        AutomationProperties.AutomationId="transcription-window-hint"
                        AutomationProperties.Name="Window and progress" />
           </StackPanel>

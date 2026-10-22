@@ -77,7 +77,7 @@ public class MemoryProbeTests
             Assert.Contains("measurement", viewModel.MemoryProbeStatus, StringComparison.OrdinalIgnoreCase);
 
             MemoryObservation? saved = UiSettings.LoadMemoryObservation(
-                MemoryPreflight.RunKey(Alias, 300, Interop.BackendRequest.BackendAuto, DeviceName));
+                MemoryPreflight.RunKey(Alias, 30, Interop.BackendRequest.BackendAuto, DeviceName));
             Assert.NotNull(saved);
             Assert.Equal(900_000_000UL, saved.MinimumFreeBytes);
         });
@@ -97,7 +97,7 @@ public class MemoryProbeTests
             Assert.Contains("ErrOom", viewModel.MemoryProbeStatus);
             Assert.Contains("Window", viewModel.MemoryProbeStatus);
             Assert.Null(UiSettings.LoadMemoryObservation(
-                MemoryPreflight.RunKey(Alias, 300, Interop.BackendRequest.BackendAuto, DeviceName)));
+                MemoryPreflight.RunKey(Alias, 30, Interop.BackendRequest.BackendAuto, DeviceName)));
         });
     }
 

@@ -115,7 +115,7 @@ a working default. Speaker labels come after the transcript options because they
 post-processing: a dedicated diarizer runs as a second pass over the same audio, after the
 transcriber; a model that diarizes itself does it in the same pass. One line under the model
 restates what the run will do (`Will transcribe, language fr, every segment as Speaker 0,
-windows of 300 s`), so the pickers and the result cannot disagree after the fact. The primary button is disabled until
+windows of 30 s`), so the pickers and the result cannot disagree after the fact. The primary button is disabled until
 a model is on disk, a file is selected and still exists, and a requested speaker attribution can
 actually be produced; when it is disabled, the line under it names the missing piece and where
 to get it instead of leaving a dead button.
@@ -152,7 +152,7 @@ A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg
 | Threads | library default | Left empty on purpose. This is not a benchmarked recommendation — raising it past the core count usually makes it slower |
 | KV type | Auto | `F32` keeps the most precision and the most memory; `F16` halves the cache |
 | Context size | model maximum | Lower uses less memory; too low truncates long passages |
-| Window | 300 s | Longest audio passed in one call. Longer audio is split into windows overlapping by 1 s and merged; see [Long audio and diarization](diarization.md) |
+| Window | 30 s | Longest audio passed in one call. Longer audio is split into windows overlapping by 1 s and merged; see [Long audio and diarization](diarization.md). The compute buffer grows with this value and the native API does not report its size, so the default is deliberately conservative: 30 s completed a measured Parakeet run on the CPU and on a 4 GB Vulkan device, while 300 s asked for 10 GB on Vulkan and 113.6 GB (108,382 MB) on the CPU |
 | Keep special tags | off | Off removes markers such as `<|notimestamps|>` from the text |
 
 Four settings appear only for models that have them: the Whisper initial prompt and
@@ -204,7 +204,10 @@ loading it and names both figures — the weights alone would not fit. And if a 
 the same model, window, backend and device recorded a lower free figure than the device has now,
 the tab warns with that measurement. The second is a measurement from this machine, not an
 estimate: the native API exposes free memory but not the compute graph's size, so a run whose
-weights fit can still run out of memory. Nothing is retried automatically; the warning names
+weights fit can still run out of memory. That is why the Window default is 30 s rather than a
+large value: the graph grows with the window, and 30 s is the value this project measured
+completing on both the CPU and a 4 GB Vulkan device. Raising it is a choice the caller makes,
+with **Test memory** to measure it. Nothing is retried automatically; the warning names
 Window, the quantization and the device as the levers.
 
 **Test memory** runs one window of the selected file with the selected settings, without

@@ -28,7 +28,14 @@ public class TranscriptionOptions
     /// Maximum per-transcription window in seconds. Audio longer than this
     /// is split into overlapping windows (1s overlap) and results are merged.
     /// </summary>
-    public int WindowSeconds { get; set; } = 300;
+    /// <remarks>
+    /// 30 s is a conservative default, not a model limit: the compute buffer
+    /// grows with the window and the native API does not expose its size. A
+    /// 300 s Parakeet window asked for 10 GB on Vulkan and 113.6 GB on the CPU in
+    /// a measured run; 30 s completed on both. Raise this only after checking
+    /// the real allocation on the intended device.
+    /// </remarks>
+    public int WindowSeconds { get; set; } = 30;
 
     /// <summary>
     /// Language codes a language-identification model may answer with

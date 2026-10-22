@@ -335,8 +335,19 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     private bool? _keepSpecialTags;
 
+    /// <summary>
+    /// The longest audio passed to the model in one native call.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately small. The native API reports device free memory but not the
+    /// size of the compute graph a window builds, and that graph grows with the
+    /// window: 300 s asked for 10 GB on Vulkan and 113.6 GB on the CPU in a
+    /// measured Parakeet run, while 30 s completed on both. A caller who knows
+    /// its device can raise this; <see cref="ProbeMemoryAsync"/> measures the
+    /// real allocation instead of promising one.
+    /// </remarks>
     [ObservableProperty]
-    private int _windowSeconds = 300;
+    private int _windowSeconds = 30;
 
     public ObservableCollection<TranscriptionTask> AvailableTasks { get; } = new()
     {
@@ -1889,7 +1900,8 @@ public partial class TranscriptionViewModel : ObservableObject
             int window = _runOptions?.WindowSeconds ?? WindowSeconds;
             StatusMessage = ex.StatusCode == Status.ErrOom
                 ? $"Out of memory (ErrOom) while running {model}: lower Window (now {window} s), "
-                    + "use a smaller quantization or context size, or force the CPU backend in Settings. "
+                    + "or use a smaller quantization or a lower context size. "
+                    + "The CPU backend needs its own memory and is not a guaranteed fallback. "
                     + $"(logged to {UiLog.FilePath})"
                 : $"Error: {ex.Message} (logged to {UiLog.FilePath})";
         }
@@ -2203,7 +2215,8 @@ public partial class TranscriptionViewModel : ObservableObject
             else if (result.OutOfMemory)
             {
                 MemoryProbeStatus = $"Did not hold (ErrOom): lower Window (now {WindowSeconds} s), "
-                    + "use a smaller quantization or context size, or force the CPU backend in Settings.";
+                    + "or use a smaller quantization or a lower context size. "
+                    + "The CPU backend needs its own memory and is not a guaranteed fallback.";
                 StatusMessage = "Memory probe: out of memory.";
             }
             else

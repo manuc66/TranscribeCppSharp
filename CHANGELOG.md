@@ -9,6 +9,17 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the Window default is 30 s, not 300 s
+
+The 300 s default was a generic value, not a measurement, and it did not fit the
+machine it was run on: a Parakeet TDT 0.6B-v3 run asked for 10.1 GB on a 4 GB
+Vulkan device and 113.6 GB on the CPU before failing. The same model completed at
+30 s on both. The tab now starts at 30 s, the field's hint and tooltip say that the
+compute buffer grows with the window and that the native API does not report its
+size, and the UI docs say the value is conservative rather than a model limit.
+Higher windows are still available for devices that measured them; **Test memory**
+remains the measurement. The CLI default is unchanged (300 s, `--chunk`).
+
 ### UI: the Transcription tab says what it will do, and one intent for speaker labels
 
 The tab is now a short ordered form — **Audio**, **Model and language**, **Run options**,

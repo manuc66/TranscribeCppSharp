@@ -95,6 +95,8 @@ public class TranscriptionFeedbackTests
         await WithViewModel(service, async viewModel =>
         {
             viewModel.ModelAlias = "whisper-tiny";
+            // The report must name the window the run used, whatever it is.
+            viewModel.WindowSeconds = 300;
             await viewModel.TranscribeCommand.ExecuteAsync(null);
 
             Assert.True(viewModel.CanCopyError);

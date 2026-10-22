@@ -42,6 +42,28 @@ public class TranscriptionDefaultsTests
         }
     }
 
+    [AvaloniaFact]
+    public void TheWindowDefaultsToTheMeasuredSafeValue()
+    {
+        // 30 s is the value measured completing on both the CPU and a 4 GB
+        // Vulkan device in this project's Parakeet run. The default is not a
+        // model limit; it is a starting point that does not OOM on that hardware.
+        string? previous = ModelStore.CacheRootOverride;
+        ModelStore.CacheRootOverride = Path.Combine(
+            Path.GetTempPath(), "tcsharp-ui-tests-empty-cache");
+        try
+        {
+            var viewModel = new TranscriptionViewModel(
+                new FakeTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+
+            Assert.Equal(30, viewModel.WindowSeconds);
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = previous;
+        }
+    }
+
     private sealed class FakeTranscriptionService : ITranscriptionService
     {
         public Task<TranscriptionResult> TranscribeAsync(

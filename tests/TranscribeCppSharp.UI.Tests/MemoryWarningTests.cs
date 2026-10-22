@@ -54,7 +54,7 @@ public class MemoryWarningTests
 
     private static void SaveObservation(ulong minimumFreeBytes)
         => UiSettings.SaveMemoryObservation(
-            MemoryPreflight.RunKey(Alias, 300, BackendRequest.BackendAuto, DeviceName),
+            MemoryPreflight.RunKey(Alias, 30, BackendRequest.BackendAuto, DeviceName),
             new MemoryObservation(
                 DeviceName, 4_294_967_296, minimumFreeBytes,
                 new DateTimeOffset(2026, 10, 21, 0, 8, 0, TimeSpan.Zero)));
