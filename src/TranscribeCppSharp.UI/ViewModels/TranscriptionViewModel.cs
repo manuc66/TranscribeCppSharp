@@ -396,8 +396,12 @@ public partial class TranscriptionViewModel : ObservableObject
     /// attach a speaker to.
     /// </summary>
     public bool ShowSpeakerSection
-        => _selectedCapabilities is null
-        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+        => _selectedCapabilities is not null
+            ? _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
+            // Not checked yet: show the group only when there is a model whose
+            // capabilities could still arrive. With an empty cache it would be a
+            // control about nothing.
+            : HasDownloadedModels;
 
     /// <summary>
     /// Whether the selected model attributes speakers itself. Unknown is not a yes:
@@ -1081,8 +1085,16 @@ public partial class TranscriptionViewModel : ObservableObject
 
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
+        OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(ShowSpeakerSection));
+        OnPropertyChanged(nameof(CanAskForSpeakerLabels));
+        OnPropertyChanged(nameof(CanEditSpeakerLabels));
+        OnPropertyChanged(nameof(ShowDiarizerPicker));
+        OnPropertyChanged(nameof(DiarizerPlan));
         OnPropertyChanged(nameof(CanTranscribe));
         OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
     }
 
     /// <summary>

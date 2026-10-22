@@ -134,6 +134,8 @@ public class DiarizerPickerTests
 
             Assert.Single(viewModel.DiarizerOptions);
             Assert.Null(viewModel.DiarizerOptions[0].Alias);
+            // Nothing to describe yet: the speaker group waits for a model.
+            Assert.False(viewModel.ShowSpeakerSection);
         });
     }
 
