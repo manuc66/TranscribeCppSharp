@@ -1704,6 +1704,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 if (p > 0 && _phase == TranscriptionPhase.Transcribing)
                 {
                     ProgressIsIndeterminate = false;
+                    ProgressNote = string.Empty;
                 }
             });
             var liveText = new Progress<string>(text => LiveText = text);
@@ -1839,9 +1840,13 @@ public partial class TranscriptionViewModel : ObservableObject
 
             default:
                 ProgressIsIndeterminate = !PhaseReportsFraction(phase);
-                ProgressNote = ProgressIsIndeterminate
-                    ? "This role runs the whole file in one native call and reports no progress."
-                    : string.Empty;
+                ProgressNote = !ProgressIsIndeterminate
+                    ? string.Empty
+                    : _selectedCapabilities is null
+                        ? "No fraction has been reported yet."
+                        : _selectedCapabilities.Roles.HasFlag(TranscribeRole.Vad)
+                            ? "Voice activity is scored one window at a time; the bar fills after the first window returns."
+                            : "This role runs the whole file in one native call and reports no progress.";
                 if (ProgressIsIndeterminate)
                 {
                     ProgressStage = $"{RunButtonText}…";
