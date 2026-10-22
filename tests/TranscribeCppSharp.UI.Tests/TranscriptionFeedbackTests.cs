@@ -160,6 +160,7 @@ public class TranscriptionFeedbackTests
 
             Assert.Contains("model: parakeet-tdt-0.6b-v3", viewModel.LastError);
             Assert.Contains("window: 5 s", viewModel.LastError);
+            Assert.Contains("timestamps: TimestampsAuto", viewModel.LastError);
             Assert.Contains("context size: model default", viewModel.LastError);
             Assert.DoesNotContain("window: 300 s", viewModel.LastError);
         });

@@ -48,19 +48,6 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _windowAdjustmentNote = string.Empty;
 
     /// <summary>
-    /// True while the goal is setting the speaker intent. The checkbox and the
-    /// goal are two views of the same choice; the flag stops one from re-entering
-    /// the other and stops a checkbox toggle from rebuilding the model list.
-    /// </summary>
-    private bool _syncingGoal;
-
-    /// <summary>
-    /// Whether any catalog model is on disk, independent of the goal. The goal can
-    /// filter the picker to none while the cache holds other roles.
-    /// </summary>
-    private bool _anyModelOnDisk;
-
-    /// <summary>
     /// What produced the result on screen. Kept apart from the pickers so exporting
     /// a restored run names the model and settings that actually ran, not whatever
     /// the tab happens to have selected now.
@@ -2412,6 +2399,8 @@ public partial class TranscriptionViewModel : ObservableObject
         var run = new System.Text.StringBuilder();
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  model: {model}");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  window: {window} s");
+        run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+            $"  timestamps: {snapshot?.TimestampKind.ToString() ?? "auto"}");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"  kv type: {kv?.ToString() ?? "auto"}");
         run.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
