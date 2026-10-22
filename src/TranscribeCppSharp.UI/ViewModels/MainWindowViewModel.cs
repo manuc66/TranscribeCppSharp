@@ -55,6 +55,7 @@ public partial class MainWindowViewModel : ObservableObject
         // to it. The event is what carries "take me to the models" upward, so the
         // decision about which tab that is stays in one place.
         Transcription.OpenModelManagerRequested += ShowModelManager;
+        Transcription.OpenDiarizerModelsRequested += ShowDiarizerModels;
         Streaming.OpenModelManagerRequested += ShowModelManager;
         Batch.OpenModelManagerRequested += ShowModelManager;
 
@@ -84,6 +85,18 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private void ShowModelManager() => SelectedTabIndex = ModelTabIndex;
+
+    /// <summary>
+    /// Opens the catalogue already filtered to the models that can diarize, which
+    /// is the question the Transcription tab's button is asking. The filter is the
+    /// same one the Models tab exposes, not a second list: the reader can clear it
+    /// there and see everything.
+    /// </summary>
+    private void ShowDiarizerModels()
+    {
+        ModelManager.FeatureFilter = "diarize";
+        SelectedTabIndex = ModelTabIndex;
+    }
 
     /// <summary>
     /// Loads a saved run and shows it in the Transcription tab. A file that has been

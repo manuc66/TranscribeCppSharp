@@ -14,10 +14,12 @@
     <c:LanguageNameConverter x:Key="LanguageName" />
   </UserControl.Resources>
 
+  <!-- The tab is a short, ordered form: what to run, on what, with which result,
+       then the advanced tuning. Each step is a card and the primary action sits
+       after them, so the reader never has to scan a flat block of unrelated
+       pickers to find out what the button will do. The order is the order of the
+       decisions, not the order of the fields in the native API. -->
   <DockPanel Margin="{DynamicResource PagePadding}">
-    <!-- What this tab does, at a glance. The description states only what the
-         run actually accepts: WAV is read directly, everything else goes through
-         ffmpeg on PATH. -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
       <Border Classes="pageIcon">
         <materialIcons:MaterialIcon Kind="TextLong" />
@@ -29,542 +31,652 @@
       </StackPanel>
     </StackPanel>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-    <!-- Audio file selection -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
-      <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file..." IsReadOnly="True"
-               AutomationProperties.AutomationId="transcription-audio-path"
-               AutomationProperties.Name="Audio file path"
-               ToolTip.Tip="A 16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, ...) and the audio track of a video container (mp4, mkv, webm, ...) are decoded with ffmpeg, which must be installed and on PATH." />
-      <Button Grid.Column="1" Command="{Binding BrowseAudioCommand}" Margin="8,0,0,0"
-              AutomationProperties.AutomationId="transcription-browse-audio"
-              AutomationProperties.Name="Browse for audio file"
-              ToolTip.Tip="Pick an audio file or a video file to transcribe. A video's audio track is decoded; the picture is ignored.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="FolderOpen" />
-          <TextBlock Text="Browse..." />
-        </StackPanel>
-      </Button>
-    </Grid>
+    <StackPanel Spacing="12">
 
-    <!-- Model and language -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0">
-        <TextBlock Text="Model" Classes="label"
-                   ToolTip.Tip="Which speech-to-text model to run. Downloaded from HuggingFace on first use and cached, so the first run of a model needs a network connection. The Models tab shows what is already on disk and deletes it." />
-        <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}" HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="transcription-model"
-                  AutomationProperties.Name="Model" />
-        <!-- The list holds what is on disk, so it has to say where the rest went.
-             The route is always shown, not only when the list is empty: a picker with
-             one entry does not tell you the catalogue exists. -->
-        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
-          <TextBlock Grid.Column="0" Text="{Binding ModelPickerHint}" Classes="hint"
-                     VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="transcription-model-hint"
-                     AutomationProperties.Name="Model availability" />
-          <Button Grid.Column="1" Command="{Binding OpenModelManagerCommand}"
-                  Padding="8,2" Margin="8,0,0,0"
-                  AutomationProperties.AutomationId="transcription-get-models"
-                  AutomationProperties.Name="Get more models"
-                  ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A model is fetched on first use and cached.">
+      <!-- 1. What to transcribe. -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Audio" Classes="section" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBox Grid.Column="0" Text="{Binding AudioPath}" PlaceholderText="Select audio file, or drop one here..."
+                     IsReadOnly="True"
+                     AutomationProperties.AutomationId="transcription-audio-path"
+                     AutomationProperties.Name="Audio file path"
+                     ToolTip.Tip="A 16 kHz mono 16-bit WAV is read directly. Any other format (ogg, mp3, m4a, ...) and the audio track of a video container (mp4, mkv, webm, ...) are decoded with ffmpeg, which must be installed and on PATH." />
+            <Button Grid.Column="1" Command="{Binding BrowseAudioCommand}" Margin="8,0,0,0"
+                    IsEnabled="{Binding CanEditSettings}"
+                    AutomationProperties.AutomationId="transcription-browse-audio"
+                    AutomationProperties.Name="Browse for audio file"
+                    ToolTip.Tip="Pick an audio file or a video file to transcribe. A video's audio track is decoded; the picture is ignored.">
+              <StackPanel Classes="buttonContent">
+                <materialIcons:MaterialIcon Kind="FolderOpen" />
+                <TextBlock Text="Browse..." />
+              </StackPanel>
+            </Button>
+          </Grid>
+          <!-- A path that no longer resolves is stated here, before the run, not
+               discovered when the primary button is clicked. -->
+          <TextBlock Text="{Binding AudioProblem}" Classes="danger"
+                     IsVisible="{Binding HasAudioProblem}"
+                     AutomationProperties.AutomationId="transcription-audio-problem"
+                     AutomationProperties.Name="Audio file problem" />
+          <TextBlock Classes="hint"
+                     Text="Drop a file on this tab instead of browsing. The file is decoded when the run starts; nothing is uploaded."
+                     AutomationProperties.AutomationId="transcription-audio-hint"
+                     AutomationProperties.Name="Audio input" />
+        </StackPanel>
+      </Border>
+
+      <!-- 2. Which model, in which language. -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Model and language" Classes="section" />
+          <Grid ColumnDefinitions="*,*">
+            <StackPanel Grid.Column="0" Grid.ColumnSpan="{Binding ModelColumnSpan}" Margin="0,0,8,0">
+              <TextBlock Text="Model" Classes="label"
+                         ToolTip.Tip="Which speech-to-text model to run. Downloaded from HuggingFace on first use and cached, so the first run of a model needs a network connection. The Models tab shows what is already on disk and deletes it." />
+              <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding CanEditSettings}"
+                        AutomationProperties.AutomationId="transcription-model"
+                        AutomationProperties.Name="Model" />
+              <!-- The list holds what is on disk, so it has to say where the rest
+                   went. The route is always shown, not only when the list is
+                   empty: a picker with one entry does not tell you the catalogue
+                   exists. -->
+              <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                <TextBlock Grid.Column="0" Text="{Binding ModelPickerHint}" Classes="hint"
+                           VerticalAlignment="Center"
+                           AutomationProperties.AutomationId="transcription-model-hint"
+                           AutomationProperties.Name="Model availability" />
+                <Button Grid.Column="1" Command="{Binding OpenModelManagerCommand}"
+                        Padding="8,2" Margin="8,0,0,0"
+                        AutomationProperties.AutomationId="transcription-get-models"
+                        AutomationProperties.Name="Get more models"
+                        ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A model is fetched on first use and cached.">
+                  <StackPanel Classes="buttonContent">
+                    <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
+                    <TextBlock Text="Get more…" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+              <TextBlock Text="{Binding CapabilityStatus}" Classes="hint" Margin="0,4,0,0"
+                         IsVisible="{Binding CapabilityStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.AutomationId="transcription-capability-status"
+                         AutomationProperties.Name="Model capabilities status" />
+              <TextBlock Text="{Binding RolesHint}" Classes="hint" Margin="0,4,0,0"
+                         IsVisible="{Binding RolesHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.AutomationId="transcription-roles"
+                         AutomationProperties.Name="Model roles" />
+              <TextBlock Text="{Binding RunSummary}" Classes="hint" Margin="0,4,0,0"
+                         AutomationProperties.AutomationId="transcription-run-summary"
+                         AutomationProperties.Name="What the run will do" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding ShowLanguageColumn}">
+              <StackPanel IsVisible="{Binding ShowLanguage}">
+                <TextBlock Text="Language" Classes="label"
+                           ToolTip.Tip="Language code for the decoder (default: en). This is the code the model assumes the audio is in; leave the default unless the audio is not English. Only Whisper-family models detect the language themselves." />
+                <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding Language}"
+                          HorizontalAlignment="Stretch"
+                          IsEnabled="{Binding CanEditSettings}"
+                          AutomationProperties.AutomationId="transcription-language"
+                          AutomationProperties.Name="Language">
+                  <!-- The item stays the code; only its label carries the name,
+                       so what the run passes is still exactly what the model
+                       reported. -->
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding Converter={StaticResource LanguageName}}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
+              <StackPanel Margin="0,8,0,0" IsVisible="{Binding ShowAllowedLanguages}">
+                <TextBlock Text="Allowed languages" Classes="label"
+                           ToolTip.Tip="Comma-separated language codes the language-identification model may answer with (e.g. en,fr,de). Empty ranks every label." />
+                <TextBox Text="{Binding AllowedLanguages}"
+                         IsEnabled="{Binding CanEditSettings}"
+                         AutomationProperties.AutomationId="transcription-allowed-languages"
+                         AutomationProperties.Name="Allowed languages"
+                         PlaceholderText="en,fr,de" />
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- 3. The one speaker decision. The previous form had a "Diarization:
+           model default / off / on" picker and, elsewhere, a "Diarizer" model
+           picker — two controls that looked equivalent and meant different
+           things. Here the reader states the outcome they want; the app picks the
+           model that can produce it, and names it. -->
+      <Border Classes="card" IsVisible="{Binding ShowSpeakerSection}"
+              AutomationProperties.AutomationId="transcription-speakers"
+              AutomationProperties.Name="Speaker labels">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Speaker labels" Classes="section" />
+          <CheckBox Content="Add speaker labels"
+                    IsChecked="{Binding LabelSpeakers}"
+                    IsEnabled="{Binding CanAskForSpeakerLabels}"
+                    AutomationProperties.AutomationId="transcription-diarize"
+                    AutomationProperties.Name="Add speaker labels"
+                    ToolTip.Tip="Ask for speaker attribution in the result. This model can do it itself, or a separate diarizer model can run a second pass over the same audio. Off, every segment stays Speaker 0." />
+          <TextBlock Text="{Binding DiarizerPlan}" Classes="hint" TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="transcription-diarizer-plan"
+                     AutomationProperties.Name="Speaker plan" />
+          <TextBlock Text="{Binding DiarizerUnavailableHint}" Classes="hint" TextWrapping="Wrap"
+                     IsVisible="{Binding ShowDiarizerUnavailableHint}"
+                     AutomationProperties.AutomationId="transcription-diarizer-unavailable"
+                     AutomationProperties.Name="Speaker labels unavailable" />
+
+          <!-- Only when the intent is on and the transcriber needs help: a
+               second control that means nothing while the box is clear is not
+               part of the form. -->
+          <StackPanel Spacing="4" IsVisible="{Binding ShowDiarizerPicker}">
+            <TextBlock Text="Diarizer model" Classes="label"
+                       ToolTip.Tip="A downloaded model that serves only the DIARIZE role (Sortformer). It runs after the transcriber, over the same audio; the two models are not in memory at the same time. The attribution is this app's join of the two results, not a single library call." />
+            <ComboBox ItemsSource="{Binding DiarizerOptions}"
+                      SelectedItem="{Binding SelectedDiarizer}"
+                      HorizontalAlignment="Stretch"
+                      IsEnabled="{Binding CanEditSettings}"
+                      AutomationProperties.AutomationId="transcription-diarizer"
+                      AutomationProperties.Name="Diarizer model">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="{Binding DiarizerLanguageWarning}" Classes="danger" TextWrapping="Wrap"
+                       IsVisible="{Binding HasDiarizerLanguageWarning}"
+                       AutomationProperties.AutomationId="transcription-diarizer-language-warning"
+                       AutomationProperties.Name="Diarizer language warning" />
+            <Button Command="{Binding OpenDiarizerModelsCommand}"
+                    HorizontalAlignment="Left" Padding="8,2"
+                    IsVisible="{Binding NeedsDedicatedDiarizerDownload}"
+                    AutomationProperties.AutomationId="transcription-get-diarizer"
+                    AutomationProperties.Name="Get a diarizer model"
+                    ToolTip.Tip="Open the Models tab filtered to the models upstream records as supporting diarization. Without one, speaker labels cannot be produced by this transcriber.">
+              <StackPanel Classes="buttonContent">
+                <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
+                <TextBlock Text="Get a diarizer…" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- 4. What the transcript should be, beyond the model's defaults. -->
+      <Border Classes="card" IsVisible="{Binding ShowTranscriptSection}">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Run options" Classes="section" />
+          <!-- Task and target only exist for a model that translates, and the
+               target only while the task is Translate: a target beside a
+               Transcribe run was one of the contradictory pairs this tab had. -->
+          <Grid ColumnDefinitions="*,*" IsVisible="{Binding ShowTask}">
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+              <TextBlock Text="Task" Classes="label"
+                         ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
+              <ComboBox ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding SelectedTask}"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding CanEditSettings}"
+                        AutomationProperties.AutomationId="transcription-task"
+                        AutomationProperties.Name="Task" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding ShowTargetLanguage}">
+              <TextBlock Text="Target language" Classes="label"
+                         ToolTip.Tip="What to translate into, for the models that support it. The list is what the loaded model declares it accepts — the library rejects a code outside it, so there is no free text to type a wrong value into. '(model default)' passes nothing and lets the model choose." />
+              <ComboBox ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding SelectedTargetOption}"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding CanEditSettings}"
+                        AutomationProperties.AutomationId="transcription-target-language"
+                        AutomationProperties.Name="Target language">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Display}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+          </Grid>
+          <StackPanel IsVisible="{Binding ShowWindow}">
+            <TextBlock Text="Window (sec)" Classes="label"
+                       ToolTip.Tip="Longest audio passed to the model in one call, in seconds. Longer audio is split into windows of this size overlapping by 1 s, and the results are merged with the overlap removed. Raise it if the model supports more than 300 s; lower it if the windows are too large for the available memory." />
+            <NumericUpDown Value="{Binding WindowSeconds}" Minimum="2" Maximum="3600" Increment="10"
+                           IsEnabled="{Binding CanEditSettings}"
+                           AutomationProperties.AutomationId="transcription-window-seconds"
+                           AutomationProperties.Name="Window seconds" />
+            <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Text="A long file is split into windows of this length; each finished window is one step on the progress bar."
+                       AutomationProperties.AutomationId="transcription-window-hint"
+                       AutomationProperties.Name="Window and progress" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- The action, after the decisions it uses. It sits above the optional
+           tuning so the primary button is on screen without scrolling. -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <!-- What can be said about memory before a run, in two facts only: the
+               weights do not fit, or a previous run of this configuration went lower
+               than the free memory now. See docs/ui.md. -->
+          <TextBlock Text="{Binding MemoryWarning}" Classes="danger"
+                     TextWrapping="Wrap" IsVisible="{Binding HasMemoryWarning}"
+                     AutomationProperties.AutomationId="transcription-memory-warning"
+                     AutomationProperties.Name="Memory warning" />
+          <TextBlock Text="{Binding MemoryProbeStatus}" Classes="hint"
+                     TextWrapping="Wrap" IsVisible="{Binding HasMemoryProbeStatus}"
+                     AutomationProperties.AutomationId="transcription-probe-result"
+                     AutomationProperties.Name="Memory probe result" />
+
+          <StackPanel Orientation="Horizontal">
+            <Button Classes="accent" Command="{Binding TranscribeCommand}" IsEnabled="{Binding CanTranscribe}"
+                    AutomationProperties.AutomationId="transcription-run"
+                    AutomationProperties.Name="{Binding RunButtonText}"
+                    ToolTip.Tip="Run the selected model on the audio. The label names what it will do: transcribe, diarize, identify the language, or detect speech, according to the model's own role.">
+              <StackPanel Classes="buttonContent">
+                <materialIcons:MaterialIcon Kind="Play" />
+                <TextBlock Text="{Binding RunButtonText}" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding CancelTranscriptionCommand}" IsEnabled="{Binding CanCancelTranscription}" Margin="8,0,0,0"
+                    AutomationProperties.AutomationId="transcription-cancel"
+                    AutomationProperties.Name="Cancel transcription"
+                    ToolTip.Tip="Stop the run in flight. The native abort is polled between decode steps, so it is not instant. The partial result is discarded: the wrapper does not read it out, and the tab says so.">
+              <StackPanel Classes="buttonContent">
+                <materialIcons:MaterialIcon Kind="Stop" />
+                <TextBlock Text="Cancel" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding ProbeMemoryCommand}" IsEnabled="{Binding CanProbeMemory}"
+                    IsVisible="{Binding CanProbeThisRole}" Margin="8,0,0,0"
+                    AutomationProperties.AutomationId="transcription-probe-memory"
+                    AutomationProperties.Name="Test memory"
+                    ToolTip.Tip="Run one window of the selected file with the selected settings, without producing a transcript, and report the free memory the device reached. It costs one window of compute. It does not test later windows or the diarizer.">
+              <StackPanel Classes="buttonContent">
+                <materialIcons:MaterialIcon Kind="Memory" />
+                <TextBlock Text="Test memory" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <!-- A disabled primary button with no reason is a dead end. This line
+               names the missing piece and where to get it. -->
+          <TextBlock Text="{Binding RunBlockedReason}" Classes="hint" TextWrapping="Wrap"
+                     IsVisible="{Binding HasRunBlockedReason}"
+                     AutomationProperties.AutomationId="transcription-run-blocked"
+                     AutomationProperties.Name="Why the run cannot start" />
+        </StackPanel>
+      </Border>
+
+      <!-- Decoder tuning, collapsed. Everything here changes quality, memory or
+           speed, and every default is the one that works; none of it is needed
+           to get a transcript. It sits after the primary action so the button is
+           on screen without scrolling, and it is absent for the roles whose
+           sessions take none of these knobs. -->
+      <Expander AutomationProperties.AutomationId="transcription-advanced"
+                AutomationProperties.Name="Advanced settings"
+                IsVisible="{Binding ShowAdvanced}"
+                IsExpanded="False">
+        <Expander.Header>
+          <StackPanel Orientation="Horizontal">
+            <materialIcons:MaterialIcon Classes="small" Kind="TuneVariant" Margin="0,0,6,0" />
+            <TextBlock Text="Advanced settings" VerticalAlignment="Center" />
+          </StackPanel>
+        </Expander.Header>
+        <StackPanel Spacing="8" IsEnabled="{Binding CanEditSettings}">
+          <Grid ColumnDefinitions="*,*,*">
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+              <TextBlock Text="Threads" Classes="label"
+                         ToolTip.Tip="CPU threads the decoder may use. Leave empty for the library default. Not a benchmarked recommendation: raising it past the core count usually makes it slower, not faster." />
+              <NumericUpDown Value="{Binding Threads}" Minimum="1" Maximum="64" Increment="1"
+                             AutomationProperties.AutomationId="transcription-threads"
+                             AutomationProperties.Name="Threads" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+              <TextBlock Text="KV type" Classes="label"
+                         ToolTip.Tip="Data type of the key/value cache, used for flash attention. Auto lets the library pick. F32 keeps the most precision and uses the most memory; F16 halves the cache. Some models only support one of them." />
+              <ComboBox ItemsSource="{Binding KvTypes}" SelectedItem="{Binding SelectedKvType}"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.AutomationId="transcription-kv-type"
+                        AutomationProperties.Name="KV type">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource KvTypeName}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="8,0,0,0">
+              <TextBlock Text="Context size" Classes="label"
+                         ToolTip.Tip="Upper bound on the decoder context window, in tokens. Lower values use less memory; too low a value truncates long passages. Leave empty for the model's maximum." />
+              <NumericUpDown Value="{Binding ContextSize}" Minimum="512" Maximum="32768" Increment="512"
+                             AutomationProperties.AutomationId="transcription-context-size"
+                             AutomationProperties.Name="Context size" />
+            </StackPanel>
+          </Grid>
+
+          <Grid ColumnDefinitions="*,*" IsVisible="{Binding ShowWhisperExtensions}">
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+              <TextBlock Text="Initial prompt" Classes="label"
+                         ToolTip.Tip="Text given to the decoder before the audio, to steer vocabulary and punctuation. Useful for names and jargon the model would otherwise misspell. Whisper models only; other families ignore it." />
+              <TextBox Text="{Binding WhisperInitialPrompt}" PlaceholderText="Optional initial prompt..."
+                       AutomationProperties.AutomationId="transcription-whisper-prompt"
+                       AutomationProperties.Name="Whisper initial prompt" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+              <TextBlock Text="Temperature" Classes="label"
+                         ToolTip.Tip="Sampling temperature for the decoder. 0 is greedy decoding, which is the usual choice; higher values add randomness. Whisper models only." />
+              <NumericUpDown Value="{Binding WhisperTemperature}" Minimum="0" Maximum="2" Increment="0.1"
+                             AutomationProperties.AutomationId="transcription-whisper-temperature"
+                             AutomationProperties.Name="Whisper temperature" />
+            </StackPanel>
+          </Grid>
+
+          <StackPanel IsVisible="{Binding ShowVocabulary}">
+            <TextBlock Text="Vocabulary" Classes="label"
+                       ToolTip.Tip="Custom terms for the decoder, one per line, in priority order — names, jargon, acronyms. Passed as the run's vocabulary list. A model that does not report the vocabulary feature ignores it with a native warning; this project has not measured how much it changes the output." />
+            <TextBox Text="{Binding Vocabulary}" AcceptsReturn="True" TextWrapping="Wrap" Height="64"
+                     PlaceholderText="One term per line"
+                     AutomationProperties.AutomationId="transcription-vocabulary"
+                     AutomationProperties.Name="Vocabulary" />
+          </StackPanel>
+
+          <Grid ColumnDefinitions="*,*">
+            <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowSpeculativeDecoding}">
+              <TextBlock Text="Spec-K drafts" Classes="label"
+                         ToolTip.Tip="Number of speculative decoding drafts, 0 to disable. A draft is proposed and then verified, which can cut decoding time on some models. Whether it helps is unverified here: measure your own audio before trusting a speed claim." />
+              <NumericUpDown Value="{Binding SpecKDrafts}" Minimum="0" Maximum="10" Increment="1"
+                             AutomationProperties.AutomationId="transcription-spec-k-drafts"
+                             AutomationProperties.Name="Speculative decoding drafts" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Bottom">
+              <CheckBox Content="Keep special tags" IsChecked="{Binding KeepSpecialTags}"
+                        AutomationProperties.AutomationId="transcription-keep-special-tags"
+                        AutomationProperties.Name="Keep special tags"
+                        ToolTip.Tip="Leave markers such as &lt;|notimestamps|&gt; in the output instead of stripping them. Off, they are removed from the text you get." />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Expander>
+      <!-- Progress: the countable step, the fraction, and what the fraction does
+           and does not include. -->
+      <Border Classes="card" IsVisible="{Binding IsTranscribing}"
+              AutomationProperties.AutomationId="transcription-progress-card"
+              AutomationProperties.Name="Transcription progress">
+        <StackPanel Spacing="6">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="{Binding ProgressStage}" Classes="label" TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="transcription-progress-stage"
+                       AutomationProperties.Name="Transcription progress stage" />
+            <TextBlock Grid.Column="1" Text="{Binding Progress, StringFormat='{}{0:P0}'}"
+                       IsVisible="{Binding ShowProgressPercent}"
+                       VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="44" TextAlignment="Right"
+                       AutomationProperties.AutomationId="transcription-progress-percent"
+                       AutomationProperties.Name="Transcription progress percentage" />
+          </Grid>
+          <ProgressBar Value="{Binding Progress}" Maximum="1"
+                       IsIndeterminate="{Binding ProgressIsIndeterminate}"
+                       AutomationProperties.AutomationId="transcription-progress"
+                       AutomationProperties.Name="Transcription progress" />
+          <TextBlock Text="{Binding ProgressNote}" Classes="hint" TextWrapping="Wrap"
+                     IsVisible="{Binding ProgressNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     AutomationProperties.AutomationId="transcription-progress-note"
+                     AutomationProperties.Name="Progress note" />
+          <StackPanel Orientation="Horizontal" Spacing="16">
+            <TextBlock Text="{Binding ElapsedText, StringFormat='elapsed {0}'}" Classes="hint"
+                       IsVisible="{Binding ElapsedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       AutomationProperties.AutomationId="transcription-elapsed"
+                       AutomationProperties.Name="Elapsed time" />
+            <TextBlock Text="{Binding RemainingText}" Classes="hint"
+                       IsVisible="{Binding RemainingText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       AutomationProperties.AutomationId="transcription-remaining"
+                       AutomationProperties.Name="Estimated time left" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- What the last run said, beside the progress rather than below the
+           results. -->
+      <Grid ColumnDefinitions="*,Auto">
+        <SelectableTextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
+                             AutomationProperties.AutomationId="transcription-status"
+                             AutomationProperties.Name="Status" />
+        <Button Grid.Column="1" Command="{Binding CopyErrorCommand}"
+                IsVisible="{Binding CanCopyError}" Margin="8,0,0,0" VerticalAlignment="Top"
+                AutomationProperties.AutomationId="transcription-copy-error"
+                AutomationProperties.Name="Copy error details"
+                ToolTip.Tip="Copy the last failure in full — type, message, native status, failed method, log path and stack trace — so it can be pasted into a bug report.">
+          <StackPanel Classes="buttonContent">
+            <materialIcons:MaterialIcon Kind="AlertCircleOutline" />
+            <TextBlock Text="Copy error" />
+          </StackPanel>
+        </Button>
+      </Grid>
+
+      <!-- Live text, one update per finished window. Not word by word: the
+           offline run has no finer callback, and the Window setting is what
+           decides how often this changes. -->
+      <Border Classes="card" IsVisible="{Binding ShowLiveText}" MaxHeight="180">
+        <ScrollViewer>
+          <StackPanel>
+            <TextBlock Text="Live text — after each finished window" Classes="label" />
+            <SelectableTextBlock Text="{Binding LiveText}" TextWrapping="Wrap"
+                                 AutomationProperties.AutomationId="transcription-live-text"
+                                 AutomationProperties.Name="Live transcription text" />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+      <!-- Results. The actions that write something are here, next to what they
+           write, and only exist once there is a result. -->
+      <StackPanel IsVisible="{Binding HasResult}" Spacing="8">
+        <StackPanel Orientation="Horizontal">
+          <Button Command="{Binding ExportCommand}"
+                  AutomationProperties.AutomationId="transcription-export"
+                  AutomationProperties.Name="Export transcript"
+                  ToolTip.Tip="Write the transcript to a text file.">
             <StackPanel Classes="buttonContent">
-              <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
-              <TextBlock Text="Get more…" />
+              <materialIcons:MaterialIcon Kind="FileExport" />
+              <TextBlock Text="Export" />
             </StackPanel>
           </Button>
+          <Button Click="OnCopyTranscript" Margin="8,0,0,0"
+                  AutomationProperties.AutomationId="transcription-copy"
+                  AutomationProperties.Name="Copy transcript"
+                  ToolTip.Tip="Copy the whole transcript to the clipboard. A passage can also be selected in the Text tab and copied by hand.">
+            <StackPanel Classes="buttonContent">
+              <materialIcons:MaterialIcon Kind="ContentCopy" />
+              <TextBlock Text="Copy" />
+            </StackPanel>
+          </Button>
+          <Button Click="OnCopyTimestamps" Margin="8,0,0,0"
+                  AutomationProperties.AutomationId="transcription-copy-timestamps"
+                  AutomationProperties.Name="Copy transcript with timestamps"
+                  ToolTip.Tip="Copy one line per segment as [hh:mm:ss] Speaker: text, with the names you gave the speakers.">
+            <StackPanel Classes="buttonContent">
+              <materialIcons:MaterialIcon Kind="ClockOutline" />
+              <TextBlock Text="Copy + time" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <!-- Export options. They change only the exported document: the
+             transcript the model produced is not rewritten, and the Text tab
+             still shows it as it came back. -->
+        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto"
+              AutomationProperties.AutomationId="transcription-export-options"
+              AutomationProperties.Name="Export options">
+          <TextBlock Grid.Column="0" Text="Timestamps every" Classes="hint" VerticalAlignment="Center" Margin="0,0,6,0"
+                     ToolTip.Tip="How often a timestamp is written in the HTML export, in seconds. The first segment and every speaker change are always stamped. 0 leaves only those." />
+          <NumericUpDown Grid.Column="1" Value="{Binding TimestampIntervalSeconds}" Minimum="0" Maximum="600" Increment="10"
+                         Width="100" Margin="0,0,4,0"
+                         AutomationProperties.AutomationId="transcription-timestamp-interval"
+                         AutomationProperties.Name="Timestamp interval in seconds" />
+          <TextBlock Grid.Column="2" Text="s" Classes="hint" VerticalAlignment="Center" Margin="0,0,16,0" />
+          <CheckBox Grid.Column="3" Content="Mark pauses" IsChecked="{Binding MarkPauses}" VerticalAlignment="Center"
+                    AutomationProperties.AutomationId="transcription-mark-pauses"
+                    AutomationProperties.Name="Mark pauses"
+                    ToolTip.Tip="Write a pause marker between two segments separated by silence. One dot per whole second, capped at ten. Only the silence between recognized segments is visible: silence inside a segment is not, and the marker appears in the HTML export only." />
+          <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0"
+                      IsEnabled="{Binding MarkPauses}">
+            <TextBlock Text="of at least" Classes="hint" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <NumericUpDown Value="{Binding PauseThresholdSeconds}" Minimum="1" Maximum="60" Increment="1"
+                           Width="100"
+                           AutomationProperties.AutomationId="transcription-pause-threshold"
+                           AutomationProperties.Name="Pause threshold in seconds" />
+            <TextBlock Text="s" Classes="hint" VerticalAlignment="Center" Margin="4,0,0,0" />
+          </StackPanel>
         </Grid>
-        <TextBlock Text="{Binding CapabilityStatus}" Classes="hint" Margin="0,4,0,0"
-                   IsVisible="{Binding CapabilityStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   AutomationProperties.AutomationId="transcription-capability-status"
-                   AutomationProperties.Name="Model capabilities status" />
-        <TextBlock Text="{Binding RolesHint}" Classes="hint" Margin="0,4,0,0"
-                   IsVisible="{Binding RolesHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   AutomationProperties.AutomationId="transcription-roles"
-                   AutomationProperties.Name="Model roles" />
-        <StackPanel Margin="0,4,0,0" IsVisible="{Binding ShowAllowedLanguages}">
-          <TextBlock Text="Allowed languages (language-identification model)" Classes="label"
-                     ToolTip.Tip="Comma-separated language codes the model may answer with (e.g. en,fr,de). Empty ranks every label." />
-          <TextBox Text="{Binding AllowedLanguages}"
-                   AutomationProperties.AutomationId="transcription-allowed-languages"
-                   AutomationProperties.Name="Allowed languages"
-                   PlaceholderText="en,fr,de" />
-        </StackPanel>
-      </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0">
-        <TextBlock Text="Language" Classes="label"
-                   ToolTip.Tip="Language code for the decoder (default: en). This is the code the model assumes the audio is in; leave the default unless the audio is not English. Only Whisper-family models detect the language themselves." />
-        <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding Language}" HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="transcription-language"
-                  AutomationProperties.Name="Language">
-          <!-- The item stays the code; only its label carries the name, so what
-               the run passes is still exactly what the model reported. -->
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Converter={StaticResource LanguageName}}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-      </StackPanel>
-    </Grid>
 
-    <!-- Session parameters -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0">
-        <TextBlock Text="Threads" Classes="label"
-                   ToolTip.Tip="CPU threads the decoder may use. Leave empty for the library default. Not a benchmarked recommendation: raising it past the core count usually makes it slower, not faster." />
-        <NumericUpDown Value="{Binding Threads}" Minimum="1" Maximum="64" Increment="1"
-                       AutomationProperties.AutomationId="transcription-threads"
-                       AutomationProperties.Name="Threads" />
+        <TabControl MinHeight="320"
+                    AutomationProperties.AutomationId="transcription-results"
+                    AutomationProperties.Name="Transcription results">
+          <TabItem AutomationProperties.Name="Transcript text">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Classes="tabIcon" Kind="TextLong" />
+                <TextBlock Text="Text" VerticalAlignment="Center" />
+              </StackPanel>
+            </TabItem.Header>
+            <Grid RowDefinitions="Auto,*">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+                <TextBox Text="{Binding SearchQuery}" PlaceholderText="Find in transcript..." Width="240"
+                         KeyDown="OnSearchKeyDown"
+                         AutomationProperties.AutomationId="transcription-search"
+                         AutomationProperties.Name="Find in transcript" />
+                <Button Content="Find next" Click="OnFindNext" Margin="6,0,0,0"
+                        AutomationProperties.AutomationId="transcription-find-next"
+                        AutomationProperties.Name="Find next" />
+              </StackPanel>
+              <TextBox Grid.Row="1" x:Name="TranscriptTextBox" MinHeight="220"
+                       Text="{Binding FullText, Mode=OneWay}"
+                       IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                       SelectionStart="{Binding SearchSelectionStart, Mode=OneWay}"
+                       SelectionEnd="{Binding SearchSelectionEnd, Mode=OneWay}"
+                       ScrollViewer.VerticalScrollBarVisibility="Auto"
+                       AutomationProperties.AutomationId="transcription-text"
+                       AutomationProperties.Name="Transcript text" />
+            </Grid>
+          </TabItem>
+          <TabItem AutomationProperties.Name="Transcript segments">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Classes="tabIcon" Kind="FormatListBulleted" />
+                <TextBlock Text="Segments" VerticalAlignment="Center" />
+              </StackPanel>
+            </TabItem.Header>
+            <DataGrid ItemsSource="{Binding Segments}" AutoGenerateColumns="False" IsReadOnly="True">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Header="" Width="Auto">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <Button Click="OnPlaySegment" Padding="4"
+                              AutomationProperties.Name="Play segment"
+                              ToolTip.Tip="Play this segment's audio. Requires ffplay, which ships with ffmpeg; a missing player is reported in the status line.">
+                        <materialIcons:MaterialIcon Classes="small" Kind="Play" />
+                      </Button>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
+                <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
+                <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
+                <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </TabItem>
+          <TabItem AutomationProperties.Name="Transcript words">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Classes="tabIcon" Kind="TextShort" />
+                <TextBlock Text="Words" VerticalAlignment="Center" />
+              </StackPanel>
+            </TabItem.Header>
+            <DataGrid ItemsSource="{Binding Words}" AutoGenerateColumns="False" IsReadOnly="True">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
+                <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
+                <DataGridTextColumn Header="Word" Binding="{Binding Text}" Width="*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </TabItem>
+          <TabItem AutomationProperties.Name="Transcript speakers">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Classes="tabIcon" Kind="AccountMultiple" />
+                <TextBlock Text="Speakers" VerticalAlignment="Center" />
+              </StackPanel>
+            </TabItem.Header>
+            <Grid RowDefinitions="Auto,*">
+              <StackPanel Grid.Row="0" Margin="0,0,0,8" IsVisible="{Binding HasSpeakerNames}"
+                          AutomationProperties.AutomationId="transcription-speaker-names"
+                          AutomationProperties.Name="Speaker names">
+                <TextBlock Text="Names" Classes="label"
+                           ToolTip.Tip="A name for each speaker id, used by the HTML and WebVTT exports. Leave a field empty to keep 'Speaker N'." />
+                <ItemsControl ItemsSource="{Binding SpeakerNames}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Margin="0,0,16,4">
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBox Text="{Binding Name}" Width="160" PlaceholderText="Name"
+                                 AutomationProperties.Name="{Binding Label}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+              <DataGrid Grid.Row="1" ItemsSource="{Binding SpeakerSegments}" AutoGenerateColumns="False" IsReadOnly="True">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
+                  <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
+                  <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
+                  <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P0}}" />
+                </DataGrid.Columns>
+              </DataGrid>
+            </Grid>
+          </TabItem>
+          <TabItem IsVisible="{Binding ShowLangIdTab}"
+                   AutomationProperties.AutomationId="transcription-langid-grid"
+                   AutomationProperties.Name="Language candidates">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Classes="tabIcon" Kind="Translate" />
+                <TextBlock Text="Languages" VerticalAlignment="Center" />
+              </StackPanel>
+            </TabItem.Header>
+            <DataGrid ItemsSource="{Binding LangIdCandidates}" AutoGenerateColumns="False" IsReadOnly="True">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Code" Binding="{Binding Code}" />
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P1}}" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </TabItem>
+          <TabItem IsVisible="{Binding ShowVadTab}"
+                   AutomationProperties.AutomationId="transcription-vad-grid"
+                   AutomationProperties.Name="Speech segments">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Classes="tabIcon" Kind="RecordRec" />
+                <TextBlock Text="Speech" VerticalAlignment="Center" />
+              </StackPanel>
+            </TabItem.Header>
+            <DataGrid ItemsSource="{Binding VadSegments}" AutoGenerateColumns="False" IsReadOnly="True">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Start (sample)" Binding="{Binding StartSample}" />
+                <DataGridTextColumn Header="End (sample)" Binding="{Binding EndSample}" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </TabItem>
+        </TabControl>
       </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0">
-        <TextBlock Text="KV Type" Classes="label"
-                   ToolTip.Tip="Data type of the key/value cache, used for flash attention. Auto lets the library pick. F32 keeps the most precision and uses the most memory; F16 halves the cache. Some models only support one of them." />
-        <ComboBox ItemsSource="{Binding KvTypes}" SelectedItem="{Binding SelectedKvType}" HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="transcription-kv-type"
-                  AutomationProperties.Name="KV type">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Converter={StaticResource KvTypeName}}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-      </StackPanel>
-      <StackPanel Grid.Column="2" Margin="8,0,0,0">
-        <TextBlock Text="Context Size" Classes="label"
-                   ToolTip.Tip="Upper bound on the decoder context window, in tokens. Lower values use less memory; too low a value truncates long passages. Leave empty for the model's maximum." />
-        <NumericUpDown Value="{Binding ContextSize}" Minimum="512" Maximum="32768" Increment="512"
-                       AutomationProperties.AutomationId="transcription-context-size"
-                       AutomationProperties.Name="Context size" />
-      </StackPanel>
-    </Grid>
-
-    <!-- Whisper extensions -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,0,0,8" IsVisible="{Binding ShowWhisperExtensions}" IsEnabled="{Binding CanEditSettings}">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0">
-        <TextBlock Text="Initial Prompt" Classes="label"
-                   ToolTip.Tip="Text given to the decoder before the audio, to steer vocabulary and punctuation. Useful for names and jargon the model would otherwise misspell. Whisper models only; other families ignore it." />
-        <TextBox Text="{Binding WhisperInitialPrompt}" PlaceholderText="Optional initial prompt..."
-                 AutomationProperties.AutomationId="transcription-whisper-prompt"
-                 AutomationProperties.Name="Whisper initial prompt" />
-      </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0">
-        <TextBlock Text="Temperature" Classes="label"
-                   ToolTip.Tip="Sampling temperature for the decoder. 0 is greedy decoding, which is the usual choice; higher values add randomness. Whisper models only." />
-        <NumericUpDown Value="{Binding WhisperTemperature}" Minimum="0" Maximum="2" Increment="0.1"
-                       AutomationProperties.AutomationId="transcription-whisper-temperature"
-                       AutomationProperties.Name="Whisper temperature" />
-      </StackPanel>
-    </Grid>
-
-    <!-- Vocabulary: custom terms for the models that declare the feature. It has
-         its own row because it is not Whisper-specific, unlike the row above. -->
-    <Grid Grid.Row="4" ColumnDefinitions="*" Margin="0,0,0,8" IsVisible="{Binding ShowVocabulary}" IsEnabled="{Binding CanEditSettings}">
-      <StackPanel>
-        <TextBlock Text="Vocabulary" Classes="label"
-                   ToolTip.Tip="Custom terms for the decoder, one per line, in priority order — names, jargon, acronyms. Passed as the run's vocabulary list. A model that does not report the vocabulary feature ignores it with a native warning; this project has not measured how much it changes the output." />
-        <TextBox Text="{Binding Vocabulary}" AcceptsReturn="True" TextWrapping="Wrap" Height="64"
-                 PlaceholderText="One term per line"
-                 AutomationProperties.AutomationId="transcription-vocabulary"
-                 AutomationProperties.Name="Vocabulary" />
-      </StackPanel>
-    </Grid>
-
-    <!-- Task, target language, window size, diarization -->
-    <Grid Grid.Row="5" ColumnDefinitions="*,*,*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowTranslate}">
-        <TextBlock Text="Task" Classes="label"
-                   ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
-        <ComboBox ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding SelectedTask}" HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="transcription-task"
-                  AutomationProperties.Name="Task" />
-      </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding ShowTranslate}">
-        <TextBlock Text="Target Language" Classes="label"
-                   ToolTip.Tip="What to translate into, for the models that support it. The list is what the loaded model declares it accepts — the library rejects a code outside it, so there is no free text to type a wrong value into. '(model default)' passes nothing and lets the model choose." />
-        <!-- A picker, not the free-text box it used to be: the choices come from
-             the model, and an empty selection would render as a blank line while a
-             valid value sat in the view model. '(model default)' is the label for
-             passing no code at all. -->
-        <ComboBox ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding SelectedTargetOption}"
-                  HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="transcription-target-language"
-                  AutomationProperties.Name="Target language">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Display}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-      </StackPanel>
-      <StackPanel Grid.Column="2" Margin="8,0,0,0">
-        <TextBlock Text="Window (sec)" Classes="label"
-                   ToolTip.Tip="Longest audio passed to the model in one call, in seconds. Longer audio is split into windows of this size overlapping by 1 s, and the results are merged with the overlap removed. Raise it if the model supports more than 300 s; lower it if the windows are too large for the available memory." />
-        <NumericUpDown Value="{Binding WindowSeconds}" Minimum="2" Maximum="3600" Increment="10"
-                       AutomationProperties.AutomationId="transcription-window-seconds"
-                       AutomationProperties.Name="Window seconds" />
-      </StackPanel>
-      <StackPanel Grid.Column="3" Margin="8,0,0,0" IsVisible="{Binding ShowDiarize}">
-        <TextBlock Text="Diarization" Classes="label"
-                   ToolTip.Tip="Ask the model to attribute speakers while it transcribes. 'model default' lets the model decide, 'off' never asks, 'on' always asks. Only a model that transcribes and can diarize shows this; a model that only diarizes returns speaker turns on its own, with nothing to ask." />
-        <ComboBox ItemsSource="{Binding DiarizeOptions}"
-                  SelectedValueBinding="{Binding Value}"
-                  SelectedValue="{Binding DiarizeMode}"
-                  HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="transcription-diarize"
-                  AutomationProperties.Name="Diarization">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Label}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-      </StackPanel>
-    </Grid>
-
-    <!-- Speculative decoding, keep special tags, separate diarizer -->
-    <Grid Grid.Row="6" ColumnDefinitions="*,*,*" Margin="0,0,0,8" IsEnabled="{Binding CanEditSettings}">
-      <StackPanel Grid.Column="0" Margin="0,0,8,0" IsVisible="{Binding ShowSpeculativeDecoding}">
-        <TextBlock Text="Spec-K Drafts" Classes="label"
-                   ToolTip.Tip="Number of speculative decoding drafts, 0 to disable. A draft is proposed and then verified, which can cut decoding time on some models. Whether it helps is unverified here: measure your own audio before trusting a speed claim." />
-        <NumericUpDown Value="{Binding SpecKDrafts}" Minimum="0" Maximum="10" Increment="1"
-                       AutomationProperties.AutomationId="transcription-spec-k-drafts"
-                       AutomationProperties.Name="Speculative decoding drafts" />
-      </StackPanel>
-      <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Bottom">
-        <CheckBox Content="Keep special tags" IsChecked="{Binding KeepSpecialTags}"
-                  AutomationProperties.AutomationId="transcription-keep-special-tags"
-                  AutomationProperties.Name="Keep special tags"
-                  ToolTip.Tip="Leave markers such as &lt;|notimestamps|&gt; in the output instead of stripping them. Off, they are removed from the text you get." />
-      </StackPanel>
-      <!-- A diarizer for a transcriber that cannot attribute speakers itself. The
-           two models run one after the other, so only one is in memory at a time. -->
-      <StackPanel Grid.Column="2" Margin="8,0,0,0" IsVisible="{Binding ShowDiarizerPicker}">
-        <TextBlock Text="Diarizer" Classes="label"
-                   ToolTip.Tip="Run a separate speaker-diarization model over the same audio, then give each segment the speaker whose turn overlaps it most. For a model that cannot attribute speakers itself. The two models run one after the other, not at once, so only one is in memory at a time; the attribution is this app's join, not the library's." />
-        <ComboBox ItemsSource="{Binding DiarizerOptions}"
-                  SelectedItem="{Binding SelectedDiarizer}"
-                  HorizontalAlignment="Stretch"
-                  AutomationProperties.AutomationId="transcription-diarizer"
-                  AutomationProperties.Name="Diarizer">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Label}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-        <TextBlock Text="{Binding DiarizerPlan}" Classes="hint" TextWrapping="Wrap" Margin="0,4,0,0"
-                   AutomationProperties.AutomationId="transcription-diarizer-plan"
-                   AutomationProperties.Name="Diarizer plan" />
-        <TextBlock Text="{Binding DiarizerLanguageWarning}" Classes="danger" TextWrapping="Wrap" Margin="0,4,0,0"
-                   IsVisible="{Binding HasDiarizerLanguageWarning}"
-                   AutomationProperties.AutomationId="transcription-diarizer-language-warning"
-                   AutomationProperties.Name="Diarizer language warning" />
-      </StackPanel>
-      <!-- The same place, when there is no join to offer: saying why is better
-           than a control that silently disappears. -->
-      <StackPanel Grid.Column="2" Margin="8,0,0,0" IsVisible="{Binding ShowDiarizerUnavailableHint}">
-        <TextBlock Text="Speaker attribution" Classes="label" />
-        <TextBlock Text="{Binding DiarizerUnavailableHint}" Classes="hint" TextWrapping="Wrap"
-                   AutomationProperties.AutomationId="transcription-diarizer-unavailable"
-                   AutomationProperties.Name="Diarizer unavailable" />
-      </StackPanel>
-    </Grid>
-
-    <!-- Action buttons -->
-    <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,0,0,8">
-      <Button Classes="accent" Command="{Binding TranscribeCommand}" IsEnabled="{Binding CanTranscribe}"
-              AutomationProperties.AutomationId="transcription-run"
-              AutomationProperties.Name="{Binding RunButtonText}"
-              ToolTip.Tip="Run the selected model on the audio. The label names what it will do: transcribe, diarize, identify the language, or detect speech, according to the model's own role.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="Play" />
-          <TextBlock Text="{Binding RunButtonText}" />
-        </StackPanel>
-      </Button>
-      <Button Command="{Binding CancelTranscriptionCommand}" IsEnabled="{Binding CanCancelTranscription}" Margin="8,0,0,0"
-              AutomationProperties.AutomationId="transcription-cancel"
-              AutomationProperties.Name="Cancel transcription"
-              ToolTip.Tip="Stop the run in flight. The native abort is polled between decode steps, so it is not instant. The partial result is discarded: the wrapper does not read it out, and the tab says so.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="Stop" />
-          <TextBlock Text="Cancel" />
-        </StackPanel>
-      </Button>
-      <Button Command="{Binding ProbeMemoryCommand}" IsEnabled="{Binding CanProbeMemory}" Margin="8,0,0,0"
-              AutomationProperties.AutomationId="transcription-probe-memory"
-              AutomationProperties.Name="Test memory"
-              ToolTip.Tip="Run one window of the selected file with the selected settings, without producing a transcript, and report the free memory the device reached. It costs one window of compute. It does not test later windows or the diarizer.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="Memory" />
-          <TextBlock Text="Test memory" />
-        </StackPanel>
-      </Button>
-      <Button Command="{Binding ExportCommand}" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
-              AutomationProperties.AutomationId="transcription-export"
-              AutomationProperties.Name="Export transcript"
-              ToolTip.Tip="Write the transcript to a text file.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="FileExport" />
-          <TextBlock Text="Export" />
-        </StackPanel>
-      </Button>
-      <Button Click="OnCopyTranscript" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
-              AutomationProperties.AutomationId="transcription-copy"
-              AutomationProperties.Name="Copy transcript"
-              ToolTip.Tip="Copy the whole transcript to the clipboard. A passage can also be selected in the Text tab and copied by hand.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="ContentCopy" />
-          <TextBlock Text="Copy" />
-        </StackPanel>
-      </Button>
-      <Button Click="OnCopyTimestamps" IsEnabled="{Binding HasResult}" Margin="8,0,0,0"
-              AutomationProperties.AutomationId="transcription-copy-timestamps"
-              AutomationProperties.Name="Copy transcript with timestamps"
-              ToolTip.Tip="Copy one line per segment as [hh:mm:ss] Speaker: text, with the names you gave the speakers.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="ClockOutline" />
-          <TextBlock Text="Copy + time" />
-        </StackPanel>
-      </Button>
     </StackPanel>
-
-    <!-- Export options. They change only the exported document: the transcript
-         the model produced is not rewritten, and the Text tab still shows it as
-         it came back. -->
-    <Grid Grid.Row="8" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,8"
-          IsVisible="{Binding HasResult}"
-          AutomationProperties.AutomationId="transcription-export-options"
-          AutomationProperties.Name="Export options">
-      <TextBlock Grid.Column="0" Text="Timestamps every" Classes="hint" VerticalAlignment="Center" Margin="0,0,6,0"
-                 ToolTip.Tip="How often a timestamp is written in the HTML export, in seconds. The first segment and every speaker change are always stamped. 0 leaves only those." />
-      <NumericUpDown Grid.Column="1" Value="{Binding TimestampIntervalSeconds}" Minimum="0" Maximum="600" Increment="10"
-                     Width="100" Margin="0,0,4,0"
-                     AutomationProperties.AutomationId="transcription-timestamp-interval"
-                     AutomationProperties.Name="Timestamp interval in seconds" />
-      <TextBlock Grid.Column="2" Text="s" Classes="hint" VerticalAlignment="Center" Margin="0,0,16,0" />
-      <CheckBox Grid.Column="3" Content="Mark pauses" IsChecked="{Binding MarkPauses}" VerticalAlignment="Center"
-                AutomationProperties.AutomationId="transcription-mark-pauses"
-                AutomationProperties.Name="Mark pauses"
-                ToolTip.Tip="Write a pause marker between two segments separated by silence. One dot per whole second, capped at ten. Only the silence between recognized segments is visible: silence inside a segment is not, and the marker appears in the HTML export only." />
-      <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0"
-                  IsEnabled="{Binding MarkPauses}">
-        <TextBlock Text="of at least" Classes="hint" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <NumericUpDown Value="{Binding PauseThresholdSeconds}" Minimum="1" Maximum="60" Increment="1"
-                       Width="100"
-                       AutomationProperties.AutomationId="transcription-pause-threshold"
-                       AutomationProperties.Name="Pause threshold in seconds" />
-        <TextBlock Text="s" Classes="hint" VerticalAlignment="Center" Margin="4,0,0,0" />
-      </StackPanel>
-    </Grid>
-
-    <!-- Progress: the countable step above the same fraction the bar fills with. -->
-    <Border Grid.Row="9" Classes="card" IsVisible="{Binding IsTranscribing}" Margin="0,0,0,8">
-      <StackPanel Spacing="4">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Grid.Column="0" Text="{Binding ProgressStage}" Classes="label" TextWrapping="Wrap"
-                     AutomationProperties.AutomationId="transcription-progress-stage"
-                     AutomationProperties.Name="Transcription progress stage" />
-          <TextBlock Grid.Column="1" Text="{Binding Progress, StringFormat='{}{0:P0}'}"
-                     VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="44" TextAlignment="Right"
-                     AutomationProperties.AutomationId="transcription-progress-percent"
-                     AutomationProperties.Name="Transcription progress percentage" />
-        </Grid>
-        <ProgressBar Value="{Binding Progress}" Maximum="1"
-                     AutomationProperties.AutomationId="transcription-progress"
-                     AutomationProperties.Name="Transcription progress" />
-      </StackPanel>
-    </Border>
-
-    <!-- Status -->
-    <Grid Grid.Row="10" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,8">
-      <SelectableTextBlock Grid.Row="0" Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
-                           AutomationProperties.AutomationId="transcription-status"
-                           AutomationProperties.Name="Status" />
-      <Button Grid.Row="0" Grid.Column="1" Command="{Binding CopyErrorCommand}"
-              IsVisible="{Binding CanCopyError}" Margin="8,0,0,0" VerticalAlignment="Top"
-              AutomationProperties.AutomationId="transcription-copy-error"
-              AutomationProperties.Name="Copy error details"
-              ToolTip.Tip="Copy the last failure in full — type, message, native status, failed method, log path and stack trace — so it can be pasted into a bug report.">
-        <StackPanel Classes="buttonContent">
-          <materialIcons:MaterialIcon Kind="AlertCircleOutline" />
-          <TextBlock Text="Copy error" />
-        </StackPanel>
-      </Button>
-      <!-- What can be said about memory before a run, in two facts only: the
-           weights do not fit, or a previous run of this configuration went lower
-           than the free memory now. See docs/ui.md. -->
-      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding MemoryWarning}" Classes="danger"
-                 TextWrapping="Wrap" Margin="0,4,0,0" IsVisible="{Binding HasMemoryWarning}"
-                 AutomationProperties.AutomationId="transcription-memory-warning"
-                 AutomationProperties.Name="Memory warning" />
-      <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding MemoryProbeStatus}" Classes="hint"
-                 TextWrapping="Wrap" Margin="0,4,0,0" IsVisible="{Binding HasMemoryProbeStatus}"
-                 AutomationProperties.AutomationId="transcription-probe-result"
-                 AutomationProperties.Name="Memory probe result" />
-    </Grid>
-
-    <!-- Live text, one update per finished window. Not word by word: the offline
-         run has no finer callback, and the Window setting is what decides how
-         often this changes. -->
-    <Border Grid.Row="11" Classes="card" IsVisible="{Binding ShowLiveText}" MaxHeight="180" Margin="0,0,0,8">
-      <ScrollViewer>
-        <StackPanel>
-          <TextBlock Text="Live text — after each finished window" Classes="label" />
-          <SelectableTextBlock Text="{Binding LiveText}" TextWrapping="Wrap"
-                               AutomationProperties.AutomationId="transcription-live-text"
-                               AutomationProperties.Name="Live transcription text" />
-        </StackPanel>
-      </ScrollViewer>
-    </Border>
-
-    <!-- Results -->
-    <TabControl Grid.Row="12" IsVisible="{Binding HasResult}"
-                AutomationProperties.AutomationId="transcription-results"
-                AutomationProperties.Name="Transcription results">
-      <TabItem AutomationProperties.Name="Transcript text">
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal">
-            <materialIcons:MaterialIcon Classes="tabIcon" Kind="TextLong" />
-            <TextBlock Text="Text" VerticalAlignment="Center" />
-          </StackPanel>
-        </TabItem.Header>
-        <Grid RowDefinitions="Auto,*">
-          <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
-            <TextBox Text="{Binding SearchQuery}" PlaceholderText="Find in transcript..." Width="240"
-                     KeyDown="OnSearchKeyDown"
-                     AutomationProperties.AutomationId="transcription-search"
-                     AutomationProperties.Name="Find in transcript" />
-            <Button Content="Find next" Click="OnFindNext" Margin="6,0,0,0"
-                    AutomationProperties.AutomationId="transcription-find-next"
-                    AutomationProperties.Name="Find next" />
-          </StackPanel>
-          <TextBox Grid.Row="1" x:Name="TranscriptTextBox"
-                   Text="{Binding FullText, Mode=OneWay}"
-                   IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-                   SelectionStart="{Binding SearchSelectionStart, Mode=OneWay}"
-                   SelectionEnd="{Binding SearchSelectionEnd, Mode=OneWay}"
-                   ScrollViewer.VerticalScrollBarVisibility="Auto"
-                   AutomationProperties.AutomationId="transcription-text"
-                   AutomationProperties.Name="Transcript text" />
-        </Grid>
-      </TabItem>
-      <TabItem AutomationProperties.Name="Transcript segments">
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal">
-            <materialIcons:MaterialIcon Classes="tabIcon" Kind="FormatListBulleted" />
-            <TextBlock Text="Segments" VerticalAlignment="Center" />
-          </StackPanel>
-        </TabItem.Header>
-        <DataGrid ItemsSource="{Binding Segments}" AutoGenerateColumns="False" IsReadOnly="True">
-          <DataGrid.Columns>
-            <DataGridTemplateColumn Header="" Width="Auto">
-              <DataGridTemplateColumn.CellTemplate>
-                <DataTemplate>
-                  <Button Click="OnPlaySegment" Padding="4"
-                          AutomationProperties.Name="Play segment"
-                          ToolTip.Tip="Play this segment's audio. Requires ffplay, which ships with ffmpeg; a missing player is reported in the status line.">
-                    <materialIcons:MaterialIcon Classes="small" Kind="Play" />
-                  </Button>
-                </DataTemplate>
-              </DataGridTemplateColumn.CellTemplate>
-            </DataGridTemplateColumn>
-            <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
-            <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
-            <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
-            <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="*" />
-          </DataGrid.Columns>
-        </DataGrid>
-      </TabItem>
-      <TabItem AutomationProperties.Name="Transcript words">
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal">
-            <materialIcons:MaterialIcon Classes="tabIcon" Kind="TextShort" />
-            <TextBlock Text="Words" VerticalAlignment="Center" />
-          </StackPanel>
-        </TabItem.Header>
-        <DataGrid ItemsSource="{Binding Words}" AutoGenerateColumns="False" IsReadOnly="True">
-          <DataGrid.Columns>
-            <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
-            <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
-            <DataGridTextColumn Header="Word" Binding="{Binding Text}" Width="*" />
-          </DataGrid.Columns>
-        </DataGrid>
-      </TabItem>
-      <TabItem AutomationProperties.Name="Transcript speakers">
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal">
-            <materialIcons:MaterialIcon Classes="tabIcon" Kind="AccountMultiple" />
-            <TextBlock Text="Speakers" VerticalAlignment="Center" />
-          </StackPanel>
-        </TabItem.Header>
-        <Grid RowDefinitions="Auto,*">
-          <StackPanel Grid.Row="0" Margin="0,0,0,8" IsVisible="{Binding HasSpeakerNames}"
-                      AutomationProperties.AutomationId="transcription-speaker-names"
-                      AutomationProperties.Name="Speaker names">
-            <TextBlock Text="Names" Classes="label"
-                       ToolTip.Tip="A name for each speaker id, used by the HTML and WebVTT exports. Leave a field empty to keep 'Speaker N'." />
-            <ItemsControl ItemsSource="{Binding SpeakerNames}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <WrapPanel />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <StackPanel Orientation="Horizontal" Margin="0,0,16,4">
-                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                    <TextBox Text="{Binding Name}" Width="160" PlaceholderText="Name"
-                             AutomationProperties.Name="{Binding Label}" />
-                  </StackPanel>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-          <DataGrid Grid.Row="1" ItemsSource="{Binding SpeakerSegments}" AutoGenerateColumns="False" IsReadOnly="True">
-            <DataGrid.Columns>
-              <DataGridTextColumn Header="Start" Binding="{Binding Start, StringFormat={}{0:F2}s}" />
-              <DataGridTextColumn Header="End" Binding="{Binding End, StringFormat={}{0:F2}s}" />
-              <DataGridTextColumn Header="Speaker" Binding="{Binding SpeakerId}" />
-              <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P0}}" />
-            </DataGrid.Columns>
-          </DataGrid>
-        </Grid>
-      </TabItem>
-      <TabItem IsVisible="{Binding ShowLangIdTab}"
-               AutomationProperties.AutomationId="transcription-langid-grid"
-               AutomationProperties.Name="Language candidates">
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal">
-            <materialIcons:MaterialIcon Classes="tabIcon" Kind="Translate" />
-            <TextBlock Text="Languages" VerticalAlignment="Center" />
-          </StackPanel>
-        </TabItem.Header>
-        <DataGrid ItemsSource="{Binding LangIdCandidates}" AutoGenerateColumns="False" IsReadOnly="True">
-          <DataGrid.Columns>
-            <DataGridTextColumn Header="Code" Binding="{Binding Code}" />
-            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
-            <DataGridTextColumn Header="Probability" Binding="{Binding Probability, StringFormat={}{0:P1}}" />
-          </DataGrid.Columns>
-        </DataGrid>
-      </TabItem>
-      <TabItem IsVisible="{Binding ShowVadTab}"
-               AutomationProperties.AutomationId="transcription-vad-grid"
-               AutomationProperties.Name="Speech segments">
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal">
-            <materialIcons:MaterialIcon Classes="tabIcon" Kind="RecordRec" />
-            <TextBlock Text="Speech" VerticalAlignment="Center" />
-          </StackPanel>
-        </TabItem.Header>
-        <DataGrid ItemsSource="{Binding VadSegments}" AutoGenerateColumns="False" IsReadOnly="True">
-          <DataGrid.Columns>
-            <DataGridTextColumn Header="Start (sample)" Binding="{Binding StartSample}" />
-            <DataGridTextColumn Header="End (sample)" Binding="{Binding EndSample}" />
-          </DataGrid.Columns>
-        </DataGrid>
-      </TabItem>
-    </TabControl>
-    </Grid>
   </DockPanel>
 </UserControl>

@@ -110,8 +110,17 @@ yet, or a settings file that cannot be read, the first alias is selected as befo
 
 Pick a file, a model and the decoder settings, then run.
 
+The form is ordered as the decisions are: **1. Audio**, **2. Model and language**,
+**3. Speaker labels**, **4. Transcript**, then one **Advanced settings** disclosure for the
+decoder tuning that has a working default. One line under the model restates what the run will
+do (`whisper-tiny: transcribe, language fr, every segment as Speaker 0, windows of 300 s`), so
+the pickers and the result cannot disagree after the fact. The primary button is disabled until
+a model is on disk, a file is selected and still exists, and a requested speaker attribution can
+actually be produced; when it is disabled, the line under it names the missing piece and where
+to get it instead of leaving a dead button.
+
 The tab runs the **role** the selected model serves (transcribe.cpp 0.4), and the
-line under the picker names it. An ASR model is transcribed as below; a
+run button and the summary name it. An ASR model is transcribed as below; a
 diarization model (Sortformer) returns speaker turns; a language-identification
 model returns the ranked languages; a voice-activity model returns the speech
 segments. The result appears in the Text tab and, by role, in a **Languages** grid
@@ -158,12 +167,19 @@ model that does not implement it, and this project has not measured how much it 
 a transcript: the field makes no accuracy claim. It applies to offline runs; the CLI has
 no flag for it.
 
-A fourth, diarization, appears only for a model that transcribes *and* can attribute
-speakers: it is passed as `WithDiarize` and the choices are *model default*, *off* and *on*.
-A model that only diarizes is not offered it — that model runs the DIARIZE role, where there
-is nothing to ask — and the run button is named for what the model does (Transcribe, Diarize,
-Identify language or Detect speech) so the role is visible before the run rather than only in
-the result. See [Long audio and diarization](diarization.md).
+**Speaker labels** are one intent, not a mode picker. Ticking **Label who is speaking** asks
+for attribution; leaving it clear keeps every segment as `Speaker 0`. For a model that
+attributes speakers itself (MOSS, granite-speech-4.1-2b-plus) the request is passed as
+`WithDiarize` and the run stays one pass. For a model that cannot, the tab shows a **Diarizer
+model** picker with the downloaded models that serve only the DIARIZE role (Sortformer),
+selects the only one automatically, and states in one line what will run. With no diarizer
+downloaded the run is refused before it starts, and the **Get a diarizer…** button opens the
+Models tab already filtered to the models upstream records as supporting diarization, rather
+than starting a run that would silently produce `Speaker 0`. A model that only
+diarizes is not offered the checkbox: its whole result is speaker turns. The run button is
+named for what the model does (Transcribe, Diarize, Identify language or Detect speech), so
+the role is visible before the run rather than only in the result. See
+[Long audio and diarization](diarization.md).
 
 **Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
 not instant, and the wrapper turns a native abort into cancellation *before* it reads the
@@ -193,33 +209,46 @@ producing a transcript, and reports the lowest free figure the device reached. I
 real allocation that fails in an `ErrOom` instead of estimating it, and it costs one window of
 compute. It does not test later windows, the diarizer, or the decoder's output length — the
 button's tooltip and the result line say so. A successful probe is stored like a finished run, so
-the next warning uses its measurement.
+the next warning uses its measurement. The button is offered only for a model that serves ASR:
+the probe runs one ASR window, and the DIARIZE, LANGID and VAD roles have no such session to
+probe.
 
-**While a run is in flight, the progress card names the step.** The bar carries its percentage
-beside it, and the line above it says what that percentage counts. It starts as the action the
-button names — `Transcribe…`, `Diarize…`, `Identify language…` or `Detect speech…` — and, on
-the offline ASR path, becomes `Transcribing — window 3 of 12` before the first window finishes.
-During a chained diarizer it reads `Diarizing — one pass, no finer progress`. The window count
-comes from the planner that splits the audio, so it is the same number of calls the run will
-make; it is not an estimate of time. A non-ASR role keeps the action label, because it has no
-window callback to count.
+**While a run is in flight, the progress card says what the bar is counting.** The phases are
+the ones the service can actually observe, and the card distinguishes them instead of leaving a
+bar at zero:
+
+| Phase | Bar | The line above it |
+|---|---|---|
+| Loading the model | Indeterminate | `Loading whisper-tiny…` — the native library reports no progress for a load |
+| Reading the audio | Indeterminate | `Reading the audio…` — the WAV read or ffmpeg decode reports no fraction |
+| Offline ASR | Determinate | `Transcribing — window 3 of 12`, from the planner's own window list |
+| Chained diarizer | Indeterminate | `Diarizing — attributing speakers` — one native call over the whole file |
+| One-call role (LANGID, DIARIZE) | Indeterminate | The action's label, e.g. `Identify language…` |
+
+The percentage is hidden while the bar is indeterminate, so it never sits at 95% during a second
+pass that has no measurable fraction. An elapsed clock (`elapsed 02:14`) is measured from the
+start of the run, and after a second finished window the card adds an estimate
+(`about 03:40 left (estimate)`) computed from the windows measured so far. The window count is
+the number of native calls the run will make, not an estimate of time. VAD is windowed and
+therefore determinate even though it is not ASR.
 
 **The settings are locked while a run or a probe is active.** A run works from the values it
 started with, so an edit during it would not change what the run does — it would only change what
 the reader thinks it did. The error report and the saved provenance describe that snapshot, not
 the pickers at the moment a failure was caught.
 
-For a model that transcribes and **cannot** diarize itself, a **Diarizer** picker appears
-instead: it offers the downloaded models that serve only the DIARIZE role (Sortformer). With
-one chosen, the tab runs the transcriber, then the diarizer over the same audio, and gives
-each segment the speaker whose turn overlaps it most. The two run one after the other, so
-only one model is in memory at a time. The join is this app's, not the library's, and it is
-heuristic — see [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
-The picker appears only when the transcriber reports segment timings, and the note in its
-place explains the absence when it does not. Under it, a plan line names the two models, and a
-warning quotes the diarizer's declared languages when the chosen language is not among them
+For a model that transcribes and **cannot** diarize itself, the same checkbox reveals a
+**Diarizer model** picker: it offers the downloaded models that serve only the DIARIZE role
+(Sortformer). With one chosen, the tab runs the transcriber, then the diarizer over the same
+audio, and gives each segment the speaker whose turn overlaps it most. The two run one after the
+other, so only one model is in memory at a time. The join is this app's, not the library's, and
+it is heuristic — see
+[Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
+The intent is offered only when the transcriber reports segment timings; the note in its place
+explains the absence when it does not. Under the picker, the plan line names the two models, and
+a warning quotes the diarizer's declared languages when the chosen language is not among them
 (Sortformer declares English only). During the second pass the status says **Diarizing…** and
-the bar holds at 95%, because the diarizer reports no finer progress.
+the bar is indeterminate, because the diarizer reports no finer progress.
 
 The result is shown four ways: as text, as segments with timings, as words with timings, and
 as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html`, `.md` or `.json`, picked by the

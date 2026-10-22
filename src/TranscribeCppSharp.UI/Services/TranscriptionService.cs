@@ -31,7 +31,7 @@ public class TranscriptionService : ITranscriptionService
 
         // Pass one: the selected model, through the role it serves.
         TranscriptionResult result = await RunSelectedModel(
-            audioPath, modelPath, options, passOneProgress, liveText, stepProgress, cancellationToken).ConfigureAwait(false);
+            audioPath, modelPath, options, passOneProgress, liveText, phase, stepProgress, cancellationToken).ConfigureAwait(false);
 
         // Pass two: an optional separate diarizer, for a transcriber that cannot
         // attribute speakers itself. It runs after pass one, with that model already
@@ -81,15 +81,25 @@ public class TranscriptionService : ITranscriptionService
         TranscriptionOptions options,
         IProgress<double>? progress,
         IProgress<string>? liveText,
+        IProgress<TranscriptionPhase>? phase,
         IProgress<TranscriptionStep>? stepProgress,
         CancellationToken cancellationToken)
     {
+        // Named before the work starts, not after: loading a multi-gigabyte model
+        // and decoding a long file through ffmpeg are both slow, and a bar that
+        // sits at zero with no label reads as a hang. Neither step reports a
+        // fraction, so the tab shows them as indeterminate.
+        phase?.Report(TranscriptionPhase.Preparing);
         var model = LoadModel(modelPath, options.BackendRequest, options.Device);
 
         try
         {
+            phase?.Report(TranscriptionPhase.ReadingAudio);
             using var audioSource = AudioLoader.Open(audioPath);
             TranscribeRole roles = model.Roles;
+            phase?.Report(roles.HasFlag(TranscribeRole.Diarize)
+                ? TranscriptionPhase.Diarizing
+                : TranscriptionPhase.Transcribing);
 
             return await System.Threading.Tasks.Task.Run(
                 () => roles.HasFlag(TranscribeRole.Asr)

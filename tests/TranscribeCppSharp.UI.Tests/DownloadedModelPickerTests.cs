@@ -49,6 +49,19 @@ public class DownloadedModelPickerTests
         => new(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
 
     /// <summary>
+    /// A file the run button accepts. The button now stays disabled until an
+    /// audio file is selected, which is the point of these tests: they are about
+    /// the model, so they have to supply the other prerequisite to see it enabled.
+    /// </summary>
+    internal static string TempAudio()
+    {
+        string path = Path.Combine(
+            Path.GetTempPath(), "tcsharp-picker-" + Guid.NewGuid().ToString("N") + ".wav");
+        File.WriteAllText(path, string.Empty);
+        return path;
+    }
+
+    /// <summary>
     /// Waits for the startup capability probe to finish, which is what gates
     /// <see cref="TranscriptionViewModel.CanTranscribe"/>.
     /// </summary>
@@ -128,6 +141,8 @@ public class DownloadedModelPickerTests
             Plant(first);
 
             TranscriptionViewModel viewModel = Transcription();
+            string audio = TempAudio();
+            viewModel.AudioPath = audio;
             Settle(viewModel);
 
             Assert.Equal(new[] { first.Alias }, viewModel.AvailableModels);
@@ -158,6 +173,7 @@ public class DownloadedModelPickerTests
         {
             WithEmptyCache();
             TranscriptionViewModel viewModel = Transcription();
+            viewModel.AudioPath = TempAudio();
             Assert.Empty(viewModel.AvailableModels);
 
             // The reader went to the Models tab and downloaded one. The pickers are
@@ -189,6 +205,7 @@ public class DownloadedModelPickerTests
             ModelDescriptor first = ModelStore.Catalog[0];
             Plant(first);
             TranscriptionViewModel viewModel = Transcription();
+            viewModel.AudioPath = TempAudio();
             Settle(viewModel);
             Assert.True(viewModel.CanTranscribe);
 

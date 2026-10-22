@@ -9,6 +9,45 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the Transcription tab says what it will do, and one intent for speaker labels
+
+The tab is now a short ordered form — **Audio**, **Model and language**, **Speaker labels**,
+**Run options**, then the primary action — with the decoder tuning behind one collapsed
+**Advanced settings** disclosure. The primary button sits above that disclosure so it is on
+screen without scrolling. A disabled button is no longer a dead end: the line under it names
+the missing piece (no model, no file, a file that has since been deleted, a capability check
+still running, or a speaker request that cannot be honoured) and where to get it. A summary
+under the model restates the run in plain words, and the controls that a role ignores are not
+shown: the language picker is absent for a diarizer and a VAD model, the target-language picker
+only appears while the task is Translate, and the window setting only for the chunked ASR and
+VAD paths. **Test memory** is offered only for ASR, because the probe runs one ASR window and
+the other roles have no session to probe.
+
+Speaker attribution is one checkbox, **Add speaker labels**, instead of the old
+*Diarization: model default / off / on* picker plus a separate **Diarizer** picker. A model that
+attributes speakers itself satisfies the request in one pass (`WithDiarize` on); a model that
+cannot shows a dedicated **Diarizer model** picker, preselects the only downloaded one, and the
+plan line names the two passes. With no diarizer downloaded the run is refused before it starts
+rather than returning every segment as `Speaker 0`, and **Get a diarizer…** opens the Models tab
+filtered to the diarize capability. The checkbox is not offered at all for a model that reports
+no segment timings, and the note in its place explains why.
+
+### UI: a real progression, with indeterminate phases where nothing is measured
+
+The progress card now distinguishes what the service can observe. Loading the model and reading
+or decoding the audio are indeterminate, with a line saying the native library reports no
+fraction for them. The offline ASR path fills the bar by finished windows and names them
+(`Transcribing — window 3 of 12`). A chained diarizer is indeterminate too, and the card says it
+runs the whole file in one native call, instead of holding a percentage at 95%. The percentage
+is hidden while the bar is indeterminate. An elapsed clock is measured from the start of the
+run, and after a second finished window the card adds an estimate computed from the windows
+measured so far, labelled as an estimate. The countable step and the estimate are not time
+claims from the project: one is the planner's window list, the other is arithmetic on the
+windows already finished.
+
+Tests: the phase sequence, the indeterminate states, the estimate's starting point and the
+speaker intent are covered; the full UI suite is 320 passed.
+
 ### UI: the small review features — play a segment, find, copy with timestamps, real duration
 
 The result is now something to review, not only to export. Each row of the Segments grid has a

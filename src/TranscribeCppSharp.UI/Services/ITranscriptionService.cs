@@ -3,18 +3,37 @@ using TranscribeCppSharp.UI.Models;
 namespace TranscribeCppSharp.UI.Services;
 
 /// <summary>
-/// Which pass a run is in, when a separate diarizer is chained after the
-/// transcriber. There is no third value: a run without a diarizer never leaves
-/// <see cref="Transcribing"/>.
+/// What a run is doing, in the order the service does it. The phases exist so the
+/// tab can say which part is slow instead of showing a bar that sits at zero while
+/// a model loads or a file is decoded.
 /// </summary>
 public enum TranscriptionPhase
 {
-    /// <summary>The transcriber is producing text.</summary>
+    /// <summary>
+    /// The selected model is being loaded (its weights read from disk, its device
+    /// resolved). No work on the audio has started, and there is no fraction to
+    /// report: the native library exposes no progress for a load.
+    /// </summary>
+    Preparing,
+
+    /// <summary>
+    /// The audio is being read or decoded (a WAV directly, anything else through
+    /// ffmpeg). Also unmeasured: the decoder reports no fraction.
+    /// </summary>
+    ReadingAudio,
+
+    /// <summary>
+    /// The audio is being processed by the selected model. On the offline ASR path
+    /// this is split into windows and each finished window reports its fraction;
+    /// the other roles run one native call and report no fraction until they
+    /// return.
+    /// </summary>
     Transcribing,
 
     /// <summary>
-    /// The transcriber has finished; the separate diarizer is reading the same
-    /// audio for speaker turns. No text is produced in this pass.
+    /// Speaker turns are being produced: either the separate diarizer chained
+    /// after the transcriber, or a model whose role is diarization. The diarizer
+    /// runs the whole buffer in one native call and reports no finer progress.
     /// </summary>
     Diarizing,
 }

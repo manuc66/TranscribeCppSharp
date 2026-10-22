@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TranscribeCppSharp.Audio;
@@ -46,6 +47,27 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </summary>
     private ResultProvenance? _provenance;
 
+    /// <summary>When the run started, for the elapsed line under the bar.</summary>
+    private DateTime _runStartedAt;
+
+    /// <summary>
+    /// When the first window finished. The estimate per window is measured from
+    /// here, not from the run's start, so loading the model and decoding the audio
+    /// do not inflate it.
+    /// </summary>
+    private DateTime? _firstWindowFinishedAt;
+
+    /// <summary>Windows finished and planned, as last reported by the service.</summary>
+    private int _windowsCompleted;
+
+    private int _windowsTotal;
+
+    /// <summary>The phase last reported, so the bar knows whether it can fill.</summary>
+    private TranscriptionPhase _phase = TranscriptionPhase.Preparing;
+
+    /// <summary>Refreshes the elapsed line once a second while a run is in flight.</summary>
+    private readonly DispatcherTimer _elapsedTimer;
+
     [ObservableProperty]
     private string _audioPath = string.Empty;
 
@@ -61,6 +83,9 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
+    [NotifyPropertyChangedFor(nameof(ShowProgressPercent))]
+    [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
+    [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isTranscribing;
 
     [ObservableProperty]
@@ -76,6 +101,34 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     private string _progressStage = string.Empty;
 
+    /// <summary>
+    /// True when the current phase reports no fraction. The bar then animates
+    /// instead of claiming a number nobody measured — a model load, an ffmpeg
+    /// decode, and a whole-buffer diarizer are all one native call.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowProgressPercent))]
+    private bool _progressIsIndeterminate;
+
+    /// <summary>Why the bar has no fraction, in the reader's terms.</summary>
+    [ObservableProperty]
+    private string _progressNote = string.Empty;
+
+    /// <summary>How long the run has been going. Measured, not estimated.</summary>
+    [ObservableProperty]
+    private string _elapsedText = string.Empty;
+
+    /// <summary>
+    /// A rough time left, derived from the windows finished so far. Labelled as an
+    /// estimate because window times vary; empty until one full window has been
+    /// measured.
+    /// </summary>
+    [ObservableProperty]
+    private string _remainingText = string.Empty;
+
+    /// <summary>Whether a measured fraction is on screen.</summary>
+    public bool ShowProgressPercent => IsTranscribing && !ProgressIsIndeterminate;
+
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
@@ -83,6 +136,8 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
+    [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
+    [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isCheckingCapabilities;
 
     /// <summary>What the capability check is doing, or why options are unfiltered.</summary>
@@ -244,6 +299,8 @@ public partial class TranscriptionViewModel : ObservableObject
     partial void OnSelectedTargetOptionChanged(TargetOption? value)
         => TargetLanguage = value?.Code;
 
+    partial void OnTargetLanguageChanged(string? value) => OnPropertyChanged(nameof(RunSummary));
+
     [ObservableProperty]
     private int? _specKDrafts;
 
@@ -265,6 +322,56 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether the translation controls apply to the selected model.</summary>
     public bool ShowTranslate => ModelOptionVisibility.ShowTranslate(_selectedCapabilities);
 
+    /// <summary>
+    /// Whether the target-language picker applies. A target only means something
+    /// while the task is Translate: showing it beside a Transcribe run offered two
+    /// controls that contradicted each other.
+    /// </summary>
+    public bool ShowTargetLanguage
+        => ShowTranslate && SelectedTask == TranscriptionTask.Translate;
+
+    /// <summary>Whether the task picker applies at all.</summary>
+    public bool ShowTask => ShowTranslate;
+
+    /// <summary>
+    /// Whether the language picker applies. Only an ASR session takes a language
+    /// code; a diarizer and a voice-activity model ignore it, and a language
+    /// identifier produces one rather than consuming it.
+    /// </summary>
+    public bool ShowLanguage
+        => _selectedCapabilities is null
+        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+
+    /// <summary>
+    /// Whether the language column has anything in it. A LANGID model still shows
+    /// its allowed-languages field there, even though it has no input language.
+    /// </summary>
+    public bool ShowLanguageColumn => ShowLanguage || ShowAllowedLanguages;
+
+    /// <summary>How many of the two model columns the model stack takes.</summary>
+    public int ModelColumnSpan => ShowLanguageColumn ? 1 : 2;
+
+    /// <summary>
+    /// Whether the window setting applies. The ASR and VAD paths are chunked; a
+    /// diarizer reads the whole buffer and a language identifier uses its own
+    /// maximum clip.
+    /// </summary>
+    public bool ShowWindow
+        => _selectedCapabilities is null
+        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
+        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Vad);
+
+    /// <summary>Whether the transcript card has a control in it at all.</summary>
+    public bool ShowTranscriptSection => ShowTask || ShowWindow;
+
+    /// <summary>
+    /// Whether the decoder tuning applies. Every field behind the disclosure is a
+    /// session or ASR extension knob, and the non-ASR sessions take none of them.
+    /// </summary>
+    public bool ShowAdvanced
+        => _selectedCapabilities is null
+        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+
     /// <summary>Whether speculative decoding applies to the selected model.</summary>
     public bool ShowSpeculativeDecoding => ModelOptionVisibility.ShowSpeculativeDecoding(_selectedCapabilities);
 
@@ -272,28 +379,74 @@ public partial class TranscriptionViewModel : ObservableObject
     public bool ShowVocabulary => ModelOptionVisibility.ShowVocabulary(_selectedCapabilities);
 
     /// <summary>
-    /// Whether the diarization picker applies: a model that transcribes and can also
-    /// attribute speakers. A model that only diarizes runs the DIARIZE role, where
-    /// this setting has nothing to ask.
+    /// Whether the tab shows the speaker group at all: a model that transcribes,
+    /// or one whose capabilities are not known yet. A model that only diarizes
+    /// returns speaker turns as its whole job, and the other roles have no text to
+    /// attach a speaker to.
     /// </summary>
-    public bool ShowDiarize => ModelOptionVisibility.ShowDiarize(_selectedCapabilities);
+    public bool ShowSpeakerSection
+        => _selectedCapabilities is null
+        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
 
-    /// <summary>Whether the run asks the model to attribute speakers.</summary>
+    /// <summary>
+    /// Whether the selected model attributes speakers itself. Unknown is not a yes:
+    /// until the model has answered, the tab treats it as a transcriber that needs
+    /// a dedicated diarizer rather than promising an attribution it cannot confirm.
+    /// </summary>
+    public bool CanModelDiarize
+        => _selectedCapabilities is { } caps
+        && (caps.Supports(Feature.FeatureDiarization)
+            || caps.Roles.HasFlag(TranscribeRole.Diarize));
+
+    /// <summary>
+    /// Whether the model reports segment timings, which a separate diarizer needs
+    /// to be joined to its segments.
+    /// </summary>
+    public bool HasSegmentTimings
+        => _selectedCapabilities is null
+        || _selectedCapabilities.MaxTimestampKind >= TimestampKind.TimestampsSegment;
+
+    /// <summary>
+    /// Whether a dedicated diarizer can be offered: a transcriber with segment
+    /// timings that does not attribute speakers itself.
+    /// </summary>
+    public bool CanUseDedicatedDiarizer
+        => ShowSpeakerSection && !CanModelDiarize && HasSegmentTimings;
+
+    /// <summary>Whether the model can produce speaker labels at all.</summary>
+    public bool CanAskForSpeakerLabels
+        => ShowSpeakerSection && (CanModelDiarize || HasSegmentTimings);
+
+    /// <summary>
+    /// The reader's explicit intent: tick the box to attribute speakers, leave it
+    /// clear to leave every segment as Speaker 0.
+    /// </summary>
     /// <remarks>
-    /// Passed as <c>WithDiarize</c> on an ASR run. It was hardcoded to the model
-    /// default, so an ASR model that can diarize — MOSS, granite-speech-4.1-2b-plus —
-    /// could not be asked to from the app at all.
+    /// The previous UI offered a "Diarization: model default / off / on" picker in
+    /// one row and a "Diarizer" model picker in another. Two controls with similar
+    /// names, neither saying what the result would be, and "model default" was a
+    /// third state that read like a choice but meant "let the library decide" —
+    /// which is off for every family. There is now one intent, and the plan line
+    /// under it states the outcome in one sentence.
     /// </remarks>
     [ObservableProperty]
-    private DiarizeMode _diarizeMode = DiarizeMode.DiarizeModeDefault;
+    [NotifyPropertyChangedFor(nameof(CanTranscribe))]
+    [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
+    [NotifyPropertyChangedFor(nameof(ShowDiarizerPicker))]
+    [NotifyPropertyChangedFor(nameof(DiarizerPlan))]
+    [NotifyPropertyChangedFor(nameof(DiarizerLanguageWarning))]
+    [NotifyPropertyChangedFor(nameof(HasDiarizerLanguageWarning))]
+    [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
+    [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
+    private bool _labelSpeakers;
 
-    /// <summary>The diarization choices, with the label each shows.</summary>
-    public IReadOnlyList<DiarizeOption> DiarizeOptions { get; } = new[]
-    {
-        new DiarizeOption(DiarizeMode.DiarizeModeDefault, "model default"),
-        new DiarizeOption(DiarizeMode.DiarizeModeOff, "off"),
-        new DiarizeOption(DiarizeMode.DiarizeModeOn, "on"),
-    };
+    /// <summary>
+    /// What the run passes as <c>WithDiarize</c>. It follows the intent, and is
+    /// never "on" for a model that cannot do it: that would hand the library a
+    /// request it can only answer with a warning and Speaker 0.
+    /// </summary>
+    [ObservableProperty]
+    private DiarizeMode _diarizeMode = DiarizeMode.DiarizeModeOff;
 
     /// <summary>
     /// The run button's label, named for what the selected model will actually do.
@@ -348,39 +501,31 @@ public partial class TranscriptionViewModel : ObservableObject
     private DiarizerOption? _selectedDiarizer;
 
     /// <summary>
-    /// Whether the diarizer picker applies: a model that transcribes and cannot
-    /// attribute speakers itself.
+    /// Whether the dedicated-diarizer picker is shown: speaker labels are on and
+    /// the transcriber cannot do it itself.
     /// </summary>
     /// <remarks>
     /// A model that already diarizes has no need of a second one, and a model that
-    /// only diarizes has nothing to pair with. Unknown shows nothing here, unlike
-    /// the other option groups: the picker is an addition to a run, and offering it
-    /// before the model has answered would add a control that may not apply.
+    /// only diarizes has nothing to pair with. The picker follows the intent above
+    /// rather than sitting in the form all the time: an option that only matters
+    /// when the box is ticked is not shown when it is clear.
     /// </remarks>
-    public bool ShowDiarizerPicker
-        => _selectedCapabilities is { } caps
-        && caps.Roles.HasFlag(TranscribeRole.Asr)
-        && !caps.Supports(Feature.FeatureDiarization)
-        && !caps.Roles.HasFlag(TranscribeRole.Diarize)
-        && caps.MaxTimestampKind >= TimestampKind.TimestampsSegment;
+    public bool ShowDiarizerPicker => LabelSpeakers && CanUseDedicatedDiarizer;
 
     /// <summary>
-    /// Whether the tab has to explain why no diarizer can be chained: the model
-    /// transcribes, cannot attribute speakers, and reports no segment timings.
+    /// Whether the tab has to explain why speaker labels are not on offer: the
+    /// model transcribes, cannot attribute speakers, and reports no segment
+    /// timings.
     /// </summary>
     /// <remarks>
     /// Without timings there is nothing to overlap a speaker turn with, so the join
-    /// would silently leave every segment as Speaker 0. Hiding the picker silently
+    /// would silently leave every segment as Speaker 0. Hiding the control silently
     /// would be just as misleading, hence the note in its place.
     /// </remarks>
     public bool ShowDiarizerUnavailableHint
-        => _selectedCapabilities is { } caps
-        && caps.Roles.HasFlag(TranscribeRole.Asr)
-        && !caps.Supports(Feature.FeatureDiarization)
-        && !caps.Roles.HasFlag(TranscribeRole.Diarize)
-        && caps.MaxTimestampKind < TimestampKind.TimestampsSegment;
+        => ShowSpeakerSection && !CanModelDiarize && !HasSegmentTimings;
 
-    /// <summary>Why the diarizer picker is absent, in the reader's terms.</summary>
+    /// <summary>Why speaker labels are not available, in the reader's terms.</summary>
     public string DiarizerUnavailableHint
     {
         get
@@ -393,6 +538,74 @@ public partial class TranscriptionViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Whether a dedicated diarizer model is on disk. False means speaker labels
+    /// for this transcriber need a download first.
+    /// </summary>
+    public bool HasDedicatedDiarizer => DiarizerOptions.Any(o => o.Alias is not null);
+
+    /// <summary>
+    /// Whether the reader asked for speaker labels and the only way to get them is
+    /// a diarizer that is not downloaded. The tab then offers the route to Models
+    /// instead of letting the run start and silently produce Speaker 0.
+    /// </summary>
+    public bool NeedsDedicatedDiarizerDownload
+        => LabelSpeakers && CanUseDedicatedDiarizer && !HasDedicatedDiarizer;
+
+    /// <summary>
+    /// What the settings add up to, in one sentence. It is a restatement of the
+    /// controls, not a prediction: the language, task and speaker choice named here
+    /// are the ones the run will pass.
+    /// </summary>
+    public string RunSummary
+    {
+        get
+        {
+            if (!HasDownloadedModels)
+            {
+                return "Nothing to run yet: no model is on disk.";
+            }
+
+            // The role decides what the tab produces. Saying it in plain words is
+            // what keeps a diarizer or a language identifier from looking like a
+            // transcription that came back empty.
+            TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.Asr;
+            if (!roles.HasFlag(TranscribeRole.Asr))
+            {
+                if (roles.HasFlag(TranscribeRole.Diarize))
+                {
+                    return "This model returns speaker turns; it produces no text transcript.";
+                }
+
+                if (roles.HasFlag(TranscribeRole.Langid))
+                {
+                    return "This model identifies the language; it produces no text transcript.";
+                }
+
+                if (roles.HasFlag(TranscribeRole.Vad))
+                {
+                    return $"This model detects speech segments, scored in windows of {WindowSeconds} s.";
+                }
+            }
+
+            string language = Language is "auto" or ""
+                ? "language detected by the model"
+                : $"language {Language}";
+            string task = SelectedTask == TranscriptionTask.Translate
+                ? $"translate to {TargetLanguage ?? "the model default"}"
+                : "transcribe";
+            string speakers = LabelSpeakers
+                ? CanModelDiarize
+                    ? "speakers labelled by the model"
+                    : SelectedDiarizer?.Alias is { } diarizer
+                        ? $"speakers labelled by {diarizer} in a second pass"
+                        : "speaker labels not yet available"
+                : "every segment as Speaker 0";
+
+            return $"Will {task}, {language}, {speakers}, windows of {WindowSeconds} s.";
+        }
+    }
+
+    /// <summary>
     /// What the run will actually do about speaker attribution, said before it
     /// starts rather than inferred from two controls with similar names.
     /// </summary>
@@ -400,17 +613,46 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         get
         {
-            if (!ShowDiarizerPicker)
+            if (!ShowSpeakerSection || (!CanModelDiarize && !HasSegmentTimings))
             {
                 return string.Empty;
             }
 
-            if (SelectedDiarizer?.Alias is not { } alias)
+            if (_selectedCapabilities is null)
             {
-                return "No separate diarizer: every segment stays Speaker 0.";
+                return "Speaker labels depend on the selected model; its capabilities are still being checked.";
             }
 
             string model = string.IsNullOrEmpty(ModelAlias) ? "the selected model" : ModelAlias;
+            if (!LabelSpeakers)
+            {
+                if (CanModelDiarize)
+                {
+                    return "No speaker labels: every segment is Speaker 0. "
+                        + $"{model} can attribute speakers itself — tick the box.";
+                }
+
+                if (HasDedicatedDiarizer)
+                {
+                    return "No speaker labels: every segment is Speaker 0. "
+                        + "A second pass with a diarizer can add them — tick the box.";
+                }
+
+                return "No speaker labels: every segment is Speaker 0. "
+                    + "This model cannot attribute speakers, and no diarizer model is downloaded.";
+            }
+
+            if (CanModelDiarize)
+            {
+                return $"{model} attributes speakers itself, in one pass.";
+            }
+
+            if (SelectedDiarizer?.Alias is not { } alias)
+            {
+                return $"Speaker labels are on, but no diarizer is selected. "
+                    + "Download a diarizer model in Models, or turn speaker labels off.";
+            }
+
             return $"Two passes: {model}, then {alias} over the same audio. "
                 + "The second pass adds speaker turns, not text.";
         }
@@ -425,6 +667,11 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         get
         {
+            if (!ShowDiarizerPicker)
+            {
+                return string.Empty;
+            }
+
             if (SelectedDiarizer is not { Alias: not null, Languages: { Count: > 0 } languages } option)
             {
                 return string.Empty;
@@ -480,7 +727,12 @@ public partial class TranscriptionViewModel : ObservableObject
                 names.Add("voice activity");
             }
 
-            return "runs: " + string.Join(", ", names);
+            // One role is already named by the run summary and the button. Listing
+            // it again is noise; two or more is the fact worth stating, because the
+            // tab runs whichever role the model serves.
+            return names.Count > 1
+                ? "This model serves: " + string.Join(", ", names) + "."
+                : string.Empty;
         }
     }
 
@@ -493,9 +745,99 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether the allowed-languages field applies (the model serves LANGID).</summary>
     public bool ShowAllowedLanguages => _selectedCapabilities?.Roles.HasFlag(TranscribeRole.Langid) == true;
 
+    /// <summary>
+    /// Whether a file is selected and still on disk. The run command checks this
+    /// again; the button is disabled rather than left to fail after a click.
+    /// </summary>
+    public bool HasAudioFile
+        => !string.IsNullOrWhiteSpace(AudioPath) && File.Exists(AudioPath);
+
+    /// <summary>A sentence about the selected path, or empty when it is usable.</summary>
+    public string AudioProblem
+        => AudioPath.Length > 0 && !HasAudioFile
+            ? "That file no longer exists. Pick another one."
+            : string.Empty;
+
+    /// <summary>Whether <see cref="AudioProblem"/> has something to say.</summary>
+    public bool HasAudioProblem => AudioProblem.Length > 0;
+
+    /// <summary>
+    /// Whether the chosen intent can actually be honoured: speaker labels need
+    /// either a model that attributes speakers itself or a dedicated diarizer.
+    /// </summary>
+    public bool SpeakerLabelsSatisfied
+        => !LabelSpeakers || CanModelDiarize || SelectedDiarizer?.Alias is not null;
+
     /// <summary>False while a transcription or a capability check is running.</summary>
-    public bool CanTranscribe
-        => HasDownloadedModels && !IsTranscribing && !IsCheckingCapabilities;
+    public bool CanTranscribe => CanStartRun;
+
+    /// <summary>
+    /// The conditions a run needs, before the reader clicks. A probe counts as a
+    /// run in flight: it loads the same model and would compete for the device.
+    /// </summary>
+    private bool CanStartRun
+        => HasDownloadedModels
+        && HasAudioFile
+        && !IsTranscribing
+        && !IsCheckingCapabilities
+        && !IsProbingMemory
+        && SpeakerLabelsSatisfied;
+
+    /// <summary>
+    /// Why the run button is disabled, in one actionable sentence. Empty when the
+    /// run can start.
+    /// </summary>
+    /// <remarks>
+    /// This is the "no surprise" rule applied to the primary button: a disabled
+    /// control with no reason is the same as a button that fails after a click.
+    /// The sentence names the missing thing and the place that provides it.
+    /// </remarks>
+    public string RunBlockedReason
+    {
+        get
+        {
+            if (IsTranscribing)
+            {
+                return string.Empty;
+            }
+
+            if (!HasDownloadedModels)
+            {
+                return "No model on disk. Open the Models tab to download one.";
+            }
+
+            if (string.IsNullOrWhiteSpace(AudioPath))
+            {
+                return "Choose an audio or video file, or drop one on this tab.";
+            }
+
+            if (!HasAudioFile)
+            {
+                return "The selected file no longer exists. Pick another one.";
+            }
+
+            if (IsCheckingCapabilities)
+            {
+                return "Checking what the selected model supports…";
+            }
+
+            if (IsProbingMemory)
+            {
+                return "A memory test is running; the run starts when it finishes.";
+            }
+
+            if (!SpeakerLabelsSatisfied)
+            {
+                return "Speaker labels need a diarizer model, and none is downloaded. "
+                    + "Open the Models tab and get one, or turn speaker labels off.";
+            }
+
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Whether <see cref="RunBlockedReason"/> has something to say.</summary>
+    public bool HasRunBlockedReason => RunBlockedReason.Length > 0;
 
     /// <summary>True while a run is in flight and can still be stopped.</summary>
     public bool CanCancelTranscription => IsTranscribing;
@@ -514,8 +856,11 @@ public partial class TranscriptionViewModel : ObservableObject
 
     /// <summary>True while the one-window memory probe is running.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
+    [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
+    [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isProbingMemory;
 
     /// <summary>The probe's outcome, and what it does and does not measure.</summary>
@@ -526,8 +871,18 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether <see cref="MemoryProbeStatus"/> has something to say.</summary>
     public bool HasMemoryProbeStatus => MemoryProbeStatus.Length > 0;
 
+    /// <summary>
+    /// Whether the memory probe applies. It runs one ASR window through
+    /// <c>CreateSession</c>, which a DIARIZE, LANGID or VAD model does not serve:
+    /// the button would fail with an unsupported-role error, so it is not offered
+    /// for those roles.
+    /// </summary>
+    public bool CanProbeThisRole
+        => _selectedCapabilities is null
+        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+
     /// <summary>Whether the memory probe can run: the same conditions as a run, and not already probing.</summary>
-    public bool CanProbeMemory => CanTranscribe && !IsProbingMemory;
+    public bool CanProbeMemory => CanStartRun && CanProbeThisRole;
 
     /// <summary>
     /// Whether the run's settings may be edited. A run works from a snapshot, so an
@@ -553,9 +908,21 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Raised when the reader asks to go and fetch more models.</summary>
     public event Action? OpenModelManagerRequested;
 
+    /// <summary>
+    /// Raised when the reader needs a diarizer specifically. The window opens the
+    /// Models tab with the catalogue already filtered to models upstream records
+    /// as serving the diarize capability, so the answer is one click away instead
+    /// of a search through 70-odd rows.
+    /// </summary>
+    public event Action? OpenDiarizerModelsRequested;
+
     /// <summary>The button under the picker. The window decides which tab that means.</summary>
     [RelayCommand]
     private void OpenModelManager() => OpenModelManagerRequested?.Invoke();
+
+    /// <summary>The button shown when speaker labels need a diarizer on disk.</summary>
+    [RelayCommand]
+    private void OpenDiarizerModels() => OpenDiarizerModelsRequested?.Invoke();
 
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
@@ -595,6 +962,17 @@ public partial class TranscriptionViewModel : ObservableObject
         _segmentPlayer = segmentPlayer ?? new FfplaySegmentPlayer();
         _settings = settings;
         _capabilityCache = capabilityCache;
+
+        // Elapsed time is the one number the bar cannot get from the service: the
+        // run can be 20 minutes long with one update per window. One tick a second
+        // recomputes it from the start time, which is a measurement.
+        _elapsedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _elapsedTimer.Tick += (_, _) => UpdateProgressTiming();
+
+        // Transcribe is the named default rather than null: the task picker then
+        // shows a real choice instead of an empty box, and the target-language
+        // picker is hidden until Translate is picked.
+        _selectedTask = TranscriptionTask.Transcribe;
 
         // The memory warning depends on the backend and the pinned device, which
         // live on the Settings tab. The event is the only way this tab learns that
@@ -697,6 +1075,16 @@ public partial class TranscriptionViewModel : ObservableObject
         SelectedDiarizer = keep is not null
             ? DiarizerOptions.FirstOrDefault(o => o.Alias == keep.Alias) ?? NoDiarizer
             : NoDiarizer;
+
+        OnPropertyChanged(nameof(HasDedicatedDiarizer));
+        OnPropertyChanged(nameof(NeedsDedicatedDiarizerDownload));
+        OnPropertyChanged(nameof(DiarizerPlan));
+        OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
+        SyncSpeakerIntent();
     }
 
     /// <summary>
@@ -705,26 +1093,98 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </summary>
     public void RefreshModels() => LoadModels();
 
+    partial void OnAudioPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasAudioFile));
+        OnPropertyChanged(nameof(AudioProblem));
+        OnPropertyChanged(nameof(HasAudioProblem));
+        OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
+    }
+
     partial void OnModelAliasChanged(string value)
     {
         RequestCapabilityProbe(value);
         OnPropertyChanged(nameof(DiarizerPlan));
+        OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
+        OnPropertyChanged(nameof(RunSummary));
         UpdateMemoryWarning();
     }
 
-    partial void OnWindowSecondsChanged(int value) => UpdateMemoryWarning();
+    partial void OnSelectedTaskChanged(TranscriptionTask? value)
+    {
+        OnPropertyChanged(nameof(ShowTargetLanguage));
+        OnPropertyChanged(nameof(RunSummary));
+    }
+
+    partial void OnWindowSecondsChanged(int value)
+    {
+        OnPropertyChanged(nameof(RunSummary));
+        UpdateMemoryWarning();
+    }
 
     partial void OnSelectedDiarizerChanged(DiarizerOption? value)
     {
         OnPropertyChanged(nameof(DiarizerPlan));
         OnPropertyChanged(nameof(DiarizerLanguageWarning));
         OnPropertyChanged(nameof(HasDiarizerLanguageWarning));
+        OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
+        OnPropertyChanged(nameof(NeedsDedicatedDiarizerDownload));
+        OnPropertyChanged(nameof(RunSummary));
     }
+
+    /// <summary>
+    /// Keeps the run's request aligned with the reader's intent: the model's own
+    /// diarization when it has one, a downloaded dedicated diarizer otherwise, and
+    /// never "on" for a model that cannot answer it.
+    /// </summary>
+    private void SyncSpeakerIntent()
+    {
+        // A model that can do neither cannot be asked for labels: clear the box
+        // rather than leave a request on screen that the run would ignore. The
+        // setter re-enters this method once with false, then stops.
+        if (!CanAskForSpeakerLabels && LabelSpeakers)
+        {
+            LabelSpeakers = false;
+            return;
+        }
+
+        DiarizeMode = LabelSpeakers && CanModelDiarize
+            ? DiarizeMode.DiarizeModeOn
+            : DiarizeMode.DiarizeModeOff;
+
+        if (LabelSpeakers && !CanModelDiarize && SelectedDiarizer?.Alias is null)
+        {
+            // Picking the only (or first) downloaded diarizer saves a step and makes
+            // the plan line name the model that will actually run. The picker stays
+            // visible, so the choice can still be changed.
+            SelectedDiarizer = DiarizerOptions.FirstOrDefault(o => o.Alias is not null) ?? NoDiarizer;
+        }
+
+        OnPropertyChanged(nameof(ShowDiarizerPicker));
+        OnPropertyChanged(nameof(ShowDiarizerUnavailableHint));
+        OnPropertyChanged(nameof(DiarizerPlan));
+        OnPropertyChanged(nameof(DiarizerLanguageWarning));
+        OnPropertyChanged(nameof(HasDiarizerLanguageWarning));
+        OnPropertyChanged(nameof(NeedsDedicatedDiarizerDownload));
+        OnPropertyChanged(nameof(RunSummary));
+    }
+
+    partial void OnLabelSpeakersChanged(bool value) => SyncSpeakerIntent();
 
     partial void OnLanguageChanged(string value)
     {
         OnPropertyChanged(nameof(DiarizerLanguageWarning));
         OnPropertyChanged(nameof(HasDiarizerLanguageWarning));
+        OnPropertyChanged(nameof(RunSummary));
     }
 
     partial void OnMarkPausesChanged(bool value) => PersistExportOptions();
@@ -888,16 +1348,43 @@ public partial class TranscriptionViewModel : ObservableObject
         _selectedCapabilities = capabilities;
         OnPropertyChanged(nameof(ShowWhisperExtensions));
         OnPropertyChanged(nameof(ShowTranslate));
+        OnPropertyChanged(nameof(ShowTargetLanguage));
+        OnPropertyChanged(nameof(ShowTask));
+        OnPropertyChanged(nameof(ShowLanguage));
+        OnPropertyChanged(nameof(ShowLanguageColumn));
+        OnPropertyChanged(nameof(ModelColumnSpan));
+        OnPropertyChanged(nameof(ShowWindow));
+        OnPropertyChanged(nameof(ShowTranscriptSection));
+        OnPropertyChanged(nameof(ShowAdvanced));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
         OnPropertyChanged(nameof(ShowVocabulary));
-        OnPropertyChanged(nameof(ShowDiarize));
+        OnPropertyChanged(nameof(ShowSpeakerSection));
+        OnPropertyChanged(nameof(CanModelDiarize));
+        OnPropertyChanged(nameof(HasSegmentTimings));
+        OnPropertyChanged(nameof(CanUseDedicatedDiarizer));
+        OnPropertyChanged(nameof(CanAskForSpeakerLabels));
+        OnPropertyChanged(nameof(CanProbeThisRole));
+        OnPropertyChanged(nameof(CanProbeMemory));
         OnPropertyChanged(nameof(ShowDiarizerPicker));
         OnPropertyChanged(nameof(ShowDiarizerUnavailableHint));
         OnPropertyChanged(nameof(DiarizerUnavailableHint));
         OnPropertyChanged(nameof(DiarizerPlan));
+        OnPropertyChanged(nameof(NeedsDedicatedDiarizerDownload));
+        OnPropertyChanged(nameof(RunSummary));
         OnPropertyChanged(nameof(RunButtonText));
         OnPropertyChanged(nameof(RolesHint));
         OnPropertyChanged(nameof(ShowAllowedLanguages));
+        OnPropertyChanged(nameof(ProgressIsIndeterminate));
+
+        // The capabilities can make the current request impossible (a model with no
+        // timings cannot be joined) or satisfiable by the model itself (it can
+        // diarize). Align the request with that before the reader starts a run.
+        SyncSpeakerIntent();
+
+        OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
         UpdateAvailableLanguages(capabilities);
         UpdateTargetOptions(capabilities);
     }
@@ -934,14 +1421,19 @@ public partial class TranscriptionViewModel : ObservableObject
             Language = Language,
             TimestampKind = TimestampKind.TimestampsSegment,
             DiarizeMode = DiarizeMode,
-            DiarizerModel = SelectedDiarizer?.Alias,
+            // A dedicated diarizer only runs when the reader asked for speaker
+            // labels and the transcriber cannot do it itself. The picker may still
+            // hold a remembered alias while the intent is off; the run ignores it.
+            DiarizerModel = LabelSpeakers && !CanModelDiarize ? SelectedDiarizer?.Alias : null,
             Threads = Threads,
             KvType = SelectedKvType,
             ContextSize = ContextSize,
             WhisperInitialPrompt = WhisperInitialPrompt,
             WhisperTemperature = (float?)WhisperTemperature,
             Task = SelectedTask,
-            TargetLanguage = TargetLanguage,
+            // A target only belongs to a Translate run. Keeping the code while the
+            // task is Transcribe would hand the decoder a target it is not using.
+            TargetLanguage = SelectedTask == TranscriptionTask.Translate ? TargetLanguage : null,
             SpecKDrafts = SpecKDrafts,
             KeepSpecialTags = KeepSpecialTags,
             WindowSeconds = WindowSeconds,
@@ -1135,21 +1627,39 @@ public partial class TranscriptionViewModel : ObservableObject
             return;
         }
 
+        // The button is disabled in this state, but a command can also be invoked
+        // from a key binding: never start a run whose speaker request cannot be
+        // honoured, because it would come back with every segment as Speaker 0.
+        if (!SpeakerLabelsSatisfied)
+        {
+            StatusMessage = RunBlockedReason;
+            return;
+        }
+
         // The CTS is owned by this method and cancelled through the action; the
         // field is null outside a run, so the view model itself owns nothing.
         using var cancellation = new CancellationTokenSource();
         _cancelTranscription = cancellation.Cancel;
         IsTranscribing = true;
         Progress = 0;
-        // The action, not a stage the app cannot observe: for a non-ASR role
-        // there is no window callback, so the label stays truthful instead of
-        // claiming a load that has already finished. The ASR step replaces it.
-        ProgressStage = $"{RunButtonText}…";
+        _runStartedAt = DateTime.UtcNow;
+        _firstWindowFinishedAt = null;
+        _windowsCompleted = 0;
+        _windowsTotal = 0;
+        _phase = TranscriptionPhase.Preparing;
+        ProgressIsIndeterminate = true;
+        ProgressNote = "Starting. The model load and the audio read come first; neither reports a fraction.";
+        // The first phase replaces this within milliseconds; it exists so the bar
+        // has an honest label even if the service's first callback is delayed.
+        ProgressStage = "Starting…";
+        ElapsedText = string.Empty;
+        RemainingText = string.Empty;
         LiveText = string.Empty;
         LastError = null;
-        StatusMessage = "Transcribing...";
+        StatusMessage = "Starting…";
         HasResult = false;
         UiSettings.SetLastModel(UiSettings.TranscriptionTab, ModelAlias);
+        _elapsedTimer.Start();
 
         try
         {
@@ -1163,21 +1673,36 @@ public partial class TranscriptionViewModel : ObservableObject
             // a cross-thread mutation.
             var progress = new Progress<double>(p => Progress = p);
             var liveText = new Progress<string>(text => LiveText = text);
-            var phase = new Progress<TranscriptionPhase>(p => StatusMessage = p switch
-            {
-                TranscriptionPhase.Diarizing =>
-                    "Diarizing… the transcript is complete; a separate diarizer is attributing speakers.",
-                _ => "Transcribing...",
-            });
+            var phase = new Progress<TranscriptionPhase>(ApplyPhase);
 
             // The same windows the bar is filled from, named. Completed is 0 on
             // the announcement made before the first window runs, so the text
             // says "window 1" then rather than "window 0".
             var stepProgress = new Progress<TranscriptionStep>(s =>
             {
-                ProgressStage = s.Phase == TranscriptionPhase.Diarizing
-                    ? "Diarizing — one pass, no finer progress"
-                    : $"Transcribing — window {Math.Clamp(s.Completed == 0 ? 1 : s.Completed, 1, Math.Max(1, s.Total))} of {Math.Max(1, s.Total)}";
+                _phase = s.Phase;
+                if (s.Phase == TranscriptionPhase.Diarizing)
+                {
+                    ProgressIsIndeterminate = true;
+                    ProgressNote = "The diarizer runs the whole file in one native call and reports no progress.";
+                    ProgressStage = "Diarizing — attributing speakers";
+                }
+                else
+                {
+                    _windowsTotal = Math.Max(1, s.Total);
+                    _windowsCompleted = Math.Clamp(s.Completed, 0, _windowsTotal);
+                    if (s.Completed > 0 && _firstWindowFinishedAt is null)
+                    {
+                        _firstWindowFinishedAt = DateTime.UtcNow;
+                    }
+
+                    ProgressIsIndeterminate = false;
+                    ProgressNote = string.Empty;
+                    ProgressStage = $"Transcribing — window "
+                        + $"{Math.Clamp(s.Completed == 0 ? 1 : s.Completed, 1, _windowsTotal)} of {_windowsTotal}";
+                }
+
+                UpdateProgressTiming();
             });
 
             Result = await _transcriptionService.TranscribeAsync(
@@ -1225,12 +1750,134 @@ public partial class TranscriptionViewModel : ObservableObject
         }
         finally
         {
+            _elapsedTimer.Stop();
             _cancelTranscription = null;
             _runOptions = null;
             _runModelAlias = string.Empty;
             LiveText = string.Empty;
+            ProgressNote = string.Empty;
+            ProgressIsIndeterminate = false;
+            ElapsedText = string.Empty;
+            RemainingText = string.Empty;
             IsTranscribing = false;
         }
+    }
+
+    /// <summary>
+    /// Puts a phase on screen: its label, whether the bar can fill, and the
+    /// sentence that says why when it cannot.
+    /// </summary>
+    private void ApplyPhase(TranscriptionPhase phase)
+    {
+        _phase = phase;
+        switch (phase)
+        {
+            case TranscriptionPhase.Preparing:
+                ProgressIsIndeterminate = true;
+                ProgressNote = "Loading the model. The native library reports no progress for a load.";
+                ProgressStage = $"Loading {ModelAlias}…";
+                StatusMessage = "Loading the model…";
+                break;
+
+            case TranscriptionPhase.ReadingAudio:
+                ProgressIsIndeterminate = true;
+                ProgressNote = "Reading and decoding the audio. The decoder reports no progress.";
+                ProgressStage = "Reading the audio…";
+                StatusMessage = "Reading the audio…";
+                break;
+
+            case TranscriptionPhase.Diarizing:
+                ProgressIsIndeterminate = true;
+                ProgressNote = "Diarizing runs the whole file in one native call and reports no progress.";
+                ProgressStage = "Diarizing — attributing speakers";
+                // A chained diarizer follows a finished transcript; a model whose
+                // whole role is diarization has no transcript to speak of.
+                StatusMessage = LabelSpeakers && !CanModelDiarize
+                    ? "Diarizing… the transcript is complete; a separate diarizer is attributing speakers."
+                    : "Diarizing…";
+                break;
+
+            default:
+                ProgressIsIndeterminate = !PhaseReportsFraction(phase);
+                ProgressNote = ProgressIsIndeterminate
+                    ? "This role runs the whole file in one native call and reports no progress."
+                    : string.Empty;
+                if (ProgressIsIndeterminate)
+                {
+                    ProgressStage = $"{RunButtonText}…";
+                }
+
+                StatusMessage = "Transcribing...";
+                break;
+        }
+
+        UpdateProgressTiming();
+    }
+
+    /// <summary>
+    /// Whether a phase reports a measured fraction. Windows fill the ASR and VAD
+    /// paths; the other roles answer in one call.
+    /// </summary>
+    private bool PhaseReportsFraction(TranscriptionPhase phase)
+    {
+        if (phase != TranscriptionPhase.Transcribing)
+        {
+            return false;
+        }
+
+        // Not probed yet: the run is most likely ASR, and the window step replaces
+        // the indeterminate state as soon as it arrives.
+        return _selectedCapabilities is not { } caps
+            || caps.Roles.HasFlag(TranscribeRole.Asr)
+            || caps.Roles.HasFlag(TranscribeRole.Vad);
+    }
+
+    /// <summary>
+    /// Recomputes the elapsed line and the estimate from the windows finished so
+    /// far. Called once a second and on every step, so a long run never looks
+    /// frozen between windows.
+    /// </summary>
+    private void UpdateProgressTiming()
+    {
+        if (!IsTranscribing)
+        {
+            ElapsedText = string.Empty;
+            RemainingText = string.Empty;
+            return;
+        }
+
+        ElapsedText = FormatDuration(DateTime.UtcNow - _runStartedAt);
+
+        // The estimate starts after a second window: the first one's time includes
+        // whatever warm-up the model does, and using it would overstate the rest.
+        if (_phase == TranscriptionPhase.Transcribing
+            && _firstWindowFinishedAt is { } first
+            && _windowsCompleted > 1
+            && _windowsTotal > _windowsCompleted)
+        {
+            double secondsPerWindow =
+                (DateTime.UtcNow - first).TotalSeconds / (_windowsCompleted - 1);
+            TimeSpan remaining = TimeSpan.FromSeconds(
+                secondsPerWindow * (_windowsTotal - _windowsCompleted));
+            RemainingText = "about " + FormatDuration(remaining) + " left (estimate)";
+        }
+        else
+        {
+            RemainingText = string.Empty;
+        }
+    }
+
+    /// <summary>mm:ss, or h:mm:ss past an hour. Never a rounded-up claim.</summary>
+    private static string FormatDuration(TimeSpan value)
+    {
+        if (value < TimeSpan.Zero)
+        {
+            value = TimeSpan.Zero;
+        }
+
+        return value.TotalHours >= 1
+            ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
+            : $"{value.Minutes:00}:{value.Seconds:00}";
     }
 
     /// <summary>Stops the run in flight, if any.</summary>

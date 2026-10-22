@@ -92,6 +92,13 @@ public class TranscriptionLayoutTests
                 .OfType<Control>()
                 .First(c => AutomationProperties.GetAutomationId(c) == id);
 
+            // The tuning controls live behind the disclosure so the form stays
+            // short. Opening it is what the reader does before using them, so this
+            // is the state in which they must be laid out without overlapping.
+            var advanced = (Expander)Find("transcription-advanced");
+            advanced.IsExpanded = true;
+            window.UpdateLayout();
+
             Control vocabulary = Find("transcription-vocabulary");
             Control windowSeconds = Find("transcription-window-seconds");
             Control exportOptions = Find("transcription-export-options");

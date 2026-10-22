@@ -1,5 +1,6 @@
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
 using Xunit;
@@ -7,8 +8,9 @@ using Xunit;
 namespace TranscribeCppSharp.UI.Tests;
 
 /// <summary>
-/// The diarizer picker: a downloaded DIARIZE-role model offered to a transcriber
-/// that cannot attribute speakers itself.
+/// Speaker labels are one intent, not two unrelated pickers. These tests pin what
+/// the tab offers for each kind of model, what the run passes, and what happens
+/// when the intent cannot be honoured.
 /// </summary>
 [Collection("UiGlobalState")]
 public class DiarizerPickerTests
@@ -58,32 +60,46 @@ public class DiarizerPickerTests
     }
 
     [Fact]
-    public void ThePickerIsForAModelThatCannotDiarizeItself()
+    public void ADedicatedDiarizerIsOfferedOnlyWhereItIsNeeded()
     {
         InCache(() =>
         {
             var viewModel = new TranscriptionViewModel(
                 new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
 
+            // A plain transcriber needs a second model, and the picker only appears
+            // once the reader asks for speaker labels.
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+            Assert.True(viewModel.CanUseDedicatedDiarizer);
+            Assert.False(viewModel.ShowDiarizerPicker);
+
+            viewModel.LabelSpeakers = true;
             Assert.True(viewModel.ShowDiarizerPicker);
 
             // The model diarizes through its own feature: no second one needed.
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr, diarizeFeature: true));
+            Assert.True(viewModel.CanModelDiarize);
+            Assert.False(viewModel.CanUseDedicatedDiarizer);
             Assert.False(viewModel.ShowDiarizerPicker);
+            Assert.Equal(DiarizeMode.DiarizeModeOn, viewModel.DiarizeMode);
 
             // The model reports the DIARIZE role as well.
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr | TranscribeRole.Diarize));
+            Assert.True(viewModel.CanModelDiarize);
             Assert.False(viewModel.ShowDiarizerPicker);
 
-            // A model that only diarizes has nothing to pair with.
+            // A model that only diarizes has nothing to pair with, and no speaker
+            // checkbox either: its whole result is speaker turns.
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Diarize));
+            Assert.False(viewModel.ShowSpeakerSection);
+            Assert.False(viewModel.CanAskForSpeakerLabels);
+            Assert.False(viewModel.LabelSpeakers);
             Assert.False(viewModel.ShowDiarizerPicker);
         });
     }
 
     [Fact]
-    public void ADownloadedDiarizerIsOfferedAndDefaultsToNone()
+    public void ADownloadedDiarizerIsOfferedAndTheIntentStartsOff()
     {
         InCache(() =>
         {
@@ -95,6 +111,8 @@ public class DiarizerPickerTests
             Assert.Contains(viewModel.DiarizerOptions, o => o.Alias == Sortformer);
             Assert.Contains(viewModel.DiarizerOptions, o => o.Alias is null);
             Assert.Null(viewModel.SelectedDiarizer?.Alias);
+            Assert.False(viewModel.LabelSpeakers);
+            Assert.Equal(DiarizeMode.DiarizeModeOff, viewModel.DiarizeMode);
         });
     }
 
@@ -115,7 +133,7 @@ public class DiarizerPickerTests
     public void ThePickerNeedsSegmentTimingsAndSaysWhyWhenTheyAreMissing()
     {
         // Without timings there is nothing to overlap a speaker turn with, so the
-        // join cannot work. Offering the picker anyway would promise an attribution
+        // join cannot work. Offering the intent anyway would promise an attribution
         // the app cannot produce.
         InCache(() =>
         {
@@ -124,18 +142,24 @@ public class DiarizerPickerTests
 
             viewModel.ApplyCapabilities(
                 Snapshot(TranscribeRole.Asr, maxTimestamps: TimestampKind.TimestampsNone));
-            Assert.False(viewModel.ShowDiarizerPicker);
+            Assert.False(viewModel.CanAskForSpeakerLabels);
             Assert.True(viewModel.ShowDiarizerUnavailableHint);
             Assert.Contains("timings", viewModel.DiarizerUnavailableHint, StringComparison.OrdinalIgnoreCase);
 
+            // Asking anyway is refused before the run, not silently ignored.
+            viewModel.LabelSpeakers = true;
+            Assert.False(viewModel.LabelSpeakers);
+            Assert.Equal(DiarizeMode.DiarizeModeOff, viewModel.DiarizeMode);
+
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
-            Assert.True(viewModel.ShowDiarizerPicker);
+            Assert.True(viewModel.CanAskForSpeakerLabels);
             Assert.False(viewModel.ShowDiarizerUnavailableHint);
+            Assert.True(viewModel.CanUseDedicatedDiarizer);
         });
     }
 
     [Fact]
-    public void ThePickerSaysWhichTwoModelsWillRun()
+    public void TurningTheIntentOnSelectsTheOnlyDiarizerAndNamesBothModels()
     {
         InCache(() =>
         {
@@ -147,15 +171,108 @@ public class DiarizerPickerTests
             viewModel.ModelAlias = "whisper-tiny";
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
 
-            // Nothing chained: say what that means rather than leaving the reader to
-            // assume the model attributes speakers.
+            // Nothing asked for: say what that means rather than leaving the reader
+            // to assume the model attributes speakers.
             Assert.Contains("Speaker 0", viewModel.DiarizerPlan);
 
-            viewModel.SelectedDiarizer = viewModel.DiarizerOptions.Single(o => o.Alias == Sortformer);
+            viewModel.LabelSpeakers = true;
 
+            // The only downloaded diarizer is chosen for the reader, so the plan can
+            // name what will actually run instead of saying "pick one".
+            Assert.Equal(Sortformer, viewModel.SelectedDiarizer?.Alias);
+            Assert.True(viewModel.SpeakerLabelsSatisfied);
             Assert.Contains("whisper-tiny", viewModel.DiarizerPlan);
             Assert.Contains(Sortformer, viewModel.DiarizerPlan);
             Assert.Contains("two passes", viewModel.DiarizerPlan, StringComparison.OrdinalIgnoreCase);
+
+            TranscriptionOptions options = viewModel.BuildTranscriptionOptions();
+            Assert.Equal(Sortformer, options.DiarizerModel);
+            Assert.Equal(DiarizeMode.DiarizeModeOff, options.DiarizeMode);
+        });
+    }
+
+    [Fact]
+    public void NoDiarizerDownloadedBlocksTheRunInsteadOfProducingSpeakerZero()
+    {
+        InCache(() =>
+        {
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            // The picker is what matters here, not a file on disk: seed the list
+            // directly so the only gate left is the missing diarizer.
+            viewModel.AvailableModels.Add("whisper-tiny");
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+            string audio = Path.Combine(
+                Path.GetTempPath(), "tcsharp-diarizer-" + Guid.NewGuid().ToString("N") + ".wav");
+            File.WriteAllText(audio, string.Empty);
+            try
+            {
+                viewModel.AudioPath = audio;
+                viewModel.LabelSpeakers = true;
+
+                Assert.True(viewModel.NeedsDedicatedDiarizerDownload);
+                Assert.False(viewModel.SpeakerLabelsSatisfied);
+                Assert.False(viewModel.CanTranscribe);
+                Assert.Contains("diarizer", viewModel.RunBlockedReason, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("Models", viewModel.RunBlockedReason, StringComparison.Ordinal);
+
+                // Turning the intent off restores the ordinary transcript run, and
+                // the remembered diarizer alias is not passed anyway.
+                viewModel.LabelSpeakers = false;
+                Assert.True(viewModel.SpeakerLabelsSatisfied);
+                Assert.Null(viewModel.BuildTranscriptionOptions().DiarizerModel);
+            }
+            finally
+            {
+                File.Delete(audio);
+            }
+        });
+    }
+
+    [Fact]
+    public void AModelThatDiarizesItselfGetsTheOnRequestWithoutASecondModel()
+    {
+        InCache(() =>
+        {
+            Plant(Sortformer);
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            viewModel.ModelAlias = "moss-transcribe-diarize";
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr, diarizeFeature: true));
+            viewModel.SelectedDiarizer = viewModel.DiarizerOptions.Single(o => o.Alias == Sortformer);
+
+            viewModel.LabelSpeakers = true;
+
+            Assert.Equal(DiarizeMode.DiarizeModeOn, viewModel.DiarizeMode);
+            Assert.False(viewModel.ShowDiarizerPicker);
+            Assert.Contains("attributes speakers itself", viewModel.DiarizerPlan, StringComparison.OrdinalIgnoreCase);
+
+            TranscriptionOptions options = viewModel.BuildTranscriptionOptions();
+            Assert.Equal(DiarizeMode.DiarizeModeOn, options.DiarizeMode);
+            Assert.Null(options.DiarizerModel);
+        });
+    }
+
+    [Fact]
+    public void TheGetADiarizerButtonOpensTheCatalogueFilteredToDiarization()
+    {
+        InCache(() =>
+        {
+            var transcription = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            var root = new MainWindowViewModel(
+                transcription,
+                new StreamingViewModel(
+                    new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),
+                new BatchViewModel(new StubTranscriptionService(), new SettingsViewModel()),
+                new ModelManagerViewModel(),
+                new SettingsViewModel(),
+                new HistoryViewModel());
+
+            transcription.OpenDiarizerModelsCommand.Execute(null);
+
+            Assert.Equal(MainWindowViewModel.ModelTabIndex, root.SelectedTabIndex);
+            Assert.Equal("diarize", root.ModelManager.FeatureFilter);
         });
     }
 
@@ -171,7 +288,8 @@ public class DiarizerPickerTests
             var viewModel = new TranscriptionViewModel(
                 new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
-            viewModel.SelectedDiarizer = viewModel.DiarizerOptions.Single(o => o.Alias == Sortformer);
+            viewModel.LabelSpeakers = true;
+            Assert.Equal(Sortformer, viewModel.SelectedDiarizer?.Alias);
 
             viewModel.Language = "en";
             Assert.False(viewModel.HasDiarizerLanguageWarning);
@@ -185,6 +303,12 @@ public class DiarizerPickerTests
             // Auto-detection has not chosen a language yet, so there is nothing to
             // contradict.
             viewModel.Language = "auto";
+            Assert.False(viewModel.HasDiarizerLanguageWarning);
+
+            // With speaker labels off, the diarizer is not part of the run and its
+            // declared languages are not a caveat on it.
+            viewModel.LabelSpeakers = false;
+            viewModel.Language = "fr";
             Assert.False(viewModel.HasDiarizerLanguageWarning);
         });
     }

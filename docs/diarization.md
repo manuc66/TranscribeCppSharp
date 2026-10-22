@@ -91,12 +91,13 @@ The DIARIZE-role models (Sortformer) produce speaker turns and no text, so their
 paired with a transcriber that cannot attribute speakers itself. transcribe.cpp has **no
 combined entry point**: you run the two models separately and join the results.
 
-The app does exactly that. On the Transcription tab, a model that transcribes and cannot
-diarize shows a **Diarizer** picker, offering the downloaded DIARIZE-role models. With one
-chosen, the run is two passes: the transcriber over the audio, then the diarizer over the same
-audio, then a join — each transcript segment takes the speaker of the diarizer turn that
-overlaps it most, and a segment overlapping no turn keeps speaker 0. The two passes run one
-after the other, so only one model is in memory at a time.
+The app does exactly that. On the Transcription tab, ticking **Label who is speaking** is the
+one request for attribution. A model that diarizes itself satisfies it in one pass; a model
+that cannot shows a **Diarizer model** picker, offering the downloaded DIARIZE-role models and
+preselecting the only one. With one chosen, the run is two passes: the transcriber over the
+audio, then the diarizer over the same audio, then a join — each transcript segment takes the
+speaker of the diarizer turn that overlaps it most, and a segment overlapping no turn keeps
+speaker 0. The two passes run one after the other, so only one model is in memory at a time.
 
 Two honest limits:
 
@@ -109,24 +110,33 @@ The wrapper exposes the two halves: `Model.CreateSession` with `WithDiarize` for
 that can diarize, and `Model.CreateDiarizeSession` for one that only does. Pairing them is the
 caller's job.
 
-### What the picker says before the run
+### What the tab says before the run
 
-The **Diarizer** picker is offered only for a transcriber that reports at least segment
+The speaker checkbox is offered only for a transcriber that reports at least segment
 timestamps. A model that emits no timings cannot be joined — there is nothing to overlap a
-speaker turn with — so the tab shows a note in the picker's place instead of a control that
+speaker turn with — so the tab shows a note in the checkbox's place instead of a control that
 would silently leave every segment as `Speaker 0`. (37 of the 73 ASR aliases in the pinned
 catalog declare no timestamps.)
 
-Under the picker, a plan line names the two models — for example *"Two passes: whisper-tiny,
-then diar_streaming_sortformer_4spk-v2.1 over the same audio. The second pass adds speaker
-turns, not text."* — and a warning appears when the diarizer's catalog record does not declare
-the chosen language. Sortformer's record declares **English only**, so a French transcription
-shows that warning before the run rather than after it. The warning quotes the pinned catalog,
-which is upstream's statement; this project has not measured the diarizer on French audio.
+A plan line states the outcome in one sentence, before the run. With labels off it says so
+(*"No speaker labels: every segment is Speaker 0."*); with a self-diarizing model it says the
+model does it in one pass; with a dedicated model it names both — for example *"Two passes:
+whisper-tiny, then diar_streaming_sortformer_4spk-v2.1 over the same audio. The second pass
+adds speaker turns, not text."* — and a warning appears when the diarizer's catalog record does
+not declare the chosen language. Sortformer's record declares **English only**, so a French
+transcription shows that warning before the run rather than after it. The warning quotes the
+pinned catalog, which is upstream's statement; this project has not measured the diarizer on
+French audio.
 
-During the second pass the status says **Diarizing…** and the bar holds at 95%: the diarizer
-runs the whole buffer in one call and reports no finer progress. Reaching 100% means the whole
-run is done, not just the transcript. The 90% / 95% split is a phase marker, not a measured
+If the checkbox is ticked and no diarizer is downloaded, the run button is disabled, the reason
+names the Models tab, and **Get a diarizer…** opens it filtered to the diarize capability. That
+is deliberate: the alternative would be a run that comes back with every segment as `Speaker 0`,
+which is the surprise this control exists to remove.
+
+During the second pass the status says **Diarizing…** and the bar is indeterminate: the
+diarizer runs the whole buffer in one call and reports no finer progress, so the card says that
+rather than holding a percentage nobody measured. Reaching 100% means the whole run is done,
+not just the transcript. The split between the two passes is a phase marker, not a measured
 estimate of how long each pass takes.
 
 ## What is verified, and what CI does not run
