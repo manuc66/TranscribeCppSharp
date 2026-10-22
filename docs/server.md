@@ -36,12 +36,20 @@ either front end fetched is available to the other.
 | `GET /v1/models` | the single model this process serves |
 | `GET /health` | liveness, and whether the model is in memory |
 
-`response_format` accepts `json` (default), `text` and `verbose_json`.
+`response_format` accepts `json` (default), `text`, `verbose_json`, `srt` and
+`vtt`.
+
 `verbose_json` returns `task`, `language`, `duration`, `text`, `segments` and
 `words`; a segment carries `speaker` only when attribution actually ran. The
 fields OpenAI returns that transcribe.cpp does not produce — `avg_logprob`,
 `compression_ratio`, `no_speech_prob`, token arrays — are **absent, not zeroed**.
 A client that requires them will see them missing, which is the truthful outcome.
+
+`srt` and `vtt` return the merged segments as cues, from the same renderer the
+CLI uses (`src/Shared/SubtitleWriter.cs`); `vtt` is served as `text/vtt` and
+`srt` as `application/x-subrip`. Speaker labels follow the request's `diarize`
+setting, and cues are the model's own segment boundaries — nothing is re-timed to
+look shorter.
 
 Word timestamps are returned only when the model reports it can produce them
 (`Capabilities.MaxTimestampKind`); otherwise `words` is an empty list rather than
@@ -52,8 +60,6 @@ an error, because the transcript itself is still valid.
 A request that asks for something this server does not do gets a `400` with a
 message naming the field, instead of a `200` that quietly ignored it:
 
-- `response_format=srt` or `vtt` — not implemented yet (the CLI and the GUI can
-  write VTT; subtitle response formats are a separate change);
 - `prompt` and a non-zero `temperature` — not wired to transcribe.cpp by this
   server;
 - any `model` other than the one this process loaded (`404 model_not_found`).

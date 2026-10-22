@@ -157,7 +157,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 | [Getting started](getting-started.md) | installing, the native packages, load-and-transcribe, batch, streaming, sample code |
 | [Compute](compute.md) | GPU by default, `--list-devices`, backend and device selection, CUDA |
 | [Models](models.md) | aliases vs. HuggingFace specs, `--list-models`, caching, capabilities, model licences |
-| [Exporting](exporting.md) | `--out`, and the `plain`, WebVTT, HTML and JSON formats |
+| [Exporting](exporting.md) | `--out`, and the `plain`, WebVTT, HTML, JSON, SRT and ASS formats |
 | [Long audio and diarization](diarization.md) | windowing, the four diarization entry points, and what is not verified |
 | [Audio input](audio-input.md) | which formats are tested, ffmpeg, and the measured memory behaviour |
 | [Real-time streaming](streaming.md) | `StreamSession`, partial results, its two limits |

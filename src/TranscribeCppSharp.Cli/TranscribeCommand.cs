@@ -65,11 +65,12 @@ internal static class TranscribeCommand
                          long audio is split with 1 s overlap and deduplicated
           --no-diarize   disable speaker diarization
           --out <file>   write the report to a file; format controlled
-                         by --format (plain/vtt/json/html)
+                         by --format (plain/vtt/json/html/srt/ass)
           --format <fmt> report file format: plain (default, timestamped
                          lines), vtt (WebVTT, speaker cues; ASR models only),
-                         json, or html (numbered paragraphs with timestamps and
-                         speakers; ASR models only)
+                         json, html (numbered paragraphs with timestamps and
+                         speakers; ASR models only), srt or ass (subtitles,
+                         ASR models only)
           --help         show this help
         """;
 
@@ -355,12 +356,14 @@ internal static class TranscribeCommand
 
         var merged = new StringBuilder();
 
-        // JSON and HTML need the segments kept: both documents are written once,
-        // at the end, from the complete list. The plain and VTT writers emit each
-        // segment as it arrives and their footer ignores the list entirely, so
-        // accumulating it there retained a list entry and a string per segment
-        // that nothing ever read — one hour of speech is ~900 segments.
+        // JSON, HTML and the two subtitle formats need the segments kept: those
+        // documents are written once, at the end, from the complete list. The
+        // plain and VTT writers emit each segment as it arrives and their footer
+        // ignores the list entirely, so accumulating it there retained a list
+        // entry and a string per segment that nothing ever read — one hour of
+        // speech is ~900 segments.
         var lines = options.Format is TranscriptFormat.Json or TranscriptFormat.Html
+            or TranscriptFormat.Srt or TranscriptFormat.Ass
             ? new List<TranscriptLine>()
             : null;
 
@@ -502,7 +505,8 @@ internal static class TranscribeCommand
         long totalSamples,
         TranscribeRole roles)
     {
-        if (options.Format is TranscriptFormat.Vtt or TranscriptFormat.Html)
+        if (options.Format is TranscriptFormat.Vtt or TranscriptFormat.Html
+            or TranscriptFormat.Srt or TranscriptFormat.Ass)
         {
             stderr.WriteLine($"--format {FormatName(options.Format)} applies to a transcription (ASR) model; "
                 + $"this model serves {DescribeRoles(roles)}. Use --format plain or json.");
@@ -720,6 +724,8 @@ internal static class TranscribeCommand
         TranscriptFormat.Vtt => "vtt",
         TranscriptFormat.Json => "json",
         TranscriptFormat.Html => "html",
+        TranscriptFormat.Srt => "srt",
+        TranscriptFormat.Ass => "ass",
         _ => "plain",
     };
 

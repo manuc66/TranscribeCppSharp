@@ -114,9 +114,47 @@ public sealed class ServerEndpointTests
     [Theory]
     [InlineData("srt")]
     [InlineData("vtt")]
-    public async Task Subtitle_formats_are_refused_with_a_message(string format)
+    public async Task Subtitle_formats_return_cues(string format)
     {
         Reply reply = await PostAsync(Options(), new FakeBackend(), TestServer.Form(format: format));
+
+        Assert.Equal(HttpStatusCode.OK, reply.Status);
+        Assert.Contains("hello", reply.Body, StringComparison.Ordinal);
+        Assert.Contains("world", reply.Body, StringComparison.Ordinal);
+        Assert.Contains(
+            format == "srt" ? "00:00:00,000 --> 00:00:06,250" : "00:00:00.000 --> 00:00:06.250",
+            reply.Body,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Vtt_starts_with_the_webvtt_header()
+    {
+        Reply reply = await PostAsync(Options(), new FakeBackend(), TestServer.Form(format: "vtt"));
+
+        Assert.StartsWith("WEBVTT\n", reply.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Subtitle_speaker_labels_follow_the_diarize_setting()
+    {
+        Reply withSpeakers = await PostAsync(
+            Options(diarize: true),
+            new FakeBackend(),
+            TestServer.Form(format: "srt"));
+        Reply withoutSpeakers = await PostAsync(
+            Options(diarize: false),
+            new FakeBackend(),
+            TestServer.Form(format: "srt"));
+
+        Assert.Contains("Speaker 2: hello", withSpeakers.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Speaker", withoutSpeakers.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_unknown_response_format_is_refused()
+    {
+        Reply reply = await PostAsync(Options(), new FakeBackend(), TestServer.Form(format: "docx"));
 
         Assert.Equal(HttpStatusCode.BadRequest, reply.Status);
         JsonNode error = reply.Json()["error"]!;

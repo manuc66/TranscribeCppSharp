@@ -25,6 +25,12 @@ internal enum TranscriptFormat
 
     /// <summary>Standalone HTML: numbered paragraphs, timestamps, speakers.</summary>
     Html,
+
+    /// <summary>SubRip subtitles: numbered cues, <c>HH:MM:SS,mmm</c>.</summary>
+    Srt,
+
+    /// <summary>Advanced SubStation Alpha: one script with a Default style.</summary>
+    Ass,
 }
 
 /// <summary>One transcript line, with its position on the original timeline.</summary>
@@ -284,8 +290,14 @@ internal sealed record CliOptions
             case "html":
                 format = TranscriptFormat.Html;
                 return true;
+            case "srt":
+                format = TranscriptFormat.Srt;
+                return true;
+            case "ass":
+                format = TranscriptFormat.Ass;
+                return true;
             default:
-                error = $"unknown --format: {name} (expected plain, vtt, json or html)";
+                error = $"unknown --format: {name} (expected plain, vtt, json, html, srt or ass)";
                 return false;
         }
     }

@@ -7,6 +7,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using TranscribeCppSharp.Audio;
+using TranscribeCppSharp.SharedSource;
 
 /// <summary>
 /// The HTTP surface: OpenAI's transcription routes, plus health and the model
@@ -168,12 +169,12 @@ internal static class ServerApp
             responseFormat = DefaultResponseFormat;
         }
 
-        if (responseFormat is not ("json" or "text" or "verbose_json"))
+        if (responseFormat is not ("json" or "text" or "verbose_json" or "srt" or "vtt"))
         {
             return Error(
                 StatusCodes.Status400BadRequest,
                 $"response_format '{responseFormat}' is not implemented by this server; "
-                + "use json, text or verbose_json",
+                + "use json, text, verbose_json, srt or vtt",
                 param: "response_format",
                 code: "unsupported_response_format");
         }
@@ -242,6 +243,7 @@ internal static class ServerApp
         return responseFormat switch
         {
             "text" => Results.Text(output.Text, "text/plain; charset=utf-8"),
+            "srt" or "vtt" => Subtitles(output, responseFormat, diarize),
             "verbose_json" => Results.Json(
                 new VerboseResponse(
                     task == TranscriptionTask.Translate ? "translate" : "transcribe",
@@ -257,6 +259,25 @@ internal static class ServerApp
                 Json),
             _ => Results.Json(new TextResponse(output.Text), Json),
         };
+    }
+
+    /// <summary>Renders the merged segments as SubRip or WebVTT.</summary>
+    private static IResult Subtitles(TranscriptionOutput output, string format, bool diarize)
+    {
+        SubtitleCue[] cues = output.Segments
+            .Select(s => new SubtitleCue(s.StartSeconds * 1000, s.EndSeconds * 1000, s.Speaker ?? 0, s.Text))
+            .ToArray();
+
+        var writer = new StringWriter(CultureInfo.InvariantCulture);
+        SubtitleWriter.Write(
+            writer,
+            format == "srt" ? SubtitleFormat.Srt : SubtitleFormat.Vtt,
+            cues,
+            speakerLabels: diarize);
+
+        return Results.Text(
+            writer.ToString(),
+            format == "srt" ? "application/x-subrip; charset=utf-8" : "text/vtt; charset=utf-8");
     }
 
     private static bool IsPresent(IFormCollection form, string name)

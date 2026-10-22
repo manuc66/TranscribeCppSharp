@@ -20,6 +20,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The subtitle renderer, shared as source with the CLI and the GUI so the
+         same transcript produces the same bytes everywhere. -->
+    <Compile Include="..\Shared\SubtitleWriter.cs" Link="Shared\SubtitleWriter.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="TranscribeCppSharp.Server.Tests" />
   </ItemGroup>
 

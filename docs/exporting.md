@@ -13,6 +13,8 @@ nav_order: 6
 | `vtt` | WebVTT, with speaker cues |
 | `html` | standalone HTML: numbered paragraphs, timestamps, speakers |
 | `json` | `{"language", "text", "segments":[{start,end,speaker,text}]}` |
+| `srt` | SubRip subtitles: numbered cues, `HH:MM:SS,mmm` |
+| `ass` | Advanced SubStation Alpha: one script with a `Default` style |
 
 ```bash
 transcribe jfk.wav --model whisper-tiny --out jfk.vtt --format vtt
@@ -51,6 +53,33 @@ in seconds:
 Line endings in the exported file are `\n` on every platform — `TranscriptWriter`
 does not go through `TextWriter.WriteLine`, which would emit `\r\n` on Windows —
 so a transcript exported on Windows diffs cleanly against one exported on Linux.
+
+## Subtitles: SRT and ASS
+
+`--format srt` and `--format ass` write the same segments as cues, for a video
+player or a subtitle editor:
+
+```srt
+1
+00:00:00,000 --> 00:00:10,500
+And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.
+```
+
+The ASS form is one script with a `Default` style (Arial 48, bottom-centred), so
+it opens in VLC, mpv or Subtitle Edit without a style to pick first. Both formats
+use the model's own segment boundaries: nothing is re-timed, split or merged to
+make cues look shorter. A model that returns one long segment therefore produces
+one long cue.
+
+Speaker labels are included only when attribution was requested
+(`--no-diarize` removes them); with them, SRT prefixes `Speaker N:` and ASS puts
+the same prefix in the dialogue text. Both are plain renderings of
+`SpeakerSegments`/`Segments`, not a second diarization pass.
+
+The renderer is `src/Shared/SubtitleWriter.cs`, compiled into the CLI, the server
+and the desktop app, so the bytes do not depend on which front end exported them.
+The desktop app's own export menu does **not** offer SRT or ASS yet; that is a
+UI wiring gap, not a library one.
 
 ## HTML
 
@@ -114,8 +143,9 @@ desktop app has no editor: there is no audio-follows-cursor playback and no
 search-and-replace over the transcript. The line numbers exist so a reader can
 cite a position, not so the file can be edited in place.
 
-`html` and `vtt` apply to a transcription (ASR) model only; the CLI refuses them
-for a model that serves another role and points at `plain` or `json` instead.
+`html`, `vtt`, `srt` and `ass` apply to a transcription (ASR) model only; the CLI
+refuses them for a model that serves another role and points at `plain` or `json`
+instead.
 
 ## Speaker attribution in the output
 

@@ -46,6 +46,8 @@ internal static class TranscriptWriter
 
             case TranscriptFormat.Json:
             case TranscriptFormat.Html:
+            case TranscriptFormat.Srt:
+            case TranscriptFormat.Ass:
                 break;
 
             default:
@@ -77,7 +79,9 @@ internal static class TranscriptWriter
 
             case TranscriptFormat.Json:
             case TranscriptFormat.Html:
-                // Both documents are written once, at the end.
+            case TranscriptFormat.Srt:
+            case TranscriptFormat.Ass:
+                // Those documents are written once, at the end.
                 break;
         }
     }
@@ -102,6 +106,16 @@ internal static class TranscriptWriter
                         info.AudioPath, info.Duration, info.ModelLabel, info.Language,
                         Fmt.DiarizeState(info.Diarize), info.WindowSeconds, info.Generated),
                     lines.Select(l => new HtmlTranscriptSegment(l.StartMs, l.EndMs, l.Speaker, l.Text)).ToArray());
+                break;
+
+            case TranscriptFormat.Srt:
+            case TranscriptFormat.Ass:
+                SubtitleWriter.Write(
+                    writer,
+                    format == TranscriptFormat.Srt ? SubtitleFormat.Srt : SubtitleFormat.Ass,
+                    lines.Select(l => new SubtitleCue(l.StartMs, l.EndMs, l.Speaker, l.Text)).ToArray(),
+                    speakerLabels: info.Diarize != DiarizeMode.DiarizeModeOff,
+                    title: $"{Path.GetFileName(info.AudioPath)} — {info.ModelLabel}");
                 break;
 
             case TranscriptFormat.Vtt:

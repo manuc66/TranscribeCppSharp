@@ -40,7 +40,8 @@ internal sealed class ServerOptions
 
         Endpoints:
           POST /v1/audio/transcriptions  multipart: file, model, language,
-                                         response_format (json|text|verbose_json),
+                                         response_format (json|text|verbose_json|
+                                         srt|vtt),
                                          timestamp_granularities[] (segment|word),
                                          diarize
           POST /v1/audio/translations    the same fields; runs transcribe.cpp's
@@ -52,10 +53,9 @@ internal sealed class ServerOptions
         time, so a second request waits instead of corrupting the first.
 
         Refused with a 400 rather than silently ignored: prompt, temperature,
-        response_format=srt|vtt (not implemented yet), and every field not listed
-        above. verbose_json carries the fields this library has; OpenAI's
-        avg_logprob, compression_ratio and token arrays are not produced because
-        transcribe.cpp does not return them.
+        and every field not listed above. verbose_json carries the fields this
+        library has; OpenAI's avg_logprob, compression_ratio and token arrays
+        are not produced because transcribe.cpp does not return them.
         """;
 
     /// <summary>GGUF path or curated alias to serve.</summary>

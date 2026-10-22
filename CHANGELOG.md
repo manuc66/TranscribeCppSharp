@@ -9,6 +9,31 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### New: SRT and ASS export, and subtitle response formats on the server
+
+`--format srt` and `--format ass` join `plain`, `vtt`, `json` and `html` in the CLI.
+Both are rendered by `src/Shared/SubtitleWriter.cs`, compiled into the CLI, the
+server and the desktop app, so the same transcript produces the same bytes wherever
+it is exported from. Cues are the model's own segment boundaries — nothing is
+re-timed, split or merged — and speaker labels are written only when attribution
+was requested, because `Speaker 0:` on every line of a non-diarized run is noise.
+
+The server now accepts `response_format=srt|vtt`. `vtt` is served as `text/vtt`,
+`srt` as `application/x-subrip`.
+
+Not wired: the desktop app's export menu still offers `.txt`, `.vtt`, `.json`,
+`.html` and `.md` only. That is a UI gap, and the docs say so rather than implying
+that picking `.srt` in the GUI does something.
+
+Tests: 11 new `SubtitleWriterTests` for the renderer (numbering, timestamps in all
+three shapes, speaker labels on and off, escaping, empty and blank cues, negative
+times), the CLI's format table updated to accept `srt`/`ass` and still reject
+unknown names, and the server suite grew to 41 tests covering both subtitle
+formats, the `WEBVTT` header, speaker labels following `diarize`, and an unknown
+format still refused. Verified end to end with `test-models/ggml-tiny.bin` and
+`test-audio/jfk.wav`: the CLI wrote a valid `.srt` and `.ass`, and a real HTTP
+request returned SRT and VTT.
+
 ### New: an OpenAI-compatible server
 
 `src/TranscribeCppSharp.Server` serves one loaded model over HTTP with the routes
@@ -21,8 +46,8 @@ Stated limits, because they shape what the server is good for:
 
 - **One request at a time.** transcribe.cpp allows one run per model at a time, so every
   request queues behind one semaphore. A long file blocks the rest.
-- **A subset of OpenAI's fields.** `response_format` is `json`, `text` or
-  `verbose_json`. `prompt`, a non-zero `temperature`, and `response_format=srt|vtt` are
+- **A subset of OpenAI's fields.** `response_format` is `json`, `text`,
+  `verbose_json`, `srt` or `vtt`. `prompt` and a non-zero `temperature` are
   refused with a 400 naming the field, rather than accepted and ignored.
 - **`verbose_json` carries only what the library has.** `task`, `language`, `duration`,
   `text`, `segments` (with `speaker` when attribution ran) and `words` (only when the
@@ -33,7 +58,7 @@ Stated limits, because they shape what the server is good for:
 - **No window fallback.** The GUI lowers the window and retries after an out-of-memory
   failure; the server does not yet, so `--chunk` must be chosen for the device.
 
-The endpoint contract is covered by 38 tests that drive the real Kestrel pipeline with a
+The endpoint contract is covered by 41 tests that drive the real Kestrel pipeline with a
 fake backend: no model, no native library, no GPU. A manual run against
 `test-models/ggml-tiny.bin` and `test-audio/jfk.wav` returned the expected transcript in
 `json`, `text` and `verbose_json`. The server is not packaged (no NuGet, no release
