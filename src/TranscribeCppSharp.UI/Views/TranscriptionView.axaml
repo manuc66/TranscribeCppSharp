@@ -283,7 +283,8 @@
                 <TextBlock Text="{Binding RunButtonText}" />
               </StackPanel>
             </Button>
-            <Button Command="{Binding CancelTranscriptionCommand}" IsEnabled="{Binding CanCancelTranscription}" Margin="8,0,0,0"
+            <Button Command="{Binding CancelTranscriptionCommand}" IsEnabled="{Binding CanCancelTranscription}"
+                    IsVisible="{Binding IsTranscribing}" Margin="8,0,0,0"
                     AutomationProperties.AutomationId="transcription-cancel"
                     AutomationProperties.Name="Cancel transcription"
                     ToolTip.Tip="Stop the run in flight. The native abort is polled between decode steps, so it is not instant. The partial result is discarded: the wrapper does not read it out, and the tab says so.">
