@@ -484,6 +484,14 @@ come to 58 GiB, which is why the grid starts empty of weights and shows what is 
   two: `diar_streaming_sortformer_4spk-v2.1` and `multitalker-parakeet-streaming-0.6b-v1` —
   filter by `streaming` and read the Diarization column, which now answers for ten models
   rather than waiting for a download.
+- **Filter by role.** The picker beside the capability filter narrows the grid to the role
+  transcribe.cpp records: speech to text (the role their catalog leaves implicit), diarization,
+  language identification or speech detection. The role also appears under the alias for the
+  three non-ASR models, so a diarizer, the language identifier or the VAD model is visible
+  without opening the detail pane; ASR is the ordinary case and stays unlabelled. A model with
+  no record is hidden while a role is set, because unknown is not the role asked for. The
+  detail pane names the role and whose statement it is: the catalog is what the tab can show
+  before a download, and the loaded model reports its own role.
 - **The detail pane quotes upstream.** Below the grid, the selected model shows what
   [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) itself records:
   the parameter count and the checkpoint it was converted from, every quantization they

@@ -163,6 +163,74 @@ public class ModelCatalogItem : System.ComponentModel.INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Upstream's role key for this model, or null when it records no role.
+    /// </summary>
+    /// <remarks>
+    /// Their catalog spells ASR by leaving <c>role</c> out, so an absent field on a
+    /// known record is read as <c>asr</c>, not as unknown. A model with no record at
+    /// all keeps null: that one is genuinely unknown and the role filter hides it.
+    /// </remarks>
+    public string? RoleKey
+    {
+        get
+        {
+            UpstreamCatalog.Record? record = Upstream;
+            if (record is null)
+            {
+                return null;
+            }
+
+            return string.IsNullOrEmpty(record.Role) ? "asr" : record.Role;
+        }
+    }
+
+    /// <summary>
+    /// Whether the role is worth a tag on the row.
+    /// </summary>
+    /// <remarks>
+    /// ASR is the ordinary case: 73 of the 76 rows would carry the same word.
+    /// The tag marks the exceptions a reader is looking for — a diarizer, a
+    /// language identifier, a VAD model — and leaves the rest of the grid as it
+    /// was. The role filter still includes ASR, and the detail pane always names
+    /// the role.
+    /// </remarks>
+    public bool IsNonAsrRole => RoleKey is not ("asr" or null);
+
+    /// <summary>The role in the words the grid and the filter show.</summary>
+    public string RoleText => RoleKey switch
+    {
+        "asr" => "ASR",
+        "diarize" => "Diarization",
+        "langid" => "Language ID",
+        "vad" => "Speech detection",
+        null => "unknown",
+        _ => RoleKey,
+    };
+
+    /// <summary>
+    /// What the role means, and whose statement it is.
+    /// </summary>
+    /// <remarks>
+    /// The loaded model is the authority — it reports its own role through
+    /// <c>Model.Roles</c>. This line is upstream's catalog, which is what the Models
+    /// tab can show before a download; saying so is what keeps the two apart.
+    /// </remarks>
+    public string RoleDetail => RoleKey switch
+    {
+        "asr" => "Role: speech recognition (ASR) — per transcribe.cpp's catalog, "
+            + "which leaves the role implicit for ASR models. The loaded model reports its own role.",
+        "diarize" => "Role: speaker diarization — per transcribe.cpp's catalog. "
+            + "The loaded model reports its own role.",
+        "langid" => "Role: language identification — per transcribe.cpp's catalog. "
+            + "The loaded model reports its own role.",
+        "vad" => "Role: speech detection — per transcribe.cpp's catalog. "
+            + "The loaded model reports its own role.",
+        null => "Role: unknown — no catalog record for this model.",
+        _ => $"Role: {RoleKey} — per transcribe.cpp's catalog. "
+            + "The loaded model reports its own role.",
+    };
+
+    /// <summary>
     /// Every quantization upstream publishes, and what each weighs.
     /// </summary>
     /// <remarks>

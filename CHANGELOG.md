@@ -9,6 +9,26 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the Models tab says which role a model serves
+
+The catalogue already carries upstream's `role` field, but the GUI never read it:
+the 73 ASR entries, the dedicated diarizer, the language identifier and the VAD
+model looked alike, and nothing said which was which. The role is now read and
+shown under the alias for the three non-ASR models — ASR is the ordinary case and
+stays unlabelled — and a **Role** filter narrows the grid to speech to text,
+diarization, language identification or speech detection. The detail pane names
+the role and says it comes from transcribe.cpp's catalog, while the loaded model
+reports its own role.
+
+This makes the existing LANGID and VAD support discoverable without adding a
+model or an algorithm: `lang-id-voxlingua107-ecapa` and `silero-vad-v6.2` were
+already in the manifest and runnable, but the UI gave no way to know it. The role
+filter uses the catalog, so it works before a download; a model with no record is
+hidden while a role is set, because unknown is not the role asked for.
+
+Tests: the role mapping for all 76 entries, the filter's reach and its Clear
+behaviour, and the role column; the full UI suite is 341 passed.
+
 ### UI: the Window setting now actually splits the audio
 
 `TranscriptionService.RunAsr` passed `WindowSeconds` to `WindowPlanner.TryPlan`,

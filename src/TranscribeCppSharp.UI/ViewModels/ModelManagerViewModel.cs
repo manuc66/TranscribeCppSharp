@@ -174,6 +174,19 @@ public partial class ModelManagerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
     private string? _featureFilter;
 
+    /// <summary>
+    /// Role to show, or null for every role.
+    /// </summary>
+    /// <remarks>
+    /// A record rather than a string so the picker can show "Language ID" while the
+    /// comparison uses upstream's key ("langid"). The key is what
+    /// <see cref="ModelCatalogItem.RoleKey"/> carries.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyQuickFilter))]
+    [NotifyPropertyChangedFor(nameof(ActiveFilterSummary))]
+    private ModelRoleOption? _roleFilter;
+
     /// <summary>Language to show, or null for every language.</summary>
     /// <remarks>
     /// Codes, not names: the manifest stores what the model card states, which is
@@ -305,6 +318,22 @@ public partial class ModelManagerViewModel : ObservableObject
     /// </remarks>
     public IReadOnlyList<string> Features { get; } = UpstreamCatalog.FeatureKeys;
 
+    /// <summary>
+    /// Roles upstream records, for the role filter.
+    /// </summary>
+    /// <remarks>
+    /// Four values, and ASR is the one their catalog leaves implicit. The keys are
+    /// theirs; the labels are only what the picker shows. A model with no catalog
+    /// record is hidden while a role is selected, because unknown is not a role.
+    /// </remarks>
+    public IReadOnlyList<ModelRoleOption> Roles { get; } = new[]
+    {
+        new ModelRoleOption("asr", "Speech to text"),
+        new ModelRoleOption("diarize", "Diarization"),
+        new ModelRoleOption("langid", "Language ID"),
+        new ModelRoleOption("vad", "Speech detection"),
+    };
+
     /// <summary>Licences present in the manifest, for the licence filter.</summary>
     public IReadOnlyList<string> Licenses { get; } =
         ModelStore.Catalog
@@ -341,7 +370,8 @@ public partial class ModelManagerViewModel : ObservableObject
         || SizeFilter != ModelSizeFilter.Any
         || !string.IsNullOrEmpty(LicenseFilter)
         || !string.IsNullOrEmpty(LanguageFilter)
-        || !string.IsNullOrEmpty(FeatureFilter);
+        || !string.IsNullOrEmpty(FeatureFilter)
+        || RoleFilter is not null;
 
     /// <summary>
     /// The quick filters in force, as one line, or empty when none are.
@@ -383,6 +413,11 @@ public partial class ModelManagerViewModel : ObservableObject
             if (!string.IsNullOrEmpty(FeatureFilter))
             {
                 parts.Add($"capability {FeatureFilter}");
+            }
+
+            if (RoleFilter is { } role)
+            {
+                parts.Add($"role {role.Label.ToLowerInvariant()}");
             }
 
             if (!string.IsNullOrWhiteSpace(Filter))
@@ -473,6 +508,8 @@ public partial class ModelManagerViewModel : ObservableObject
     partial void OnLanguageFilterChanged(string? value) => ApplyFilter();
 
     partial void OnFeatureFilterChanged(string? value) => ApplyFilter();
+
+    partial void OnRoleFilterChanged(ModelRoleOption? value) => ApplyFilter();
 
     partial void OnBusyAliasChanged(string? value)
     {
@@ -800,6 +837,15 @@ public partial class ModelManagerViewModel : ObservableObject
                 continue;
             }
 
+            // Role comes from upstream's catalog, which records it for the
+            // non-ASR entries and leaves it implicit for ASR. A row with no record
+            // is hidden while a role is set: unknown is not the role asked for.
+            if (RoleFilter is { } role
+                && !string.Equals(item.RoleKey, role.Key, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             if (!string.IsNullOrEmpty(needle)
                 && !item.Alias.Contains(needle, StringComparison.OrdinalIgnoreCase)
                 && !item.Repo.Contains(needle, StringComparison.OrdinalIgnoreCase)
@@ -839,6 +885,7 @@ public partial class ModelManagerViewModel : ObservableObject
         LicenseFilter = null;
         LanguageFilter = null;
         FeatureFilter = null;
+        RoleFilter = null;
         ApplyFilter();
     }
 

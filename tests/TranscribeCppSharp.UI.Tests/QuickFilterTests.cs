@@ -225,6 +225,62 @@ public class QuickFilterTests
         Assert.Equal(ModelStore.Catalog.Count, viewModel.VisibleModels.Count);
     }
 
+    /// <summary>
+    /// The role filter reaches the rows, and a role is not a capability: an ASR
+    /// model with native diarization is still an ASR model.
+    /// </summary>
+    [AvaloniaFact]
+    public void PickingARoleNarrowsTheGridToThatRole()
+    {
+        var (window, viewModel, _) = Show();
+        ComboBox role = Find(window, "models-role-filter");
+
+        Assert.NotEmpty(role.Items);
+        Assert.Null(role.SelectedItem);
+
+        ModelRoleOption langid = viewModel.Roles.Single(o => o.Key == "langid");
+        role.SelectedItem = langid;
+        Settle(window);
+
+        Assert.Same(langid, viewModel.RoleFilter);
+        Assert.NotEmpty(viewModel.VisibleModels);
+        Assert.All(viewModel.VisibleModels, m => Assert.Equal("langid", m.RoleKey));
+        Assert.Contains(viewModel.VisibleModels, m => m.Alias == "lang-id-voxlingua107-ecapa");
+
+        // The negative: a plain ASR model is gone, and so is a model that only
+        // *can* diarize (MOSS is still an ASR model, not the DIARIZE role).
+        Assert.DoesNotContain(viewModel.VisibleModels, m => m.Alias == "whisper-tiny");
+        Assert.DoesNotContain(viewModel.VisibleModels, m => m.Alias == "moss-transcribe-diarize");
+
+        // The picker shows the label, not the record's ToString().
+        IEnumerable<string?> shown = role.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .Select(t => t.Text);
+        Assert.Contains(shown, text => text == "Language ID");
+        Assert.DoesNotContain(shown, text => text is not null && text.Contains("ModelRoleOption", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public void TheRoleFilterCountsAsSomethingToClear()
+    {
+        var (window, viewModel, _) = Show();
+        ComboBox role = Find(window, "models-role-filter");
+
+        role.SelectedItem = viewModel.Roles.Single(o => o.Key == "vad");
+        Settle(window);
+
+        Assert.True(viewModel.HasAnyQuickFilter,
+            "Clear is bound to this, so a role must count as something to clear");
+        Assert.Contains("role speech detection", viewModel.ActiveFilterSummary.ToLowerInvariant(),
+            StringComparison.Ordinal);
+
+        viewModel.ClearFiltersCommand.Execute(null);
+
+        Assert.Null(viewModel.RoleFilter);
+        Assert.False(viewModel.HasAnyQuickFilter);
+        Assert.Equal(ModelStore.Catalog.Count, viewModel.VisibleModels.Count);
+    }
+
     /// <summary>Locate a control by the automation id the tests pin.</summary>
     private static ComboBox Find(Window window, string id)
     {

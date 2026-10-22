@@ -44,6 +44,39 @@ public class UpstreamCatalogDetailTests
     }
 
     [Fact]
+    public void TheCatalogRoleIsReadAndNamed()
+    {
+        // ASR is the role upstream leaves implicit; the other three are explicit
+        // keys. The words are the ones the grid and the filter show.
+        Assert.Equal("ASR", Item("whisper-tiny").RoleText);
+        Assert.Equal("Diarization", Item("diar_streaming_sortformer_4spk-v2.1").RoleText);
+        Assert.Equal("Language ID", Item("lang-id-voxlingua107-ecapa").RoleText);
+        Assert.Equal("Speech detection", Item("silero-vad-v6.2").RoleText);
+
+        // The line says whose statement it is, so the catalog cannot be mistaken
+        // for what the loaded model reports.
+        Assert.Contains("catalog", Item("lang-id-voxlingua107-ecapa").RoleDetail, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("loaded model", Item("lang-id-voxlingua107-ecapa").RoleDetail, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EveryModelHasARoleAndTheCatalogCountsMatch()
+    {
+        // 73 ASR (role absent), one dedicated diarizer, one language identifier,
+        // one VAD model. The three ASR models with diarization are still ASR: the
+        // role is what the model serves, the capability is what it can do.
+        var counts = ModelStore.Catalog
+            .GroupBy(d => new ModelCatalogItem(d).RoleKey ?? "unknown")
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        Assert.Equal(73, counts["asr"]);
+        Assert.Equal(1, counts["diarize"]);
+        Assert.Equal(1, counts["langid"]);
+        Assert.Equal(1, counts["vad"]);
+        Assert.DoesNotContain("unknown", counts.Keys);
+    }
+
+    [Fact]
     public void TheDetailPaneCarriesUpstreamIdentity()
     {
         ModelCatalogItem item = Item("whisper-tiny");

@@ -121,6 +121,11 @@ internal static class UpstreamCatalog
     /// carry accuracy and speed tables, and only what the front ends display is
     /// read here — nothing is fetched to be thrown away.
     /// </summary>
+    /// <remarks>
+    /// <c>Role</c> is upstream's role key ("diarize", "langid", "vad"). It is
+    /// absent for the 73 speech-to-text entries, which is how their catalog spells
+    /// ASR rather than a missing answer.
+    /// </remarks>
     public sealed record Record(
         string? Family,
         long Params,
@@ -130,7 +135,8 @@ internal static class UpstreamCatalog
         Dictionary<string, Capability>? Capabilities,
         List<Download>? Downloads,
         List<Accuracy>? AccuracyBenchmarks,
-        Headline? HeadlineBenchmark)
+        Headline? HeadlineBenchmark,
+        string? Role = null)
     {
         public bool HasIdentity =>
             Family is not null || Params > 0 || UpstreamRepo is not null;

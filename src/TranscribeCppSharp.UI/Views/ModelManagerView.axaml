@@ -123,6 +123,21 @@
                 AutomationProperties.Name="Capability filter"
                 ToolTip.Tip="Show only the models transcribe.cpp records as supporting this capability — streaming, diarize, translate, timestamps, and the rest. The names are theirs, not translated. A model with no record is hidden while this is set, because unknown is not the same as yes." />
 
+      <ComboBox Margin="12,0,0,0" MinWidth="150"
+                ItemsSource="{Binding Roles}"
+                SelectedItem="{Binding RoleFilter}"
+                PlaceholderText="Any role"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.AutomationId="models-role-filter"
+                AutomationProperties.Name="Role filter"
+                ToolTip.Tip="Show only the models whose role transcribe.cpp records: speech to text, diarization, language identification or speech detection. The loaded model reports its own role; this filter uses the catalog, so it can be used before a download. A model with no record is hidden while this is set, because unknown is not the same as yes.">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="m:ModelRoleOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
       <Button Command="{Binding ClearFiltersCommand}" Margin="12,0,0,0"
               IsEnabled="{Binding HasAnyQuickFilter}"
               AutomationProperties.AutomationId="models-clear-filters"
@@ -229,13 +244,21 @@
              written for this and bound to nothing, so the banner pointed at a
              mark no one could see. Template rather than a plain text column so
              the alias stays clean and the mark reads as an aside. -->
-        <DataGridTemplateColumn Header="Alias" Width="1.3*" Tag="alias" SortMemberPath="Alias">
+        <DataGridTemplateColumn Header="Alias" Width="1.6*" Tag="alias" SortMemberPath="Alias">
           <DataTemplate x:DataType="m:ModelCatalogItem">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="{Binding Alias}" />
-              <TextBlock Text="default" Opacity="0.7"
-                         IsVisible="{Binding IsDefaultModel}"
-                         ToolTip.Tip="The alias the transcribe CLI uses when none is given. Not a claim about quality or speed: this project publishes no comparison between the models." />
+            <!-- Two lines rather than a separate column: the role is a category
+                 that belongs to the model, and a ninth column squeezed the
+                 alias, size and licence cells until they truncated. -->
+            <StackPanel Spacing="1">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding Alias}" />
+                <TextBlock Text="default" Opacity="0.7"
+                           IsVisible="{Binding IsDefaultModel}"
+                           ToolTip.Tip="The alias the transcribe CLI uses when none is given. Not a claim about quality or speed: this project publishes no comparison between the models." />
+              </StackPanel>
+              <TextBlock Text="{Binding RoleText}" FontSize="11" Opacity="0.7"
+                         IsVisible="{Binding IsNonAsrRole}"
+                         ToolTip.Tip="{Binding RoleDetail}" />
             </StackPanel>
           </DataTemplate>
         </DataGridTemplateColumn>
@@ -340,6 +363,10 @@
           <StackPanel Spacing="2" DataContext="{Binding SelectedModel}">
             <TextBlock Text="{Binding Alias}" FontWeight="Bold" FontSize="15" />
             <TextBlock Text="{Binding Repo}" Opacity="0.8" />
+            <TextBlock Text="{Binding RoleDetail}" Opacity="0.8" TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="models-role-detail"
+                       AutomationProperties.Name="Model role"
+                       ToolTip.Tip="The role transcribe.cpp's catalog records for this model. The loaded model reports its own role when it is checked, which is the authority; this line is what is known before a download." />
             <HyperlinkButton Classes="link"
                              Content="Model card and accuracy tables on Hugging Face ↗"
                              NavigateUri="{Binding ModelCardUri}"

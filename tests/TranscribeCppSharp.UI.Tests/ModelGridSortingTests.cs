@@ -26,7 +26,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// </remarks>
 public class ModelGridSortingTests
 {
-    /// <summary>The columns with an order behind them, and the two without.</summary>
+    /// <summary>The columns with an order behind them, and the ones without.</summary>
     private static readonly string[] SortableColumns =
         ["Alias", "Family", "Size", "On disk", "Licence", "Languages", "x realtime", "Diarization"];
 
