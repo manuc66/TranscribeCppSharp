@@ -109,11 +109,11 @@ yet, or a settings file that cannot be read, the first alias is selected as befo
 
 Pick a file, a model and the decoder settings, then run.
 
-The form is ordered as the decisions are: **1. Audio**, **2. Model and language**,
-**3. Speaker labels**, **4. Transcript**, then one **Advanced settings** disclosure for the
-decoder tuning that has a working default. One line under the model restates what the run will
-do (`whisper-tiny: transcribe, language fr, every segment as Speaker 0, windows of 300 s`), so
-the pickers and the result cannot disagree after the fact. The primary button is disabled until
+The form is ordered as the decisions are: **Audio**, **Model and language**, **Speaker
+labels**, **Run options**, then one **Advanced settings** disclosure for the decoder tuning
+that has a working default. One line under the model restates what the run will do (`Will
+transcribe, language fr, every segment as Speaker 0, windows of 300 s`), so the pickers and the
+result cannot disagree after the fact. The primary button is disabled until
 a model is on disk, a file is selected and still exists, and a requested speaker attribution can
 actually be produced; when it is disabled, the line under it names the missing piece and where
 to get it instead of leaving a dead button.
@@ -281,8 +281,8 @@ file records its folder in `ui-settings.json` beside the log. A folder that has 
 removed is ignored for that launch and the dialog falls back to its own default; the path stays
 in the file, so a drive that comes back is still the last one used.
 
-Beneath the result tabs sit three export options, which change the exported
-document and nothing else:
+Above the result tabs, beside **Export**, sit three export options that change the
+exported document and nothing else:
 
 | Setting | Default | What it does |
 |---|---|---|
