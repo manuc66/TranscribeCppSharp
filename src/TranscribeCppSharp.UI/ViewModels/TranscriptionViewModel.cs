@@ -146,6 +146,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
+    [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isCheckingCapabilities;
@@ -432,7 +433,8 @@ public partial class TranscriptionViewModel : ObservableObject
     /// every other setting: a run works from its snapshot, so toggling the intent
     /// mid-run would only change what the reader believes the run did.
     /// </summary>
-    public bool CanEditSpeakerLabels => CanEditSettings && CanAskForSpeakerLabels;
+    public bool CanEditSpeakerLabels
+        => CanEditSettings && !IsCheckingCapabilities && CanAskForSpeakerLabels;
 
     /// <summary>
     /// The reader's explicit intent: tick the box to attribute speakers, leave it

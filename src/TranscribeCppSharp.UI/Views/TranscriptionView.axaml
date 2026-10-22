@@ -74,7 +74,7 @@
           <Grid ColumnDefinitions="*,*">
             <StackPanel Grid.Column="0" Grid.ColumnSpan="{Binding ModelColumnSpan}" Margin="0,0,8,0">
               <TextBlock Text="Model" Classes="label"
-                         ToolTip.Tip="Which speech-to-text model to run. Downloaded from HuggingFace on first use and cached, so the first run of a model needs a network connection. The Models tab shows what is already on disk and deletes it." />
+                         ToolTip.Tip="Which speech-to-text model to run. This picker lists what is already on disk, so a run needs no network. The Models tab downloads and deletes models." />
               <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding ModelAlias}"
                         HorizontalAlignment="Stretch"
                         IsEnabled="{Binding CanEditSettings}"
@@ -93,7 +93,7 @@
                         Padding="8,2" Margin="8,0,0,0"
                         AutomationProperties.AutomationId="transcription-get-models"
                         AutomationProperties.Name="Get more models"
-                        ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A model is fetched on first use and cached.">
+                        ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A downloaded model appears in this picker when you come back.">
                   <StackPanel Classes="buttonContent">
                     <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
                     <TextBlock Text="Get more…" />
