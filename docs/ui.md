@@ -627,6 +627,10 @@ Two consequences worth knowing:
   picker says why. Hiding an option on a guess would hide one that would have worked.
 - **The probe loads on the CPU**, so checking a model's capabilities does not take the GPU
   away from a run already using it.
+- **The run asks for AUTO timestamp granularity**, not a fixed SEGMENT. AUTO is the one value
+  the native dispatcher never rejects; the model resolves it to its own maximum. A fixed
+  SEGMENT failed on granite-speech-4.1-2b-plus, which reports WORD and still rejects SEGMENT
+  with `ErrUnsupportedTimestamps`.
 
 The language picker works the same way: ten codes stand in while nothing has been probed,
 and a probed model replaces that list with the languages it actually reports. The UI used to

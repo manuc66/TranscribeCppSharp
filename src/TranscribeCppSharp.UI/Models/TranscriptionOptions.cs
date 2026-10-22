@@ -5,7 +5,17 @@ namespace TranscribeCppSharp.UI.Models;
 public class TranscriptionOptions
 {
     public string Language { get; set; } = "en";
-    public TimestampKind TimestampKind { get; set; } = TimestampKind.TimestampsSegment;
+    /// <summary>
+    /// The timestamp granularity to request, or AUTO to let the model resolve it.
+    /// </summary>
+    /// <remarks>
+    /// AUTO is the one value the native dispatcher never rejects: it is passed
+    /// through and the family resolves it to its own max_timestamp_kind. An
+    /// explicit kind can fail with ErrUnsupportedTimestamps even when the
+    /// capability's ordering suggests otherwise: granite-speech-4.1-2b-plus
+    /// reports WORD and rejects SEGMENT.
+    /// </remarks>
+    public TimestampKind TimestampKind { get; set; } = TimestampKind.TimestampsAuto;
     public DiarizeMode DiarizeMode { get; set; } = DiarizeMode.DiarizeModeDefault;
 
     /// <summary>

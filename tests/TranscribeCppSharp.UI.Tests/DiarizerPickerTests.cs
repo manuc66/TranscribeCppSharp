@@ -204,6 +204,27 @@ public class DiarizerPickerTests
     }
 
     [Fact]
+    public void TheRunAsksForAutoTimestampsEvenWhenTheMaximumLooksFiner()
+    {
+        // granite-speech-4.1-2b-plus reports WORD (numerically finer than
+        // SEGMENT) and still rejects an explicit SEGMENT with
+        // ErrUnsupportedTimestamps. AUTO is never rejected and resolves to what
+        // the family actually produces, so the run must not infer SEGMENT from
+        // the capability's ordering.
+        InCache(() =>
+        {
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            viewModel.ApplyCapabilities(
+                Snapshot(TranscribeRole.Asr, maxTimestamps: TimestampKind.TimestampsWord));
+
+            Assert.Equal(
+                TimestampKind.TimestampsAuto,
+                viewModel.BuildTranscriptionOptions().TimestampKind);
+        });
+    }
+
+    [Fact]
     public void NoDiarizerDownloadedBlocksTheRunInsteadOfProducingSpeakerZero()
     {
         InCache(() =>

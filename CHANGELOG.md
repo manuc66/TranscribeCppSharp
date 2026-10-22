@@ -29,6 +29,16 @@ hidden while a role is set, because unknown is not the role asked for.
 Tests: the role mapping for all 76 entries, the filter's reach and its Clear
 behaviour, and the role column; the full UI suite is 341 passed.
 
+### UI: let the model resolve the timestamp granularity
+
+The tab asked every model for SEGMENT timestamps. granite-speech-4.1-2b-plus
+reports a maximum of WORD (numerically finer) and still rejects an explicit
+SEGMENT with `ErrUnsupportedTimestamps` (12), so every run of that model failed
+before producing text. The run now always asks for AUTO, the one value the
+dispatcher never rejects and which the family resolves to its own maximum; the
+batch path does the same. Verified through the UI service on the granite model:
+one 30 s window completed with 107 characters, where SEGMENT failed.
+
 ### UI: the Window setting now actually splits the audio
 
 `TranscriptionService.RunAsr` passed `WindowSeconds` to `WindowPlanner.TryPlan`,

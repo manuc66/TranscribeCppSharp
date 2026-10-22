@@ -217,7 +217,11 @@ public partial class BatchViewModel : ObservableObject
                 BackendRequest = _settings.SelectedBackend,
                 Device = _settings.SelectedDevice,
                 Language = Language,
-                TimestampKind = TimestampKind.TimestampsSegment,
+                // The batch has no capability snapshot for its model, so it asks
+                // for the one value the dispatcher never rejects: AUTO resolves
+                // to the family's own maximum. SEGMENT would fail on a model whose
+                // maximum is coarser (granite-speech-4.1-2b-plus, for one).
+                TimestampKind = TimestampKind.TimestampsAuto,
                 DiarizeMode = DiarizeMode.DiarizeModeDefault
             };
 
