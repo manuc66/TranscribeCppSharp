@@ -266,6 +266,35 @@ public class DiarizerPickerTests
         });
     }
 
+    [Fact]
+    public void ARestoredResultWithSpeakersSaysTheControlsAreForTheNextRun()
+    {
+        InCache(() =>
+        {
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+            viewModel.Result = new TranscriptionResult
+            {
+                SpeakerSegments =
+                [
+                    new SpeakerSegmentResult(
+                        TimeSpan.Zero, TimeSpan.FromSeconds(2), 1, 0.9f),
+                ],
+            };
+            viewModel.HasResult = true;
+
+            Assert.False(viewModel.LabelSpeakers);
+            Assert.True(viewModel.HasResultSpeakersNote);
+            Assert.Contains("next run", viewModel.ResultSpeakersNote, StringComparison.Ordinal);
+
+            // Once the intent is on, the plan line already says what will happen;
+            // the note about the old result would only add noise.
+            viewModel.LabelSpeakers = true;
+            Assert.False(viewModel.HasResultSpeakersNote);
+        });
+    }
+
     [AvaloniaFact]
     public void TheSpeakerCheckboxFollowsTheSettingsLock()
     {

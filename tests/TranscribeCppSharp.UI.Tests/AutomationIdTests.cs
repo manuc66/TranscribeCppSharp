@@ -48,6 +48,7 @@ public class AutomationIdTests
         "transcription-diarize",
         "transcription-diarizer",
         "transcription-diarizer-plan",
+        "transcription-result-speakers-note",
         "transcription-diarizer-language-warning",
         "transcription-diarizer-unavailable",
         "transcription-spec-k-drafts",

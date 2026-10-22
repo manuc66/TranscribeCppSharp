@@ -203,7 +203,22 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _vocabulary = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResultSpeakersNote))]
+    [NotifyPropertyChangedFor(nameof(HasResultSpeakersNote))]
     private bool _hasResult;
+
+    /// <summary>
+    /// A note when the result on screen already has speaker turns while the
+    /// checkbox is clear. The speaker controls describe the next run; a restored
+    /// diarized history entry would otherwise look as if its speakers were gone.
+    /// </summary>
+    public string ResultSpeakersNote
+        => HasResult && !LabelSpeakers && Result?.SpeakerSegments.Count > 0
+            ? "The result on screen already has its speaker turns; these controls describe the next run."
+            : string.Empty;
+
+    /// <summary>Whether <see cref="ResultSpeakersNote"/> has something to say.</summary>
+    public bool HasResultSpeakersNote => ResultSpeakersNote.Length > 0;
 
     /// <summary>
     /// The text of the windows finished so far, while a run is in flight. One
@@ -477,6 +492,8 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasDiarizerLanguageWarning))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
+    [NotifyPropertyChangedFor(nameof(ResultSpeakersNote))]
+    [NotifyPropertyChangedFor(nameof(HasResultSpeakersNote))]
     private bool _labelSpeakers;
 
     /// <summary>
@@ -1354,6 +1371,8 @@ public partial class TranscriptionViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(HasSpeakerNames));
+        OnPropertyChanged(nameof(ResultSpeakersNote));
+        OnPropertyChanged(nameof(HasResultSpeakersNote));
     }
 
     /// <summary>The names that were actually typed, by speaker id.</summary>
