@@ -213,9 +213,11 @@ the next warning uses its measurement. The button is offered only for a model th
 the probe runs one ASR window, and the DIARIZE, LANGID and VAD roles have no such session to
 probe.
 
-**While a run is in flight, the progress card says what the bar is counting.** The phases are
-the ones the service can actually observe, and the card distinguishes them instead of leaving a
-bar at zero:
+**While a run is in flight, the progress block says what the bar is counting.** It appears in
+the run card, directly under the button that started it, so a run never begins with the
+feedback below the fold; the status line takes over again with the completion or the failure.
+The phases are the ones the service can actually observe, and the block distinguishes them
+instead of leaving a bar at zero:
 
 | Phase | Bar | The line above it |
 |---|---|---|

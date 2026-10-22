@@ -58,6 +58,9 @@ public class TranscriptionProgressTests
 
             Assert.True(viewModel.ProgressIsIndeterminate);
             Assert.False(viewModel.ShowProgressPercent);
+            // The progress block speaks while the run is in flight; the status
+            // line is for the completion or the failure.
+            Assert.False(viewModel.ShowStatus);
             Assert.Contains("Loading", viewModel.ProgressStage, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("no progress", viewModel.ProgressNote, StringComparison.OrdinalIgnoreCase);
 
@@ -84,6 +87,7 @@ public class TranscriptionProgressTests
             // run ends instead of showing a frozen number.
             Assert.Equal(string.Empty, viewModel.ElapsedText);
             Assert.Equal(string.Empty, viewModel.RemainingText);
+            Assert.True(viewModel.ShowStatus);
         });
     }
 

@@ -34,9 +34,11 @@ no segment timings, and the note in its place explains why.
 
 ### UI: a real progression, with indeterminate phases where nothing is measured
 
-The progress card now distinguishes what the service can observe. Loading the model and reading
-or decoding the audio are indeterminate, with a line saying the native library reports no
-fraction for them. The offline ASR path fills the bar by finished windows and names them
+The progress block now sits in the run card, directly under the button that starts the run, so
+the feedback cannot appear below the fold; the status line is hidden while it is showing and
+returns with the completion or the failure. It distinguishes what the service can observe.
+Loading the model and reading or decoding the audio are indeterminate, with a line saying the
+native library reports no fraction for them. The offline ASR path fills the bar by finished windows and names them
 (`Transcribing — window 3 of 12`). A chained diarizer is indeterminate too, and the card says it
 runs the whole file in one native call, instead of holding a percentage at 95%. The percentage
 is hidden while the bar is indeterminate. An elapsed clock is measured from the start of the

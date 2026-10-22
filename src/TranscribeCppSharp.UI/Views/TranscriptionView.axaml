@@ -307,6 +307,60 @@
                      IsVisible="{Binding HasRunBlockedReason}"
                      AutomationProperties.AutomationId="transcription-run-blocked"
                      AutomationProperties.Name="Why the run cannot start" />
+
+          <!-- Feedback sits directly under the action that started it. A progress
+               card placed below the button could start below the fold, which made
+               a running job look like a click that did nothing. -->
+          <StackPanel IsVisible="{Binding IsTranscribing}" Spacing="6" Margin="0,4,0,0"
+                      AutomationProperties.AutomationId="transcription-progress-card"
+                      AutomationProperties.Name="Transcription progress">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Text="{Binding ProgressStage}" Classes="label" TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="transcription-progress-stage"
+                         AutomationProperties.Name="Transcription progress stage" />
+              <TextBlock Grid.Column="1" Text="{Binding Progress, StringFormat='{}{0:P0}'}"
+                         IsVisible="{Binding ShowProgressPercent}"
+                         VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="44" TextAlignment="Right"
+                         AutomationProperties.AutomationId="transcription-progress-percent"
+                         AutomationProperties.Name="Transcription progress percentage" />
+            </Grid>
+            <ProgressBar Value="{Binding Progress}" Maximum="1"
+                         IsIndeterminate="{Binding ProgressIsIndeterminate}"
+                         AutomationProperties.AutomationId="transcription-progress"
+                         AutomationProperties.Name="Transcription progress" />
+            <TextBlock Text="{Binding ProgressNote}" Classes="hint" TextWrapping="Wrap"
+                       IsVisible="{Binding ProgressNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       AutomationProperties.AutomationId="transcription-progress-note"
+                       AutomationProperties.Name="Progress note" />
+            <StackPanel Orientation="Horizontal" Spacing="16">
+              <TextBlock Text="{Binding ElapsedText, StringFormat='elapsed {0}'}" Classes="hint"
+                         IsVisible="{Binding ElapsedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.AutomationId="transcription-elapsed"
+                         AutomationProperties.Name="Elapsed time" />
+              <TextBlock Text="{Binding RemainingText}" Classes="hint"
+                         IsVisible="{Binding RemainingText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.AutomationId="transcription-remaining"
+                         AutomationProperties.Name="Estimated time left" />
+            </StackPanel>
+          </StackPanel>
+
+          <!-- What the last run said. Hidden while the progress block already says
+               what is happening; it reappears with the completion or the failure. -->
+          <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowStatus}">
+            <SelectableTextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
+                                 AutomationProperties.AutomationId="transcription-status"
+                                 AutomationProperties.Name="Status" />
+            <Button Grid.Column="1" Command="{Binding CopyErrorCommand}"
+                    IsVisible="{Binding CanCopyError}" Margin="8,0,0,0" VerticalAlignment="Top"
+                    AutomationProperties.AutomationId="transcription-copy-error"
+                    AutomationProperties.Name="Copy error details"
+                    ToolTip.Tip="Copy the last failure in full — type, message, native status, failed method, log path and stack trace — so it can be pasted into a bug report.">
+              <StackPanel Classes="buttonContent">
+                <materialIcons:MaterialIcon Kind="AlertCircleOutline" />
+                <TextBlock Text="Copy error" />
+              </StackPanel>
+            </Button>
+          </Grid>
         </StackPanel>
       </Border>
 
@@ -400,61 +454,6 @@
           </Grid>
         </StackPanel>
       </Expander>
-      <!-- Progress: the countable step, the fraction, and what the fraction does
-           and does not include. -->
-      <Border Classes="card" IsVisible="{Binding IsTranscribing}"
-              AutomationProperties.AutomationId="transcription-progress-card"
-              AutomationProperties.Name="Transcription progress">
-        <StackPanel Spacing="6">
-          <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Grid.Column="0" Text="{Binding ProgressStage}" Classes="label" TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="transcription-progress-stage"
-                       AutomationProperties.Name="Transcription progress stage" />
-            <TextBlock Grid.Column="1" Text="{Binding Progress, StringFormat='{}{0:P0}'}"
-                       IsVisible="{Binding ShowProgressPercent}"
-                       VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="44" TextAlignment="Right"
-                       AutomationProperties.AutomationId="transcription-progress-percent"
-                       AutomationProperties.Name="Transcription progress percentage" />
-          </Grid>
-          <ProgressBar Value="{Binding Progress}" Maximum="1"
-                       IsIndeterminate="{Binding ProgressIsIndeterminate}"
-                       AutomationProperties.AutomationId="transcription-progress"
-                       AutomationProperties.Name="Transcription progress" />
-          <TextBlock Text="{Binding ProgressNote}" Classes="hint" TextWrapping="Wrap"
-                     IsVisible="{Binding ProgressNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                     AutomationProperties.AutomationId="transcription-progress-note"
-                     AutomationProperties.Name="Progress note" />
-          <StackPanel Orientation="Horizontal" Spacing="16">
-            <TextBlock Text="{Binding ElapsedText, StringFormat='elapsed {0}'}" Classes="hint"
-                       IsVisible="{Binding ElapsedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                       AutomationProperties.AutomationId="transcription-elapsed"
-                       AutomationProperties.Name="Elapsed time" />
-            <TextBlock Text="{Binding RemainingText}" Classes="hint"
-                       IsVisible="{Binding RemainingText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                       AutomationProperties.AutomationId="transcription-remaining"
-                       AutomationProperties.Name="Estimated time left" />
-          </StackPanel>
-        </StackPanel>
-      </Border>
-
-      <!-- What the last run said, beside the progress rather than below the
-           results. -->
-      <Grid ColumnDefinitions="*,Auto">
-        <SelectableTextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Top" TextWrapping="Wrap"
-                             AutomationProperties.AutomationId="transcription-status"
-                             AutomationProperties.Name="Status" />
-        <Button Grid.Column="1" Command="{Binding CopyErrorCommand}"
-                IsVisible="{Binding CanCopyError}" Margin="8,0,0,0" VerticalAlignment="Top"
-                AutomationProperties.AutomationId="transcription-copy-error"
-                AutomationProperties.Name="Copy error details"
-                ToolTip.Tip="Copy the last failure in full — type, message, native status, failed method, log path and stack trace — so it can be pasted into a bug report.">
-          <StackPanel Classes="buttonContent">
-            <materialIcons:MaterialIcon Kind="AlertCircleOutline" />
-            <TextBlock Text="Copy error" />
-          </StackPanel>
-        </Button>
-      </Grid>
-
       <!-- Live text, one update per finished window. Not word by word: the
            offline run has no finer callback, and the Window setting is what
            decides how often this changes. -->

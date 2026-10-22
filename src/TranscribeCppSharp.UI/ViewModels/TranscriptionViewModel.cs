@@ -84,6 +84,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     [NotifyPropertyChangedFor(nameof(ShowProgressPercent))]
+    [NotifyPropertyChangedFor(nameof(ShowStatus))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isTranscribing;
@@ -129,7 +130,15 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether a measured fraction is on screen.</summary>
     public bool ShowProgressPercent => IsTranscribing && !ProgressIsIndeterminate;
 
+    /// <summary>
+    /// Whether the status line is shown. The progress block already says what is
+    /// happening during a run; the status is for the completion or the failure,
+    /// and an empty one is not laid out at all.
+    /// </summary>
+    public bool ShowStatus => !IsTranscribing && StatusMessage.Length > 0;
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStatus))]
     private string _statusMessage = string.Empty;
 
     /// <summary>True while the selected model is being loaded to read its capabilities.</summary>
@@ -1671,7 +1680,18 @@ public partial class TranscriptionViewModel : ObservableObject
             // worker thread that runs the windows, and from a continuation that
             // used ConfigureAwait(false), so updating the bindings inline would be
             // a cross-thread mutation.
-            var progress = new Progress<double>(p => Progress = p);
+            var progress = new Progress<double>(p =>
+            {
+                Progress = p;
+
+                // A role whose capabilities could not be read starts indeterminate;
+                // the first measured fraction is proof that this run can fill the
+                // bar, so it stops pretending it cannot.
+                if (p > 0 && _phase == TranscriptionPhase.Transcribing)
+                {
+                    ProgressIsIndeterminate = false;
+                }
+            });
             var liveText = new Progress<string>(text => LiveText = text);
             var phase = new Progress<TranscriptionPhase>(ApplyPhase);
 
@@ -1825,11 +1845,12 @@ public partial class TranscriptionViewModel : ObservableObject
             return false;
         }
 
-        // Not probed yet: the run is most likely ASR, and the window step replaces
-        // the indeterminate state as soon as it arrives.
-        return _selectedCapabilities is not { } caps
-            || caps.Roles.HasFlag(TranscribeRole.Asr)
-            || caps.Roles.HasFlag(TranscribeRole.Vad);
+        // Not probed yet: nothing is known, so the bar does not claim a fraction.
+        // The first window step or the first progress report replaces that as soon
+        // as one arrives, so an ASR or VAD run corrects itself immediately.
+        return _selectedCapabilities is { } caps
+            && (caps.Roles.HasFlag(TranscribeRole.Asr)
+                || caps.Roles.HasFlag(TranscribeRole.Vad));
     }
 
     /// <summary>
