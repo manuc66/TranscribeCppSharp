@@ -9,6 +9,28 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### New: `--vad`, an opt-in silence trim before transcription
+
+`transcribe <audio> --vad silero-vad-v6.2` runs a VAD model over the file first and
+transcribes only the speech intervals, mapping timestamps back to the original
+timeline. The planning (pad 300 ms, merge intervals under 1 s apart, drop anything
+under 250 ms, split at `--chunk` with the ASR overlap) lives in
+`src/Shared/SpeechWindows.cs` and is unit tested without a model.
+
+It is off by default and documented as unmeasured, because it is not free and not
+obviously better. Measured while writing it, on the 11 s `test-audio/jfk.wav` with
+`ggml-tiny.bin`: with a 500 ms merge gap the clip split into four cues and one
+decoded as "IS NOT" instead of "ask not", where the normal path returned the whole
+sentence correctly; at 1 s it merged back into one cue and the sentence was right.
+That is one clip, not a benchmark, and it is the reason the default gap is 1 s
+rather than a claim that the flag improves anything.
+
+Not wired: the server and the desktop app do not expose `--vad`; this is a CLI flag
+for now. Tests: 13 `SpeechWindowsTests` (padding, merge threshold, minimum speech
+before padding, splitting with overlap, clamping, sorting, empty input, refusal of
+a window shorter than the overlap) and 3 `CliOptionsTests` for the flag. Verified
+end to end against the local Silero model above.
+
 ### New: SRT and ASS export, and subtitle response formats on the server
 
 `--format srt` and `--format ass` join `plain`, `vtt`, `json` and `html` in the CLI.

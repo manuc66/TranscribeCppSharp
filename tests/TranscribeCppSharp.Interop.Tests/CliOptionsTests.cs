@@ -89,6 +89,39 @@ public class CliOptionsTests
         Assert.Equal(DiarizeMode.DiarizeModeOff, options!.Diarize);
     }
 
+    [Fact]
+    public void TryParse_WithoutVad_KeepsTheWholeFileWindowed()
+    {
+        using var temp = new TempWorkspace();
+        string audio = temp.WriteWav("a.wav", new float[16000]);
+
+        Assert.True(CliOptions.TryParse([audio], out var options, out _));
+
+        Assert.Null(options!.VadSpec);
+    }
+
+    [Fact]
+    public void TryParse_Vad_KeepsTheModelSpecAsGiven()
+    {
+        using var temp = new TempWorkspace();
+        string audio = temp.WriteWav("a.wav", new float[16000]);
+
+        Assert.True(CliOptions.TryParse([audio, "--vad", "silero-vad-v6.2"], out var options, out _));
+
+        Assert.Equal("silero-vad-v6.2", options!.VadSpec);
+    }
+
+    [Fact]
+    public void TryParse_VadWithoutAValue_IsRefused()
+    {
+        using var temp = new TempWorkspace();
+        string audio = temp.WriteWav("a.wav", new float[16000]);
+
+        Assert.False(CliOptions.TryParse([audio, "--vad"], out _, out var error));
+
+        Assert.Contains("--vad", error);
+    }
+
     [Theory]
     [InlineData("plain", TranscriptFormat.Plain)]
     [InlineData("vtt", TranscriptFormat.Vtt)]

@@ -95,6 +95,10 @@ Usage: transcribe <audio> [model] [options]
                  codes to rank (e.g. en,fr,de); default is all labels
   --chunk <sec>  max per-transcription window in seconds (default: 300);
                  long audio is split with 1 s overlap and deduplicated
+  --vad <model>  run a VAD model (e.g. silero-vad-v6.2) over the file
+                 first and transcribe only the speech it finds, with
+                 the original timestamps. Unmeasured: it changes what
+                 the model sees, so the text can differ. Off by default
   --no-diarize   disable speaker diarization
   --out <file>   write the report to a file; format controlled
                  by --format (plain/vtt/json/html/srt/ass)
@@ -132,6 +136,32 @@ Stated plainly, so nothing is implied:
 - **No CUDA runtime ships with the package.** The bundled binaries are CPU +
   Vulkan on Windows/Linux and Metal on macOS. Using an NVIDIA GPU means
   providing your own CUDA build — see [Using CUDA](compute.md#using-cuda).
+
+## Trimming silence with `--vad`
+
+`--vad <model>` runs a VAD model (Silero, `silero-vad-v6.2` is one of the curated
+aliases) over the file before the ASR model sees it, then transcribes only the
+speech intervals. Timestamps are mapped back to the original file, so the output
+still lines up with the audio; each interval is padded by 300 ms, intervals less
+than 1 s apart are merged, and anything shorter than 250 ms is dropped as noise.
+
+Two things are true and worth saying plainly:
+
+- **It changes what the model sees.** The ASR model no longer has the context
+  across a pause, so the transcript can differ from a normal run — sometimes
+  better, sometimes worse. There is no accuracy measurement behind this flag.
+  The 1 s merge gap is not arbitrary: on the repository's 11 s test clip
+  (`test-audio/jfk.wav`), a 500 ms gap split the sentence into four cues and one
+  of them decoded as "IS NOT" instead of "ask not"; at 1 s the clip came back as
+  one cue and the sentence was correct. One clip is not a benchmark, but it is
+  the reason for the default.
+- **It costs an extra pass** over the whole file with the VAD model. Nothing in
+  this project measures whether the total time goes down; on a file with long
+  silences it may, on dense speech it will not.
+
+Without `--vad` nothing changes: the file is cut every `--chunk` seconds as
+before. The planning rules are in `src/Shared/SpeechWindows.cs`, and they are
+unit tested without a model.
 
 ## What it supports
 

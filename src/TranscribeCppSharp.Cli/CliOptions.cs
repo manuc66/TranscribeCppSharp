@@ -64,6 +64,12 @@ internal sealed record CliOptions
     /// <summary>--no-diarize turns attribution off; otherwise it is requested.</summary>
     internal DiarizeMode Diarize { get; init; } = DiarizeMode.DiarizeModeOn;
 
+    /// <summary>
+    /// --vad: a VAD model used to skip non-speech before transcription, as given
+    /// (path, alias or HuggingFace spec). Null means the whole file is windowed.
+    /// </summary>
+    internal string? VadSpec { get; init; }
+
     /// <summary>Absolute path of the --out file, or null to print only.</summary>
     internal string? OutPath { get; init; }
 
@@ -96,7 +102,7 @@ internal sealed record CliOptions
         error = null;
 
         string? model = null, quant = null, language = null, chunk = null, outPath = null,
-                format = null, backendName = null, device = null, allowed = null;
+                format = null, backendName = null, device = null, allowed = null, vad = null;
         bool noDiarize = false;
         var positional = new List<string>();
 
@@ -133,6 +139,9 @@ internal sealed record CliOptions
                     break;
                 case "--no-diarize":
                     noDiarize = true;
+                    break;
+                case "--vad":
+                    if (!TakeValue(args, ref i, "--vad", out vad, out error)) { return false; }
                     break;
                 case "--help" or "-h" or "--list-models" or "--list-devices":
                     // Answered before parsing; accepted here so a stray one is
@@ -225,6 +234,7 @@ internal sealed record CliOptions
             Language = lang,
             ChunkSeconds = chunkSeconds,
             Diarize = noDiarize ? DiarizeMode.DiarizeModeOff : DiarizeMode.DiarizeModeOn,
+            VadSpec = string.IsNullOrWhiteSpace(vad) ? null : vad,
             OutPath = outFile,
             Format = transcriptFormat,
             Allowed = allowedCodes,

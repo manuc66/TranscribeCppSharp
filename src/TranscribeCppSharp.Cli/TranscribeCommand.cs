@@ -63,6 +63,10 @@ internal static class TranscribeCommand
                          codes to rank (e.g. en,fr,de); default is all labels
           --chunk <sec>  max per-transcription window in seconds (default: 300);
                          long audio is split with 1 s overlap and deduplicated
+          --vad <model>  run a VAD model (e.g. silero-vad-v6.2) over the file
+                         first and transcribe only the speech it finds, with
+                         the original timestamps. Unmeasured: it changes what
+                         the model sees, so the text can differ. Off by default
           --no-diarize   disable speaker diarization
           --out <file>   write the report to a file; format controlled
                          by --format (plain/vtt/json/html/srt/ass)
@@ -344,14 +348,26 @@ internal static class TranscribeCommand
         int windowMs = (int)Math.Min((long)options.ChunkSeconds * 1000, maxWindowMs);
         stdout.WriteLine($"window: {windowMs / 1000}s (model max audio {limits.EffectiveMaxAudioMs / 1000}s)");
 
-        if (!WindowPlanner.TryPlan((int)totalSamples, windowMs, out var windows, out var planError))
+        IReadOnlyList<AudioWindow> windows;
+        if (options.VadSpec is null)
         {
-            // The planner's message names no flag, because the GUI shares it.
-            // --chunk is rejected earlier in CliOptions with its own message, so
-            // reaching here means the audio is empty rather than the window too
-            // short, and no flag advice applies.
-            stderr.WriteLine(planError);
-            return 1;
+            if (!WindowPlanner.TryPlan((int)totalSamples, windowMs, out windows, out var planError))
+            {
+                // The planner's message names no flag, because the GUI shares it.
+                // --chunk is rejected earlier in CliOptions with its own message, so
+                // reaching here means the audio is empty rather than the window too
+                // short, and no flag advice applies.
+                stderr.WriteLine(planError);
+                return 1;
+            }
+        }
+        else
+        {
+            int planned = PlanFromSpeech(stdout, stderr, options, choice, pcmSource, totalSamples, windowMs, out windows);
+            if (planned != 0)
+            {
+                return planned;
+            }
         }
 
         var merged = new StringBuilder();
@@ -487,6 +503,68 @@ internal static class TranscribeCommand
 
         stdout.WriteLine("\n=== merged transcript (speaker-attributed) ===");
         stdout.WriteLine(merged.ToString());
+        return 0;
+    }
+
+    /// <summary>
+    /// Runs the --vad model over the file and plans windows from the speech it
+    /// found. Returns 0 on success, or the exit code the run should use.
+    /// </summary>
+    /// <remarks>
+    /// Opt-in on purpose. Transcribing only the speech regions changes what the
+    /// model sees (no context across a pause), so the text can differ from the
+    /// normal path; the flag is documented as unmeasured rather than sold as an
+    /// improvement.
+    /// </remarks>
+    private static int PlanFromSpeech(
+        TextWriter stdout,
+        TextWriter stderr,
+        CliOptions options,
+        DeviceChoice choice,
+        PcmSource pcmSource,
+        long totalSamples,
+        int windowMs,
+        out IReadOnlyList<AudioWindow> windows)
+    {
+        windows = [];
+
+        string vadPath;
+        try
+        {
+            vadPath = ModelStore.Resolve(options.VadSpec!, quant: null, stderr);
+        }
+        catch (Exception ex) when (ex is IOException or HttpRequestException)
+        {
+            stderr.WriteLine(ex.Message);
+            return 1;
+        }
+
+        using var vadModel = Model.Load(vadPath, p => p.WithBackend(choice.Backend));
+        if (!vadModel.Roles.HasFlag(TranscribeRole.Vad))
+        {
+            stderr.WriteLine($"--vad: {vadModel.Architecture}/{vadModel.Variant} does not serve the VAD role "
+                + $"(roles: {DescribeRoles(vadModel.Roles)}). Use a VAD model such as silero-vad-v6.2.");
+            return 1;
+        }
+
+        using var vadSession = vadModel.CreateVadSession();
+        VadWindowing.VadRunResult run = VadWindowing.Run(vadSession, pcmSource, options.ChunkSeconds);
+        stdout.WriteLine(
+            $"vad   : {vadModel.Architecture}/{vadModel.Variant}, "
+            + $"{run.Segments.Count} speech interval(s), {run.FrameCount} frame(s)");
+
+        windows = SpeechWindows.Plan(
+            run.Segments.Select(s => new SpeechInterval(s.StartSample, s.EndSample)).ToArray(),
+            totalSamples,
+            windowMs);
+        stdout.WriteLine($"windows: {windows.Count} speech window(s) of at most {windowMs / 1000}s (silence skipped)");
+
+        if (windows.Count == 0)
+        {
+            stderr.WriteLine("--vad: the VAD model found no speech in this audio; nothing to transcribe.");
+            return 1;
+        }
+
         return 0;
     }
 
