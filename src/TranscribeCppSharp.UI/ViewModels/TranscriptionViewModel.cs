@@ -504,6 +504,16 @@ public partial class TranscriptionViewModel : ObservableObject
     public ObservableCollection<DiarizerOption> DiarizerOptions { get; } = new();
 
     /// <summary>
+    /// What the dedicated-diarizer picker offers: the downloaded diarizers only.
+    /// </summary>
+    /// <remarks>
+    /// "(none)" is deliberately absent. The checkbox is the on/off control, so an
+    /// entry meaning "no diarizer" inside a picker that only exists while speaker
+    /// labels are on would contradict the box above it.
+    /// </remarks>
+    public ObservableCollection<DiarizerOption> DiarizerChoices { get; } = new();
+
+    /// <summary>
     /// The diarizer to run after the transcription, or the "none" entry.
     /// </summary>
     [ObservableProperty]
@@ -519,7 +529,8 @@ public partial class TranscriptionViewModel : ObservableObject
     /// rather than sitting in the form all the time: an option that only matters
     /// when the box is ticked is not shown when it is clear.
     /// </remarks>
-    public bool ShowDiarizerPicker => LabelSpeakers && CanUseDedicatedDiarizer;
+    public bool ShowDiarizerPicker
+        => LabelSpeakers && CanUseDedicatedDiarizer && HasDedicatedDiarizer;
 
     /// <summary>
     /// Whether the tab has to explain why speaker labels are not on offer: the
@@ -1072,11 +1083,14 @@ public partial class TranscriptionViewModel : ObservableObject
         DiarizerOption? keep = SelectedDiarizer;
 
         DiarizerOptions.Clear();
+        DiarizerChoices.Clear();
         DiarizerOptions.Add(NoDiarizer);
         foreach (string alias in DownloadedModelCatalog.DiarizerAliases())
         {
             IReadOnlyList<string> languages = UpstreamCatalog.Read(alias)?.Languages ?? [];
-            DiarizerOptions.Add(new DiarizerOption(alias, alias, languages));
+            var option = new DiarizerOption(alias, alias, languages);
+            DiarizerOptions.Add(option);
+            DiarizerChoices.Add(option);
         }
 
         // A remembered alias that is no longer offered — deleted — falls back to

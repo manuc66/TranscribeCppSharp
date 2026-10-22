@@ -175,7 +175,7 @@
           <StackPanel Spacing="4" IsVisible="{Binding ShowDiarizerPicker}">
             <TextBlock Text="Diarizer model" Classes="label"
                        ToolTip.Tip="A downloaded model that serves only the DIARIZE role (Sortformer). It runs after the transcriber, over the same audio; the two models are not in memory at the same time. The attribution is this app's join of the two results, not a single library call." />
-            <ComboBox ItemsSource="{Binding DiarizerOptions}"
+            <ComboBox ItemsSource="{Binding DiarizerChoices}"
                       SelectedItem="{Binding SelectedDiarizer}"
                       HorizontalAlignment="Stretch"
                       IsEnabled="{Binding CanEditSettings}"
@@ -191,22 +191,25 @@
                        IsVisible="{Binding HasDiarizerLanguageWarning}"
                        AutomationProperties.AutomationId="transcription-diarizer-language-warning"
                        AutomationProperties.Name="Diarizer language warning" />
-            <Button Command="{Binding OpenDiarizerModelsCommand}"
-                    HorizontalAlignment="Left" Padding="8,2"
-                    IsVisible="{Binding NeedsDedicatedDiarizerDownload}"
-                    AutomationProperties.AutomationId="transcription-get-diarizer"
-                    AutomationProperties.Name="Get a diarizer model"
-                    ToolTip.Tip="Open the Models tab filtered to the models upstream records as supporting diarization. Without one, speaker labels cannot be produced by this transcriber.">
-              <StackPanel Classes="buttonContent">
-                <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
-                <TextBlock Text="Get a diarizer…" />
-              </StackPanel>
-            </Button>
           </StackPanel>
+
+          <!-- The route to a diarizer is shown only when there is none: with one
+               downloaded, the picker above is the whole story. -->
+          <Button Command="{Binding OpenDiarizerModelsCommand}"
+                  HorizontalAlignment="Left" Padding="8,2"
+                  IsVisible="{Binding NeedsDedicatedDiarizerDownload}"
+                  AutomationProperties.AutomationId="transcription-get-diarizer"
+                  AutomationProperties.Name="Get a diarizer model"
+                  ToolTip.Tip="Open the Models tab filtered to the models upstream records as supporting diarization. Without one, speaker labels cannot be produced by this transcriber.">
+            <StackPanel Classes="buttonContent">
+              <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
+              <TextBlock Text="Get a diarizer…" />
+            </StackPanel>
+          </Button>
         </StackPanel>
       </Border>
 
-      <!-- 4. What the transcript should be, beyond the model's defaults. -->
+      <!-- What the transcript should be, beyond the model's defaults. -->
       <Border Classes="card" IsVisible="{Binding ShowTranscriptSection}">
         <StackPanel Spacing="8">
           <TextBlock Text="Run options" Classes="section" />

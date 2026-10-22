@@ -172,9 +172,10 @@ attributes speakers itself (MOSS, granite-speech-4.1-2b-plus) the request is pas
 `WithDiarize` and the run stays one pass. For a model that cannot, the tab shows a **Diarizer
 model** picker with the downloaded models that serve only the DIARIZE role (Sortformer),
 selects the only one automatically, and states in one line what will run. With no diarizer
-downloaded the run is refused before it starts, and the **Get a diarizer…** button opens the
-Models tab already filtered to the models upstream records as supporting diarization, rather
-than starting a run that would silently produce `Speaker 0`. A model that only
+downloaded the picker is not shown at all (the checkbox is the on/off control, so "(none)" has
+no place in it), the run is refused before it starts, and the **Get a diarizer…** button opens
+the Models tab already filtered to the models upstream records as supporting diarization,
+rather than starting a run that would silently produce `Speaker 0`. A model that only
 diarizes is not offered the checkbox: its whole result is speaker turns. The run button is
 named for what the model does (Transcribe, Diarize, Identify language or Detect speech), so
 the role is visible before the run rather than only in the result. See

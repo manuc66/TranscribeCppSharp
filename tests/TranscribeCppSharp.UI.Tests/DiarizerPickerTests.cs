@@ -73,8 +73,11 @@ public class DiarizerPickerTests
             Assert.True(viewModel.CanUseDedicatedDiarizer);
             Assert.False(viewModel.ShowDiarizerPicker);
 
+            // The picker follows the intent, but there is no diarizer on disk yet:
+            // the tab offers the route to Models instead of a one-entry picker.
             viewModel.LabelSpeakers = true;
-            Assert.True(viewModel.ShowDiarizerPicker);
+            Assert.True(viewModel.NeedsDedicatedDiarizerDownload);
+            Assert.False(viewModel.ShowDiarizerPicker);
 
             // The model diarizes through its own feature: no second one needed.
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr, diarizeFeature: true));
@@ -180,6 +183,8 @@ public class DiarizerPickerTests
             // The only downloaded diarizer is chosen for the reader, so the plan can
             // name what will actually run instead of saying "pick one".
             Assert.Equal(Sortformer, viewModel.SelectedDiarizer?.Alias);
+            Assert.True(viewModel.ShowDiarizerPicker);
+            Assert.DoesNotContain(viewModel.DiarizerChoices, o => o.Alias is null);
             Assert.True(viewModel.SpeakerLabelsSatisfied);
             Assert.Contains("whisper-tiny", viewModel.DiarizerPlan);
             Assert.Contains(Sortformer, viewModel.DiarizerPlan);
@@ -211,6 +216,7 @@ public class DiarizerPickerTests
                 viewModel.LabelSpeakers = true;
 
                 Assert.True(viewModel.NeedsDedicatedDiarizerDownload);
+                Assert.False(viewModel.ShowDiarizerPicker);
                 Assert.False(viewModel.SpeakerLabelsSatisfied);
                 Assert.False(viewModel.CanTranscribe);
                 Assert.Contains("diarizer", viewModel.RunBlockedReason, StringComparison.OrdinalIgnoreCase);
