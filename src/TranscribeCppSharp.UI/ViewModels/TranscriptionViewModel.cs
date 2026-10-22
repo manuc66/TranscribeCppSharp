@@ -41,6 +41,13 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _runModelAlias = string.Empty;
 
     /// <summary>
+    /// Why the run is using a smaller window than the one asked for, if it is.
+    /// Kept for the whole run so the progress note does not lose it after the
+    /// first window starts filling the bar.
+    /// </summary>
+    private string _windowAdjustmentNote = string.Empty;
+
+    /// <summary>
     /// What produced the result on screen. Kept apart from the pickers so exporting
     /// a restored run names the model and settings that actually ran, not whatever
     /// the tab happens to have selected now.
@@ -341,13 +348,27 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <remarks>
     /// Deliberately small. The native API reports device free memory but not the
     /// size of the compute graph a window builds, and that graph grows with the
-    /// window: 300 s asked for 10 GB on Vulkan and 113.6 GB on the CPU in a
-    /// measured Parakeet run, while 30 s completed on both. A caller who knows
-    /// its device can raise this; <see cref="ProbeMemoryAsync"/> measures the
-    /// real allocation instead of promising one.
+    /// window. In the reported Parakeet failure the whole file was sent in one
+    /// call (the setting was ignored by an earlier seconds/milliseconds mix-up)
+    /// and asked for 10.1 GB on Vulkan and 113.6 GB on the CPU; 30 s windows
+    /// completed on both. A caller who knows its device can raise this;
+    /// <see cref="ProbeMemoryAsync"/> measures the real allocation instead of
+    /// promising one.
     /// </remarks>
     [ObservableProperty]
     private int _windowSeconds = 30;
+
+    /// <summary>
+    /// Whether the service may lower <see cref="WindowSeconds"/> and retry when
+    /// the first window does not fit in memory.
+    /// </summary>
+    /// <remarks>
+    /// Only lowering is automatic: the native API does not say how large a window
+    /// a device can take, so raising would be a guess. The reader raises the field
+    /// and the run lowers it again if it has to.
+    /// </remarks>
+    [ObservableProperty]
+    private bool _autoAdjustWindow = true;
 
     public ObservableCollection<TranscriptionTask> AvailableTasks { get; } = new()
     {
@@ -1106,9 +1127,14 @@ public partial class TranscriptionViewModel : ObservableObject
             if (e.PropertyName is nameof(SettingsViewModel.SelectedBackend)
                 or nameof(SettingsViewModel.SelectedDevice))
             {
+                ApplyRememberedWindow();
                 UpdateMemoryWarning();
             }
         };
+
+        // Restored through the backing field: the generated setter would save it
+        // again on every launch.
+        _autoAdjustWindow = UiSettings.LoadAutoAdjustWindow();
 
         // Restore the export options before anything can change them: the partial
         // change handlers save on every edit, and assigning through the generated
@@ -1246,6 +1272,7 @@ public partial class TranscriptionViewModel : ObservableObject
     partial void OnModelAliasChanged(string value)
     {
         RequestCapabilityProbe(value);
+        ApplyRememberedWindow();
         OnPropertyChanged(nameof(DiarizerPlan));
         OnPropertyChanged(nameof(CanTranscribe));
         OnPropertyChanged(nameof(CanProbeMemory));
@@ -1266,6 +1293,9 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(RunSummary));
         UpdateMemoryWarning();
     }
+
+    partial void OnAutoAdjustWindowChanged(bool value)
+        => UiSettings.SaveAutoAdjustWindow(value);
 
     partial void OnSelectedDiarizerChanged(DiarizerOption? value)
     {
@@ -1581,6 +1611,7 @@ public partial class TranscriptionViewModel : ObservableObject
             SpecKDrafts = SpecKDrafts,
             KeepSpecialTags = KeepSpecialTags,
             WindowSeconds = WindowSeconds,
+            AutoAdjustWindow = AutoAdjustWindow,
             AllowedLanguages = ParseAllowed(AllowedLanguages),
             Vocabulary = ParseVocabulary(Vocabulary),
         };
@@ -1790,6 +1821,7 @@ public partial class TranscriptionViewModel : ObservableObject
         _firstWindowFinishedAt = null;
         _windowsCompleted = 0;
         _windowsTotal = 0;
+        _windowAdjustmentNote = string.Empty;
         _phase = TranscriptionPhase.Preparing;
         ProgressIsIndeterminate = true;
         ProgressNote = "Starting. The model load and the audio read come first; neither reports a fraction.";
@@ -1825,7 +1857,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 if (p > 0 && _phase == TranscriptionPhase.Transcribing)
                 {
                     ProgressIsIndeterminate = false;
-                    ProgressNote = string.Empty;
+                    ProgressNote = _windowAdjustmentNote;
                 }
             });
             var liveText = new Progress<string>(text => LiveText = text);
@@ -1845,6 +1877,16 @@ public partial class TranscriptionViewModel : ObservableObject
                 }
                 else
                 {
+                    // The service lowers the window only after the first attempt
+                    // failed to fit; say so while the retry runs, not only at the end.
+                    if (s.WindowSeconds is int usedWindow
+                        && _runOptions is { } requested
+                        && usedWindow < requested.WindowSeconds)
+                    {
+                        _windowAdjustmentNote =
+                            $"The first attempt did not fit in memory; the window was lowered to {usedWindow} s.";
+                    }
+
                     _windowsTotal = Math.Max(1, s.Total);
                     _windowsCompleted = Math.Clamp(s.Completed, 0, _windowsTotal);
                     if (s.Completed > 0 && _firstWindowFinishedAt is null)
@@ -1857,9 +1899,14 @@ public partial class TranscriptionViewModel : ObservableObject
                     // frozen for the whole transcription. Say that instead.
                     bool singleWindow = _windowsTotal == 1 && _windowsCompleted == 0;
                     ProgressIsIndeterminate = singleWindow;
-                    ProgressNote = singleWindow
-                        ? "This file fits in one window; the native run reports no progress inside a window."
-                        : string.Empty;
+                    ProgressNote = _windowAdjustmentNote.Length > 0
+                        ? _windowAdjustmentNote
+                            + (singleWindow
+                                ? " This file fits in one window; the native run reports no progress inside a window."
+                                : string.Empty)
+                        : singleWindow
+                            ? "This file fits in one window; the native run reports no progress inside a window."
+                            : string.Empty;
                     ProgressStage = $"Transcribing — window "
                         + $"{Math.Clamp(s.Completed == 0 ? 1 : s.Completed, 1, _windowsTotal)} of {_windowsTotal}";
                 }
@@ -1870,11 +1917,34 @@ public partial class TranscriptionViewModel : ObservableObject
             Result = await _transcriptionService.TranscribeAsync(
                 AudioPath, ModelAlias, options, progress, liveText, phase, stepProgress, cancellation.Token);
 
+            // The window the run actually used. A service that had to lower it
+            // after an out-of-memory failure reports the smaller one, and that is
+            // what the result, the history and the field must name.
+            int usedWindow = Result.EffectiveWindowSeconds ?? options.WindowSeconds;
+            bool adjusted = usedWindow != options.WindowSeconds;
+
             ShowResult(
                 Result,
                 new ResultProvenance(
-                    _runModelAlias, EffectiveLanguage(), DiarizeLabel(options.DiarizeMode), options.WindowSeconds));
-            StatusMessage = CompletionMessage;
+                    _runModelAlias, EffectiveLanguage(), DiarizeLabel(options.DiarizeMode), usedWindow));
+
+            if (adjusted)
+            {
+                WindowSeconds = usedWindow;
+            }
+
+            // The field follows the combination, not the process: the next run of
+            // this model on this device starts at the value that worked. A role
+            // that does not use the window does not record one.
+            if (Result.Roles.HasFlag(TranscribeRole.Asr) || Result.Roles.HasFlag(TranscribeRole.Vad))
+            {
+                RememberWindow(options, usedWindow, Result.Memory?.DeviceName);
+            }
+
+            StatusMessage = adjusted
+                ? $"{CompletionMessage} The window was lowered from {options.WindowSeconds} s "
+                    + $"to {usedWindow} s to fit memory; that value is remembered for this model and device."
+                : CompletionMessage;
             TrySaveHistory();
             if (Result.Memory is { } observation)
             {
@@ -1898,11 +1968,15 @@ public partial class TranscriptionViewModel : ObservableObject
             UiLog.Failure("transcription run", ex);
             string model = string.IsNullOrEmpty(_runModelAlias) ? "the selected model" : _runModelAlias;
             int window = _runOptions?.WindowSeconds ?? WindowSeconds;
+            string attempts = ex.Data["window attempts"] is string tried
+                ? $" Automatic adjustment tried {tried} and none fit."
+                : string.Empty;
             StatusMessage = ex.StatusCode == Status.ErrOom
                 ? $"Out of memory (ErrOom) while running {model}: lower Window (now {window} s), "
                     + "or use a smaller quantization or a lower context size. "
-                    + "The CPU backend needs its own memory and is not a guaranteed fallback. "
-                    + $"(logged to {UiLog.FilePath})"
+                    + "The CPU backend needs its own memory and is not a guaranteed fallback."
+                    + attempts
+                    + $" (logged to {UiLog.FilePath})"
                 : $"Error: {ex.Message} (logged to {UiLog.FilePath})";
         }
         catch (Exception ex)
@@ -2282,6 +2356,12 @@ public partial class TranscriptionViewModel : ObservableObject
                 $"failed at window: {window}");
         }
 
+        if (exception.Data["window attempts"] is string attempts)
+        {
+            report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
+                $"window attempts: {attempts}");
+        }
+
         report.AppendLine(System.Globalization.CultureInfo.InvariantCulture,
             $"log: {UiLog.FilePath}");
         report.AppendLine();
@@ -2410,6 +2490,68 @@ public partial class TranscriptionViewModel : ObservableObject
             StatusMessage = $"Transcription complete, but the history could not be saved: {ex.Message}";
         }
     }
+
+    /// <summary>
+    /// Applies the window remembered for the selected model, backend and device.
+    /// </summary>
+    /// <remarks>
+    /// The same model on two devices can take two different windows, and a window
+    /// that a previous run had to lower should not be tried again from the top on
+    /// the next launch. Only a finished run records a value; moving a picker never
+    /// does. With no remembered value the field keeps what it has, so a deliberate
+    /// choice is not thrown away by selecting another model.
+    /// </remarks>
+    private void ApplyRememberedWindow()
+    {
+        if (string.IsNullOrEmpty(ModelAlias))
+        {
+            return;
+        }
+
+        if (UiSettings.LoadWindow(WindowKey()) is int remembered)
+        {
+            WindowSeconds = remembered;
+        }
+    }
+
+    /// <summary>The key the current pickers would look a remembered window up under.</summary>
+    private string WindowKey()
+        => MemoryPreflight.CombinationKey(
+            ModelAlias,
+            _settings.SelectedBackend,
+            ResolvedDeviceName(_settings.SelectedBackend, _settings.SelectedDevice));
+
+    /// <summary>
+    /// Records the window a finished run used for its model, backend and device.
+    /// </summary>
+    /// <remarks>
+    /// The actual device name wins over the request when the run reported one: an
+    /// Auto run may have resolved to a device the pickers do not name. When it
+    /// reported none, the target the request resolves to is the best the tab knows,
+    /// and the pinned name is the fallback.
+    /// </remarks>
+    private void RememberWindow(TranscriptionOptions options, int seconds, string? actualDevice)
+    {
+        // The snapshot may leave the backend unset when it was Auto; the run then
+        // resolved to whatever the settings said, which is the same value.
+        BackendRequest backend = options.BackendRequest ?? _settings.SelectedBackend;
+
+        string device = !string.IsNullOrEmpty(actualDevice)
+            ? actualDevice
+            : ResolvedDeviceName(backend, options.Device) is { Length: > 0 } target
+                ? target
+                : options.Device?.Name ?? string.Empty;
+
+        UiSettings.SaveWindow(
+            MemoryPreflight.CombinationKey(_runModelAlias, backend, device),
+            seconds);
+    }
+
+    /// <summary>The name of the device a request resolves to, or the pinned name.</summary>
+    private string ResolvedDeviceName(BackendRequest backend, BackendDevice? pinned)
+        => MemoryPreflight.Target(_settings.Devices, backend, pinned)?.Name
+            ?? pinned?.Name
+            ?? string.Empty;
 
     /// <summary>
     /// Recomputes the warning shown before a run. It states only two facts: whether

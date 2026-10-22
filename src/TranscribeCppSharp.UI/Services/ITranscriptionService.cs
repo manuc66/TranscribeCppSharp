@@ -43,9 +43,15 @@ public enum TranscriptionPhase
 /// The fraction on <see cref="IProgress{T}"/> is what the bar fills with; this is
 /// the same work named as a step, so the UI can say "window 3 of 12" instead of
 /// only 25%. <see cref="Completed"/> may be 0: the first report announces the
-/// total before the first window has finished.
+/// total before the first window has finished. <see cref="WindowSeconds"/> is the
+/// window the service is about to use; a value smaller than the caller asked for
+/// means an earlier attempt did not fit in memory and the service lowered it.
 /// </remarks>
-public sealed record TranscriptionStep(TranscriptionPhase Phase, int Completed, int Total);
+public sealed record TranscriptionStep(
+    TranscriptionPhase Phase,
+    int Completed,
+    int Total,
+    int? WindowSeconds = null);
 
 /// <summary>Where one file of a batch is, when there is nothing finer to report.</summary>
 /// <remarks>

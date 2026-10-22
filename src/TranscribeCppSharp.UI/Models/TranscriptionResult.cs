@@ -34,6 +34,23 @@ public class TranscriptionResult
     public List<VadSession.VadSegmentResult> VadSegments { get; set; } = new();
 
     /// <summary>
+    /// The window the ASR run actually used, after any automatic lowering. Null
+    /// for a role that does not use the window setting.
+    /// </summary>
+    /// <remarks>
+    /// The caller may have asked for a larger window and the service lowered it
+    /// after an out-of-memory failure. This is the value the transcript was
+    /// produced with, so it is what the history and the field must show.
+    /// </remarks>
+    public int? EffectiveWindowSeconds { get; set; }
+
+    /// <summary>
+    /// The window the caller asked for, when the service lowered it. Null when no
+    /// adjustment happened.
+    /// </summary>
+    public int? RequestedWindowSeconds { get; set; }
+
+    /// <summary>
     /// The lowest free memory observed on the model's device during the run, when
     /// it could be read. Null when the device reports no free figure.
     /// </summary>

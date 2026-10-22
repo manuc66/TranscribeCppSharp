@@ -189,6 +189,13 @@
                        Text="A long file is split into windows of this length; each finished window is one step on the progress bar. The compute buffer grows with this window, so raise it only after Test memory holds."
                        AutomationProperties.AutomationId="transcription-window-hint"
                        AutomationProperties.Name="Window and progress" />
+            <CheckBox Content="Adjust window automatically"
+                      IsChecked="{Binding AutoAdjustWindow}"
+                      IsEnabled="{Binding CanEditSettings}"
+                      Margin="0,6,0,0"
+                      ToolTip.Tip="When the first window does not fit in memory, lower it and retry. The value that worked is remembered for this model, backend and device. It is never raised automatically: the native API does not report how large a window a device can take, so raising stays the reader's choice."
+                      AutomationProperties.AutomationId="transcription-auto-adjust-window"
+                      AutomationProperties.Name="Adjust window automatically" />
           </StackPanel>
         </StackPanel>
       </Border>

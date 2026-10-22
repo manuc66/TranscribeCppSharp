@@ -9,16 +9,40 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the Window setting now actually splits the audio
+
+`TranscriptionService.RunAsr` passed `WindowSeconds` to `WindowPlanner.TryPlan`,
+which takes milliseconds. Every value below 1000 therefore meant a window shorter
+than the 1 s overlap: planning failed and the run sent the whole file to the model
+in one native call. The 10.1 GB Vulkan and 113.6 GB CPU allocations in the
+reported Parakeet failure were the whole file, not a 300 s window. The service now
+converts seconds to milliseconds. Measured after the fix: 300 s of audio at 75 s
+planned five windows (T_enc=938 each), at 300 s it planned one, and a 20-minute
+file requested at 1200 s fell back to 300 s and ran five windows. The memory probe
+already used seconds and is unchanged.
+
 ### UI: the Window default is 30 s, not 300 s
 
-The 300 s default was a generic value, not a measurement, and it did not fit the
-machine it was run on: a Parakeet TDT 0.6B-v3 run asked for 10.1 GB on a 4 GB
-Vulkan device and 113.6 GB on the CPU before failing. The same model completed at
-30 s on both. The tab now starts at 30 s, the field's hint and tooltip say that the
-compute buffer grows with the window and that the native API does not report its
-size, and the UI docs say the value is conservative rather than a model limit.
-Higher windows are still available for devices that measured them; **Test memory**
-remains the measurement. The CLI default is unchanged (300 s, `--chunk`).
+The 300 s default was a generic value, not a measurement, and the setting was not
+being applied at all (see above). A 30 s default is conservative: the compute
+buffer grows with the window and the native API does not report its size, so the
+tab starts at the value measured completing on both the CPU and a 4 GB Vulkan
+device. The field's hint and tooltip say so, and the UI docs call the value a
+default rather than a model limit. Higher windows are still available for devices
+that measured them; **Test memory** remains the measurement. The CLI default is
+unchanged (300 s, `--chunk`).
+
+### UI: a window that does not fit is lowered, said, and remembered
+
+**Adjust window automatically** (on by default) makes the first out-of-memory
+failure a retry instead of a dead end: the service halves the window, down to 5 s
+and at most ten values, recreates the session and starts the audio over. The
+progress line says the window was lowered while the retry runs, and the final
+status names both values. The value that worked is remembered per model, backend
+and device in `ui-settings.json`, so the next run starts there. Only the first
+window can trigger the retry: re-running after a later window would duplicate the
+text already produced, so that failure is reported. The service never raises the
+window on its own; the native API gives no measurement that a larger one fits.
 
 ### UI: the Transcription tab says what it will do, and one intent for speaker labels
 

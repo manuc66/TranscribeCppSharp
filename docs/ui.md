@@ -152,7 +152,8 @@ A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg
 | Threads | library default | Left empty on purpose. This is not a benchmarked recommendation — raising it past the core count usually makes it slower |
 | KV type | Auto | `F32` keeps the most precision and the most memory; `F16` halves the cache |
 | Context size | model maximum | Lower uses less memory; too low truncates long passages |
-| Window | 30 s | Longest audio passed in one call. Longer audio is split into windows overlapping by 1 s and merged; see [Long audio and diarization](diarization.md). The compute buffer grows with this value and the native API does not report its size, so the default is deliberately conservative: 30 s completed a measured Parakeet run on the CPU and on a 4 GB Vulkan device, while 300 s asked for 10 GB on Vulkan and 113.6 GB (108,382 MB) on the CPU |
+| Window | 30 s | Longest audio passed in one call. Longer audio is split into windows overlapping by 1 s and merged; see [Long audio and diarization](diarization.md). The compute buffer grows with this value and the native API does not report its size, so the default is deliberately conservative: 30 s completed a measured Parakeet run on the CPU and on a 4 GB Vulkan device, while sending a long file in one call asked for 10.1 GB on Vulkan and 113.6 GB (108,382 MB) on the CPU |
+| Adjust window automatically | on | When the first window does not fit in memory, lower it and retry; the value that worked is remembered for the model, backend and device. It never raises the window on its own, because the native API gives no measurement that a larger one fits |
 | Keep special tags | off | Off removes markers such as `<|notimestamps|>` from the text |
 
 Four settings appear only for models that have them: the Whisper initial prompt and
@@ -207,8 +208,17 @@ estimate: the native API exposes free memory but not the compute graph's size, s
 weights fit can still run out of memory. That is why the Window default is 30 s rather than a
 large value: the graph grows with the window, and 30 s is the value this project measured
 completing on both the CPU and a 4 GB Vulkan device. Raising it is a choice the caller makes,
-with **Test memory** to measure it. Nothing is retried automatically; the warning names
-Window, the quantization and the device as the levers.
+with **Test memory** to measure it.
+
+**Adjust window automatically** (on by default) turns the first out-of-memory failure into a
+retry at half the window, down to 5 s and at most ten values. The progress line says the window
+was lowered while the retry runs, and the status at the end names both values. The value that
+worked is remembered for that model, backend and device, so the next run starts there instead of
+trying the value that failed. Only the first window can trigger this: once a window has produced
+text, re-running the audio would duplicate it, so a later failure is reported as it is. The
+service never raises the window on its own — the native API does not say how large a window a
+device can take, so raising stays the reader's choice. The error report names Window, the
+quantization and the device as the levers.
 
 **Test memory** runs one window of the selected file with the selected settings, without
 producing a transcript, and reports the lowest free figure the device reached. It measures the

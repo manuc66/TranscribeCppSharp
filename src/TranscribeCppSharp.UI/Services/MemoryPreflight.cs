@@ -124,6 +124,25 @@ public static class MemoryPreflight
             CultureInfo.InvariantCulture,
             $"{modelAlias}|{windowSeconds}|{backend}|{deviceName}");
 
+    /// <summary>
+    /// The key a window is remembered under: the model, backend and device decide
+    /// what the window may be, so the value follows that combination rather than
+    /// the tab or the process.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="RunKey"/>: that key includes the window itself,
+    /// which is the value being looked up. The device name is the resolved device
+    /// (or the pinned one when no free figure was reported), because the same
+    /// model on two devices needs two different windows.
+    /// </remarks>
+    public static string CombinationKey(
+        string modelAlias,
+        BackendRequest backend,
+        string deviceName)
+        => string.Create(
+            CultureInfo.InvariantCulture,
+            $"{modelAlias}|{backend}|{deviceName}");
+
     /// <summary>The device type's short name, without the enum's "DeviceType" prefix.</summary>
     public static string DeviceTypeLabel(DeviceType type) => type switch
     {

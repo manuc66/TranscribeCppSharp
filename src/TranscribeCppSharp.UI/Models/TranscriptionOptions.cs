@@ -30,12 +30,25 @@ public class TranscriptionOptions
     /// </summary>
     /// <remarks>
     /// 30 s is a conservative default, not a model limit: the compute buffer
-    /// grows with the window and the native API does not expose its size. A
-    /// 300 s Parakeet window asked for 10 GB on Vulkan and 113.6 GB on the CPU in
-    /// a measured run; 30 s completed on both. Raise this only after checking
-    /// the real allocation on the intended device.
+    /// grows with the window and the native API does not expose its size. In the
+    /// reported Parakeet failure the whole file went into one call (the Window
+    /// setting was ignored by an earlier milliseconds/seconds mix-up) and asked
+    /// for 10.1 GB on Vulkan and 113.6 GB on the CPU; 30 s windows completed on
+    /// both. Raise this only after checking the real allocation on the intended
+    /// device.
     /// </remarks>
     public int WindowSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Whether the service may lower <see cref="WindowSeconds"/> and retry when
+    /// the first window does not fit in memory.
+    /// </summary>
+    /// <remarks>
+    /// Only lowering is automatic. Raising would need a measurement that the
+    /// larger window fits, and the native API does not provide one; the caller
+    /// raises the field itself and the run lowers it again if it has to.
+    /// </remarks>
+    public bool AutoAdjustWindow { get; set; } = true;
 
     /// <summary>
     /// Language codes a language-identification model may answer with

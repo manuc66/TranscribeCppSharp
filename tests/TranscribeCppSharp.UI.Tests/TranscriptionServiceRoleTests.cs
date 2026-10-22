@@ -129,6 +129,41 @@ public class TranscriptionServiceRoleTests
     }
 
     [Fact]
+    public async Task TheWindowSettingSplitsTheAudio()
+    {
+        // The service used to pass seconds to WindowPlanner.TryPlan, which takes
+        // milliseconds: every value below 1000 meant a window shorter than the 1 s
+        // overlap, planning failed, and the whole file went to the model in one
+        // call. 11 s of audio in 5 s windows must be three windows, not one.
+        string model = Model("ggml-tiny.bin");
+        Require(model);
+
+        var options = Cpu();
+        options.WindowSeconds = 5;
+        var steps = new List<TranscriptionStep>();
+        var service = new TranscriptionService();
+
+        TranscriptionResult result = await service.TranscribeAsync(
+            Audio,
+            model,
+            options,
+            stepProgress: new InlineProgress<TranscriptionStep>(steps.Add),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(steps);
+        Assert.True(steps.Max(s => s.Total) >= 3, $"planned windows: {steps.Max(s => s.Total)}");
+        Assert.All(steps, s => Assert.Equal(5, s.WindowSeconds));
+        Assert.Equal(5, result.EffectiveWindowSeconds);
+        Assert.Null(result.RequestedWindowSeconds);
+    }
+
+    /// <summary>Runs the callback on the reporting thread, so a test can assert after the run.</summary>
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
+
+    [Fact]
     public async Task TheMemoryProbeRunsOneWindowOfTheSelectedFile()
     {
         string model = Model("ggml-tiny.bin");

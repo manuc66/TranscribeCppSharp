@@ -142,6 +142,73 @@ public static class UiSettings
     }
 
     /// <summary>
+    /// The window remembered for a model, backend and device, or null when that
+    /// combination has not run here.
+    /// </summary>
+    /// <param name="key">A key from <see cref="MemoryPreflight.CombinationKey"/>.</param>
+    /// <remarks>
+    /// The range check is the one the control enforces (2–3600 s). A hand-edited
+    /// file therefore falls back to the default for a value the UI cannot show,
+    /// instead of starting a run with a window nobody chose.
+    /// </remarks>
+    public static int? LoadWindow(string key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return null;
+        }
+
+        lock (Gate)
+        {
+            return Read().Windows.TryGetValue(key, out int seconds)
+                && seconds is >= 2 and <= 3600
+                    ? seconds
+                    : null;
+        }
+    }
+
+    /// <summary>Records the window a run used for a model, backend and device.</summary>
+    /// <param name="key">A key from <see cref="MemoryPreflight.CombinationKey"/>.</param>
+    /// <param name="seconds">The window; values the control cannot show are ignored.</param>
+    public static void SaveWindow(string key, int seconds)
+    {
+        if (string.IsNullOrEmpty(key) || seconds is < 2 or > 3600)
+        {
+            return;
+        }
+
+        lock (Gate)
+        {
+            Document document = Read();
+            document.Windows[key] = seconds;
+            Write(document);
+        }
+    }
+
+    /// <summary>
+    /// Whether a run may lower its window and retry after an out-of-memory
+    /// failure. On unless the reader turned it off.
+    /// </summary>
+    public static bool LoadAutoAdjustWindow()
+    {
+        lock (Gate)
+        {
+            return Read().AutoAdjustWindow ?? true;
+        }
+    }
+
+    /// <summary>Records the automatic-adjustment choice.</summary>
+    public static void SaveAutoAdjustWindow(bool value)
+    {
+        lock (Gate)
+        {
+            Document document = Read();
+            document.AutoAdjustWindow = value;
+            Write(document);
+        }
+    }
+
+    /// <summary>
     /// Where the settings are written. Null means the default location under the
     /// app's cache directory; tests point it at a temporary file.
     /// </summary>
@@ -353,6 +420,12 @@ public static class UiSettings
 
         [JsonPropertyName("memory")]
         public Dictionary<string, MemoryRecord> Memory { get; init; } = new(StringComparer.Ordinal);
+
+        [JsonPropertyName("windows")]
+        public Dictionary<string, int> Windows { get; init; } = new(StringComparer.Ordinal);
+
+        [JsonPropertyName("autoAdjustWindow")]
+        public bool? AutoAdjustWindow { get; set; }
     }
 
     /// <summary>The Settings tab's compute choice as it sits on disk.</summary>

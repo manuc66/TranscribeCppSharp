@@ -44,6 +44,7 @@ public class AutomationIdTests
         "transcription-target-language",
         "transcription-window-seconds",
         "transcription-window-hint",
+        "transcription-auto-adjust-window",
         "transcription-advanced",
         "transcription-diarize",
         "transcription-diarizer",

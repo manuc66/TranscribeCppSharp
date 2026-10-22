@@ -161,94 +161,191 @@ public class TranscriptionService : ITranscriptionService
         IProgress<TranscriptionStep>? stepProgress,
         CancellationToken cancellationToken)
     {
-        using var session = CreateSession(model, options);
         var memory = new MemorySampler(model);
-        memory.Sample();
 
-        var words = new List<WordResult>();
-        var speakerSegments = new List<SpeakerSegmentResult>();
-        var merger = new TranscriptMerger();
-        string detectedLanguage = string.Empty;
-        bool wasAborted = false;
-        bool wasTruncated = false;
+        int requestedSeconds = options.WindowSeconds;
+        int windowSeconds = requestedSeconds;
+        var attempted = new List<int> { windowSeconds };
 
-        // TryPlan fails only when the window cannot advance past the
-        // overlap. WindowSeconds is checked when it is set, so reaching
-        // the fallback means the audio is empty or shorter than one
-        // window; either way one run over the whole thing is correct.
-        if (WindowPlanner.TryPlan(
-            (int)Math.Min(audioSource.LengthSamples, int.MaxValue),
-            options.WindowSeconds,
-            out var windows,
-            out _))
+        try
         {
-            // Announced before the first window so the UI can say "window 1 of N"
-            // while the first one runs, not only after it finishes.
-            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Transcribing, 0, windows.Count));
-
-            int windowIndex = 0;
-            foreach (var window in windows)
+            while (true)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var samples = audioSource.ReadWindow(window.OffsetSamples, window.LengthSamples);
-                var transcript = RunWindow(
-                    session, samples, options, memory,
-                    windowNumber: windowIndex + 1, windowCount: windows.Count,
-                    cancellationToken: cancellationToken);
-                Collect(merger, window, transcript, words, speakerSegments);
-
-                detectedLanguage = transcript.DetectedLanguage;
-                wasAborted = transcript.WasAborted;
-                wasTruncated = transcript.WasTruncated;
-
-                windowIndex++;
-                progress?.Report((double)windowIndex / windows.Count);
-                stepProgress?.Report(new TranscriptionStep(
-                    TranscriptionPhase.Transcribing, windowIndex, windows.Count));
-
-                // One update per finished window: the offline run has no finer
-                // callback, so this is not word-by-word, and the window setting is
-                // what decides how often it changes.
-                liveText?.Report(merger.BuildText());
-
-                // Best effort, between windows: the peak inside a window is not
-                // observable without polling from another thread, so this is a
-                // lower bound on the run's footprint, not a peak measurement.
+                // A new attempt starts a new measurement; a retry must not carry
+                // the failed attempt's low point into the result it eventually
+                // reports for the smaller window.
                 memory.Sample();
+
+                // Per attempt, because a retry starts the audio over: keeping the
+                // partial lists would duplicate the text already collected.
+                var words = new List<WordResult>();
+                var speakerSegments = new List<SpeakerSegmentResult>();
+                var merger = new TranscriptMerger();
+                string detectedLanguage = string.Empty;
+                bool wasAborted = false;
+                bool wasTruncated = false;
+                bool retry = false;
+
+                using var session = CreateSession(model, options);
+
+                // TryPlan takes milliseconds, not seconds: passing the option
+                // straight through made every value below 1000 mean a window
+                // shorter than the 1 s overlap, so planning failed and the run
+                // sent the whole file to the model in one call. That is what the
+                // Window setting must not do.
+                int windowMs = (int)Math.Min((long)windowSeconds * 1000, int.MaxValue);
+
+                // TryPlan fails only when the window cannot advance past the
+                // overlap. The control refuses values that small, so reaching the
+                // fallback means the audio is empty; one run over it is correct.
+                if (WindowPlanner.TryPlan(
+                    (int)Math.Min(audioSource.LengthSamples, int.MaxValue),
+                    windowMs,
+                    out var windows,
+                    out _))
+                {
+                    // Announced before the first window so the UI can say "window 1 of N"
+                    // while the first one runs, not only after it finishes. The window
+                    // rides on the step so a retry can tell the reader what it tries now.
+                    stepProgress?.Report(new TranscriptionStep(
+                        TranscriptionPhase.Transcribing, 0, windows.Count, windowSeconds));
+
+                    int windowIndex = 0;
+                    foreach (var window in windows)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var samples = audioSource.ReadWindow(window.OffsetSamples, window.LengthSamples);
+
+                        Transcript transcript;
+                        try
+                        {
+                            transcript = RunWindow(
+                                session, samples, options, memory,
+                                windowNumber: windowIndex + 1, windowCount: windows.Count,
+                                cancellationToken: cancellationToken);
+                        }
+                        catch (TranscribeException ex) when (
+                            CanLowerAfterFailure(ex, options, attempted, windowIndex))
+                        {
+                            int smaller = WindowAdjustment.Smaller(windowSeconds)!.Value;
+                            windowSeconds = smaller;
+                            attempted.Add(smaller);
+                            memory.Reset();
+                            retry = true;
+                            break;
+                        }
+
+                        Collect(merger, window, transcript, words, speakerSegments);
+
+                        detectedLanguage = transcript.DetectedLanguage;
+                        wasAborted = transcript.WasAborted;
+                        wasTruncated = transcript.WasTruncated;
+
+                        windowIndex++;
+                        progress?.Report((double)windowIndex / windows.Count);
+                        stepProgress?.Report(new TranscriptionStep(
+                            TranscriptionPhase.Transcribing, windowIndex, windows.Count, windowSeconds));
+
+                        // One update per finished window: the offline run has no finer
+                        // callback, so this is not word-by-word, and the window setting is
+                        // what decides how often it changes.
+                        liveText?.Report(merger.BuildText());
+
+                        // Best effort, between windows: the peak inside a window is not
+                        // observable without polling from another thread, so this is a
+                        // lower bound on the run's footprint, not a peak measurement.
+                        memory.Sample();
+                    }
+                }
+                else
+                {
+                    stepProgress?.Report(new TranscriptionStep(
+                        TranscriptionPhase.Transcribing, 0, 1, windowSeconds));
+                    var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
+
+                    Transcript? transcript = null;
+                    try
+                    {
+                        transcript = RunWindow(
+                            session, samples, options, memory,
+                            windowNumber: 1, windowCount: 1, cancellationToken: cancellationToken);
+                    }
+                    catch (TranscribeException ex) when (
+                        CanLowerAfterFailure(ex, options, attempted, windowIndex: 0))
+                    {
+                        int smaller = WindowAdjustment.Smaller(windowSeconds)!.Value;
+                        windowSeconds = smaller;
+                        attempted.Add(smaller);
+                        memory.Reset();
+                        retry = true;
+                    }
+
+                    if (!retry)
+                    {
+                        var window = new AudioWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
+                        Collect(merger, window, transcript!, words, speakerSegments);
+
+                        detectedLanguage = transcript!.DetectedLanguage;
+                        wasAborted = transcript.WasAborted;
+                        wasTruncated = transcript.WasTruncated;
+                        progress?.Report(1.0);
+                        stepProgress?.Report(new TranscriptionStep(
+                            TranscriptionPhase.Transcribing, 1, 1, windowSeconds));
+                        memory.Sample();
+                    }
+                }
+
+                if (retry)
+                {
+                    continue;
+                }
+
+                return new TranscriptionResult
+                {
+                    Roles = roles,
+                    FullText = merger.BuildText(),
+                    Segments = merger.Segments.ToList(),
+                    Words = words,
+                    SpeakerSegments = speakerSegments,
+                    DetectedLanguage = detectedLanguage,
+                    WasAborted = wasAborted,
+                    WasTruncated = wasTruncated,
+                    Duration = TimeSpan.FromSeconds(audioSource.LengthSamples / (double)WindowPlanner.SampleRate),
+                    EffectiveWindowSeconds = windowSeconds,
+                    RequestedWindowSeconds = windowSeconds == requestedSeconds ? null : requestedSeconds,
+                    Memory = memory.Observation
+                };
             }
         }
-        else
+        catch (TranscribeException ex) when (attempted.Count > 1)
         {
-            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Transcribing, 0, 1));
-            var samples = audioSource.ReadWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
-            var transcript = RunWindow(
-                session, samples, options, memory,
-                windowNumber: 1, windowCount: 1, cancellationToken: cancellationToken);
-            var window = new AudioWindow(0, (int)Math.Min(audioSource.LengthSamples, int.MaxValue));
-            Collect(merger, window, transcript, words, speakerSegments);
-
-            detectedLanguage = transcript.DetectedLanguage;
-            wasAborted = transcript.WasAborted;
-            wasTruncated = transcript.WasTruncated;
-            progress?.Report(1.0);
-            stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Transcribing, 1, 1));
-            memory.Sample();
+            // The last attempt's error is the one the caller sees; say which
+            // windows were already tried so the report is not a dead end.
+            ex.Data["window attempts"] = string.Join(", ", attempted) + " s";
+            throw;
         }
-
-        return new TranscriptionResult
-        {
-            Roles = roles,
-            FullText = merger.BuildText(),
-            Segments = merger.Segments.ToList(),
-            Words = words,
-            SpeakerSegments = speakerSegments,
-            DetectedLanguage = detectedLanguage,
-            WasAborted = wasAborted,
-            WasTruncated = wasTruncated,
-            Duration = TimeSpan.FromSeconds(audioSource.LengthSamples / (double)WindowPlanner.SampleRate),
-            Memory = memory.Observation
-        };
     }
+
+    /// <summary>
+    /// Whether an out-of-memory failure may be retried at a smaller window.
+    /// </summary>
+    /// <remarks>
+    /// Only the first window may lower the window: after one window has produced
+    /// text, restarting the audio would duplicate it. The failure must be the
+    /// native out-of-memory status, the caller must have allowed the adjustment,
+    /// and the halving must still be above
+    /// <see cref="WindowAdjustment.MinimumSeconds"/>.
+    /// </remarks>
+    private static bool CanLowerAfterFailure(
+        TranscribeException ex,
+        TranscriptionOptions options,
+        List<int> attempted,
+        int windowIndex)
+        => windowIndex == 0
+        && ex.StatusCode == Status.ErrOom
+        && options.AutoAdjustWindow
+        && attempted.Count < WindowAdjustment.MaximumAttempts
+        && WindowAdjustment.Smaller(attempted[^1]) is not null;
 
     /// <summary>
     /// Runs one window and, on a native out-of-memory failure, attaches what only
@@ -916,6 +1013,19 @@ public class TranscriptionService : ITranscriptionService
         public MemoryObservation? Observation => _observed
             ? new MemoryObservation(_deviceName, _total, _minimumFree, DateTimeOffset.Now)
             : null;
+
+        /// <summary>
+        /// Starts a new measurement. Used before a retry at a smaller window: the
+        /// failed attempt's low point belongs to its error report, not to the run
+        /// that eventually succeeds.
+        /// </summary>
+        public void Reset()
+        {
+            _deviceName = string.Empty;
+            _total = 0;
+            _minimumFree = ulong.MaxValue;
+            _observed = false;
+        }
 
         public void Sample()
         {
