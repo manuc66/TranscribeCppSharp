@@ -534,6 +534,13 @@ public partial class TranscriptionViewModel : ObservableObject
         get
         {
             TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.None;
+            // Same order as the run button: a model that transcribes runs ASR,
+            // even when it can also diarize or identify a language.
+            if (roles.HasFlag(TranscribeRole.Asr))
+            {
+                return "Transcription complete.";
+            }
+
             if (roles.HasFlag(TranscribeRole.Diarize))
             {
                 return "Diarization complete.";

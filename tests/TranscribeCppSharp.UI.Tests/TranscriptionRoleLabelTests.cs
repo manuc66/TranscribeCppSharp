@@ -87,5 +87,9 @@ public class TranscriptionRoleLabelTests
 
         viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
         Assert.Equal("Transcription complete.", viewModel.CompletionMessage);
+
+        // A model that can do both runs ASR, like its button says.
+        viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr | TranscribeRole.Diarize));
+        Assert.Equal("Transcription complete.", viewModel.CompletionMessage);
     }
 }
