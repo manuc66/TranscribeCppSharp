@@ -109,11 +109,13 @@ yet, or a settings file that cannot be read, the first alias is selected as befo
 
 Pick a file, a model and the decoder settings, then run.
 
-The form is ordered as the decisions are: **Audio**, **Model and language**, **Speaker
-labels**, **Run options**, then one **Advanced settings** disclosure for the decoder tuning
-that has a working default. One line under the model restates what the run will do (`Will
-transcribe, language fr, every segment as Speaker 0, windows of 300 s`), so the pickers and the
-result cannot disagree after the fact. The primary button is disabled until
+The form is ordered as the decisions are: **Audio**, **Model and language**, **Run options**,
+**Speaker labels**, then one **Advanced settings** disclosure for the decoder tuning that has
+a working default. Speaker labels come after the transcript options because they are
+post-processing: a dedicated diarizer runs as a second pass over the same audio, after the
+transcriber; a model that diarizes itself does it in the same pass. One line under the model
+restates what the run will do (`Will transcribe, language fr, every segment as Speaker 0,
+windows of 300 s`), so the pickers and the result cannot disagree after the fact. The primary button is disabled until
 a model is on disk, a file is selected and still exists, and a requested speaker attribution can
 actually be produced; when it is disabled, the line under it names the missing piece and where
 to get it instead of leaving a dead button.

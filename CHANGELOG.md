@@ -11,9 +11,11 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ### UI: the Transcription tab says what it will do, and one intent for speaker labels
 
-The tab is now a short ordered form — **Audio**, **Model and language**, **Speaker labels**,
-**Run options**, then the primary action — with the decoder tuning behind one collapsed
-**Advanced settings** disclosure. The primary button sits above that disclosure so it is on
+The tab is now a short ordered form — **Audio**, **Model and language**, **Run options**,
+**Speaker labels**, then the primary action — with the decoder tuning behind one collapsed
+**Advanced settings** disclosure. Speaker labels sit after the transcript options because a
+dedicated diarizer is a second pass after the transcriber; a model that diarizes itself does it
+in the same pass. The primary button sits above that disclosure so it is on
 screen without scrolling. A disabled button is no longer a dead end: the line under it names
 the missing piece (no model, no file, a file that has since been deleted, a capability check
 still running, or a speaker request that cannot be honoured) and where to get it. A summary

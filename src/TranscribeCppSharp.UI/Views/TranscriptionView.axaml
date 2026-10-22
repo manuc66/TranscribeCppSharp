@@ -145,11 +145,62 @@
         </StackPanel>
       </Border>
 
-      <!-- 3. The one speaker decision. The previous form had a "Diarization:
-           model default / off / on" picker and, elsewhere, a "Diarizer" model
-           picker — two controls that looked equivalent and meant different
-           things. Here the reader states the outcome they want; the app picks the
-           model that can produce it, and names it. -->
+      <!-- What the transcript should be, beyond the model's defaults. -->
+      <Border Classes="card" IsVisible="{Binding ShowTranscriptSection}">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Run options" Classes="section" />
+          <!-- Task and target only exist for a model that translates, and the
+               target only while the task is Translate: a target beside a
+               Transcribe run was one of the contradictory pairs this tab had. -->
+          <Grid ColumnDefinitions="*,*" IsVisible="{Binding ShowTask}">
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+              <TextBlock Text="Task" Classes="label"
+                         ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
+              <ComboBox ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding SelectedTask}"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding CanEditSettings}"
+                        AutomationProperties.AutomationId="transcription-task"
+                        AutomationProperties.Name="Task" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding ShowTargetLanguage}">
+              <TextBlock Text="Target language" Classes="label"
+                         ToolTip.Tip="What to translate into, for the models that support it. The list is what the loaded model declares it accepts — the library rejects a code outside it, so there is no free text to type a wrong value into. '(model default)' passes nothing and lets the model choose." />
+              <ComboBox ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding SelectedTargetOption}"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding CanEditSettings}"
+                        AutomationProperties.AutomationId="transcription-target-language"
+                        AutomationProperties.Name="Target language">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Display}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+          </Grid>
+          <StackPanel IsVisible="{Binding ShowWindow}">
+            <TextBlock Text="Window (sec)" Classes="label"
+                       ToolTip.Tip="Longest audio passed to the model in one call, in seconds. Longer audio is split into windows of this size overlapping by 1 s, and the results are merged with the overlap removed. Raise it if the model supports more than 300 s; lower it if the windows are too large for the available memory." />
+            <NumericUpDown Value="{Binding WindowSeconds}" Minimum="2" Maximum="3600" Increment="10"
+                           IsEnabled="{Binding CanEditSettings}"
+                           AutomationProperties.AutomationId="transcription-window-seconds"
+                           AutomationProperties.Name="Window seconds" />
+            <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Text="A long file is split into windows of this length; each finished window is one step on the progress bar."
+                       AutomationProperties.AutomationId="transcription-window-hint"
+                       AutomationProperties.Name="Window and progress" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- The one speaker decision, after the transcript options because it is
+           post-processing: a dedicated diarizer runs after the transcriber, and
+           a model that diarizes itself does it in the same pass. The previous
+           form had a "Diarization: model default / off / on" picker and,
+           elsewhere, a "Diarizer" model picker — two controls that looked
+           equivalent and meant different things. Here the reader states the
+           outcome they want; the app picks the model that can produce it, and
+           names it. -->
       <Border Classes="card" IsVisible="{Binding ShowSpeakerSection}"
               AutomationProperties.AutomationId="transcription-speakers"
               AutomationProperties.Name="Speaker labels">
@@ -210,54 +261,6 @@
               <TextBlock Text="Get a diarizer…" />
             </StackPanel>
           </Button>
-        </StackPanel>
-      </Border>
-
-      <!-- What the transcript should be, beyond the model's defaults. -->
-      <Border Classes="card" IsVisible="{Binding ShowTranscriptSection}">
-        <StackPanel Spacing="8">
-          <TextBlock Text="Run options" Classes="section" />
-          <!-- Task and target only exist for a model that translates, and the
-               target only while the task is Translate: a target beside a
-               Transcribe run was one of the contradictory pairs this tab had. -->
-          <Grid ColumnDefinitions="*,*" IsVisible="{Binding ShowTask}">
-            <StackPanel Grid.Column="0" Margin="0,0,8,0">
-              <TextBlock Text="Task" Classes="label"
-                         ToolTip.Tip="Transcribe writes the audio in the language spoken. Translate writes it in English. Only Whisper-family models implement translation; on other models the setting has no effect." />
-              <ComboBox ItemsSource="{Binding AvailableTasks}" SelectedItem="{Binding SelectedTask}"
-                        HorizontalAlignment="Stretch"
-                        IsEnabled="{Binding CanEditSettings}"
-                        AutomationProperties.AutomationId="transcription-task"
-                        AutomationProperties.Name="Task" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding ShowTargetLanguage}">
-              <TextBlock Text="Target language" Classes="label"
-                         ToolTip.Tip="What to translate into, for the models that support it. The list is what the loaded model declares it accepts — the library rejects a code outside it, so there is no free text to type a wrong value into. '(model default)' passes nothing and lets the model choose." />
-              <ComboBox ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding SelectedTargetOption}"
-                        HorizontalAlignment="Stretch"
-                        IsEnabled="{Binding CanEditSettings}"
-                        AutomationProperties.AutomationId="transcription-target-language"
-                        AutomationProperties.Name="Target language">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="{Binding Display}" />
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-            </StackPanel>
-          </Grid>
-          <StackPanel IsVisible="{Binding ShowWindow}">
-            <TextBlock Text="Window (sec)" Classes="label"
-                       ToolTip.Tip="Longest audio passed to the model in one call, in seconds. Longer audio is split into windows of this size overlapping by 1 s, and the results are merged with the overlap removed. Raise it if the model supports more than 300 s; lower it if the windows are too large for the available memory." />
-            <NumericUpDown Value="{Binding WindowSeconds}" Minimum="2" Maximum="3600" Increment="10"
-                           IsEnabled="{Binding CanEditSettings}"
-                           AutomationProperties.AutomationId="transcription-window-seconds"
-                           AutomationProperties.Name="Window seconds" />
-            <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,4,0,0"
-                       Text="A long file is split into windows of this length; each finished window is one step on the progress bar."
-                       AutomationProperties.AutomationId="transcription-window-hint"
-                       AutomationProperties.Name="Window and progress" />
-          </StackPanel>
         </StackPanel>
       </Border>
 
