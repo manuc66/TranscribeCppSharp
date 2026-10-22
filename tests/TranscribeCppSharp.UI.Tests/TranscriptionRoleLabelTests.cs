@@ -67,4 +67,25 @@ public class TranscriptionRoleLabelTests
         viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Vad));
         Assert.Equal("Detect speech", viewModel.RunButtonText);
     }
+
+    [Fact]
+    public void TheCompletionMessageNamesWhatFinished()
+    {
+        TranscriptionViewModel viewModel = ViewModel();
+
+        // Nothing checked yet: the ordinary success message.
+        Assert.Equal("Transcription complete.", viewModel.CompletionMessage);
+
+        viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Diarize));
+        Assert.Equal("Diarization complete.", viewModel.CompletionMessage);
+
+        viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Langid));
+        Assert.Equal("Language identification complete.", viewModel.CompletionMessage);
+
+        viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Vad));
+        Assert.Equal("Speech detection complete.", viewModel.CompletionMessage);
+
+        viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+        Assert.Equal("Transcription complete.", viewModel.CompletionMessage);
+    }
 }

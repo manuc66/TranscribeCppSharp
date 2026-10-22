@@ -520,6 +520,35 @@ public partial class TranscriptionViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// What the status says when a run succeeds, named for the role it ran. A
+    /// diarizer or a language identifier is not a transcription, and saying it was
+    /// one would make the result look wrong.
+    /// </summary>
+    internal string CompletionMessage
+    {
+        get
+        {
+            TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.None;
+            if (roles.HasFlag(TranscribeRole.Diarize))
+            {
+                return "Diarization complete.";
+            }
+
+            if (roles.HasFlag(TranscribeRole.Langid))
+            {
+                return "Language identification complete.";
+            }
+
+            if (roles.HasFlag(TranscribeRole.Vad))
+            {
+                return "Speech detection complete.";
+            }
+
+            return "Transcription complete.";
+        }
+    }
+
     /// <summary>The "no separate diarizer" entry, kept so the picker can reseat it.</summary>
     private static readonly DiarizerOption NoDiarizer = new(null, "(none)");
 
@@ -1794,7 +1823,7 @@ public partial class TranscriptionViewModel : ObservableObject
                 Result,
                 new ResultProvenance(
                     _runModelAlias, EffectiveLanguage(), DiarizeLabel(options.DiarizeMode), options.WindowSeconds));
-            StatusMessage = "Transcription complete.";
+            StatusMessage = CompletionMessage;
             TrySaveHistory();
             if (Result.Memory is { } observation)
             {
