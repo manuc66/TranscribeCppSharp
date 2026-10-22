@@ -22,6 +22,7 @@ Three ways to use it:
 - **A command-line tool** — `dotnet tool install -g TranscribeCppSharp.Cli` gives you `transcribe`, which downloads a curated model on first use and prints or exports the transcript. See [Command-line tool](docs/cli.md).
 - **A .NET library** — the `TranscribeCppSharp` wrapper (plus the native runtime package for your platform) for C# code. See [Getting started](docs/getting-started.md).
 - **A desktop app** — `TranscribeCppSharp.UI`, an Avalonia GUI over the same wrapper. Each [release](https://github.com/manuc66/TranscribeCppSharp/releases) attaches a self-contained archive per platform (not a NuGet package); you can also run it from a clone. See [Desktop app](#desktop-app).
+- **An OpenAI-compatible server** — `TranscribeCppSharp.Server` serves **one** loaded model over HTTP (`/v1/audio/transcriptions`, `/v1/audio/translations`) with the routes OpenAI's audio API uses. Run it from a clone; there is no package or archive for it yet. See [OpenAI-compatible server](docs/server.md).
 
 📖 **[Full documentation →](https://manuc66.github.io/TranscribeCppSharp/)** — the guide, the reference, and the measured limits with the method behind each one. Published from [`docs/`](docs/); this README is the short version and the details are delegated to those pages.
 
@@ -232,6 +233,11 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
   will warn on first launch — and there is no installer and no NuGet package for it. Its
   headless tests run in CI on all three platforms, but a real launch on each OS is not covered
   ([Desktop app](#desktop-app)).
+- **The server serves one model and one request at a time.** transcribe.cpp allows one run per
+  model at a time, so the OpenAI-compatible server queues requests behind a semaphore; a long
+  file blocks the queue. It has no streaming route, no subtitle response formats yet, and does
+  not lower the window after an out-of-memory failure the way the desktop app does
+  ([OpenAI-compatible server](docs/server.md)).
 
 The formats the decoder is *verified* to read are listed, with the tests that cover them,
 on [Audio input](docs/audio-input.md).

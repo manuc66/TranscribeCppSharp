@@ -9,6 +9,36 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### New: an OpenAI-compatible server
+
+`src/TranscribeCppSharp.Server` serves one loaded model over HTTP with the routes
+OpenAI's audio API uses: `POST /v1/audio/transcriptions`, `POST /v1/audio/translations`,
+`GET /v1/models` and `GET /health`. It is a thin layer over the wrapper — the windowing
+is the CLI's `WindowPlanner`/`TranscriptMerger`, not a second implementation — and it
+adds no native call of its own.
+
+Stated limits, because they shape what the server is good for:
+
+- **One request at a time.** transcribe.cpp allows one run per model at a time, so every
+  request queues behind one semaphore. A long file blocks the rest.
+- **A subset of OpenAI's fields.** `response_format` is `json`, `text` or
+  `verbose_json`. `prompt`, a non-zero `temperature`, and `response_format=srt|vtt` are
+  refused with a 400 naming the field, rather than accepted and ignored.
+- **`verbose_json` carries only what the library has.** `task`, `language`, `duration`,
+  `text`, `segments` (with `speaker` when attribution ran) and `words` (only when the
+  model reports word timestamps). OpenAI's `avg_logprob`, `compression_ratio`,
+  `no_speech_prob` and token arrays are absent.
+- **Downloads are opt-in** (`--allow-download`), auth is optional (`--api-key` or
+  `TRANSCRIBE_SERVER_API_KEY`), and it binds loopback by default.
+- **No window fallback.** The GUI lowers the window and retries after an out-of-memory
+  failure; the server does not yet, so `--chunk` must be chosen for the device.
+
+The endpoint contract is covered by 38 tests that drive the real Kestrel pipeline with a
+fake backend: no model, no native library, no GPU. A manual run against
+`test-models/ggml-tiny.bin` and `test-audio/jfk.wav` returned the expected transcript in
+`json`, `text` and `verbose_json`. The server is not packaged (no NuGet, no release
+archive) and is not wired into the release workflow.
+
 ### UI: the Models tab says which role a model serves
 
 The catalogue already carries upstream's `role` field, but the GUI never read it:

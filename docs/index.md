@@ -10,9 +10,11 @@ nav_order: 1
   <img src="{{ '/assets/images/icon-512.png' | relative_url }}" alt="TranscribeCppSharp" width="112">
 </p>
 
-A `transcribe` command-line tool, a desktop app and .NET bindings for
+A `transcribe` command-line tool, a desktop app, an OpenAI-compatible server and
+.NET bindings for
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (speech-to-text): get a
-transcript from a shell with no code, from a window, or load GGUF models from C#.
+transcript from a shell with no code, from a window, from an HTTP call, or load GGUF models
+from C#.
 
 This project is a **packaging and binding effort only** — the native library is
 developed by the [transcribe.cpp authors](https://github.com/handy-computer/transcribe.cpp)
@@ -83,6 +85,18 @@ because the pickers are built once when the window opens.
 Which models those 76 are, and what the Models tab does with them:
 [Desktop app — Models](ui.md#models).
 
+## Or serve it over HTTP
+
+```bash
+dotnet run --project src/TranscribeCppSharp.Server -- --model whisper-tiny --allow-download
+curl -s http://127.0.0.1:8080/v1/audio/transcriptions -F file=@talk.mp3 -F response_format=json
+```
+
+The routes are OpenAI's, so a client that already speaks them works unchanged. One
+process serves one model, and requests are serialized because the native library allows
+one run per model at a time. What is implemented, what is refused and why:
+[OpenAI-compatible server](server.md).
+
 ## Or call it from C#
 
 ```bash
@@ -139,6 +153,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
 |---|---|
 | [Command-line tool](cli.md) | installing `transcribe`, a first run, the full `--help`, and what the tool does not do |
 | [Desktop app](ui.md) | the Avalonia GUI: the six tabs, running it from source, and what it does not do |
+| [OpenAI-compatible server](server.md) | the HTTP routes, the serialization, what it refuses, and what it is not |
 | [Getting started](getting-started.md) | installing, the native packages, load-and-transcribe, batch, streaming, sample code |
 | [Compute](compute.md) | GPU by default, `--list-devices`, backend and device selection, CUDA |
 | [Models](models.md) | aliases vs. HuggingFace specs, `--list-models`, caching, capabilities, model licences |
