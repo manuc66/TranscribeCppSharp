@@ -82,6 +82,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanCancelTranscription))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
+    [NotifyPropertyChangedFor(nameof(CanEditModel))]
     [NotifyPropertyChangedFor(nameof(CanEditLanguage))]
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     [NotifyPropertyChangedFor(nameof(ShowProgressPercent))]
@@ -390,6 +391,9 @@ public partial class TranscriptionViewModel : ObservableObject
         => _selectedCapabilities is not null
             ? _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
             : HasDownloadedModels;
+
+    /// <summary>Whether the model picker may be changed now.</summary>
+    public bool CanEditModel => CanEditSettings && HasDownloadedModels;
 
     /// <summary>Whether the language controls may be changed now.</summary>
     public bool CanEditLanguage
@@ -934,6 +938,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
+    [NotifyPropertyChangedFor(nameof(CanEditModel))]
     [NotifyPropertyChangedFor(nameof(CanEditLanguage))]
     [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
@@ -1130,6 +1135,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(RunSummary));
         OnPropertyChanged(nameof(ShowTranscriptSection));
         OnPropertyChanged(nameof(ShowAdvanced));
+        OnPropertyChanged(nameof(CanEditModel));
         OnPropertyChanged(nameof(CanEditLanguage));
         OnPropertyChanged(nameof(ShowSpeakerSection));
         OnPropertyChanged(nameof(CanAskForSpeakerLabels));
@@ -1447,6 +1453,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowWindow));
         OnPropertyChanged(nameof(ShowTranscriptSection));
         OnPropertyChanged(nameof(ShowAdvanced));
+        OnPropertyChanged(nameof(CanEditModel));
         OnPropertyChanged(nameof(CanEditLanguage));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
         OnPropertyChanged(nameof(ShowVocabulary));
