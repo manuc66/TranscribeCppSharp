@@ -223,7 +223,9 @@ instead of leaving a bar at zero:
 |---|---|---|
 | Loading the model | Indeterminate | `Loading whisper-tiny…` — the native library reports no progress for a load |
 | Reading the audio | Indeterminate | `Reading the audio…` — the WAV read or ffmpeg decode reports no fraction |
-| Offline ASR | Determinate | `Transcribing — window 3 of 12`, from the planner's own window list |
+| Offline ASR, several windows | Determinate | `Transcribing — window 3 of 12`, from the planner's own window list |
+| Offline ASR, one window | Indeterminate | `Transcribing — window 1 of 1`, with a note that the native call reports no fraction inside a window |
+| VAD | Indeterminate, then determinate | The action's label, then the per-window fraction once the first window returns |
 | Chained diarizer | Indeterminate | `Diarizing — attributing speakers` — one native call over the whole file |
 | One-call role (LANGID, DIARIZE) | Indeterminate | The action's label, e.g. `Identify language…` |
 
@@ -231,8 +233,8 @@ The percentage is hidden while the bar is indeterminate, so it never sits at 95%
 pass that has no measurable fraction. An elapsed clock (`elapsed 02:14`) is measured from the
 start of the run, and after a second finished window the card adds an estimate
 (`about 03:40 left (estimate)`) computed from the windows measured so far. The window count is
-the number of native calls the run will make, not an estimate of time. VAD is windowed and
-therefore determinate even though it is not ASR.
+the number of native calls the run will make, not an estimate of time. VAD is windowed but
+reports no step, so it starts indeterminate and fills the bar from the first finished window.
 
 **The settings are locked while a run or a probe is active.** A run works from the values it
 started with, so an edit during it would not change what the run does — it would only change what

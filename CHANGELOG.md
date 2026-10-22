@@ -39,8 +39,10 @@ the feedback cannot appear below the fold; the status line is hidden while it is
 returns with the completion or the failure. It distinguishes what the service can observe.
 Loading the model and reading or decoding the audio are indeterminate, with a line saying the
 native library reports no fraction for them. The offline ASR path fills the bar by finished windows and names them
-(`Transcribing — window 3 of 12`). A chained diarizer is indeterminate too, and the card says it
-runs the whole file in one native call, instead of holding a percentage at 95%. The percentage
+(`Transcribing — window 3 of 12`); a file that fits in one window is indeterminate with a note
+saying the native call reports no fraction inside it, rather than a determinate bar frozen at
+0%. A chained diarizer is indeterminate too, and the card says it runs the whole file in one
+native call, instead of holding a percentage at 95%. The percentage
 is hidden while the bar is indeterminate. An elapsed clock is measured from the start of the
 run, and after a second finished window the card adds an estimate computed from the windows
 measured so far, labelled as an estimate. The countable step and the estimate are not time

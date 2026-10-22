@@ -1730,8 +1730,14 @@ public partial class TranscriptionViewModel : ObservableObject
                         _firstWindowFinishedAt = DateTime.UtcNow;
                     }
 
-                    ProgressIsIndeterminate = false;
-                    ProgressNote = string.Empty;
+                    // A file that fits in one window has no fraction to show until
+                    // the native call returns: a determinate bar at 0% would look
+                    // frozen for the whole transcription. Say that instead.
+                    bool singleWindow = _windowsTotal == 1 && _windowsCompleted == 0;
+                    ProgressIsIndeterminate = singleWindow;
+                    ProgressNote = singleWindow
+                        ? "This file fits in one window; the native run reports no progress inside a window."
+                        : string.Empty;
                     ProgressStage = $"Transcribing — window "
                         + $"{Math.Clamp(s.Completed == 0 ? 1 : s.Completed, 1, _windowsTotal)} of {_windowsTotal}";
                 }
@@ -1861,10 +1867,11 @@ public partial class TranscriptionViewModel : ObservableObject
 
         // Not probed yet: nothing is known, so the bar does not claim a fraction.
         // The first window step or the first progress report replaces that as soon
-        // as one arrives, so an ASR or VAD run corrects itself immediately.
+        // as one arrives, so an ASR or VAD run corrects itself immediately. VAD
+        // reports a fraction per window but no step, so it starts indeterminate and
+        // turns determinate on its first progress report.
         return _selectedCapabilities is { } caps
-            && (caps.Roles.HasFlag(TranscribeRole.Asr)
-                || caps.Roles.HasFlag(TranscribeRole.Vad));
+            && caps.Roles.HasFlag(TranscribeRole.Asr);
     }
 
     /// <summary>

@@ -145,6 +145,69 @@ public class TranscriptionProgressTests
         });
     }
 
+    [Fact]
+    public async Task AFileThatFitsInOneWindowIsIndeterminateRatherThanFrozenAtZero()
+    {
+        var service = new SingleWindowService();
+        await WithRun(service, async viewModel =>
+        {
+            Task run = viewModel.TranscribeCommand.ExecuteAsync(null);
+            await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+            Assert.True(viewModel.ProgressIsIndeterminate);
+            Assert.False(viewModel.ShowProgressPercent);
+            Assert.Equal("Transcribing — window 1 of 1", viewModel.ProgressStage);
+            Assert.Contains("one window", viewModel.ProgressNote, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("no progress", viewModel.ProgressNote, StringComparison.OrdinalIgnoreCase);
+
+            service.Release.TrySetResult();
+            await run;
+        });
+    }
+
+    /// <summary>Reports a one-window plan, then finishes.</summary>
+    private sealed class SingleWindowService : ITranscriptionService
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<TranscriptionResult> TranscribeAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            IProgress<double>? progress = null,
+            IProgress<string>? liveText = null,
+            IProgress<TranscriptionPhase>? phase = null,
+            IProgress<TranscriptionStep>? step = null,
+            CancellationToken cancellationToken = default)
+        {
+            phase?.Report(TranscriptionPhase.Transcribing);
+            step?.Report(new TranscriptionStep(TranscriptionPhase.Transcribing, 0, 1));
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            progress?.Report(1.0);
+            return new TranscriptionResult { FullText = "text" };
+        }
+
+        public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(
+            string modelPath, StreamOptions options,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task<MemoryProbeResult> ProbeMemoryAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<List<BatchItemResult>> BatchTranscribeAsync(
+            IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
     /// <summary>
     /// Walks the run through its phases on demand, so the assertions can look at
     /// each state without timing a real model.
