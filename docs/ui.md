@@ -226,7 +226,7 @@ instead of leaving a bar at zero:
 | Offline ASR, several windows | Determinate | `Transcribing — window 3 of 12`, from the planner's own window list |
 | Offline ASR, one window | Indeterminate | `Transcribing — window 1 of 1`, with a note that the native call reports no fraction inside a window |
 | VAD | Indeterminate, then determinate | The action's label, then the per-window fraction once the first window returns |
-| Chained diarizer | Indeterminate | `Diarizing — attributing speakers` — one native call over the whole file |
+| Chained diarizer | Indeterminate | `Diarizing — attributing speakers` — the transcript is complete; the diarizer runs the whole file in one native call and adds speaker turns |
 | One-call role (LANGID, DIARIZE) | Indeterminate | The action's label, e.g. `Identify language…` |
 
 The percentage is hidden while the bar is indeterminate, so it never sits at 95% during a second

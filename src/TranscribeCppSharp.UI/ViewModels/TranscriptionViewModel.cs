@@ -1870,11 +1870,15 @@ public partial class TranscriptionViewModel : ObservableObject
 
             case TranscriptionPhase.Diarizing:
                 ProgressIsIndeterminate = true;
-                ProgressNote = "Diarizing runs the whole file in one native call and reports no progress.";
-                ProgressStage = "Diarizing — attributing speakers";
                 // A chained diarizer follows a finished transcript; a model whose
                 // whole role is diarization has no transcript to speak of.
-                StatusMessage = LabelSpeakers && !CanModelDiarize
+                bool chained = LabelSpeakers && !CanModelDiarize;
+                ProgressNote = chained
+                    ? "The transcript is complete. The diarizer runs the whole file in one native call "
+                        + "and reports no progress; this pass adds speaker turns."
+                    : "Diarizing runs the whole file in one native call and reports no progress.";
+                ProgressStage = "Diarizing — attributing speakers";
+                StatusMessage = chained
                     ? "Diarizing… the transcript is complete; a separate diarizer is attributing speakers."
                     : "Diarizing…";
                 break;
