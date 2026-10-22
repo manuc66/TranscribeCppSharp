@@ -828,8 +828,15 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether the selected model's roles include voice activity detection.</summary>
     public bool ShowVadTab => Result?.Roles.HasFlag(TranscribeRole.Vad) == true;
 
-    /// <summary>Whether the allowed-languages field applies (the model serves LANGID).</summary>
-    public bool ShowAllowedLanguages => _selectedCapabilities?.Roles.HasFlag(TranscribeRole.Langid) == true;
+    /// <summary>
+    /// Whether the allowed-languages field applies: only when the run will actually
+    /// take the LANGID path. A model that transcribes *and* identifies languages
+    /// runs ASR here, where the field is ignored.
+    /// </summary>
+    public bool ShowAllowedLanguages
+        => _selectedCapabilities is { } caps
+        && !caps.Roles.HasFlag(TranscribeRole.Asr)
+        && caps.Roles.HasFlag(TranscribeRole.Langid);
 
     /// <summary>
     /// Whether a file is selected and still on disk. The run command checks this

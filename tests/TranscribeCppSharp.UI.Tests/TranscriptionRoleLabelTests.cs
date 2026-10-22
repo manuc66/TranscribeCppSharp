@@ -92,4 +92,20 @@ public class TranscriptionRoleLabelTests
         viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr | TranscribeRole.Diarize));
         Assert.Equal("Transcription complete.", viewModel.CompletionMessage);
     }
+
+    [Fact]
+    public void AllowedLanguagesOnlyAppearForALanguageIdentificationRun()
+    {
+        TranscriptionViewModel viewModel = ViewModel();
+
+        // ASR wins over LANGID when a model serves both, so the ranking filter
+        // would be an option the run ignores.
+        viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr | TranscribeRole.Langid));
+        Assert.False(viewModel.ShowAllowedLanguages);
+        Assert.True(viewModel.ShowLanguage);
+
+        viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Langid));
+        Assert.True(viewModel.ShowAllowedLanguages);
+        Assert.False(viewModel.ShowLanguage);
+    }
 }

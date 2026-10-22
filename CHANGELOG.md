@@ -50,7 +50,7 @@ claims from the project: one is the planner's window list, the other is arithmet
 windows already finished.
 
 Tests: the phase sequence, the indeterminate states, the estimate's starting point and the
-speaker intent are covered; the full UI suite is 323 passed.
+speaker intent are covered; the full UI suite is 324 passed.
 
 ### UI: the small review features — play a segment, find, copy with timestamps, real duration
 
