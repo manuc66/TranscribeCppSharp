@@ -85,6 +85,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     [NotifyPropertyChangedFor(nameof(ShowProgressPercent))]
     [NotifyPropertyChangedFor(nameof(ShowStatus))]
+    [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isTranscribing;
@@ -425,6 +426,13 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether the model can produce speaker labels at all.</summary>
     public bool CanAskForSpeakerLabels
         => ShowSpeakerSection && (CanModelDiarize || HasSegmentTimings);
+
+    /// <summary>
+    /// Whether the speaker checkbox may be changed now. It follows the same lock as
+    /// every other setting: a run works from its snapshot, so toggling the intent
+    /// mid-run would only change what the reader believes the run did.
+    /// </summary>
+    public bool CanEditSpeakerLabels => CanEditSettings && CanAskForSpeakerLabels;
 
     /// <summary>
     /// The reader's explicit intent: tick the box to attribute speakers, leave it
@@ -879,6 +887,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
+    [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isProbingMemory;
@@ -1386,6 +1395,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(HasSegmentTimings));
         OnPropertyChanged(nameof(CanUseDedicatedDiarizer));
         OnPropertyChanged(nameof(CanAskForSpeakerLabels));
+        OnPropertyChanged(nameof(CanEditSpeakerLabels));
         OnPropertyChanged(nameof(CanProbeThisRole));
         OnPropertyChanged(nameof(CanProbeMemory));
         OnPropertyChanged(nameof(ShowDiarizerPicker));

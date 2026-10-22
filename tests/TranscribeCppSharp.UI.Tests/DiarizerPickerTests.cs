@@ -1,8 +1,13 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.LogicalTree;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
+using TranscribeCppSharp.UI.Views;
 using Xunit;
 
 namespace TranscribeCppSharp.UI.Tests;
@@ -256,6 +261,35 @@ public class DiarizerPickerTests
             TranscriptionOptions options = viewModel.BuildTranscriptionOptions();
             Assert.Equal(DiarizeMode.DiarizeModeOn, options.DiarizeMode);
             Assert.Null(options.DiarizerModel);
+        });
+    }
+
+    [AvaloniaFact]
+    public void TheSpeakerCheckboxFollowsTheSettingsLock()
+    {
+        InCache(() =>
+        {
+            var viewModel = new TranscriptionViewModel(
+                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
+
+            var view = new TranscriptionView { DataContext = viewModel };
+            var window = new Window { Content = view, Width = 1100, Height = 900 };
+            window.Show();
+
+            CheckBox box = view.GetLogicalDescendants()
+                .OfType<CheckBox>()
+                .First(c => AutomationProperties.GetAutomationId(c) == "transcription-diarize");
+
+            Assert.True(box.IsEffectivelyEnabled);
+
+            // A run works from its snapshot; toggling the intent during one would
+            // change what the reader believes the run did.
+            viewModel.IsTranscribing = true;
+            Assert.False(box.IsEffectivelyEnabled);
+
+            viewModel.IsTranscribing = false;
+            Assert.True(box.IsEffectivelyEnabled);
         });
     }
 

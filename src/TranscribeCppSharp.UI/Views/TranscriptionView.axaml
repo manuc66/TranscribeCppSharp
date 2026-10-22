@@ -157,7 +157,7 @@
           <TextBlock Text="Speaker labels" Classes="section" />
           <CheckBox Content="Add speaker labels"
                     IsChecked="{Binding LabelSpeakers}"
-                    IsEnabled="{Binding CanAskForSpeakerLabels}"
+                    IsEnabled="{Binding CanEditSpeakerLabels}"
                     AutomationProperties.AutomationId="transcription-diarize"
                     AutomationProperties.Name="Add speaker labels"
                     ToolTip.Tip="Ask for speaker attribution in the result. This model can do it itself, or a separate diarizer model can run a second pass over the same audio. Off, every segment stays Speaker 0." />
