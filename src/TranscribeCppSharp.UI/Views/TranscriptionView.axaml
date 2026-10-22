@@ -118,7 +118,7 @@
                            ToolTip.Tip="Language code for the decoder (default: en). This is the code the model assumes the audio is in; leave the default unless the audio is not English. Only Whisper-family models detect the language themselves." />
                 <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding Language}"
                           HorizontalAlignment="Stretch"
-                          IsEnabled="{Binding CanEditSettings}"
+                          IsEnabled="{Binding CanEditLanguage}"
                           AutomationProperties.AutomationId="transcription-language"
                           AutomationProperties.Name="Language">
                   <!-- The item stays the code; only its label carries the name,
@@ -135,7 +135,7 @@
                 <TextBlock Text="Allowed languages" Classes="label"
                            ToolTip.Tip="Comma-separated language codes the language-identification model may answer with (e.g. en,fr,de). Empty ranks every label." />
                 <TextBox Text="{Binding AllowedLanguages}"
-                         IsEnabled="{Binding CanEditSettings}"
+                         IsEnabled="{Binding CanEditLanguage}"
                          AutomationProperties.AutomationId="transcription-allowed-languages"
                          AutomationProperties.Name="Allowed languages"
                          PlaceholderText="en,fr,de" />

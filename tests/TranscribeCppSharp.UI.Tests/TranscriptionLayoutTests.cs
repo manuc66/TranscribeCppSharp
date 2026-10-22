@@ -64,9 +64,11 @@ public class TranscriptionLayoutTests
     {
         WithViewModel(viewModel =>
         {
+            // The alias first: changing it starts a probe that clears the snapshot
+            // when the model is not on disk, which would undo the one below.
+            viewModel.ModelAlias = "whisper-tiny";
             viewModel.ApplyCapabilities(Snapshot(Feature.FeatureVocabulary));
             viewModel.AudioPath = "/audio/interview.wav";
-            viewModel.ModelAlias = "whisper-tiny";
 
             var result = new TranscriptionResult
             {

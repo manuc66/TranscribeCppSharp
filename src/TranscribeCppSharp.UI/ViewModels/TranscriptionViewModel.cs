@@ -82,6 +82,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanCancelTranscription))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
+    [NotifyPropertyChangedFor(nameof(CanEditLanguage))]
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     [NotifyPropertyChangedFor(nameof(ShowProgressPercent))]
     [NotifyPropertyChangedFor(nameof(ShowStatus))]
@@ -372,16 +373,27 @@ public partial class TranscriptionViewModel : ObservableObject
         || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
         || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Vad);
 
-    /// <summary>Whether the transcript card has a control in it at all.</summary>
-    public bool ShowTranscriptSection => ShowTask || ShowWindow;
+    /// <summary>
+    /// Whether the run-options card has a control in it at all. With no model on
+    /// disk it would only show defaults for a run that cannot start.
+    /// </summary>
+    public bool ShowTranscriptSection
+        => _selectedCapabilities is not null
+            ? ShowTask || ShowWindow
+            : HasDownloadedModels;
 
     /// <summary>
     /// Whether the decoder tuning applies. Every field behind the disclosure is a
     /// session or ASR extension knob, and the non-ASR sessions take none of them.
     /// </summary>
     public bool ShowAdvanced
-        => _selectedCapabilities is null
-        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+        => _selectedCapabilities is not null
+            ? _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
+            : HasDownloadedModels;
+
+    /// <summary>Whether the language controls may be changed now.</summary>
+    public bool CanEditLanguage
+        => CanEditSettings && (_selectedCapabilities is not null || HasDownloadedModels);
 
     /// <summary>Whether speculative decoding applies to the selected model.</summary>
     public bool ShowSpeculativeDecoding => ModelOptionVisibility.ShowSpeculativeDecoding(_selectedCapabilities);
@@ -893,6 +905,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
+    [NotifyPropertyChangedFor(nameof(CanEditLanguage))]
     [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
@@ -1086,6 +1099,9 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
         OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(ShowTranscriptSection));
+        OnPropertyChanged(nameof(ShowAdvanced));
+        OnPropertyChanged(nameof(CanEditLanguage));
         OnPropertyChanged(nameof(ShowSpeakerSection));
         OnPropertyChanged(nameof(CanAskForSpeakerLabels));
         OnPropertyChanged(nameof(CanEditSpeakerLabels));
@@ -1402,6 +1418,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowWindow));
         OnPropertyChanged(nameof(ShowTranscriptSection));
         OnPropertyChanged(nameof(ShowAdvanced));
+        OnPropertyChanged(nameof(CanEditLanguage));
         OnPropertyChanged(nameof(ShowSpeculativeDecoding));
         OnPropertyChanged(nameof(ShowVocabulary));
         OnPropertyChanged(nameof(ShowSpeakerSection));
