@@ -144,10 +144,10 @@ public class TranscribeCommandTests(ITestOutputHelper output)
         using var temp = new TempWorkspace();
         string audio = temp.WriteWav("a.wav", new float[16000]);
 
-        Result result = Run(audio, "--format", "srt");
+        Result result = Run(audio, "--format", "sub");
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Contains("unknown --format: srt", result.Error);
+        Assert.Contains("unknown --format: sub", result.Error);
         AssertNoCrash(result);
     }
 
