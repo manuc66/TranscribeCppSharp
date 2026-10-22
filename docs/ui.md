@@ -53,10 +53,9 @@ at all.
 The pictures below are generated from the app itself by
 [`samples/UIScreenshot`](../samples/UIScreenshot), which drives the real window with the
 real view models and takes the frame itself. Nothing is stubbed to suit a picture, and
-nothing is fabricated to fill one: what a tab shows on a fresh machine is what a tab shows
-here — no audio picked, nothing transcribed, nothing downloaded. What the machine decides
-is in the picture, so the Settings tab lists whatever devices it has, and the cache line
-counts whatever it has fetched. Regenerate them with:
+nothing is fabricated to fill one: no audio is picked and nothing is transcribed, and what
+the machine has decided is in the picture — the Settings tab lists the devices it can see,
+and the model pickers and cache line count what it has fetched. Regenerate them with:
 
 ```bash
 dotnet run --project samples/UIScreenshot           # writes into docs/assets/images
