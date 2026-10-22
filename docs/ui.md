@@ -124,8 +124,9 @@ diarization model (Sortformer) returns speaker turns; a language-identification
 model returns the ranked languages; a voice-activity model returns the speech
 segments. The result appears in the Text tab and, by role, in a **Languages** grid
 (ranked candidates) or a **Speech** grid (segments, in samples); a diarizer fills
-the **Speakers** tab. A language model also shows an **Allowed languages** field
-(comma-separated codes) to restrict the ranking. Decoder settings that only apply
+the **Speakers** tab. A model whose role is language identification also shows an
+**Allowed languages** field (comma-separated codes) to restrict the ranking; a model that
+transcribes *and* identifies languages runs ASR here, so the field is not shown for it. Decoder settings that only apply
 to ASR are hidden for the other roles.
 
 A voice-activity model is scored one window at a time (Silero VAD is
@@ -144,7 +145,7 @@ A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg
 
 | Setting | Default | Notes |
 |---|---|---|
-| Model | the CLI's default alias | Downloaded on first use and cached |
+| Model | the model last run, else the first on disk | The picker lists what is downloaded; the Models tab fetches and deletes models |
 | Language | `en`, then whatever the model allows | Before the model is probed, the picker falls back to ten codes (`en`, `fr`, `de`, `es`, `it`, `pt`, `ru`, `zh`, `ja`, `ko`). Once a model has been probed the list is what *it* declares, with `auto` added when it reports language detection, and `auto` means no language is passed at all so the model decides for itself. If the current choice is not in the new list, the picker takes the first entry instead of keeping an unavailable one. Each entry is drawn with its English name beside the code (`fr — French`), added by the app from a table of the codes the Whisper family uses; the item itself stays the code, and a code the table does not know keeps its bare form rather than being guessed at |
 | Threads | library default | Left empty on purpose. This is not a benchmarked recommendation — raising it past the core count usually makes it slower |
 | KV type | Auto | `F32` keeps the most precision and the most memory; `F16` halves the cache |
@@ -160,13 +161,13 @@ hidden based on what the model reports, not on what its name suggests — see
 
 **Vocabulary** is custom terms for the decoder, one per line, in priority order —
 names, jargon, acronyms. It is passed as the run's vocabulary list and the field is
-shown only while the model reports the vocabulary feature; an unloaded model keeps it
-visible, like every other group. Upstream ignores the list with a native warning on a
+shown only while the model reports the vocabulary feature; a downloaded model whose
+capabilities could not be read keeps it visible, like every other group. Upstream ignores the list with a native warning on a
 model that does not implement it, and this project has not measured how much it changes
 a transcript: the field makes no accuracy claim. It applies to offline runs; the CLI has
 no flag for it.
 
-**Speaker labels** are one intent, not a mode picker. Ticking **Label who is speaking** asks
+**Speaker labels** are one intent, not a mode picker. Ticking **Add speaker labels** asks
 for attribution; leaving it clear keeps every segment as `Speaker 0`. For a model that
 attributes speakers itself (MOSS, granite-speech-4.1-2b-plus) the request is passed as
 `WithDiarize` and the run stays one pass. For a model that cannot, the tab shows a **Diarizer
@@ -249,10 +250,11 @@ other, so only one model is in memory at a time. The join is this app's, not the
 it is heuristic — see
 [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
 The intent is offered only when the transcriber reports segment timings; the note in its place
-explains the absence when it does not. Under the picker, the plan line names the two models, and
-a warning quotes the diarizer's declared languages when the chosen language is not among them
-(Sortformer declares English only). During the second pass the status says **Diarizing…** and
-the bar is indeterminate, because the diarizer reports no finer progress.
+explains the absence when it does not. Under the checkbox, the plan line names the two models,
+and a warning quotes the diarizer's declared languages when the chosen language is not among
+them (Sortformer declares English only). During the second pass the progress block says
+**Diarizing — attributing speakers** and the bar is indeterminate, because the diarizer reports
+no finer progress.
 
 The result is shown four ways: as text, as segments with timings, as words with timings, and
 as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html`, `.md` or `.json`, picked by the
