@@ -23,6 +23,13 @@ public enum TranscriptionPhase
     ReadingAudio,
 
     /// <summary>
+    /// A VAD model is finding the speech intervals the transcriber will run over.
+    /// The pass is opt-in and its effect is unmeasured; it reports no fraction, so
+    /// the tab shows it as indeterminate.
+    /// </summary>
+    DetectingSpeech,
+
+    /// <summary>
     /// The audio is being processed by the selected model. On the offline ASR path
     /// this is split into windows and each finished window reports its fraction;
     /// the other roles run one native call and report no fraction until they

@@ -9,6 +9,26 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: an opt-in VAD trim before transcription
+
+The Advanced settings of an ASR goal now offer **Skip silence with a VAD model**, off by
+default. It runs the selected VAD-role model over the file first, plans the ASR windows over
+the speech intervals with the same `SpeechWindows` rules as the CLI's `--vad`, and leaves the
+timestamps on the original timeline. The VAD model is disposed before the ASR model is loaded,
+so only one model is in memory at a time; the pass is a `Detecting speech…` indeterminate
+phase. A VAD model picker lists the downloaded VAD models, selects the only one automatically,
+and **Get a VAD model…** opens the Models tab filtered to the `vad` role. With the option on
+and no VAD model selected the run is refused with that reason.
+
+This is deliberately not sold as an improvement: it changes what the model sees (the context
+across a pause is gone) and the project has not measured the effect on accuracy or
+hallucinations. The tooltip and the UI docs say so. The status after a run names the VAD model
+it used; the saved history does not carry that field yet.
+
+Tests: off-by-default, the option's plumbing to `TranscriptionOptions`, the no-model refusal,
+the pipeline line, the role-filtered Models route, and the existing `SpeechWindows` planner
+tests. Full UI suite: 355 passed.
+
 ### The desktop app exports SRT and ASS too
 
 The export menu now offers `.srt` and `.ass` alongside `.txt`, `.vtt`, `.json`,
@@ -165,6 +185,17 @@ hidden while a role is set, because unknown is not the role asked for.
 
 Tests: the role mapping for all 76 entries, the filter's reach and its Clear
 behaviour, and the role column; the full UI suite is 341 passed.
+
+### UI: a decoder stop keeps its partial transcript
+
+`transcribe_run` returns `ErrOutputTruncated` (18) and `ErrOutputRepetition`
+(19) with the partial transcript intact and `was_truncated` set; the native
+header calls them result-bearing. `Session.Run` threw on both, so the UI threw
+away a transcript that existed and reported a failed run. The wrapper now
+returns those two statuses as results, `Transcript` exposes the status, and the
+tab says the transcript stopped early and why instead of calling it complete.
+The batch labels the item (truncated or output repetition) instead of failing
+it. Every other non-OK status still throws.
 
 ### UI: let the model resolve the timestamp granularity
 

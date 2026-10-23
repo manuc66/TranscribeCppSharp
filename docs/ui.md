@@ -194,6 +194,16 @@ speaker turns. The run button is named for the goal (Transcribe, Diarize, Identi
 Detect speech), so the action is visible before the run rather than only in the result. See
 [Long audio and diarization](diarization.md).
 
+**Skip silence (VAD)** is an opt-in Advanced option for the ASR goals. It runs a VAD-role model
+(`silero-vad-v6.2`, 1.2 MB) over the file first, then plans the ASR windows over the speech
+intervals with the same padding, merge and split rules as the CLI's `--vad`
+(`src/Shared/SpeechWindows.cs`). Timestamps stay on the original timeline. The option is **off
+by default** and **unmeasured**: it changes what the model sees and removes the context across a
+pause, so the text can differ; this project has not measured the effect on accuracy. It needs a
+VAD model on disk; **Get a VAD model…** opens the Models tab filtered to the `vad` role. A run
+with the option on and no VAD model selected is refused with that reason, not silently run over
+the whole file.
+
 **Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
 not instant, and the wrapper turns a native abort into cancellation *before* it reads the
 partial result — so the partial transcript is discarded rather than shown, and the status line

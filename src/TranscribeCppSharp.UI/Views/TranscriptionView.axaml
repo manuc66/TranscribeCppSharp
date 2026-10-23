@@ -424,6 +424,43 @@
           </StackPanel>
         </Expander.Header>
         <StackPanel Spacing="8" IsEnabled="{Binding CanEditSettings}">
+          <!-- Opt-in, and unmeasured: the CLI flag that uses the same planner says
+               the same. It is not part of the recommended recipe until measured. -->
+          <StackPanel Spacing="4">
+            <CheckBox Content="Skip silence with a VAD model"
+                      IsChecked="{Binding UseVad}"
+                      AutomationProperties.AutomationId="transcription-vad"
+                      AutomationProperties.Name="Skip silence with a VAD model"
+                      ToolTip.Tip="Run a VAD model over the file before the transcriber and send only the speech it finds. Off by default. Unmeasured: it changes what the model sees, and the context across a pause is gone, so the text can differ." />
+            <TextBlock Classes="hint" TextWrapping="Wrap"
+                       Text="Runs the VAD model first, then transcribes only the speech intervals it found. Timestamps stay on the original timeline. Off by default; this project has not measured the effect on accuracy." />
+            <StackPanel Spacing="4" IsVisible="{Binding UseVad}">
+              <TextBlock Text="VAD model" Classes="label" />
+              <ComboBox ItemsSource="{Binding VadOptions}"
+                        SelectedItem="{Binding SelectedVadModel}"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.AutomationId="transcription-vad-model"
+                        AutomationProperties.Name="VAD model">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Label}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Command="{Binding OpenVadModelsCommand}"
+                      HorizontalAlignment="Left" Padding="8,2"
+                      IsVisible="{Binding NeedsVadModelDownload}"
+                      AutomationProperties.AutomationId="transcription-get-vad"
+                      AutomationProperties.Name="Get a VAD model"
+                      ToolTip.Tip="Open the Models tab filtered to the models that serve the VAD role. Without one, Skip silence cannot run.">
+                <StackPanel Classes="buttonContent">
+                  <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
+                  <TextBlock Text="Get a VAD model…" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </StackPanel>
+
           <Grid ColumnDefinitions="*,*,*">
             <StackPanel Grid.Column="0" Margin="0,0,8,0">
               <TextBlock Text="Threads" Classes="label"

@@ -388,23 +388,29 @@ public partial class TranscriptionViewModel : ObservableObject
         get
         {
             string window = $"windows of {WindowSeconds} s";
-            return Goal switch
+            string steps = Goal switch
             {
                 TranscriptionGoal.Transcribe =>
-                    $"Audio → speech to text ({window}) → text.",
+                    $"speech to text ({window}) → text.",
                 TranscriptionGoal.TranscribeWithSpeakers => CanModelDiarize
-                    ? "Audio → speech to text with speaker labels (same pass) → text + speakers."
+                    ? "speech to text with speaker labels (same pass) → text + speakers."
                     : SelectedDiarizer?.Alias is { } diarizer
-                        ? $"Audio → speech to text ({window}) → speaker labels with {diarizer} (second pass) → text + speakers."
-                        : "Audio → speech to text → speaker labels need a diarizer on disk.",
+                        ? $"speech to text ({window}) → speaker labels with {diarizer} (second pass) → text + speakers."
+                        : "speech to text → speaker labels need a diarizer on disk.",
                 TranscriptionGoal.SpeakersOnly =>
-                    "Audio → speaker diarization (whole file) → speaker turns.",
+                    "speaker diarization (whole file) → speaker turns.",
                 TranscriptionGoal.IdentifyLanguage =>
-                    "Audio → language identification → ranked languages.",
+                    "language identification → ranked languages.",
                 TranscriptionGoal.DetectSpeech =>
-                    $"Audio → speech detection ({window}) → speech segments.",
+                    $"speech detection ({window}) → speech segments.",
                 _ => string.Empty,
             };
+
+            // The VAD trim is an ASR pre-pass, not a goal; say it first when on.
+            string prefix = UseVad && GoalIsAsr
+                ? "Audio → detect speech (VAD) → "
+                : "Audio → ";
+            return prefix + steps;
         }
     }
 
@@ -793,6 +799,43 @@ public partial class TranscriptionViewModel : ObservableObject
     private DiarizerOption? _selectedDiarizer;
 
     /// <summary>
+    /// Downloaded models that serve the VAD role, for the opt-in silence trim.
+    /// </summary>
+    public ObservableCollection<VadOption> VadOptions { get; } = new();
+
+    /// <summary>
+    /// The VAD model used before transcription, when <see cref="UseVad"/> is on.
+    /// </summary>
+    [ObservableProperty]
+    private VadOption? _selectedVadModel;
+
+    /// <summary>
+    /// Whether the run skips non-speech before transcription. Off by default: the
+    /// pass changes what the model sees and its effect is unmeasured.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VadSatisfied))]
+    [NotifyPropertyChangedFor(nameof(NeedsVadModelDownload))]
+    [NotifyPropertyChangedFor(nameof(PipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(CanTranscribe))]
+    [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
+    [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
+    [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
+    private bool _useVad;
+
+    /// <summary>Whether any VAD model is on disk.</summary>
+    public bool HasVadModels => VadOptions.Count > 0;
+
+    /// <summary>Whether the chosen VAD option can run.</summary>
+    public bool VadSatisfied => !UseVad || SelectedVadModel?.Alias is not null;
+
+    /// <summary>
+    /// Whether the silence trim is on but no VAD model is available. The tab then
+    /// offers the route to Models filtered to the VAD role.
+    /// </summary>
+    public bool NeedsVadModelDownload => UseVad && SelectedVadModel?.Alias is null;
+
+    /// <summary>
     /// Whether the dedicated-diarizer picker is shown: speaker labels are on and
     /// the transcriber cannot do it itself.
     /// </summary>
@@ -1077,7 +1120,8 @@ public partial class TranscriptionViewModel : ObservableObject
         && !IsTranscribing
         && !IsCheckingCapabilities
         && !IsProbingMemory
-        && SpeakerLabelsSatisfied;
+        && SpeakerLabelsSatisfied
+        && VadSatisfied;
 
     /// <summary>
     /// Why the run button is disabled, in one actionable sentence. Empty when the
@@ -1123,6 +1167,14 @@ public partial class TranscriptionViewModel : ObservableObject
             if (IsProbingMemory)
             {
                 return "A memory test is running; the run starts when it finishes.";
+            }
+
+            if (!VadSatisfied)
+            {
+                return NeedsVadModelDownload
+                    ? "Skip silence needs a VAD model, and none is downloaded. "
+                        + "Open the Models tab and get one, or turn Skip silence off."
+                    : "Skip silence needs a VAD model selected. Pick one, or turn Skip silence off.";
             }
 
             if (LabelSpeakers && !CanAskForSpeakerLabels)
@@ -1248,6 +1300,10 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>The button shown when speaker labels need a diarizer on disk.</summary>
     [RelayCommand]
     private void OpenDiarizerModels() => OpenModelsForRoleRequested?.Invoke(ModelRole.Diarize);
+
+    /// <summary>The button shown when Skip silence needs a VAD model on disk.</summary>
+    [RelayCommand]
+    private void OpenVadModels() => OpenModelsForRoleRequested?.Invoke(ModelRole.Vad);
 
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
@@ -1387,6 +1443,7 @@ public partial class TranscriptionViewModel : ObservableObject
             ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.TranscriptionTab));
 
         LoadDiarizers();
+        LoadVadModels();
 
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
@@ -1449,6 +1506,37 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(RunBlockedReason));
         OnPropertyChanged(nameof(HasRunBlockedReason));
         SyncSpeakerIntent();
+    }
+
+    /// <summary>
+    /// Rebuilds the VAD-model picker from what is on disk, keeping the choice when
+    /// it is still offered. The option itself stays off; it is opt-in.
+    /// </summary>
+    private void LoadVadModels()
+    {
+        VadOption? keep = SelectedVadModel;
+
+        VadOptions.Clear();
+        foreach (string alias in DownloadedModelCatalog.Aliases())
+        {
+            if (string.Equals(ModelRole.KeyOf(alias), ModelRole.Vad, StringComparison.Ordinal))
+            {
+                VadOptions.Add(new VadOption(alias, alias));
+            }
+        }
+
+        SelectedVadModel = keep is not null
+            ? VadOptions.FirstOrDefault(o => o.Alias == keep.Alias)
+            : VadOptions.FirstOrDefault();
+
+        OnPropertyChanged(nameof(HasVadModels));
+        OnPropertyChanged(nameof(NeedsVadModelDownload));
+        OnPropertyChanged(nameof(VadSatisfied));
+        OnPropertyChanged(nameof(PipelineSummary));
+        OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
     }
 
     /// <summary>
@@ -1529,6 +1617,32 @@ public partial class TranscriptionViewModel : ObservableObject
 
     partial void OnAutoAdjustWindowChanged(bool value)
         => UiSettings.SaveAutoAdjustWindow(value);
+
+    partial void OnUseVadChanged(bool value)
+    {
+        // Turning the option on with a downloaded VAD model selects it, so the
+        // common case is one click. With none, the run is refused and the tab
+        // offers the route to Models; the option stays on so the intent is visible.
+        if (value && SelectedVadModel is null)
+        {
+            SelectedVadModel = VadOptions.FirstOrDefault();
+        }
+
+        OnPropertyChanged(nameof(NeedsVadModelDownload));
+        OnPropertyChanged(nameof(VadSatisfied));
+        OnPropertyChanged(nameof(PipelineSummary));
+    }
+
+    partial void OnSelectedVadModelChanged(VadOption? value)
+    {
+        OnPropertyChanged(nameof(NeedsVadModelDownload));
+        OnPropertyChanged(nameof(VadSatisfied));
+        OnPropertyChanged(nameof(PipelineSummary));
+        OnPropertyChanged(nameof(CanTranscribe));
+        OnPropertyChanged(nameof(CanProbeMemory));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
+    }
 
     partial void OnSelectedDiarizerChanged(DiarizerOption? value)
     {
@@ -1868,6 +1982,9 @@ public partial class TranscriptionViewModel : ObservableObject
             // labels and the transcriber cannot do it itself. The picker may still
             // hold a remembered alias while the intent is off; the run ignores it.
             DiarizerModel = LabelSpeakers && !CanModelDiarize ? SelectedDiarizer?.Alias : null,
+            // The VAD trim is opt-in; the picker may remember an alias while the
+            // option is off, and the run must ignore it then.
+            VadModel = UseVad ? SelectedVadModel?.Alias : null,
             Threads = Threads,
             KvType = SelectedKvType,
             ContextSize = ContextSize,
@@ -2210,10 +2327,29 @@ public partial class TranscriptionViewModel : ObservableObject
                 RememberWindow(options, usedWindow, Result.Memory?.DeviceName);
             }
 
+            // A result-bearing stop is not a failure: the partial transcript is
+            // valid and already in the result. Say why it ends early instead of
+            // calling it complete, which would overstate what the model produced.
+            string outcome = Result.StopStatus switch
+            {
+                Status.ErrOutputRepetition =>
+                    "Transcription stopped when the decoder's output began repeating; "
+                    + "the transcript may be incomplete.",
+                Status.ErrOutputTruncated =>
+                    "Transcription stopped at the decoder's output limit; "
+                    + "the transcript may be incomplete.",
+                _ => CompletionMessage,
+            };
+
             StatusMessage = adjusted
-                ? $"{CompletionMessage} The window was lowered from {options.WindowSeconds} s "
+                ? $"{outcome} The window was lowered from {options.WindowSeconds} s "
                     + $"to {usedWindow} s to fit memory; that value is remembered for this model and device."
-                : CompletionMessage;
+                : outcome;
+            if (options.VadModel is { } vad)
+            {
+                StatusMessage += $" Silence was skipped with {vad}.";
+            }
+
             TrySaveHistory();
             if (Result.Memory is { } observation)
             {
@@ -2290,6 +2426,14 @@ public partial class TranscriptionViewModel : ObservableObject
                 ProgressNote = "Reading and decoding the audio. The decoder reports no progress.";
                 ProgressStage = "Reading the audio…";
                 StatusMessage = "Reading the audio…";
+                break;
+
+            case TranscriptionPhase.DetectingSpeech:
+                ProgressIsIndeterminate = true;
+                ProgressNote = "The VAD model is finding the speech intervals. It reports no fraction; "
+                    + "the transcriber then runs only over the speech it found.";
+                ProgressStage = "Detecting speech…";
+                StatusMessage = "Detecting speech…";
                 break;
 
             case TranscriptionPhase.Diarizing:

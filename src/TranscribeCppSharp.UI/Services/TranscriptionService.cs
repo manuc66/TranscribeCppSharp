@@ -21,6 +21,17 @@ public class TranscriptionService : ITranscriptionService
     {
         bool chain = options.DiarizerModel is { Length: > 0 };
 
+        // Optional pre-pass: a VAD model finds the speech intervals, and the ASR
+        // run is planned over them instead of the whole file. It runs before the
+        // ASR model is loaded, so only one model is in memory at a time. The phase
+        // is indeterminate because the native VAD reports no fraction.
+        IReadOnlyList<SpeechInterval>? speech = null;
+        if (options.VadModel is { Length: > 0 })
+        {
+            phase?.Report(TranscriptionPhase.DetectingSpeech);
+            speech = await PlanSpeechWindows(audioPath, options, cancellationToken).ConfigureAwait(false);
+        }
+
         // Pass one covers 90% of the bar when a second pass follows, so the bar
         // reaching 100% means the whole run is done and not just the transcript.
         // The split is a phase marker, not a measured estimate: pass two reports no
@@ -31,7 +42,7 @@ public class TranscriptionService : ITranscriptionService
 
         // Pass one: the selected model, through the role it serves.
         TranscriptionResult result = await RunSelectedModel(
-            audioPath, modelPath, options, passOneProgress, liveText, phase, stepProgress, cancellationToken).ConfigureAwait(false);
+            audioPath, modelPath, options, passOneProgress, liveText, phase, stepProgress, speech, cancellationToken).ConfigureAwait(false);
 
         // Pass two: an optional separate diarizer, for a transcriber that cannot
         // attribute speakers itself. It runs after pass one, with that model already
@@ -83,6 +94,7 @@ public class TranscriptionService : ITranscriptionService
         IProgress<string>? liveText,
         IProgress<TranscriptionPhase>? phase,
         IProgress<TranscriptionStep>? stepProgress,
+        IReadOnlyList<SpeechInterval>? speech,
         CancellationToken cancellationToken)
     {
         // Named before the work starts, not after: loading a multi-gigabyte model
@@ -103,7 +115,7 @@ public class TranscriptionService : ITranscriptionService
 
             return await System.Threading.Tasks.Task.Run(
                 () => roles.HasFlag(TranscribeRole.Asr)
-                    ? RunAsr(model, roles, options, audioSource, progress, liveText, stepProgress, cancellationToken)
+                    ? RunAsr(model, roles, options, audioSource, progress, liveText, stepProgress, speech, cancellationToken)
                     : RunNonAsr(model, roles, options, audioSource, progress, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
         }
@@ -151,6 +163,54 @@ public class TranscriptionService : ITranscriptionService
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs the opt-in VAD model over the file and returns its speech intervals.
+    /// </summary>
+    /// <remarks>
+    /// The intervals, not the windows, are returned: <see cref="RunAsr"/> replans
+    /// them with the window it is about to use, so an automatic window reduction
+    /// after an out-of-memory failure still applies to the speech-only timeline.
+    /// The VAD model is disposed before the ASR model is loaded, so only one model
+    /// is in memory at a time.
+    /// </remarks>
+    private static async Task<IReadOnlyList<SpeechInterval>> PlanSpeechWindows(
+        string audioPath,
+        TranscriptionOptions options,
+        CancellationToken cancellationToken)
+    {
+        return await System.Threading.Tasks.Task.Run(() =>
+        {
+            string vadPath = ModelStore.Resolve(options.VadModel!, quant: null, TextWriter.Null);
+            using var model = LoadModel(vadPath, options.BackendRequest, options.Device);
+
+            if (!model.Roles.HasFlag(TranscribeRole.Vad))
+            {
+                throw new InvalidOperationException(
+                    $"{options.VadModel} does not serve the VAD role, so it cannot be used to skip silence.");
+            }
+
+            using var audioSource = AudioLoader.Open(audioPath);
+            using var session = model.CreateVadSession();
+            VadWindowing.VadRunResult run = VadWindowing.Run(
+                session, audioSource, options.WindowSeconds, cancellationToken: cancellationToken);
+
+            var intervals = run.Segments
+                .Select(segment => new SpeechInterval(segment.StartSample, segment.EndSample))
+                .ToArray();
+
+            // Fail before the ASR model is loaded when the VAD found only clips too
+            // short to transcribe; the planner is the same one the run will use.
+            int total = (int)Math.Min(audioSource.LengthSamples, int.MaxValue);
+            if (SpeechWindows.Plan(intervals, total, options.WindowSeconds * 1000).Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "The VAD model found no usable speech in this audio; nothing was transcribed.");
+            }
+
+            return (IReadOnlyList<SpeechInterval>)intervals;
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
     private static TranscriptionResult RunAsr(
         Model model,
         TranscribeRole roles,
@@ -159,6 +219,7 @@ public class TranscriptionService : ITranscriptionService
         IProgress<double>? progress,
         IProgress<string>? liveText,
         IProgress<TranscriptionStep>? stepProgress,
+        IReadOnlyList<SpeechInterval>? speech,
         CancellationToken cancellationToken)
     {
         var memory = new MemorySampler(model);
@@ -184,6 +245,7 @@ public class TranscriptionService : ITranscriptionService
                 string detectedLanguage = string.Empty;
                 bool wasAborted = false;
                 bool wasTruncated = false;
+                Status stopStatus = Status.Ok;
                 bool retry = false;
 
                 using var session = CreateSession(model, options);
@@ -195,14 +257,33 @@ public class TranscriptionService : ITranscriptionService
                 // Window setting must not do.
                 int windowMs = (int)Math.Min((long)windowSeconds * 1000, int.MaxValue);
 
-                // TryPlan fails only when the window cannot advance past the
-                // overlap. The control refuses values that small, so reaching the
-                // fallback means the audio is empty; one run over it is correct.
-                if (WindowPlanner.TryPlan(
-                    (int)Math.Min(audioSource.LengthSamples, int.MaxValue),
-                    windowMs,
-                    out var windows,
-                    out _))
+                int totalSamples = (int)Math.Min(audioSource.LengthSamples, int.MaxValue);
+                IReadOnlyList<AudioWindow> windows;
+                bool planned;
+                if (speech is not null)
+                {
+                    // The VAD found the speech; plan the ASR windows over those
+                    // intervals, with the same padding/merge rules the CLI uses.
+                    // Replanned per attempt so an automatic window reduction still
+                    // applies to the speech-only timeline.
+                    windows = SpeechWindows.Plan(speech, totalSamples, windowMs);
+                    planned = windows.Count > 0;
+                    if (!planned)
+                    {
+                        throw new InvalidOperationException(
+                            "The VAD model found no usable speech in this audio; nothing was transcribed.");
+                    }
+                }
+                else
+                {
+                    // TryPlan fails only when the window cannot advance past the
+                    // overlap. The control refuses values that small, so reaching
+                    // the fallback means the audio is empty; one run over it is
+                    // correct.
+                    planned = WindowPlanner.TryPlan(totalSamples, windowMs, out windows, out _);
+                }
+
+                if (planned)
                 {
                     // Announced before the first window so the UI can say "window 1 of N"
                     // while the first one runs, not only after it finishes. The window
@@ -239,7 +320,13 @@ public class TranscriptionService : ITranscriptionService
 
                         detectedLanguage = transcript.DetectedLanguage;
                         wasAborted = transcript.WasAborted;
-                        wasTruncated = transcript.WasTruncated;
+                        // Sticky: an earlier window that stopped early still makes
+                        // the merged transcript incomplete, even if this one is Ok.
+                        wasTruncated |= transcript.WasTruncated;
+                        if (transcript.StatusCode != Status.Ok)
+                        {
+                            stopStatus = transcript.StatusCode;
+                        }
 
                         windowIndex++;
                         progress?.Report((double)windowIndex / windows.Count);
@@ -287,7 +374,12 @@ public class TranscriptionService : ITranscriptionService
 
                         detectedLanguage = transcript!.DetectedLanguage;
                         wasAborted = transcript.WasAborted;
-                        wasTruncated = transcript.WasTruncated;
+                        wasTruncated |= transcript.WasTruncated;
+                        if (transcript.StatusCode != Status.Ok)
+                        {
+                            stopStatus = transcript.StatusCode;
+                        }
+
                         progress?.Report(1.0);
                         stepProgress?.Report(new TranscriptionStep(
                             TranscriptionPhase.Transcribing, 1, 1, windowSeconds));
@@ -310,6 +402,7 @@ public class TranscriptionService : ITranscriptionService
                     DetectedLanguage = detectedLanguage,
                     WasAborted = wasAborted,
                     WasTruncated = wasTruncated,
+                    StopStatus = stopStatus,
                     Duration = TimeSpan.FromSeconds(audioSource.LengthSamples / (double)WindowPlanner.SampleRate),
                     EffectiveWindowSeconds = windowSeconds,
                     RequestedWindowSeconds = windowSeconds == requestedSeconds ? null : requestedSeconds,
@@ -652,7 +745,14 @@ public class TranscriptionService : ITranscriptionService
                         AudioPath = audioPath,
                         FullText = result.FullText,
                         DetectedLanguage = result.DetectedLanguage,
-                        Status = result.WasAborted ? "Aborted" : "Ok"
+                        // The partial text is kept; the label says it stopped early.
+                        Status = result.WasAborted
+                            ? "Aborted"
+                            : result.StatusCode == Status.ErrOutputRepetition
+                                ? "Ok (output repetition)"
+                                : result.StatusCode == Status.ErrOutputTruncated
+                                    ? "Ok (truncated)"
+                                    : "Ok"
                     });
 
                     fileStepProgress?.Report(new BatchFileStep(

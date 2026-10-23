@@ -29,6 +29,18 @@ public class TranscriptionOptions
     /// </remarks>
     public string? DiarizerModel { get; set; }
 
+    /// <summary>
+    /// Alias of a VAD model to run over the file before transcription, or null.
+    /// </summary>
+    /// <remarks>
+    /// When set, the VAD model finds speech intervals and the ASR run is planned
+    /// over those intervals instead of the whole file; timestamps stay on the
+    /// original timeline. This is opt-in because it changes what the model sees:
+    /// the context across a pause is gone, so the text can differ. The effect is
+    /// unmeasured here — the CLI flag that uses the same planner says so too.
+    /// </remarks>
+    public string? VadModel { get; set; }
+
     public PncMode? PncMode { get; set; }
     public ItnMode? ItnMode { get; set; }
     public BackendRequest? BackendRequest { get; set; }
