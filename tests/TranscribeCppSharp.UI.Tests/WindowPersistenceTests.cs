@@ -211,4 +211,45 @@ public class WindowAdjustmentTests
     [InlineData(2)]
     public void TheFloorEndsTheRetries(int requested)
         => Assert.Null(WindowAdjustment.Smaller(requested));
+
+    [Fact]
+    public void Smaller_NeverReturnsSameOrLarger()
+    {
+        for (int s = WindowAdjustment.MinimumSeconds + 1; s <= 3600; s++)
+        {
+            int? r = WindowAdjustment.Smaller(s);
+            if (r is not null)
+            {
+                Assert.True(r.Value < s, $"Smaller({s}) returned {r.Value}, not smaller");
+            }
+        }
+    }
+
+    [Fact]
+    public void Smaller_NeverGoesBelowMinimum()
+    {
+        for (int s = WindowAdjustment.MinimumSeconds + 1; s <= 3600; s++)
+        {
+            int? r = WindowAdjustment.Smaller(s);
+            if (r is not null)
+            {
+                Assert.True(r.Value >= WindowAdjustment.MinimumSeconds);
+            }
+        }
+    }
+
+    [Fact]
+    public void Smaller_RepeatedHalvingTerminates()
+    {
+        int current = 3600;
+        int guard = 0;
+        while (current > WindowAdjustment.MinimumSeconds && guard < 100)
+        {
+            int? next = WindowAdjustment.Smaller(current);
+            Assert.NotNull(next);
+            current = next.Value;
+            guard++;
+        }
+        Assert.Null(WindowAdjustment.Smaller(current));
+    }
 }
