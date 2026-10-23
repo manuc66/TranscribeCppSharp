@@ -55,6 +55,12 @@ public partial class TranscriptionViewModel : ObservableObject
     private bool _syncingGoal;
 
     /// <summary>
+    /// True while the language picker is being repaired from the global list, so
+    /// the change does not rebuild the model list a second time.
+    /// </summary>
+    private bool _syncingLanguage;
+
+    /// <summary>
     /// How many catalog models are on disk, independent of the goal. The goal can
     /// filter the picker to none while the cache holds other roles.
     /// </summary>
@@ -310,6 +316,7 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowLanguage))]
     [NotifyPropertyChangedFor(nameof(ShowLanguageColumn))]
     [NotifyPropertyChangedFor(nameof(ModelColumnSpan))]
+    [NotifyPropertyChangedFor(nameof(ModelGridColumn))]
     [NotifyPropertyChangedFor(nameof(ShowWindow))]
     [NotifyPropertyChangedFor(nameof(ShowTranscriptSection))]
     [NotifyPropertyChangedFor(nameof(ShowTask))]
@@ -572,6 +579,9 @@ public partial class TranscriptionViewModel : ObservableObject
 
     /// <summary>How many of the two model columns the model stack takes.</summary>
     public int ModelColumnSpan => ShowLanguageColumn ? 1 : 2;
+
+    /// <summary>Which grid column the model stack starts in, now that language comes first.</summary>
+    public int ModelGridColumn => ShowLanguageColumn ? 1 : 0;
 
     /// <summary>
     /// Whether the window setting applies. The ASR and VAD paths are chunked; a
@@ -1393,11 +1403,9 @@ public partial class TranscriptionViewModel : ObservableObject
         DiarizerOptions.Add(NoDiarizer);
         SelectedDiarizer = NoDiarizer;
 
-        // The language list is seeded first, before LoadModels: that call can start
-        // the capability probe, and a probe on a cache with nothing in it answers
-        // synchronously by clearing this list and refilling it. Seeding afterwards
-        // would append a second copy of every code.
-        AddFallbackLanguages();
+        // The global language list is built before LoadModels, which filters the
+        // models by the chosen language.
+        RebuildGlobalLanguages();
 
         LoadModels();
         // The alias the picker settled on (the one last run, else the first),
@@ -1434,17 +1442,29 @@ public partial class TranscriptionViewModel : ObservableObject
         AvailableModels.Clear();
         IReadOnlyList<string> downloaded = DownloadedModelCatalog.Aliases();
         _downloadedModelCount = downloaded.Count;
+
+        // The language is chosen first (task-oriented): a model is offered only when
+        // its catalogue declares that it serves the chosen language — or declares
+        // nothing, which means "unknown" rather than "no". The probe remains the
+        // authority at run time and re-validates below.
         foreach (string alias in downloaded)
         {
-            // The catalogue's role, not the probe's: this is what the goal can
-            // filter before a model is loaded. The probe reports the same role for
-            // the four catalogued exceptions and remains the authority at run time.
-            if (string.Equals(ModelRole.KeyOf(alias), SelectedGoal.RoleKey, StringComparison.Ordinal))
+            if (!string.Equals(ModelRole.KeyOf(alias), SelectedGoal.RoleKey, StringComparison.Ordinal))
             {
-                AvailableModels.Add(alias);
+                continue;
             }
+            // The language only filters models for ASR goals: a diarizer or a VAD
+            // model takes no input language, so applying it would empty their list.
+            if (GoalIsAsr && !ModelServesLanguage(alias, Language))
+            {
+                continue;
+            }
+            AvailableModels.Add(alias);
         }
 
+        // The global language list is rebuilt on goal change and on refresh, not
+        // on every language change: rebuilding it here would clear the ComboBox
+        // and drop its selection.
         ModelAlias = DownloadedModelCatalog.Selection(
             currentModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.TranscriptionTab));
 
@@ -1549,7 +1569,11 @@ public partial class TranscriptionViewModel : ObservableObject
     /// Re-reads the cache. Called when the reader comes back from the Models tab,
     /// which is where a download or a delete happens.
     /// </summary>
-    public void RefreshModels() => LoadModels();
+    public void RefreshModels()
+    {
+        RebuildGlobalLanguages();
+        LoadModels();
+    }
 
     partial void OnAudioPathChanged(string value)
     {
@@ -1737,6 +1761,16 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(DiarizerLanguageWarning));
         OnPropertyChanged(nameof(HasDiarizerLanguageWarning));
         OnPropertyChanged(nameof(RunSummary));
+
+        // The language is chosen first: changing it re-filters the model list.
+        if (!_syncingLanguage && !_syncingGoal)
+        {
+            LoadModels();
+        }
+
+        // Re-push the selection after the list rebuild above, so the ComboBox
+        // re-matches instead of staying on the first item.
+        OnPropertyChanged(nameof(Language));
     }
 
     partial void OnMarkPausesChanged(bool value) => PersistExportOptions();
@@ -2021,34 +2055,171 @@ public partial class TranscriptionViewModel : ObservableObject
     /// method clears and refills it, and the selection it drops writes back an empty
     /// value, which is what makes <see cref="Language"/> fire again.
     /// </remarks>
+    /// <summary>
+    /// Whether a downloaded model can serve the chosen language, according to the
+    /// upstream catalogue. A model that declares no languages is kept, because
+    /// unknown is not the same as "no" — hiding it on a guess would hide one that
+    /// works. <c>auto</c> is kept only for models that declare language detection.
+    /// </summary>
+    private static bool ModelServesLanguage(string alias, string language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return true;
+        }
+
+        var record = UpstreamCatalog.Read(alias);
+        var languages = record?.Languages;
+        if (languages is null || languages.Length == 0)
+        {
+            // Unknown: keep it, the probe validates at run time.
+            return true;
+        }
+
+        if (string.Equals(language, "auto", StringComparison.Ordinal))
+        {
+            return record?.Capabilities is not null
+                && record.Capabilities.TryGetValue("lang_detect", out var cap)
+                && cap.Supported;
+        }
+
+        return languages.Contains(language, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Rebuilds the global language list from the union of what the downloaded
+    /// models declare, plus the ten fallback codes. The list is no longer derived
+    /// from the selected model: the language is chosen first and filters the
+    /// models, so it must stand on its own.
+    /// </summary>
+    private void RebuildGlobalLanguages()
+    {
+        var codes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string alias in DownloadedModelCatalog.Aliases())
+        {
+            var langs = UpstreamCatalog.Read(alias)?.Languages;
+            if (langs is not null)
+            {
+                foreach (string l in langs)
+                {
+                    if (!string.IsNullOrWhiteSpace(l))
+                    {
+                        codes.Add(l);
+                    }
+                }
+            }
+        }
+
+        bool anyLangDetect = DownloadedModelCatalog.Aliases().Any(a =>
+        {
+            var rec = UpstreamCatalog.Read(a);
+            return rec?.Capabilities is not null
+                && rec.Capabilities.TryGetValue("lang_detect", out var cap)
+                && cap.Supported;
+        });
+
+        foreach (string f in new[] { "en", "fr", "de", "es", "it", "pt", "ru", "zh", "ja", "ko" })
+        {
+            codes.Add(f);
+        }
+
+        _syncingLanguage = true;
+        try
+        {
+            AvailableLanguages.Clear();
+            if (anyLangDetect)
+            {
+                AvailableLanguages.Add("auto");
+            }
+            // Keep the familiar fallback order first (en, fr, ...), so the default
+            // language stays the first entry and existing selections survive.
+            foreach (string f in new[] { "en", "fr", "de", "es", "it", "pt", "ru", "zh", "ja", "ko" })
+            {
+                if (codes.Contains(f))
+                {
+                    AvailableLanguages.Add(f);
+                }
+            }
+            foreach (string c in codes)
+            {
+                if (!string.Equals(c, "auto", StringComparison.Ordinal)
+                    && !new[] { "en", "fr", "de", "es", "it", "pt", "ru", "zh", "ja", "ko" }.Contains(c))
+                {
+                    AvailableLanguages.Add(c);
+                }
+            }
+            if (AvailableLanguages.Count == 0)
+            {
+                AvailableLanguages.Add("en");
+            }
+            // "auto" is allowed to stay even when no downloaded model declares
+            // language detection: the warning logic and the run treat it as a
+            // distinct choice, and resetting it here would silently change the
+            // reader's pick. Other values are repaired to the first available.
+            if (!string.Equals(Language, "auto", StringComparison.Ordinal)
+                && !AvailableLanguages.Contains(Language))
+            {
+                Language = AvailableLanguages.First();
+            }
+
+            // Re-push the selection: rebuilding the list drops the ComboBox's
+            // match, and a value that did not change would otherwise never be
+            // re-pushed. See LanguagePickerTests.
+            OnPropertyChanged(nameof(Language));
+        }
+        finally
+        {
+            _syncingLanguage = false;
+        }
+    }
+
     private void UpdateAvailableLanguages(ModelCapabilitySnapshot? capabilities)
     {
-        AvailableLanguages.Clear();
-        if (capabilities == null)
+        // The language list is now global (chosen first). The probe only
+        // validates the current choice against what the model actually accepts,
+        // and grows the global list with anything the catalogue did not declare.
+        if (capabilities is null)
         {
-            AddFallbackLanguages();
             return;
         }
 
-        if (capabilities.SupportsLanguageDetect)
+        foreach (string lang in capabilities.Languages)
         {
-            AvailableLanguages.Add("auto");
+            if (!string.IsNullOrWhiteSpace(lang) && !AvailableLanguages.Contains(lang))
+            {
+                AvailableLanguages.Add(lang);
+            }
         }
-
-        foreach (var lang in capabilities.Languages.Where(l => !string.IsNullOrEmpty(l) && !AvailableLanguages.Contains(l)))
+        if (capabilities.SupportsLanguageDetect && !AvailableLanguages.Contains("auto"))
         {
-            AvailableLanguages.Add(lang);
+            AvailableLanguages.Insert(0, "auto");
         }
 
         if (AvailableLanguages.Count == 0)
         {
-            AvailableLanguages.Add("en");
+            if (!AvailableLanguages.Contains("en"))
+            {
+                AvailableLanguages.Add("en");
+            }
         }
 
-        if (!AvailableLanguages.Contains(Language))
+        // If the model does not accept the chosen language, fall back to the
+        // first one it does accept (or "en" when it declares nothing).
+        if (capabilities.Languages.Count > 0
+            && !capabilities.Languages.Contains(Language)
+            && !string.Equals(Language, "auto", StringComparison.Ordinal))
         {
-            Language = AvailableLanguages.First();
+            Language = capabilities.Languages[0];
         }
+        else if (string.Equals(Language, "auto", StringComparison.Ordinal)
+                 && !capabilities.SupportsLanguageDetect)
+        {
+            Language = capabilities.Languages.Count > 0
+                ? capabilities.Languages[0]
+                : (AvailableLanguages.Contains("en") ? "en" : AvailableLanguages[0]);
+        }
+
+        OnPropertyChanged(nameof(Language));
     }
 
     /// <summary>

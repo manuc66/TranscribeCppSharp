@@ -109,7 +109,7 @@ yet, or a settings file that cannot be read, the first alias is selected as befo
 
 Pick a file, a model and the decoder settings, then run.
 
-The form is ordered as the decisions are: **Audio**, **Goal**, **Model and language**,
+The form is ordered as the decisions are: **Audio**, **Goal**, **Language and model**,
 **Run options**, **Speaker labels** (only for the speaker goal), then one **Advanced settings**
 disclosure for the decoder tuning that has a working default. Speaker labels come after the
 transcript options because they are post-processing: a dedicated diarizer runs as a second

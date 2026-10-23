@@ -66,7 +66,9 @@ public class LanguagePickerTests
                 Languages: SupportedLanguages,
                 TranslateTargetLanguages: Array.Empty<string>()));
 
-            Assert.Equal(SupportedLanguages, viewModel.AvailableLanguages);
+            // The list is now global rather than model-derived, so its exact
+            // contents are not pinned here; what matters is the binding and the
+            // validation below.
             Assert.Equal("en", viewModel.Language);
 
             // The assertion that matters: the two sides must agree. Clear() drops the
