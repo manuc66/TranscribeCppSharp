@@ -9,7 +9,7 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
-### New features
+### Server
 
 #### OpenAI-compatible HTTP server
 
@@ -53,108 +53,267 @@ merged transcript is discarded, so the output cannot contain duplicates. Only
 `ErrOom` is retried; any other native failure is a 500. **Not verified: a real
 out-of-memory failure** (no GPU on the local machine to force one).
 
-#### Local history
+#### Seam deduplication: a tolerance, not a full dedup
 
-A finished transcription is now written to
-`<cache>/../history/<timestamp>.json`, beside the log and the settings, instead
-of living only in memory. The file holds the transcript and the facts that name
-it (audio path, model, language, requested diarization, window, date), so an
-entry can be reopened after the audio file has moved or been deleted. Writes go
-through a temporary file and a move, so a crash mid-write leaves no half-written
-entry to skip on the next launch.
+Found while testing the server on a multi-window file (`--chunk 5` on the 11 s
+`jfk.wav`): the merged text read `... ask not! not what ...`. A segment that
+starts slightly before the previous one ended is kept rather than dropped,
+because dropping it would lose the audio after the seam; up to 500 ms can
+therefore be transcribed twice. That is `TranscriptMerger`'s existing, tested
+tradeoff, not a regression — the docs said "deduplicated" without the tolerance
+and now say what actually happens. `docs/server.md` and `docs/diarization.md`
+carry the measured example.
 
-The new **History** tab lists the entries newest first with **Open**, **Delete**
-and **Refresh**. Open loads the saved transcript into the Transcription tab,
-where it can be exported again; nothing is re-transcribed. The export then names
-the model, language, diarization request and window recorded with that run
-rather than the current pickers, so opening an old transcript after switching
-models cannot produce a header that lies. A file that cannot be parsed is left
-out rather than failing the tab, and the tab shows the folder so entries can be
-managed outside the app. Nothing is pruned automatically. What is not saved is
-stated in the docs: a cancelled run (its partial result is discarded), a failed
-one, and a batch's per-file results. A failed history write does not turn a
-successful transcription into a failed one; the status line says the history
-could not be saved.
+### Model roles (upstream v0.4)
 
-#### Dedicated diarizer
+The pinned upstream version moves from v0.3.0 to v0.4.0. Roles are the central
+change: a model serves one or more of ASR, DIARIZE, LANGID and VAD, fixed at
+load. Wrapper additions: `TranscribeRole` and `Model.Roles`; new `LangIdSession`
+and `VadSession` (`Model.CreateLangIdSession` / `CreateVadSession`) with their
+builders and result records; a new offline `DiarizeSession` (with
+`SortformerDiarizeExtBuilder`) replacing the removed
+`SortformerStreamExtBuilder`/`StreamParamsBuilder.WithSortformerExt`.
+Capabilities are now ASR-only: `Model.GetCapabilities` throws `UNSUPPORTED_ROLE`
+on a model without the ASR role; the UI capability probe reads `Roles` first.
+Backend allowlist: `BackendMask`, `Backends.InitDefault`,
+`Backends.Init(dir, BackendMask)`, `Backends.AllowedBackends`. New status codes
+20 (`UNSUPPORTED_ROLE`) and 21 (`INPUT_TOO_SHORT`), flowing through
+`TranscribeException`. The native ABI change is additive at the symbol level
+(no function removed, no existing enum value changed), with one removal
+(`transcribe_sortformer_stream_ext` and `SortformerStreamExt`). Catalog re-pinned
+to v0.4.0: 76 records (4 new: `parakeet-ultra`, `orukeet`,
+`silero-vad-v6.2`, `lang-id-voxlingua107-ecapa`). Behaviour changes needing no
+wrapper work but worth knowing: non-finite audio (NaN/±Inf) is rejected with
+`INVALID_ARG`; a stream whose family hook throws now ends `FAILED`; host
+thread-pool failures return an error instead of terminating the process.
+Tooling: `scripts/regenerate-bindings.sh` now vendors and parses
+`include/transcribe/*.h` as well as the root header; the generator maps a
+pointer return to `IntPtr`; `FetchNative --update-hashes` merges into
+`build/native-sha256.json`. Verified: full solution builds; 544 Interop and 79
+UI tests pass against the 0.4.0 native library. The three new sessions are
+exercised end to end against the real weights. New page:
+[docs/roles.md](docs/roles.md).
 
-A model that cannot attribute speakers itself (Whisper, Parakeet) can now be
-paired with a downloaded model that serves only the DIARIZE role (Sortformer).
-The Transcription tab shows a Diarizer picker for such a model: it runs the
-transcriber, then the diarizer over the same audio, and gives each segment the
-speaker whose turn overlaps it most. The two run one after the other, so only one
-model is in memory at a time. The join is this app's, not the library's —
-transcribe.cpp has no combined ASR+diarizer entry point — and it is heuristic.
+The four new role models are now aliases, each pinned to a HuggingFace revision
+with its sha256: `parakeet-ultra` (ASR, 25 European languages, Q5_K_M, 524 MB),
+`orukeet` (ASR, 25 European languages, Q5_K_M, 523 MB),
+`lang-id-voxlingua107-ecapa` (LANGID, Q8_0, 25 MB) and `silero-vad-v6.2`
+(VAD, F32, 1.2 MB). The manifest goes from 72 to 76 aliases. Two detail-pane
+rules were relaxed for models upstream records differently: a language model's
+headline is an accuracy (on FLEURS), now shown; and a VAD model has no language
+and no accuracy, so an explicitly empty language list is allowed (a *missing*
+field is still an error) and a blank accuracy line is the record, not a broken
+reader. The WER column stays an error-rate column: a language model shows a
+dash there.
 
-The **Diarizer** picker is offered only when the transcriber reports at least
-segment timings. 37 of the 73 ASR aliases in the pinned catalog declare no
-timestamps, and a speaker turn cannot be joined to segments that carry no time —
-the run would have left every segment as `Speaker 0` without saying so. Those
-models get a note in the picker's place. Under the picker, a plan line names the
-two models and says the second pass adds speaker turns, not text. A warning
-quotes the diarizer's catalog record when the chosen language is not among its
-declared languages — Sortformer's record declares English only — and says that
-the catalog is upstream's statement, not a measurement made here. A language
-left to detection shows no warning.
+The CLI and the desktop app follow the model's role. The 0.4 bind left the front
+ends behind: both only ever created an ASR session, so a Sortformer crashed the
+CLI with an unhandled `UNSUPPORTED_ROLE`, and a langid/vad model could not be
+run at all. The CLI reads `Model.Roles` and dispatches: an ASR model keeps the
+transcription path; a diarizer prints speaker turns; a language model prints the
+ranked languages; a VAD model prints the speech segments. A `roles :` line names
+what the model serves. New `--allowed en,fr,de` restricts a language model, and
+`--out` writes a plain or JSON report for the non-ASR roles (`--format vtt` is
+refused with an explanation, since a WebVTT cue is an ASR shape). The desktop
+app runs the model's role and shows the result, with a `runs:` line under the
+picker, a **Languages** grid for a language model and a **Speech** grid for a
+VAD model (a diarizer fills the existing Speakers grid). A language model also
+gets an **Allowed languages** field. The Models tab's *Check diarization* now
+asks the DIARIZE role as well as the ASR feature, so a Sortformer reads
+*supported*. Long-form audio, honestly: VAD is `chunked-unbounded` upstream, so
+the CLI and the app score it window by window and union the intervals across the
+seams (memory is one window, not the file; `--chunk` sets the window). Each
+window is scored independently, so a seam can bridge a short silence a one-pass
+run keeps as a gap: the speech found and its total duration match, the exact
+boundaries at a seam do not. Language identification is a 30 s hard cap, so
+the head of the file is used. Diarization is a hard cap with no streaming entry
+point and per-run speaker ids, so it is run whole and not split — windowing it
+would renumber speakers at every seam. Verified: `RoleCommandTests` (CLI),
+`VadWindowingTests` (merge rules and a windowed run on ~138 s of synthesized
+audio) and `TranscriptionServiceRoleTests` (service) against the three role
+weights.
 
-A word-level join is also available: the join between a transcriber and a
-dedicated diarizer was segment-level (the segment took the turn with the largest
-time overlap, so a Whisper segment spanning a speaker change gave the whole
-segment to one speaker). It now uses the word timings the transcriber already
-reports: each word takes the turn that overlaps it most, and the segment takes
-the speaker of most of its words (ties go to the longer speech, then the lower
-id). A segment with no words, or whose words overlap no turn, falls back to the
-old segment-level rule, so a model without word timestamps behaves as before.
-This is still a heuristic, not a verified alignment: the words are the decoder's,
-the turns are the diarizer's, and the two can disagree. No accuracy claim is
-made.
+### Transcription
 
-A chained run is now two visible phases: pass one covers 90% of the bar, the
-status says **Diarizing…** while the second pass runs, and the bar holds at 95%
-until the diarizer returns. The split is a phase marker, not a time estimate.
-The service exposes `TranscriptionPhase` through the progress callback.
+#### Windows, timestamps and memory
 
-A model that can also attribute speakers (MOSS, granite-speech-4.1-2b-plus) can
-now be explicitly asked to do so from the app: `DiarizeMode` is no longer
-hardcoded to the model default. The tab has a diarization picker (model default /
-off / on), shown only for a model that transcribes *and* can diarize — a model
-that only diarizes runs the DIARIZE role, where there is nothing to ask. The
-run button is also named for the model's role: Transcribe, Diarize, Identify
-language or Detect speech, so a diarization-only model no longer looks
-unsupported behind a button that says "Transcribe".
+The Window setting now actually splits the audio: `TranscriptionService.RunAsr`
+passed `WindowSeconds` to `WindowPlanner.TryPlan`, which takes milliseconds.
+Every value below 1000 therefore meant a window shorter than the 1 s overlap:
+planning failed and the run sent the whole file to the model in one native call.
+The 10.1 GB Vulkan and 113.6 GB CPU allocations in the reported Parakeet
+failure were the whole file, not a 300 s window. The service now converts
+seconds to milliseconds. Measured after the fix: 300 s of audio at 75 s planned
+five windows (T_enc=938 each), at 300 s it planned one, and a 20-minute file
+requested at 1200 s fell back to 300 s and ran five windows. The memory probe
+already used seconds and is unchanged.
 
-#### Opt-in VAD trim
+The Window default is 30 s, not 300 s: the 300 s default was a generic value,
+not a measurement, and the setting was not being applied at all (see above). A
+30 s default is conservative: the compute buffer grows with the window and the
+native API does not report its size, so the tab starts at the value measured
+completing on both the CPU and a 4 GB Vulkan device. The field's hint and
+tooltip say so, and the UI docs call the value a default rather than a model
+limit. Higher windows are still available for devices that measured them; **Test
+memory** remains the measurement. The CLI default is unchanged (300 s,
+`--chunk`).
 
-`transcribe <audio> --vad silero-vad-v6.2` runs a VAD model over the file first
-and transcribes only the speech intervals, mapping timestamps back to the
-original timeline. The planning (pad 300 ms, merge intervals under 1 s apart,
-drop anything under 250 ms, split at `--chunk` with the ASR overlap) lives in
-`src/Shared/SpeechWindows.cs` and is unit tested without a model. It is off by
-default and documented as unmeasured, because it is not free and not obviously
-better. Measured while writing it, on the 11 s `jfk.wav` with `ggml-tiny.bin`:
-with a 500 ms merge gap the clip split into four cues and one decoded as "IS
-NOT" instead of "ask not", where the normal path returned the whole sentence
-correctly; at 1 s it merged back into one cue and the sentence was right. That
-is one clip, not a benchmark, and it is the reason the default gap is 1 s rather
-than a claim that the flag improves anything. Not wired: the server and the
-desktop app do not expose `--vad`.
+**Adjust window automatically** (on by default) makes the first out-of-memory
+failure a retry instead of a dead end: the service halves the window, down to 5 s
+and at most ten values, recreates the session and starts the audio over. The
+progress line says the window was lowered while the retry runs, and the final
+status names both values. The value that worked is remembered per model, backend
+and device in `ui-settings.json`, so the next run starts there. Only the first
+window can trigger the retry: re-running after a later window would duplicate
+the text already produced, so that failure is reported. The service never raises
+the window on its own; the native API gives no measurement that a larger one
+fits. **Not verified: a real out-of-memory failure** — the retry path is covered
+by a fake attempt, not by a native OOM.
 
-The desktop app's Advanced settings of an ASR goal now offer **Skip silence with
-a VAD model**, off by default. It runs the selected VAD-role model over the file
-first, plans the ASR windows over the speech intervals with the same
-`SpeechWindows` rules as the CLI's `--vad`, and leaves the timestamps on the
-original timeline. The VAD model is disposed before the ASR model is loaded, so
-only one model is in memory at a time; the pass is a `Detecting speech…`
-indeterminate phase. A VAD model picker lists the downloaded VAD models, selects
-the only one automatically, and **Get a VAD model…** opens the Models tab
-filtered to the `vad` role. With the option on and no VAD model selected the
-run is refused with that reason. This is deliberately not sold as an
-improvement: it changes what the model sees (the context across a pause is gone)
-and the project has not measured the effect on accuracy or hallucinations. The
-tooltip and the UI docs say so. The status after a run names the VAD model it
-used; the saved history does not carry that field yet.
+**Test memory**: the Transcription tab offers **Test memory**: it runs at most
+one window of the selected file with the selected settings, without producing a
+transcript, and reports the lowest free figure the device reached. That is the
+real allocation that fails in an `ErrOom`, measured rather than estimated, at
+the cost of one window of compute. It does not test later windows, the
+diarizer, or the decoder's output length, and the result line says so. An
+`ErrOom` names Window, the quantization and the CPU backend; a successful probe
+is stored like a finished run, so the next pre-run warning uses its
+measurement.
 
-#### Export formats
+What can be said about memory before a run: the Settings tab now shows **Total**
+and **Free** per device and names the device the current backend/device choice
+resolves to, with its live free figure; **Refresh devices** re-reads both,
+because the native figure is a snapshot, not a monitor. The Transcription tab
+can state two facts before a run: the pinned model file does not fit in the
+target's free memory (the service then refuses before loading it, naming both
+figures), or a previous run of the same model, window, backend and device
+recorded a lower free figure than the device has now. The second is a measured
+warning, not an estimate. `transcribe_device_info.memory_free` is read after the
+model loads and after each window; the lowest figure is stored per run
+configuration in `ui-settings.json`. The compute graph's size is not exposed by
+the native API, so a run whose weights fit can still run out of memory; the
+page says so, and nothing retries automatically beyond the first OOM nor raises
+the window on its own.
+
+An `ErrOom` report that names the run: the out-of-memory status now names the
+model and the window in use, and puts lowering **Window** first: it caps the
+audio and compute buffer of one native call, which is the most direct knob
+before quantization and context size. The copied error report also records the
+run's model, window, KV type, context size, backend, device and diarizer.
+Nothing is retried automatically: a silent retry would report a result for
+settings the reader did not choose. (The automatic retry of the first OOM
+described above is the only exception, and it applies only to the first window.)
+
+An `ErrOom` report that says which device and which window failed: the copied
+error report already carried the run's settings. For an `ErrOom` it now also
+carries what the service saw at the failure: the device the model actually ran
+on with its live free memory, the session limits (`n_ctx`, KV bytes, max audio),
+and which window of how many was running. That distinguishes a first-window
+allocation (configuration or transient pressure) from a later-window growth (a
+long file), which the settings alone cannot. `DescribeRun` re-reads the devices
+when the report is written, so the memory line says what the machine looked like
+then rather than what the last Settings refresh said.
+
+A decoder stop keeps its partial transcript: `transcribe_run` returns
+`ErrOutputTruncated` (18) and `ErrOutputRepetition` (19) with the partial
+transcript intact and `was_truncated` set; the native header calls them
+result-bearing. `Session.Run` threw on both, so the UI threw away a transcript
+that existed and reported a failed run. The wrapper now returns those two
+statuses as results, `Transcript` exposes the status, and the tab says the
+transcript stopped early and why instead of calling it complete. The batch labels
+the item (truncated or output repetition) instead of failing it. Every other
+non-OK status still throws.
+
+The model resolves the timestamp granularity: the tab asked every model for
+SEGMENT timestamps. granite-speech-4.1-2b-plus reports a maximum of WORD
+(numerically finer) and still rejects an explicit SEGMENT with
+`ErrUnsupportedTimestamps` (12), so every run of that model failed before
+producing text. The run now always asks for AUTO, the one value the dispatcher
+never rejects and which the family resolves to its own maximum; the batch path
+does the same. Verified through the UI service on the granite model: one 30 s
+window completed with 107 characters, where SEGMENT failed.
+
+#### Cancellation and progress
+
+Cancellation of a transcription or a batch: the Transcription and Batch tabs can
+now stop a run in flight. The token goes through the service to `Session.Run`,
+which already turns the native abort into `OperationCanceledException`. A
+cancelled run is not a failure: the status says "cancelled", nothing is written
+to the log, and the tab returns to idle. Two limits are stated rather than
+hidden. The native abort is polled between decode steps, not inside the encoder,
+so stopping is not instant. And the wrapper turns the abort into cancellation
+before it reads the result, so the partial transcript is discarded — the
+Transcription tab says so. A batch keeps the items that finished before the
+token fired (the service returns them and the caller's own token distinguishes
+cancelled from complete); the file in flight is dropped. A batch cancelled
+before it starts never resolves or downloads the model.
+
+Real progression, with indeterminate phases where nothing is measured: the
+progress block now sits in the run card, directly under the button that starts
+the run, so the feedback cannot appear below the fold; the status line is hidden
+while it is showing and returns with the completion or the failure. It
+distinguishes what the service can observe. Loading the model and reading or
+decoding the audio are indeterminate, with a line saying the native library
+reports no fraction for them. The offline ASR path fills the bar by finished
+windows and names them (`Transcribing — window 3 of 12`); a file that fits in
+one window is indeterminate with a note saying the native call reports no
+fraction inside it, rather than a determinate bar frozen at 0%. A chained
+diarizer is indeterminate too, and the card says it runs the whole file in one
+native call, instead of holding a percentage at 95%. The percentage is hidden
+while the bar is indeterminate. An elapsed clock is measured from the start of
+the run, and after a second finished window the card adds an estimate computed
+from the windows measured so far, labelled as an estimate. The countable step
+and the estimate are not time claims from the project: one is the planner's
+window list, the other is arithmetic on the windows already finished.
+
+A countable step beside the progress bar: a run now says what its percentage is
+of: `Transcribing — window 3 of 12` above the bar, or `Diarizing — one pass, no
+finer progress` during the second pass. The window count is the planner's own,
+so it is the number of native calls the run will make, not a time estimate. The
+Batch tab names the file in flight and its position (`File 2 of 5`) and its
+state (reading, done, failed). Its bar still counts finished files: a batch runs
+each file in one native call, so there is no percentage inside one to report,
+and none is invented.
+
+Live text while a run is in flight, and a copyable error report: the
+Transcription tab shows the text of the windows finished so far while a run is
+in progress, cleared when the result takes over. It is one update per window —
+the Window setting decides how often — not word by word: the offline run offers
+no finer callback, and the panel says so. A file shorter than one window shows
+no preview because there is nothing to show before the end.
+
+A failed run now keeps its full report and offers **Copy error**: exception
+type, message, the native status and failed method when there is one, the log
+path and the stack trace. The status line is selectable too. An `ErrOom`
+failure is named as such with the next step that can help — a smaller
+quantization, a lower context size, or the CPU backend.
+
+The progress bar shows its percentage: the Transcription tab's progress bar now
+carries the percentage it is filling to, beside it. It is a reading of the same
+`Progress` value the bar already used, not a second estimate.
+
+#### Error handling and robustness
+
+Several failure paths used to end in an unhandled exception or in lost work
+rather than a message: `ui-settings.json` is written to a sibling file and
+renamed into place, so a crash mid-write no longer leaves a truncated file that
+the next launch reads as "no settings at all"; the History tab returns the
+entries it could read when its folder cannot be enumerated, and a delete that
+races another delete is not an error; exporting a single transcript or a batch
+result reports a write failure in the status line and the log instead of
+throwing out of the async command on a read-only, full or vanished disk; a batch
+records a file it cannot read as an `Error:` row and continues with the rest
+(before, one missing file discarded the items that had finished and skipped
+every file after it); a cached weight file whose size disagrees with the
+manifest/LFS record is downloaded again instead of being reused as a permanent
+cache hit (same-size corruption is still not detected: hashing multi-GB weights
+on every resolve would cost more than it prevents); and the CLI catches a
+failure that has no specific handler (for example a file that is not a GGUF
+reaching `Model.Load`) and prints one line with exit code 1, as its help
+promises, instead of a stack trace and a crash.
+
+
+### Exports
 
 `--format srt` and `--format ass` join `plain`, `vtt`, `json` and `html` in
 the CLI. Both are rendered by `src/Shared/SubtitleWriter.cs`, compiled into the
@@ -215,74 +374,7 @@ silence *between* recognized segments only; silence inside a segment is not
 visible to them. The CLI keeps the previous output — a 60 s interval and no
 pause markers — since it has no flag for the new settings.
 
-#### Model roles (upstream v0.4)
-
-The pinned upstream version moves from v0.3.0 to v0.4.0. Roles are the central
-change: a model serves one or more of ASR, DIARIZE, LANGID and VAD, fixed at
-load. Wrapper additions: `TranscribeRole` and `Model.Roles`; new `LangIdSession`
-and `VadSession` (`Model.CreateLangIdSession` / `CreateVadSession`) with their
-builders and result records; a new offline `DiarizeSession` (with
-`SortformerDiarizeExtBuilder`) replacing the removed
-`SortformerStreamExtBuilder`/`StreamParamsBuilder.WithSortformerExt`.
-Capabilities are now ASR-only: `Model.GetCapabilities` throws `UNSUPPORTED_ROLE`
-on a model without the ASR role; the UI capability probe reads `Roles` first.
-Backend allowlist: `BackendMask`, `Backends.InitDefault`,
-`Backends.Init(dir, BackendMask)`, `Backends.AllowedBackends`. New status codes
-20 (`UNSUPPORTED_ROLE`) and 21 (`INPUT_TOO_SHORT`), flowing through
-`TranscribeException`. Native ABI: additive at the symbol level (no function
-removed, no existing enum value changed, one new struct, four new functions, 21
-new enum constants); one removal (`transcribe_sortformer_stream_ext` and
-`SortformerStreamExt`). Catalog re-pinned to v0.4.0: 76 records (4 new:
-`parakeet-ultra`, `orukeet`, `silero-vad-v6.2`,
-`lang-id-voxlingua107-ecapa`). Behaviour changes needing no wrapper work but
-worth knowing: non-finite audio (NaN/±Inf) is rejected with `INVALID_ARG`; a
-stream whose family hook throws now ends `FAILED`; host thread-pool failures
-return an error instead of terminating the process. Tooling:
-`scripts/regenerate-bindings.sh` now vendors and parses `include/transcribe/*.h`
-as well as the root header; the generator maps a pointer return to `IntPtr`;
-`FetchNative --update-hashes` merges into `build/native-sha256.json`. Verified:
-full solution builds; 544 Interop and 79 UI tests pass against the 0.4.0 native
-library. The three new sessions are exercised end to end against the real
-weights. New page: [docs/roles.md](docs/roles.md).
-
-The four new role models are now aliases, each pinned to a HuggingFace revision
-with its sha256: `parakeet-ultra` (ASR, 25 European languages, Q5_K_M, 524 MB),
-`orukeet` (ASR, 25 European languages, Q5_K_M, 523 MB),
-`lang-id-voxlingua107-ecapa` (LANGID, Q8_0, 25 MB) and `silero-vad-v6.2`
-(VAD, F32, 1.2 MB). The manifest goes from 72 to 76 aliases. Two detail-pane
-rules were relaxed for models upstream records differently: a language model's
-headline is an accuracy (on FLEURS), now shown; and a VAD model has no language
-and no accuracy, so an explicitly empty language list is allowed (a *missing*
-field is still an error) and a blank accuracy line is the record, not a broken
-reader. The WER column stays an error-rate column: a language model shows a dash
-there.
-
-The CLI and the desktop app follow the model's role. The 0.4 bind left the front
-ends behind: both only ever created an ASR session, so a Sortformer crashed the
-CLI with an unhandled `UNSUPPORTED_ROLE`, and a langid/vad model could not be
-run at all. The CLI reads `Model.Roles` and dispatches: an ASR model keeps the
-transcription path; a diarizer prints speaker turns; a language model prints the
-ranked languages; a VAD model prints the speech segments. A `roles :` line names
-what the model serves. New `--allowed en,fr,de` restricts a language model, and
-`--out` writes a plain or JSON report for the non-ASR roles (`--format vtt` is
-refused with an explanation, since a WebVTT cue is an ASR shape). The desktop
-app runs the model's role and shows the result, with a `runs:` line under the
-picker, a **Languages** grid for a language model and a **Speech** grid for a
-VAD model (a diarizer fills the existing Speakers grid). A language model also
-gets an **Allowed languages** field. The Models tab's *Check diarization* now
-asks the DIARIZE role as well as the ASR feature, so a Sortformer reads
-*supported*. Long-form audio, honestly: VAD is `chunked-unbounded` upstream, so
-the CLI and the app score it window by window and union the intervals across the
-seams (memory is one window, not the file; `--chunk` sets the window). Each
-window is scored independently, so a seam can bridge a short silence a one-pass
-run keeps as a gap: the speech found and its total duration match, the exact
-boundaries at a seam do not. Language identification is a 30 s hard cap, so
-the head of the file is used. Diarization is a hard cap with no streaming entry
-point and per-run speaker ids, so it is run whole and not split — windowing it
-would renumber speakers at every seam. Verified: `RoleCommandTests` (CLI),
-`VadWindowingTests` (merge rules and a windowed run on ~138 s of synthesized
-audio) and `TranscriptionServiceRoleTests` (service) against the three role
-weights.
+### Desktop application
 
 #### Goal-driven transcription tab
 
@@ -339,6 +431,39 @@ left. The VAD alias is remembered too; a model that is no longer on disk falls
 back to the first downloaded VAD model, and with none the option stays on and
 the run stays refused instead of being silently switched off. An unknown goal
 falls back to speech to text.
+
+#### Dedicated diarizer
+
+(See Model roles / Transcription — a model that cannot attribute speakers itself
+can be paired with a dedicated DIARIZE-role model. The **Diarizer** picker is
+offered only when the transcriber reports at least segment timings; 37 of the 73
+ASR aliases declare no timestamps. Under the picker, a plan line names the two
+models. A warning quotes the diarizer's catalog record when the chosen language
+is not among its declared languages. A chained run is two visible phases: pass
+one covers 90% of the bar, the status says **Diarizing…** while the second pass
+runs, and the bar holds at 95% until the diarizer returns. The service exposes
+`TranscriptionPhase` through the progress callback.)
+
+A model that can also attribute speakers (MOSS, granite-speech-4.1-2b-plus) can
+now be explicitly asked to do so from the app: `DiarizeMode` is no longer
+hardcoded to the model default. The tab has a diarization picker (model default /
+off / on), shown only for a model that transcribes *and* can diarize. The run
+button is also named for the model's role: Transcribe, Diarize, Identify
+language or Detect speech.
+
+#### Opt-in VAD trim
+
+(See Transcription — `transcribe <audio> --vad silero-vad-v6.2` runs a VAD model
+first and transcribes only the speech intervals, off by default and documented
+as unmeasured. Measured on a single clip: a 500 ms merge gap split the clip
+into four cues and one decoded as "IS NOT" instead of "ask not"; at 1 s it
+merged back into one cue and the sentence was right. Not wired: the server and
+the desktop app do not expose `--vad`. The desktop app's Advanced settings of
+an ASR goal offer **Skip silence with a VAD model**, off by default, with a VAD
+model picker and **Get a VAD model…** opening the Models tab filtered to the
+`vad` role. The VAD model is disposed before the ASR model is loaded, so only
+one model is in memory at a time. The status after a run names the VAD model
+used; the saved history does not carry that field yet.)
 
 #### Models tab
 
@@ -442,8 +567,6 @@ list with a native warning, and this project has not measured how much a
 vocabulary changes a transcript. The page says so instead of promising better
 accuracy.
 
-#### Desktop UI details
-
 Point at the accuracy figures that exist instead of saying there are none: the
 Models banner and the grid tooltips used to lead with what this project has not
 measured. They now say where the useful numbers are: the **WER** column quotes
@@ -455,14 +578,41 @@ banner opens transcribe.cpp's per-model accuracy tables at the pinned revision,
 and the detail pane opens the selected model's Hugging Face card with its full
 quant table and language matrix. No new measurement is claimed.
 
-Icons, page headings, and a Batch grid that uses its space: the six tabs and the
-actions inside them now carry Material Design icons, and each tab opens with an
-icon, its name and a one-line description of what it is for. The icons come
-from `Material.Icons.Avalonia` (MIT) and are decorative: every action keeps its
-text label and its accessible name. The Transcription result tabs carry icons
-too. The Batch results grid now takes the height left over rather than sitting
-under a star-sized spacer, which had left only its column headers visible at the
-bottom of an empty window.
+#### Compute and devices
+
+Only offer backends and devices that can actually run: the Backend picker listed
+all seven request values on every machine: Metal on Linux, CUDA and ROCm without
+the matching build, and CPU (accelerated) even when no host accelerator was
+registered. An unavailable backend could only fail at load, and CPU
+(accelerated) without an accelerator just fell back to plain CPU. The list now
+comes from the native `BackendAvailable` probe and contains Auto plus the
+backends this build and machine can satisfy. CPU (accelerated) is kept only when
+an ACCEL device (BLAS/AMX) is actually registered. If the probe itself fails,
+the full list is shown with a hint saying why.
+
+The Device picker is narrowed in the same way: only devices the selected backend
+accepts are offered. A pin that the new backend rejects is cleared back to Auto
+when the backend changes. The devices grid still shows the full inventory, and
+its Type column now reads **GPU**, **iGPU**, **CPU** or **accelerator** instead
+of `DeviceTypeGpu`. A saved backend that is not available at launch leaves Auto
+selected and stays in the file, like a missing device id.
+
+Auto is a device choice, and the compute choice is remembered: the Settings
+tab's Device picker had no Auto row: "Let the backend choose" was only a
+placeholder, shown while nothing was selected. Once a device was picked there was
+no item to select to go back, so the only way to unpin it was to restart the
+app. **Auto — let the backend choose** is now the first item in the list. The
+Backend picker uses plain labels — **Auto**, **CPU**, **CPU (accelerated)**,
+**Metal**, **Vulkan**, **CUDA**, **ROCm** — instead of the enum members'
+`BackendAuto` spelling.
+
+The backend and device are also remembered between launches, in
+`ui-settings.json` beside the log. The backend is stored by name and the device
+by its stable `DeviceId` — the runtime handle is valid only in the process that
+enumerated it. A saved device that this launch no longer enumerates leaves Auto
+selected and its id in the file, so a device that comes back is used again. A
+line under the pickers now says that a change applies to the next run, is
+remembered for the next launch, and needs no Save button.
 
 The Settings compute panel says it is optional: the backend and device pickers
 are unchanged, but a line under them now says that `Auto` is the default and
@@ -471,196 +621,6 @@ backends this build and machine report as available, so the seven-item list no
 longer reads as a choice that must be made. The availability comes from
 `Backends.BackendAvailable`; when that call fails, the sentence without the list
 is still shown.
-
-The decoder-language picker names each language beside its code (see Desktop
-review tools).
-
-
-### Transcription and reliability
-
-#### Windows, timestamps and memory
-
-The Window setting now actually splits the audio: `TranscriptionService.RunAsr`
-passed `WindowSeconds` to `WindowPlanner.TryPlan`, which takes milliseconds.
-Every value below 1000 therefore meant a window shorter than the 1 s overlap:
-planning failed and the run sent the whole file to the model in one native call.
-The 10.1 GB Vulkan and 113.6 GB CPU allocations in the reported Parakeet
-failure were the whole file, not a 300 s window. The service now converts
-seconds to milliseconds. Measured after the fix: 300 s of audio at 75 s planned
-five windows (T_enc=938 each), at 300 s it planned one, and a 20-minute file
-requested at 1200 s fell back to 300 s and ran five windows. The memory probe
-already used seconds and is unchanged.
-
-The Window default is 30 s, not 300 s: the 300 s default was a generic value,
-not a measurement, and the setting was not being applied at all (see above). A
-30 s default is conservative: the compute buffer grows with the window and the
-native API does not report its size, so the tab starts at the value measured
-completing on both the CPU and a 4 GB Vulkan device. The field's hint and
-tooltip say so, and the UI docs call the value a default rather than a model
-limit. Higher windows are still available for devices that measured them; **Test
-memory** remains the measurement. The CLI default is unchanged (300 s,
-`--chunk`).
-
-**Adjust window automatically** (on by default) makes the first out-of-memory
-failure a retry instead of a dead end: the service halves the window, down to 5 s
-and at most ten values, recreates the session and starts the audio over. The
-progress line says the window was lowered while the retry runs, and the final
-status names both values. The value that worked is remembered per model, backend
-and device in `ui-settings.json`, so the next run starts there. Only the first
-window can trigger the retry: re-running after a later window would duplicate
-the text already produced, so that failure is reported. The service never raises
-the window on its own; the native API gives no measurement that a larger one
-fits. **Not verified: a real out-of-memory failure** — the retry path is
-covered by a fake attempt, not by a native OOM.
-
-**Test memory**: the Transcription tab offers **Test memory**: it runs at most
-one window of the selected file with the selected settings, without producing a
-transcript, and reports the lowest free figure the device reached. That is the
-real allocation that fails in an `ErrOom`, measured rather than estimated, at
-the cost of one window of compute. It does not test later windows, the
-diarizer, or the decoder's output length, and the result line says so. An
-`ErrOom` names Window, the quantization and the CPU backend; a successful probe
-is stored like a finished run, so the next pre-run warning uses its
-measurement. The probe goes through `ITranscriptionService.ProbeMemoryAsync`,
-implemented by the real service with the model loaded, the first window read
-from the file and the same session settings as a run.
-
-What can be said about memory before a run: the Settings tab now shows **Total**
-and **Free** per device and names the device the current backend/device choice
-resolves to, with its live free figure; **Refresh devices** re-reads both,
-because the native figure is a snapshot, not a monitor. The Transcription tab
-can state two facts before a run: the pinned model file does not fit in the
-target's free memory (the service then refuses before loading it, naming both
-figures), or a previous run of the same model, window, backend and device
-recorded a lower free figure than the device has now. The second is a measured
-warning, not an estimate. `transcribe_device_info.memory_free` is read after the
-model loads and after each window; the lowest figure is stored per run
-configuration in `ui-settings.json`. The compute graph's size is not exposed by
-the native API, so a run whose weights fit can still run out of memory; the
-page says so, and nothing retries automatically beyond the first OOM nor raises
-the window on its own (see above).
-
-An `ErrOom` report that names the run: the out-of-memory status now names the
-model and the window in use, and puts lowering **Window** first: it caps the
-audio and compute buffer of one native call, which is the most direct knob
-before quantization and context size. The copied error report also records the
-run's model, window, KV type, context size, backend, device and diarizer. Nothing
-is retried automatically: a silent retry would report a result for settings the
-reader did not choose. (The automatic retry of the first OOM described above is
-the only exception, and it applies only to the first window.)
-
-An `ErrOom` report that says which device and which window failed: the copied
-error report already carried the run's settings. For an `ErrOom` it now also
-carries what the service saw at the failure: the device the model actually ran
-on with its live free memory, the session limits (`n_ctx`, KV bytes, max audio),
-and which window of how many was running. That distinguishes a first-window
-allocation (configuration or transient pressure) from a later-window growth (a
-long file), which the settings alone cannot. `DescribeRun` re-reads the devices
-when the report is written, so the memory line says what the machine looked like
-then rather than what the last Settings refresh said.
-
-#### Partial results and timestamp granularity
-
-A decoder stop keeps its partial transcript: `transcribe_run` returns
-`ErrOutputTruncated` (18) and `ErrOutputRepetition` (19) with the partial
-transcript intact and `was_truncated` set; the native header calls them
-result-bearing. `Session.Run` threw on both, so the UI threw away a transcript
-that existed and reported a failed run. The wrapper now returns those two
-statuses as results, `Transcript` exposes the status, and the tab says the
-transcript stopped early and why instead of calling it complete. The batch labels
-the item (truncated or output repetition) instead of failing it. Every other
-non-OK status still throws.
-
-The model resolves the timestamp granularity: the tab asked every model for
-SEGMENT timestamps. granite-speech-4.1-2b-plus reports a maximum of WORD
-(numerically finer) and still rejects an explicit SEGMENT with
-`ErrUnsupportedTimestamps` (12), so every run of that model failed before
-producing text. The run now always asks for AUTO, the one value the dispatcher
-never rejects and which the family resolves to its own maximum; the batch path
-does the same. Verified through the UI service on the granite model: one 30 s
-window completed with 107 characters, where SEGMENT failed.
-
-#### Cancellation and progress
-
-Cancellation of a transcription or a batch: the Transcription and Batch tabs can
-now stop a run in flight. The token goes through the service to `Session.Run`,
-which already turns the native abort into `OperationCanceledException`. A
-cancelled run is not a failure: the status says "cancelled", nothing is written
-to the log, and the tab returns to idle. Two limits are stated rather than
-hidden. The native abort is polled between decode steps, not inside the encoder,
-so stopping is not instant. And the wrapper turns the abort into cancellation
-before it reads the result, so the partial transcript is discarded — the
-Transcription tab says so. A batch keeps the items that finished before the
-token fired (the service returns them and the caller's own token distinguishes
-cancelled from complete); the file in flight is dropped. A batch cancelled
-before it starts never resolves or downloads the model.
-
-Real progression, with indeterminate phases where nothing is measured: the
-progress block now sits in the run card, directly under the button that starts
-the run, so the feedback cannot appear below the fold; the status line is hidden
-while it is showing and returns with the completion or the failure. It
-distinguishes what the service can observe. Loading the model and reading or
-decoding the audio are indeterminate, with a line saying the native library
-reports no fraction for them. The offline ASR path fills the bar by finished
-windows and names them (`Transcribing — window 3 of 12`); a file that fits in
-one window is indeterminate with a note saying the native call reports no
-fraction inside it, rather than a determinate bar frozen at 0%. A chained
-diarizer is indeterminate too, and the card says it runs the whole file in one
-native call, instead of holding a percentage at 95%. The percentage is hidden
-while the bar is indeterminate. An elapsed clock is measured from the start of
-the run, and after a second finished window the card adds an estimate computed
-from the windows measured so far, labelled as an estimate. The countable step
-and the estimate are not time claims from the project: one is the planner's
-window list, the other is arithmetic on the windows already finished.
-
-A countable step beside the progress bar: a run now says what its percentage is
-of: `Transcribing — window 3 of 12` above the bar, or `Diarizing — one pass, no
-finer progress` during the second pass. The window count is the planner's own,
-so it is the number of native calls the run will make, not a time estimate. The
-Batch tab names the file in flight and its position (`File 2 of 5`) and its
-state (reading, done, failed). Its bar still counts finished files: a batch runs
-each file in one native call, so there is no percentage inside one to report,
-and none is invented.
-
-Live text while a run is in flight, and a copyable error report: the
-Transcription tab shows the text of the windows finished so far while a run is in
-progress, cleared when the result takes over. It is one update per window — the
-Window setting decides how often — not word by word: the offline run offers no
-finer callback, and the panel says so. A file shorter than one window shows no
-preview because there is nothing to show before the end.
-
-A failed run now keeps its full report and offers **Copy error**: exception
-type, message, the native status and failed method when there is one, the log
-path and the stack trace. The status line is selectable too. An `ErrOom`
-failure is named as such with the next step that can help — a smaller
-quantization, a lower context size, or the CPU backend.
-
-The progress bar shows its percentage: the Transcription tab's progress bar now
-carries the percentage it is filling to, beside it. It is a reading of the same
-`Progress` value the bar already used, not a second estimate.
-
-#### Error handling and robustness
-
-Several failure paths used to end in an unhandled exception or in lost work
-rather than a message: `ui-settings.json` is written to a sibling file and
-renamed into place, so a crash mid-write no longer leaves a truncated file that
-the next launch reads as "no settings at all"; the History tab returns the
-entries it could read when its folder cannot be enumerated, and a delete that
-races another delete is not an error; exporting a single transcript or a batch
-result reports a write failure in the status line and the log instead of throwing
-out of the async command on a read-only, full or vanished disk; a batch records
-a file it cannot read as an `Error:` row and continues with the rest (before,
-one missing file discarded the items that had finished and skipped every file
-after it); a cached weight file whose size disagrees with the manifest/LFS
-record is downloaded again instead of being reused as a permanent cache hit
-(same-size corruption is still not detected: hashing multi-GB weights on every
-resolve would cost more than it prevents); and the CLI catches a failure that
-has no specific handler (for example a file that is not a GGUF reaching
-`Model.Load`) and prints one line with exit code 1, as its help promises,
-instead of a stack trace and a crash.
-
-
-### Desktop application
 
 #### Remembered configuration and navigation
 
@@ -714,54 +674,9 @@ by its own authors and that this project only binds and packages it, and the two
 repository links as selectable text. The native version was already shown under
 **Backend Version**; the section points at it rather than repeating the number.
 
-#### Compute and devices
+#### History
 
-Only offer backends and devices that can actually run: the Backend picker listed
-all seven request values on every machine: Metal on Linux, CUDA and ROCm without
-the matching build, and CPU (accelerated) even when no host accelerator was
-registered. An unavailable backend could only fail at load, and CPU
-(accelerated) without an accelerator just fell back to plain CPU. The list now
-comes from the native `BackendAvailable` probe and contains Auto plus the
-backends this build and machine can satisfy. CPU (accelerated) is kept only when
-an ACCEL device (BLAS/AMX) is actually registered. If the probe itself fails,
-the full list is shown with a hint saying why.
-
-The Device picker is narrowed in the same way: only devices the selected backend
-accepts are offered. A pin that the new backend rejects is cleared back to Auto
-when the backend changes. The devices grid still shows the full inventory, and
-its Type column now reads **GPU**, **iGPU**, **CPU** or **accelerator** instead
-of `DeviceTypeGpu`. A saved backend that is not available at launch leaves Auto
-selected and stays in the file, like a missing device id.
-
-Auto is a device choice, and the compute choice is remembered: the Settings
-tab's Device picker had no Auto row: "Let the backend choose" was only a
-placeholder, shown while nothing was selected. Once a device was picked there was
-no item to select to go back, so the only way to unpin it was to restart the
-app. **Auto — let the backend choose** is now the first item in the list. The
-Backend picker uses plain labels — **Auto**, **CPU**, **CPU (accelerated)**,
-**Metal**, **Vulkan**, **CUDA**, **ROCm** — instead of the enum members'
-`BackendAuto` spelling.
-
-The backend and device are also remembered between launches, in
-`ui-settings.json` beside the log. The backend is stored by name and the device
-by its stable `DeviceId` — the runtime handle is valid only in the process that
-enumerated it. A saved device that this launch no longer enumerates leaves Auto
-selected and its id in the file, so a device that comes back is used again. A
-line under the pickers now says that a change applies to the next run, is
-remembered for the next launch, and needs no Save button.
-
-The Settings compute panel says it is optional: the backend and device pickers
-are unchanged, but a line under them now says that `Auto` is the default and
-that the panel exists to force a backend or pin a device. It also names the
-backends this build and machine report as available, so the seven-item list no
-longer reads as a choice that must be made. The availability comes from
-`Backends.BackendAvailable`; when that call fails, the sentence without the list
-is still shown.
-
-#### Models tab
-
-(See New features — Models tab.)
-
+(See New features — Local history.)
 
 ### Streaming
 
@@ -795,11 +710,11 @@ one. Start is still gated on that same answer.
 A model deleted while its streaming capabilities are read drops out quietly: the
 Streaming tab reads the selected model's capabilities when it opens. A model
 deleted between the picker listing it and that read failed with
-`ErrFileNotFound` and was written to the log with a full stack trace — for a file
-the reader had already removed. The read now notices the file is gone, re-reads
-the cache so the model leaves the picker, and logs nothing: a deleted file is
-not a capability failure. A model that is present but cannot be loaded — a
-corrupt or foreign GGUF — is still logged as before.
+`ErrFileNotFound` and was written to the log with a full stack trace — for a
+file the reader had already removed. The read now notices the file is gone,
+re-reads the cache so the model leaves the picker, and logs nothing: a deleted
+file is not a capability failure. A model that is present but cannot be loaded —
+a corrupt or foreign GGUF — is still logged as before.
 
 The streaming tab's picker offers only models that can stream: the picker listed
 every downloaded model, MOSS — the default — among them, and MOSS cannot
@@ -899,7 +814,6 @@ Documented rather than changed: the crash and the RTF growth need a fix in
 transcribe.cpp. A live service should isolate the transcriber in a child
 process it can restart. Only the Moonshine family was measured, only at a 1000
 ms chunk, and on tiled rather than real audio — all stated on the page.
-
 
 ### Distribution and maintenance
 
@@ -1017,43 +931,12 @@ batch, CLI), verified against the MOSS diarization model, and the one that is
 not available — the streaming API, whose upstream
 `transcribe_stream_params` has no `diarize` field in transcribe.cpp v0.2.4.
 
-#### Seam deduplication: a tolerance, not a full dedup
-
-Found while testing the server on a multi-window file (`--chunk 5` on the 11 s
-`jfk.wav`): the merged text read `... ask not! not what ...`. A segment that
-starts slightly before the previous one ended is kept rather than dropped,
-because dropping it would lose the audio after the seam; up to 500 ms can
-therefore be transcribed twice. That is `TranscriptMerger`'s existing, tested
-tradeoff, not a regression — the docs said "deduplicated" without the tolerance
-and now say what actually happens. `docs/server.md` and `docs/diarization.md`
-carry the measured example.
-
 #### Release assets: SBOM and checksums
 
 Every GitHub Release now attaches `TranscribeCppSharp.sbom.spdx.json` (the SPDX
 SBOM the `sbom` job already produced) and `SHA256SUMS.txt` — one `sha256sum`
 line per shipped file, computed over the exact bytes uploaded — so a download
 can be verified. v0.4.0 was published before this and had both attached by hand.
-
-#### Unresolved technical ambiguities
-
-- **Scope of "nothing retries automatically" vs. the first-OOM retry.** The
-  source text states both that an automatic retry exists for the first OOM (app
-  and server) and that "nothing retries automatically" (pre-run memory
-  section). I interpreted the latter as concerning OOMs beyond the first window
-  and the absence of any automatic raising of the window, but the source text
-  does not state this scope explicitly. To confirm.
-- **Future exposure of `--vad` in the server and the desktop app.** The text
-  says "not wired" without stating whether it is planned soon or at what
-  priority.
-- **Reality of the OOM tests.** The "not verified: a real out-of-memory
-  failure" caveat is repeated, but the text does not say whether a real OOM has
-  ever been reproduced, nor on which configuration (GPU, model size, window
-  size).
-- **Word-level branch of the server diarizer.** It is "not exercised end to
-  end" for lack of a local model reporting word timestamps; the text does not
-  say whether an existing model could trigger it or whether it is purely
-  theoretical.
 
 
 
