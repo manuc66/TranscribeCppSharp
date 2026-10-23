@@ -9,6 +9,25 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### New: the server can run a separate diarizer
+
+`--diarizer <model>` runs a DIARIZE-role model (Sortformer) over the whole file
+after the transcript and joins its turns to the segments with
+`SpeakerAssignment` — word-level when the transcript has word timestamps,
+segment-level otherwise. Without the flag, `--diarize` keeps asking the ASR
+model, as before; with it, the ASR model is not asked and the second pass decides.
+
+Costs, stated in the docs: both models stay loaded, and the diarizer holds the
+whole file in memory because upstream has no streaming diarization and speaker ids
+are per run. Off by default; `diarize=false` never runs the pass.
+
+Verified: options parsing, the endpoint contract (48 server tests), and a real run
+with ggml-tiny + Sortformer on jfk.wav — 4 turns returned, segment assigned
+speaker 1. That clip has one speaker and is too short for a quality claim; the run
+verifies the plumbing, not the attribution. The word-level branch was not
+exercised end to end: no local model reports word timestamps, so it is covered by
+the `SpeakerAssignment` tests only.
+
 ### UI: speaker attribution prefers word timings
 
 The join between a transcriber and a dedicated diarizer was segment-level: the segment took the

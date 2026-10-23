@@ -74,9 +74,11 @@ message naming the field, instead of a `200` that quietly ignored it:
 - **With `--diarizer <model>`**, the ASR run does *not* ask the model, and a
   DIARIZE-role model (Sortformer, for example) runs over the whole file after the
   transcript. Its turns are joined to the segments by `SpeakerAssignment` — the
-  same code the desktop app uses — assigning each segment the turn it overlaps
-  most. Explicit configuration wins over the model's own capability, which is
-  what makes the result predictable.
+  same code the desktop app uses: at word level when the transcript has word
+  timestamps (each word takes the turn it overlaps most, and the segment takes
+  the majority speaker), with the largest-overlap rule as the fallback.
+  Explicit configuration wins over the model's own capability, which is what
+  makes the result predictable.
 
 Two costs to know before turning it on:
 

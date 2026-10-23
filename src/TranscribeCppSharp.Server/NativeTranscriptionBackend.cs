@@ -144,7 +144,7 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
             IReadOnlyList<SpeakerSegmentResult> turns = RunDiarizer(pcm, request.CancellationToken);
             transcript = transcript with
             {
-                Segments = SpeakerAssignment.Apply(transcript.Segments, turns),
+                Segments = SpeakerAssignment.Apply(transcript.Segments, turns, transcript.Words),
             };
         }
 
