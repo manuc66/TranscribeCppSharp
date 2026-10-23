@@ -107,11 +107,14 @@ mean per band of 19 feeds:
 | 172–190 (171–190 s) | 5773 ms |
 | 191–198 (190–198 s) | 5509 ms |
 
-The cost rises 55x from the first band to the last, then **levels off around
-5 500 ms** — about 5.5x slower than the audio it is fed. That plateau is the
-part that matters: it is a floor, not a startup transient. On this hardware a
-Moonshine streaming model cannot process live audio faster than roughly 5.5x
-real time, no matter how the stream is chunked or tuned.
+The cost rises 55x from the first band to the last, and the last band reads
+~5 500 ms — **but this plateau figure is provisional.** The run that produced
+it finished during a concurrent 4-core workload (`LocalityGap`, ~400 % CPU),
+so the per-feed values in the last few bands are almost certainly inflated.
+The *shape* — monotonic growth, no return to baseline — is consistent with the
+cleaner 132 s run, but the absolute level is not yet verified. Re-measuring
+the 198 s run on an idle machine is the first thing to do before relying on
+this number.
 
 RTF therefore climbs with duration — 0.218 at 33 s, 0.510 at 66 s, 1.287 at
 132 s, 2.705 at 198 s — and **a short clip flatters it completely**. A
@@ -202,12 +205,13 @@ long-form audio were not measured; only `moonshine-streaming-tiny` on the CPU wa
 - **There is no tuning knob that saves this.** Default, decode interval and
   stable-prefix commit are the same number. A stream that falls behind is not
   misconfigured.
-- **A stream cannot currently be trusted to run for minutes on CPU**, and on
-  this hardware cannot run faster than ~5.5x real time on either backend. The
-  CPU abort is upstream — transcribe.cpp 0.2.4 and ggml, not the wrapper — and
-  no amount of wrapper code intercepts an uncatchable native abort. A live
-  service needs process isolation: run the transcriber in a child process it can
-  restart.
+- **A stream cannot currently be trusted to run for minutes on CPU.** The
+  CPU abort at ~82 s is real and reproducible; the "~5.5x real time" floor
+  above is provisional (contaminated run) and must not be quoted until it is
+  re-measured. The CPU abort is upstream — transcribe.cpp 0.2.4 and ggml, not
+  the wrapper — and no amount of wrapper code intercepts an uncatchable native
+  abort. A live service needs process isolation: run the transcriber in a child
+  process it can restart.
 - **The cascade still pays.** The failure is per-stream, on one session, and the
   offline re-transcription pass
   ([Concurrency](concurrency.md)) is unaffected. If the live stage dies, the
