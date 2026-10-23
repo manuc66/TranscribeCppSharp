@@ -442,7 +442,14 @@ models. A warning quotes the diarizer's catalog record when the chosen language
 is not among its declared languages. A chained run is two visible phases: pass
 one covers 90% of the bar, the status says **Diarizing…** while the second pass
 runs, and the bar holds at 95% until the diarizer returns. The service exposes
-`TranscriptionPhase` through the progress callback.)
+`TranscriptionPhase` through the progress callback. The join is this app's, not
+the library's — transcribe.cpp has no combined ASR+diarizer entry point — and
+it is heuristic; no accuracy claim is made. The word-level join (each word takes
+the turn that overlaps it most; the segment takes the speaker of most of its
+words) is still a heuristic, not a verified alignment: the words are the
+decoder's, the turns are the diarizer's, and the two can disagree. A segment
+with no words, or whose words overlap no turn, falls back to the old
+segment-level rule, so a model without word timestamps behaves as before.)
 
 A model that can also attribute speakers (MOSS, granite-speech-4.1-2b-plus) can
 now be explicitly asked to do so from the app: `DiarizeMode` is no longer
