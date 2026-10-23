@@ -1425,6 +1425,12 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </remarks>
     private void LoadModels()
     {
+        // Capture before clearing: the ComboBox bound to AvailableModels is
+        // TwoWay on SelectedItem, so clearing the collection can null ModelAlias
+        // through the binding before we get to rebuild it. Keeping the value
+        // here is what lets the selection survive a refresh (and a tab switch).
+        string currentModelAlias = ModelAlias;
+
         AvailableModels.Clear();
         IReadOnlyList<string> downloaded = DownloadedModelCatalog.Aliases();
         _downloadedModelCount = downloaded.Count;
@@ -1440,7 +1446,7 @@ public partial class TranscriptionViewModel : ObservableObject
         }
 
         ModelAlias = DownloadedModelCatalog.Selection(
-            ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.TranscriptionTab));
+            currentModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.TranscriptionTab));
 
         LoadDiarizers();
         LoadVadModels();

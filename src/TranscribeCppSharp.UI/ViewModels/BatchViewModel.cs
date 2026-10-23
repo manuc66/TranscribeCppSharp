@@ -109,6 +109,9 @@ public partial class BatchViewModel : ObservableObject
     /// </remarks>
     private void LoadModels()
     {
+        // See TranscriptionViewModel.LoadModels.
+        string currentModelAlias = ModelAlias;
+
         AvailableModels.Clear();
         foreach (string alias in DownloadedModelCatalog.Aliases())
         {
@@ -116,7 +119,7 @@ public partial class BatchViewModel : ObservableObject
         }
 
         ModelAlias = DownloadedModelCatalog.Selection(
-            ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.BatchTab));
+            currentModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.BatchTab));
 
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));

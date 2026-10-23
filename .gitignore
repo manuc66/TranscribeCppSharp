@@ -45,3 +45,5 @@ coverage.json
 /transcription.json
 /transcription.*
 /run.log
+# CocoIndex Code (ccc)
+/.cocoindex_code/

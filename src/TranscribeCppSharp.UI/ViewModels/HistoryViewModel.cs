@@ -37,13 +37,24 @@ public partial class HistoryViewModel : ObservableObject
     [RelayCommand]
     internal void Refresh()
     {
+        // Keep the reader's place: rebuilding the list from disk must not move the
+        // selection to the first entry every time the tabs change. The same
+        // TwoWay-binding caveat as the model pickers applies to Entries, so the
+        // current selection is captured before the collection is cleared.
+        HistoryEntry? current = SelectedEntry;
+
         Entries.Clear();
         foreach (HistoryEntry entry in TranscriptionHistory.List())
         {
             Entries.Add(entry);
         }
 
-        SelectedEntry = Entries.FirstOrDefault();
+        // Entries are rebuilt from disk, so the old instance is never the same
+        // object as the new one; match by file path instead, so the reader's place
+        // survives a refresh.
+        SelectedEntry = current is not null
+            ? Entries.FirstOrDefault(e => e.FilePath == current.FilePath) ?? Entries.FirstOrDefault()
+            : Entries.FirstOrDefault();
         StatusMessage = Entries.Count == 0
             ? "No saved transcriptions yet. A finished run is saved here automatically."
             : $"{Entries.Count} saved transcription(s).";

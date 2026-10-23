@@ -294,6 +294,10 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         IReadOnlyList<string> onDisk = DownloadedModelCatalog.Aliases();
         _onDiskCount = onDisk.Count;
 
+        // See TranscriptionViewModel.LoadModels: capture before clearing so the
+        // TwoWay ComboBox binding cannot null the alias mid-rebuild.
+        string currentModelAlias = ModelAlias;
+
         AvailableModels.Clear();
         foreach (string alias in onDisk)
         {
@@ -304,7 +308,7 @@ public partial class StreamingViewModel : ObservableObject, IDisposable
         }
 
         ModelAlias = DownloadedModelCatalog.Selection(
-            ModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.StreamingTab));
+            currentModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.StreamingTab));
 
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasStreamableModels));
