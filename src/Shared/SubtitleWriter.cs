@@ -51,12 +51,17 @@ public static class SubtitleWriter
     /// did not run: every cue would otherwise say "Speaker 0".
     /// </param>
     /// <param name="title">What the document says about itself, when the format can carry it.</param>
+    /// <param name="speakerNames">
+    /// Names the reader typed for a speaker id. A missing entry falls back to
+    /// "Speaker N", which is what the transcript itself reports.
+    /// </param>
     public static void Write(
         TextWriter writer,
         SubtitleFormat format,
         IEnumerable<SubtitleCue> cues,
         bool speakerLabels,
-        string? title = null)
+        string? title = null,
+        IReadOnlyDictionary<int, string>? speakerNames = null)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(cues);
@@ -64,13 +69,13 @@ public static class SubtitleWriter
         switch (format)
         {
             case SubtitleFormat.Srt:
-                WriteSrt(writer, cues, speakerLabels);
+                WriteSrt(writer, cues, speakerLabels, speakerNames);
                 break;
             case SubtitleFormat.Vtt:
-                WriteVtt(writer, cues, speakerLabels, title);
+                WriteVtt(writer, cues, speakerLabels, title, speakerNames);
                 break;
             case SubtitleFormat.Ass:
-                WriteAss(writer, cues, speakerLabels, title);
+                WriteAss(writer, cues, speakerLabels, title, speakerNames);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(format), format, "unknown subtitle format");
@@ -86,7 +91,11 @@ public static class SubtitleWriter
         _ => throw new ArgumentOutOfRangeException(nameof(format), format, "unknown subtitle format"),
     };
 
-    private static void WriteSrt(TextWriter writer, IEnumerable<SubtitleCue> cues, bool speakerLabels)
+    private static void WriteSrt(
+        TextWriter writer,
+        IEnumerable<SubtitleCue> cues,
+        bool speakerLabels,
+        IReadOnlyDictionary<int, string>? speakerNames)
     {
         int index = 0;
         foreach (SubtitleCue cue in cues)
@@ -100,12 +109,17 @@ public static class SubtitleWriter
             index++;
             WriteLine(writer, index.ToString(CultureInfo.InvariantCulture));
             WriteLine(writer, $"{SrtTime(cue.StartMs)} --> {SrtTime(cue.EndMs)}");
-            WriteLine(writer, speakerLabels ? Prefix(cue.Speaker, text) : text);
+            WriteLine(writer, speakerLabels ? Prefix(cue.Speaker, text, speakerNames) : text);
             WriteLine(writer);
         }
     }
 
-    private static void WriteVtt(TextWriter writer, IEnumerable<SubtitleCue> cues, bool speakerLabels, string? title)
+    private static void WriteVtt(
+        TextWriter writer,
+        IEnumerable<SubtitleCue> cues,
+        bool speakerLabels,
+        string? title,
+        IReadOnlyDictionary<int, string>? speakerNames)
     {
         WriteLine(writer, "WEBVTT");
         if (!string.IsNullOrWhiteSpace(title))
@@ -125,13 +139,18 @@ public static class SubtitleWriter
 
             WriteLine(writer, $"{VttTime(cue.StartMs)} --> {VttTime(cue.EndMs)}");
             WriteLine(writer, speakerLabels
-                ? $"<v Speaker {cue.Speaker}>{EscapeVtt(text)}</v>"
+                ? $"<v {Name(cue.Speaker, speakerNames)}>{EscapeVtt(text)}</v>"
                 : EscapeVtt(text));
             WriteLine(writer);
         }
     }
 
-    private static void WriteAss(TextWriter writer, IEnumerable<SubtitleCue> cues, bool speakerLabels, string? title)
+    private static void WriteAss(
+        TextWriter writer,
+        IEnumerable<SubtitleCue> cues,
+        bool speakerLabels,
+        string? title,
+        IReadOnlyDictionary<int, string>? speakerNames)
     {
         WriteLine(writer, "[Script Info]");
         WriteLine(writer, $"Title: {SingleLine(title ?? "TranscribeCppSharp transcript")}");
@@ -161,15 +180,20 @@ public static class SubtitleWriter
                 continue;
             }
 
-            string dialogue = speakerLabels ? Prefix(cue.Speaker, text) : text;
+            string dialogue = speakerLabels ? Prefix(cue.Speaker, text, speakerNames) : text;
             dialogue = EscapeAss(dialogue).Replace("\n", "\\N", StringComparison.Ordinal);
             WriteLine(writer,
                 $"Dialogue: 0,{AssTime(cue.StartMs)},{AssTime(cue.EndMs)},Default,,0,0,0,,{dialogue}");
         }
     }
 
-    private static string Prefix(int speaker, string text)
-        => $"Speaker {speaker.ToString(CultureInfo.InvariantCulture)}: {text}";
+    private static string Prefix(int speaker, string text, IReadOnlyDictionary<int, string>? names)
+        => $"{Name(speaker, names)}: {text}";
+
+    private static string Name(int speaker, IReadOnlyDictionary<int, string>? names)
+        => names is not null && names.TryGetValue(speaker, out string? name) && !string.IsNullOrWhiteSpace(name)
+            ? name.Trim()
+            : $"Speaker {speaker.ToString(CultureInfo.InvariantCulture)}";
 
     private static string SingleLine(string text)
         => text.Replace("\r\n", " ", StringComparison.Ordinal)

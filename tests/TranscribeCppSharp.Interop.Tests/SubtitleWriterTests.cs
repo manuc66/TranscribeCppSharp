@@ -98,6 +98,54 @@ public sealed class SubtitleWriterTests
     }
 
     [Fact]
+    public void A_named_speaker_replaces_the_numeric_label()
+    {
+        var names = new Dictionary<int, string> { [2] = "Alice" };
+        var writer = new StringWriter(CultureInfo.InvariantCulture);
+
+        SubtitleWriter.Write(
+            writer,
+            SubtitleFormat.Srt,
+            [new SubtitleCue(0, 1000, 2, "hello")],
+            speakerLabels: true,
+            speakerNames: names);
+
+        Assert.Contains("Alice: hello", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_named_speaker_is_used_in_the_vtt_voice_tag()
+    {
+        var names = new Dictionary<int, string> { [2] = "Alice" };
+        var writer = new StringWriter(CultureInfo.InvariantCulture);
+
+        SubtitleWriter.Write(
+            writer,
+            SubtitleFormat.Vtt,
+            [new SubtitleCue(0, 1000, 2, "hello")],
+            speakerLabels: true,
+            speakerNames: names);
+
+        Assert.Contains("<v Alice>hello</v>", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_blank_name_falls_back_to_the_speaker_number()
+    {
+        var names = new Dictionary<int, string> { [2] = "   " };
+        var writer = new StringWriter(CultureInfo.InvariantCulture);
+
+        SubtitleWriter.Write(
+            writer,
+            SubtitleFormat.Srt,
+            [new SubtitleCue(0, 1000, 2, "hello")],
+            speakerLabels: true,
+            speakerNames: names);
+
+        Assert.Contains("Speaker 2: hello", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void An_empty_transcript_writes_only_the_header_that_the_format_needs()
     {
         Assert.Equal(string.Empty, Render(SubtitleFormat.Srt, speakerLabels: false, []));

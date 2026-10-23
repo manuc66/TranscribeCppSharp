@@ -1276,6 +1276,8 @@ public partial class TranscriptionViewModel : ObservableObject
     private static readonly string[] JsonPatterns = ["*.json"];
     private static readonly string[] HtmlPatterns = ["*.html"];
     private static readonly string[] MarkdownPatterns = ["*.md"];
+    private static readonly string[] SrtPatterns = ["*.srt"];
+    private static readonly string[] AssPatterns = ["*.ass"];
 
     public TranscriptionViewModel(
         ITranscriptionService transcriptionService,
@@ -2928,7 +2930,9 @@ public partial class TranscriptionViewModel : ObservableObject
                     new Avalonia.Platform.Storage.FilePickerFileType("WebVTT") { Patterns = VttPatterns },
                     new Avalonia.Platform.Storage.FilePickerFileType("JSON") { Patterns = JsonPatterns },
                     new Avalonia.Platform.Storage.FilePickerFileType("HTML") { Patterns = HtmlPatterns },
-                    new Avalonia.Platform.Storage.FilePickerFileType("Markdown") { Patterns = MarkdownPatterns }
+                    new Avalonia.Platform.Storage.FilePickerFileType("Markdown") { Patterns = MarkdownPatterns },
+                    new Avalonia.Platform.Storage.FilePickerFileType("SubRip subtitles") { Patterns = SrtPatterns },
+                    new Avalonia.Platform.Storage.FilePickerFileType("SubStation Alpha subtitles") { Patterns = AssPatterns }
                 }
             });
 
@@ -2972,6 +2976,8 @@ public partial class TranscriptionViewModel : ObservableObject
                 ".json" => ExportAsJson(),
                 ".html" => BuildHtmlExport(),
                 ".md" => BuildMarkdownExport(),
+                ".srt" => BuildSubtitleExport(SubtitleFormat.Srt),
+                ".ass" => BuildSubtitleExport(SubtitleFormat.Ass),
                 _ => FullText
             };
 
@@ -3004,6 +3010,32 @@ public partial class TranscriptionViewModel : ObservableObject
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// The subtitle exports, through the same renderer the CLI uses. Speaker
+    /// names typed in the tab are used when present; otherwise the cue says
+    /// "Speaker N", as the WebVTT export does.
+    /// </summary>
+    /// <remarks>
+    /// The cues are the segments as the model returned them: nothing is re-timed
+    /// or split to make them look shorter.
+    /// </remarks>
+    internal string BuildSubtitleExport(SubtitleFormat format)
+    {
+        SubtitleCue[] cues = Segments
+            .Select(s => new SubtitleCue(s.Start.TotalMilliseconds, s.End.TotalMilliseconds, s.SpeakerId, s.Text))
+            .ToArray();
+
+        var writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
+        SubtitleWriter.Write(
+            writer,
+            format,
+            cues,
+            speakerLabels: true,
+            title: string.IsNullOrEmpty(AudioPath) ? "Transcript" : Path.GetFileName(AudioPath),
+            speakerNames: NamedSpeakers());
+        return writer.ToString();
     }
 
     private string ExportAsJson()

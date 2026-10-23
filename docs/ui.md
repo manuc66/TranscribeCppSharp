@@ -281,7 +281,7 @@ them (Sortformer declares English only). During the second pass the progress blo
 no finer progress.
 
 The result is shown four ways: as text, as segments with timings, as words with timings, and
-as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html`, `.md` or `.json`, picked by the
+as speaker-attributed segments. `Export` writes `.txt`, `.vtt`, `.html`, `.md`, `.json`, `.srt` or `.ass`, picked by the
 extension you type; the formats themselves are the same as
 [the CLI's](exporting.md) — the HTML document is produced by the same shared
 renderer. The app now records the audio file's length from the samples it read, so the HTML

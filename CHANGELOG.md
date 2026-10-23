@@ -9,6 +9,20 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### The desktop app exports SRT and ASS too
+
+The export menu now offers `.srt` and `.ass` alongside `.txt`, `.vtt`, `.json`,
+`.html` and `.md`, through the same `SubtitleWriter` the CLI and the server use.
+Speaker names typed in the tab replace "Speaker N" in both formats, as they
+already did in the WebVTT export; the cues are the model's own segments.
+
+This closes the UI gap the previous entry named. Verified: 3 new
+`SubtitleWriterTests` for named speakers (SRT, VTT voice tag, blank name falling
+back) and 2 new UI export tests (SRT timestamps and names, ASS script header and
+dialogue), all passing. Not verified: the save-file picker itself in a real
+window — the export functions are driven directly, as the existing export tests
+do.
+
 ### New: the server retries a window that does not fit in memory
 
 When the native layer returns `ErrOom`, the server halves the window and restarts

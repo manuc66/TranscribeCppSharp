@@ -78,8 +78,8 @@ the same prefix in the dialogue text. Both are plain renderings of
 
 The renderer is `src/Shared/SubtitleWriter.cs`, compiled into the CLI, the server
 and the desktop app, so the bytes do not depend on which front end exported them.
-The desktop app's own export menu does **not** offer SRT or ASS yet; that is a
-UI wiring gap, not a library one.
+The desktop app offers the same two formats in its export menu, and uses the
+speaker names typed in the tab when there are any.
 
 ## HTML
 

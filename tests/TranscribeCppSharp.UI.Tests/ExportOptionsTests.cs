@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
@@ -170,6 +171,39 @@ public class ExportOptionsTests
             Assert.Contains("<v Alice>a</v>", vtt);
             Assert.Contains("<v Speaker 2>b</v>", vtt);
             Assert.DoesNotContain("<v Speaker 0>", vtt);
+        });
+    }
+
+    [Fact]
+    public void BuildSubtitleExport_WritesSrtWithNamesAndCommaMilliseconds()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 1, 0, "a"), (1, 2, 2, "b")));
+            viewModel.SpeakerNames.Single(e => e.SpeakerId == 0).Name = "Alice";
+
+            string srt = viewModel.BuildSubtitleExport(SubtitleFormat.Srt);
+
+            Assert.StartsWith("1\n00:00:00,000 --> 00:00:01,000\nAlice: a\n\n", srt, StringComparison.Ordinal);
+            Assert.Contains("2\n00:00:01,000 --> 00:00:02,000\nSpeaker 2: b\n", srt, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void BuildSubtitleExport_WritesAnAssScript()
+    {
+        WithViewModel(viewModel =>
+        {
+            Load(viewModel, Result((0, 1, 0, "a")));
+
+            string ass = viewModel.BuildSubtitleExport(SubtitleFormat.Ass);
+
+            Assert.Contains("[Script Info]", ass, StringComparison.Ordinal);
+            Assert.Contains("[V4+ Styles]", ass, StringComparison.Ordinal);
+            Assert.Contains(
+                "Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,Speaker 0: a",
+                ass,
+                StringComparison.Ordinal);
         });
     }
 
