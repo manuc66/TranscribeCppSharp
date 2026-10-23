@@ -55,6 +55,13 @@ public partial class TranscriptionViewModel : ObservableObject
     private bool _syncingGoal;
 
     /// <summary>
+    /// True while the constructor is restoring saved choices. The change handlers
+    /// save on every edit; without this guard, opening the app would write the file
+    /// once for each restored value.
+    /// </summary>
+    private bool _restoringSettings;
+
+    /// <summary>
     /// True while the language picker is being repaired from the global list, so
     /// the change does not rebuild the model list a second time.
     /// </summary>
@@ -324,6 +331,10 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowAdvanced))]
     [NotifyPropertyChangedFor(nameof(ShowAllowedLanguages))]
     [NotifyPropertyChangedFor(nameof(CanProbeThisRole))]
+    [NotifyPropertyChangedFor(nameof(VadSatisfied))]
+    [NotifyPropertyChangedFor(nameof(NeedsVadModelDownload))]
+    [NotifyPropertyChangedFor(nameof(CanTranscribe))]
+    [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private TranscriptionGoal _goal = TranscriptionGoal.Transcribe;
@@ -836,14 +847,16 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether any VAD model is on disk.</summary>
     public bool HasVadModels => VadOptions.Count > 0;
 
-    /// <summary>Whether the chosen VAD option can run.</summary>
-    public bool VadSatisfied => !UseVad || SelectedVadModel?.Alias is not null;
+    /// <summary>Whether the chosen VAD option can run for this goal.</summary>
+    public bool VadSatisfied
+        => !UseVad || !GoalIsAsr || SelectedVadModel?.Alias is not null;
 
     /// <summary>
     /// Whether the silence trim is on but no VAD model is available. The tab then
     /// offers the route to Models filtered to the VAD role.
     /// </summary>
-    public bool NeedsVadModelDownload => UseVad && SelectedVadModel?.Alias is null;
+    public bool NeedsVadModelDownload
+        => UseVad && GoalIsAsr && SelectedVadModel?.Alias is null;
 
     /// <summary>
     /// Whether the dedicated-diarizer picker is shown: speaker labels are on and
@@ -1407,7 +1420,25 @@ public partial class TranscriptionViewModel : ObservableObject
         // models by the chosen language.
         RebuildGlobalLanguages();
 
+        // Restore the goal before LoadModels: it decides which roles the picker
+        // offers. The VAD choice is restored through the backing fields for the
+        // same reason the export options are, and the guard keeps the change
+        // handlers from writing the file on every launch.
+        _restoringSettings = true;
+        _goal = UiSettings.LoadTranscriptionGoal();
+        _useVad = UiSettings.LoadTranscriptionUseVad();
+
         LoadModels();
+
+        string? rememberedVad = UiSettings.LoadTranscriptionVadModel();
+        if (rememberedVad is not null)
+        {
+            SelectedVadModel = VadOptions.FirstOrDefault(option => option.Alias == rememberedVad)
+                ?? SelectedVadModel;
+        }
+
+        _restoringSettings = false;
+
         // The alias the picker settled on (the one last run, else the first),
         // bounds the startup probe to a single known model. It runs off the UI
         // thread; a model that is not on disk is not loaded and the options stay
@@ -1599,6 +1630,11 @@ public partial class TranscriptionViewModel : ObservableObject
 
     partial void OnGoalChanged(TranscriptionGoal value)
     {
+        if (!_restoringSettings)
+        {
+            UiSettings.SaveTranscriptionGoal(value);
+        }
+
         // A checkbox toggle sets the goal with this flag: update the picker's
         // words but do not rebuild the model list, which is a role decision.
         if (_syncingGoal)
@@ -1611,6 +1647,8 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(GoalModelHint));
         OnPropertyChanged(nameof(HasGoalModelHint));
         OnPropertyChanged(nameof(PipelineSummary));
+        OnPropertyChanged(nameof(VadSatisfied));
+        OnPropertyChanged(nameof(NeedsVadModelDownload));
         OnPropertyChanged(nameof(RunSummary));
         OnPropertyChanged(nameof(RunBlockedReason));
         OnPropertyChanged(nameof(HasRunBlockedReason));
@@ -1669,6 +1707,15 @@ public partial class TranscriptionViewModel : ObservableObject
             SelectedVadModel = VadOptions.FirstOrDefault();
         }
 
+        if (!_restoringSettings)
+        {
+            UiSettings.SaveTranscriptionUseVad(value);
+            if (value)
+            {
+                UiSettings.SaveTranscriptionVadModel(SelectedVadModel?.Alias);
+            }
+        }
+
         OnPropertyChanged(nameof(NeedsVadModelDownload));
         OnPropertyChanged(nameof(VadSatisfied));
         OnPropertyChanged(nameof(PipelineSummary));
@@ -1676,6 +1723,11 @@ public partial class TranscriptionViewModel : ObservableObject
 
     partial void OnSelectedVadModelChanged(VadOption? value)
     {
+        if (!_restoringSettings && UseVad && GoalIsAsr)
+        {
+            UiSettings.SaveTranscriptionVadModel(value?.Alias);
+        }
+
         OnPropertyChanged(nameof(NeedsVadModelDownload));
         OnPropertyChanged(nameof(VadSatisfied));
         OnPropertyChanged(nameof(PipelineSummary));
@@ -2035,7 +2087,7 @@ public partial class TranscriptionViewModel : ObservableObject
             DiarizerModel = LabelSpeakers && !CanModelDiarize ? SelectedDiarizer?.Alias : null,
             // The VAD trim is opt-in; the picker may remember an alias while the
             // option is off, and the run must ignore it then.
-            VadModel = UseVad ? SelectedVadModel?.Alias : null,
+            VadModel = UseVad && GoalIsAsr ? SelectedVadModel?.Alias : null,
             Threads = Threads,
             KvType = SelectedKvType,
             ContextSize = ContextSize,

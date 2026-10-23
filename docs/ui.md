@@ -130,7 +130,9 @@ the picker names the pipeline in the order it runs
 (`Audio → speech to text (windows of 30 s) → speaker labels with diar_streaming_sortformer_4spk-v2.1 (second pass) → text + speakers`).
 When no model for the goal is on disk, the picker is empty, the hint names the missing role and
 **Get more…** opens the Models tab with that role filter already set. The goal also decides the
-speaker step: choosing the speaker goal includes it, and choosing text-only leaves it out.
+speaker step: choosing the speaker goal includes it, and choosing text-only leaves it out. The
+goal is remembered in `ui-settings.json` and restored before the picker is built, so the tab
+opens on the role you last chose; an unknown or removed value falls back to speech to text.
 
 The tab runs the **role** the selected model serves (transcribe.cpp 0.4), and the
 run button and the summary name it. An ASR model is transcribed as below; a
@@ -204,7 +206,9 @@ by default** and **unmeasured**: it changes what the model sees and removes the 
 pause, so the text can differ; this project has not measured the effect on accuracy. It needs a
 VAD model on disk; **Get a VAD model…** opens the Models tab filtered to the `vad` role. A run
 with the option on and no VAD model selected is refused with that reason, not silently run over
-the whole file.
+the whole file. The on/off choice and the VAD alias are remembered in `ui-settings.json`; an
+alias that is no longer on disk falls back to the first downloaded VAD model, and with none the
+option stays on and the run stays refused rather than quietly turning it off.
 
 **Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
 not instant, and the wrapper turns a native abort into cancellation *before* it reads the

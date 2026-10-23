@@ -21,8 +21,20 @@ namespace TranscribeCppSharp.UI.Tests;
 /// from the Models tab has to show what was just downloaded — otherwise the guidance
 /// points at a download that never appears.
 /// </remarks>
-public class DownloadedModelPickerTests
+public class DownloadedModelPickerTests : IDisposable
 {
+    /// <summary>
+    /// A settings file per test: the tab now restores its last goal, and a goal
+    /// left by another test would filter the picker these tests assert on.
+    /// </summary>
+    private readonly UiSettingsScope _settings = new();
+
+    public void Dispose()
+    {
+        _settings.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     /// <summary>
     /// Unique cache root per test, so one test's planted model is not another's.
     /// </summary>

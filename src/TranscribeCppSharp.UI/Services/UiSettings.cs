@@ -12,9 +12,10 @@ namespace TranscribeCppSharp.UI.Services;
 /// <remarks>
 /// One small JSON file beside the log, under the same directory the Settings tab
 /// names. It holds the model each tab last ran, so opening the app reselects the
-/// model you were using instead of the first one alphabetically. Only the last
-/// <em>run</em> is recorded — picking a model in the list and not running it is
-/// not a use.
+/// model you were using instead of the first one alphabetically. It also keeps the
+/// compute choice, the export options, the windows that fit, and the Transcription
+/// tab's goal and opt-in VAD choice. Only what the reader chose is recorded; a
+/// value the UI cannot show is ignored and the default is used.
 /// <para>
 /// Read and written best-effort: a missing, unreadable or unwritable file falls
 /// back to the picker's own first choice rather than failing the app. Nothing
@@ -204,6 +205,79 @@ public static class UiSettings
         {
             Document document = Read();
             document.AutoAdjustWindow = value;
+            Write(document);
+        }
+    }
+
+    /// <summary>
+    /// The Transcription tab's last goal, or <see cref="TranscriptionGoal.Transcribe"/>
+    /// when nothing valid was saved.
+    /// </summary>
+    /// <remarks>
+    /// Stored as a name, not a number, so the file stays readable and a value this
+    /// build does not know is rejected explicitly rather than mapped to whatever
+    /// enum member shares its number.
+    /// </remarks>
+    public static TranscriptionGoal LoadTranscriptionGoal()
+    {
+        lock (Gate)
+        {
+            string? stored = Read().TranscriptionGoal;
+            return Enum.TryParse(stored, ignoreCase: true, out TranscriptionGoal goal)
+                && Enum.IsDefined(goal)
+                    ? goal
+                    : TranscriptionGoal.Transcribe;
+        }
+    }
+
+    /// <summary>Records the Transcription tab's goal.</summary>
+    public static void SaveTranscriptionGoal(TranscriptionGoal goal)
+    {
+        lock (Gate)
+        {
+            Document document = Read();
+            document.TranscriptionGoal = goal.ToString();
+            Write(document);
+        }
+    }
+
+    /// <summary>Whether Skip silence was on, false when nothing was saved.</summary>
+    public static bool LoadTranscriptionUseVad()
+    {
+        lock (Gate)
+        {
+            return Read().TranscriptionUseVad ?? false;
+        }
+    }
+
+    /// <summary>Records the Skip silence choice.</summary>
+    public static void SaveTranscriptionUseVad(bool value)
+    {
+        lock (Gate)
+        {
+            Document document = Read();
+            document.TranscriptionUseVad = value;
+            Write(document);
+        }
+    }
+
+    /// <summary>The VAD alias last selected, or null when none was saved.</summary>
+    public static string? LoadTranscriptionVadModel()
+    {
+        lock (Gate)
+        {
+            string? alias = Read().TranscriptionVadModel;
+            return string.IsNullOrWhiteSpace(alias) ? null : alias;
+        }
+    }
+
+    /// <summary>Records the VAD alias, or clears it when null/empty.</summary>
+    public static void SaveTranscriptionVadModel(string? alias)
+    {
+        lock (Gate)
+        {
+            Document document = Read();
+            document.TranscriptionVadModel = string.IsNullOrWhiteSpace(alias) ? null : alias;
             Write(document);
         }
     }
@@ -426,6 +500,15 @@ public static class UiSettings
 
         [JsonPropertyName("autoAdjustWindow")]
         public bool? AutoAdjustWindow { get; set; }
+
+        [JsonPropertyName("transcriptionGoal")]
+        public string? TranscriptionGoal { get; set; }
+
+        [JsonPropertyName("transcriptionUseVad")]
+        public bool? TranscriptionUseVad { get; set; }
+
+        [JsonPropertyName("transcriptionVadModel")]
+        public string? TranscriptionVadModel { get; set; }
     }
 
     /// <summary>The Settings tab's compute choice as it sits on disk.</summary>

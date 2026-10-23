@@ -51,6 +51,7 @@ public class TranscriptionRoleLabelTests
     [Fact]
     public void TheRunButtonNamesTheModelsRole()
     {
+        using var settings = new UiSettingsScope();
         TranscriptionViewModel viewModel = ViewModel();
 
         // Nothing checked yet: the ordinary label.
@@ -72,6 +73,7 @@ public class TranscriptionRoleLabelTests
     [Fact]
     public void TheCompletionMessageNamesWhatFinished()
     {
+        using var settings = new UiSettingsScope();
         TranscriptionViewModel viewModel = ViewModel();
 
         // Nothing checked yet: the ordinary success message.

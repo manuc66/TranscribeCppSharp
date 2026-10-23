@@ -9,6 +9,19 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: remember the Transcription tab's goal and VAD choice
+
+The goal and the opt-in Skip silence choice are now written to `ui-settings.json`,
+beside the last-run models, the compute choice and the export options. Both are
+restored before the model picker is built, so reopening the app starts on the
+role you last chose and with the VAD choice you left. The VAD alias is remembered
+too; a model that is no longer on disk falls back to the first downloaded VAD
+model, and with none the option stays on and the run stays refused instead of
+being silently switched off. An unknown goal falls back to speech to text.
+
+Tests: the settings round trip, the invalid-goal fallback, and a view-model
+restart that restores the goal and VAD choice; 362 UI tests pass.
+
 ### New: the server can run a separate diarizer
 
 `--diarizer <model>` runs a DIARIZE-role model (Sortformer) over the whole file
