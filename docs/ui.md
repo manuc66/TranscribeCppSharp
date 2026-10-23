@@ -122,8 +122,10 @@ under it names the missing piece and where to get it instead of leaving a dead b
 
 **Goal** is the outcome, not a native role: *Speech to text*, *Speech to text + speakers*,
 *Speakers only*, *Identify language* or *Detect speech*. It filters the model picker to the
-catalog role the outcome needs, so a diarizer is not offered for a text run and the
-language-identification and VAD models are not hidden among the transcribers. The line under
+models that can produce that outcome: a diarizer is not offered for a text run, the
+language-identification and VAD models are not hidden among the transcribers, and a transcriber
+without segment timings (or self-diarization) is not offered for *Speech to text + speakers*,
+because its output cannot be joined to a speaker turn. The line under
 the picker names the pipeline in the order it runs
 (`Audio → speech to text (windows of 30 s) → speaker labels with diar_streaming_sortformer_4spk-v2.1 (second pass) → text + speakers`).
 When no model for the goal is on disk, the picker is empty, the hint names the missing role and

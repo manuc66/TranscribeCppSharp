@@ -1459,6 +1459,17 @@ public partial class TranscriptionViewModel : ObservableObject
             {
                 continue;
             }
+
+            // The "speech to text + speakers" goal needs a transcript that can be
+            // joined to speaker turns: either a model that attributes speakers
+            // itself or one that reports segment timings. A model that does neither
+            // (e.g. canary) is offered for the text-only goal instead, so the
+            // picker never advertises an outcome it cannot produce.
+            if (Goal == TranscriptionGoal.TranscribeWithSpeakers
+                && !ModelServesSpeakers(alias))
+            {
+                continue;
+            }
             AvailableModels.Add(alias);
         }
 
@@ -2055,6 +2066,25 @@ public partial class TranscriptionViewModel : ObservableObject
     /// method clears and refills it, and the selection it drops writes back an empty
     /// value, which is what makes <see cref="Language"/> fire again.
     /// </remarks>
+    /// <summary>
+    /// Whether a downloaded model can produce speaker labels for the
+    /// "speech to text + speakers" goal: either it attributes speakers itself or
+    /// it reports segment timings that a dedicated diarizer can be joined to.
+    /// Unknown (no catalog record) is kept, because unknown is not "no".
+    /// </summary>
+    private static bool ModelServesSpeakers(string alias)
+    {
+        var record = UpstreamCatalog.Read(alias);
+        if (record?.Capabilities is null)
+        {
+            return true;
+        }
+
+        bool diarizes = record.Capabilities.TryGetValue("diarize", out var d) && d.Supported;
+        bool timestamps = record.Capabilities.TryGetValue("timestamps", out var t) && t.Supported;
+        return diarizes || timestamps;
+    }
+
     /// <summary>
     /// Whether a downloaded model can serve the chosen language, according to the
     /// upstream catalogue. A model that declares no languages is kept, because
