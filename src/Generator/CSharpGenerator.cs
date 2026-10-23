@@ -629,7 +629,7 @@ public class CSharpGenerator
         return "Misc";
     }
 
-    private static string ToPascalCase(string s)
+    internal static string ToPascalCase(string s)
     {
         s = Regex.Replace(s, @"^transcribe_", string.Empty, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         return string.Join(string.Empty, s.Split('_', StringSplitOptions.RemoveEmptyEntries)

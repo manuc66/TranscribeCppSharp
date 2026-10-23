@@ -21,7 +21,7 @@ public class EnumParityTest
 
         foreach (var rustEnum in parser.ParseEnums())
         {
-            var csTypeName = ToPascalCase(rustEnum.TypeName);
+            var csTypeName = CSharpGenerator.ToPascalCase(rustEnum.TypeName);
             var csType = InteropAssembly.GetType($"TranscribeCppSharp.Interop.{csTypeName}");
 
             Assert.NotNull(csType);
@@ -29,7 +29,7 @@ public class EnumParityTest
 
             foreach (var v in rustEnum.Values)
             {
-                var csValueName = ToPascalCase(v.Name);
+                var csValueName = CSharpGenerator.ToPascalCase(v.Name);
                 var csValue = (int)Enum.Parse(csType, csValueName, ignoreCase: false);
                 var rustValue = int.Parse(v.Value, CultureInfo.InvariantCulture);
 
@@ -68,11 +68,4 @@ public class EnumParityTest
         }
     }
 
-    private static string ToPascalCase(string s)
-    {
-        s = System.Text.RegularExpressions.Regex.Replace(s, @"^transcribe_", "",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        return string.Join("", s.Split('_', StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..].ToLowerInvariant() : "")));
-    }
 }
