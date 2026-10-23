@@ -6,32 +6,30 @@ using TranscribeCppSharp.Interop;
 /// <summary>
 /// Fluent builder for Voxtral realtime streaming extension parameters.
 /// </summary>
-public sealed class VoxtralExtBuilder : IDisposable
+public sealed class VoxtralExtBuilder : ExtBuilder<VoxtralRealtimeStreamExt>
 {
-    private readonly ExtBuffer<VoxtralRealtimeStreamExt> buffer;
-
-    /// <inheritdoc/>
+    /// <summary>Creates a new builder.</summary>
     public VoxtralExtBuilder()
-    {
-        buffer = new ExtBuffer<VoxtralRealtimeStreamExt>(
+        : base(
             NativeMethods.VoxtralRealtimeStreamExtInit,
             static p => p.ext.size,
-            nameof(VoxtralExtBuilder));
+            nameof(VoxtralExtBuilder))
+    {
     }
 
     /// <summary>Number of delay tokens.</summary>
     public VoxtralExtBuilder WithNumDelayTokens(int numDelayTokens)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.numDelayTokens = numDelayTokens;
+        ThrowIfDisposed();
+        Params.numDelayTokens = numDelayTokens;
         return this;
     }
 
     /// <summary>Minimum decode interval in milliseconds.</summary>
     public VoxtralExtBuilder WithMinDecodeIntervalMs(int ms)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.minDecodeIntervalMs = ms;
+        ThrowIfDisposed();
+        Params.minDecodeIntervalMs = ms;
         return this;
     }
 
@@ -47,7 +45,7 @@ public sealed class VoxtralExtBuilder : IDisposable
     private static VoxtralRealtimeStreamExt Initialized()
     {
         using var builder = new VoxtralExtBuilder();
-        return builder.buffer.Params;
+        return builder.Params;
     }
 
     /// <inheritdoc cref="Initialized"/>
@@ -56,8 +54,7 @@ public sealed class VoxtralExtBuilder : IDisposable
     /// <inheritdoc cref="Initialized"/>
     public static int DefaultMinDecodeIntervalMs => Initialized().minDecodeIntervalMs;
 
-    internal IntPtr Build() => buffer.Build();
+    internal new IntPtr Build() => base.Build();
 
-    /// <inheritdoc/>
-    public void Dispose() => buffer.Dispose();
+    // Dispose is inherited from ExtBuilder<T>.
 }

@@ -6,24 +6,22 @@ using TranscribeCppSharp.Interop;
 /// <summary>
 /// Fluent builder for Parakeet streaming extension parameters.
 /// </summary>
-public sealed class ParakeetStreamExtBuilder : IDisposable
+public sealed class ParakeetStreamExtBuilder : ExtBuilder<ParakeetStreamExt>
 {
-    private readonly ExtBuffer<ParakeetStreamExt> buffer;
-
-    /// <inheritdoc/>
+    /// <summary>Creates a new builder.</summary>
     public ParakeetStreamExtBuilder()
-    {
-        buffer = new ExtBuffer<ParakeetStreamExt>(
+        : base(
             NativeMethods.ParakeetStreamExtInit,
             static p => p.ext.size,
-            nameof(ParakeetStreamExtBuilder));
+            nameof(ParakeetStreamExtBuilder))
+    {
     }
 
     /// <summary>Attention context right size.</summary>
     public ParakeetStreamExtBuilder WithAttContextRight(int contextRight)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.attContextRight = contextRight;
+        ThrowIfDisposed();
+        Params.attContextRight = contextRight;
         return this;
     }
 
@@ -41,12 +39,11 @@ public sealed class ParakeetStreamExtBuilder : IDisposable
         get
         {
             using var builder = new ParakeetStreamExtBuilder();
-            return builder.buffer.Params.attContextRight;
+            return builder.Params.attContextRight;
         }
     }
 
-    internal IntPtr Build() => buffer.Build();
+    internal new IntPtr Build() => base.Build();
 
-    /// <inheritdoc/>
-    public void Dispose() => buffer.Dispose();
+    // Dispose is inherited from ExtBuilder<T>.
 }

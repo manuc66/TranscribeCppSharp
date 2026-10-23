@@ -14,29 +14,26 @@ using TranscribeCppSharp.Interop;
 /// rather than on the stream. Pass this builder to
 /// <see cref="DiarizeParamsBuilder.WithSortformerExt"/>.
 /// </remarks>
-public sealed class SortformerDiarizeExtBuilder : IDisposable
+public sealed class SortformerDiarizeExtBuilder : ExtBuilder<SortformerDiarizeExt>
 {
-    private readonly ExtBuffer<SortformerDiarizeExt> buffer;
-
-    /// <inheritdoc/>
+    /// <summary>Creates a new builder.</summary>
     public SortformerDiarizeExtBuilder()
-    {
-        buffer = new ExtBuffer<SortformerDiarizeExt>(
+        : base(
             NativeMethods.SortformerDiarizeExtInit,
             static p => p.ext.size,
-            nameof(SortformerDiarizeExtBuilder));
+            nameof(SortformerDiarizeExtBuilder))
+    {
     }
 
     /// <summary>Latency/quality preset for Sortformer diarization.</summary>
     public SortformerDiarizeExtBuilder WithPreset(SortformerPreset preset)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.preset = preset;
+        ThrowIfDisposed();
+        Params.preset = preset;
         return this;
     }
 
-    internal IntPtr Build() => buffer.Build();
+    internal new IntPtr Build() => base.Build();
 
-    /// <inheritdoc/>
-    public void Dispose() => buffer.Dispose();
+    // Dispose is inherited from ExtBuilder<T>.
 }

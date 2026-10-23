@@ -6,24 +6,22 @@ using TranscribeCppSharp.Interop;
 /// <summary>
 /// Fluent builder for Moonshine streaming extension parameters.
 /// </summary>
-public sealed class MoonshineExtBuilder : IDisposable
+public sealed class MoonshineExtBuilder : ExtBuilder<MoonshineStreamingStreamExt>
 {
-    private readonly ExtBuffer<MoonshineStreamingStreamExt> buffer;
-
-    /// <inheritdoc/>
+    /// <summary>Creates a new builder.</summary>
     public MoonshineExtBuilder()
-    {
-        buffer = new ExtBuffer<MoonshineStreamingStreamExt>(
+        : base(
             NativeMethods.MoonshineStreamingStreamExtInit,
             static p => p.ext.size,
-            nameof(MoonshineExtBuilder));
+            nameof(MoonshineExtBuilder))
+    {
     }
 
     /// <summary>Minimum decode interval in milliseconds.</summary>
     public MoonshineExtBuilder WithMinDecodeIntervalMs(int ms)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.minDecodeIntervalMs = ms;
+        ThrowIfDisposed();
+        Params.minDecodeIntervalMs = ms;
         return this;
     }
 
@@ -42,12 +40,11 @@ public sealed class MoonshineExtBuilder : IDisposable
         get
         {
             using var builder = new MoonshineExtBuilder();
-            return builder.buffer.Params.minDecodeIntervalMs;
+            return builder.Params.minDecodeIntervalMs;
         }
     }
 
-    internal IntPtr Build() => buffer.Build();
+    internal new IntPtr Build() => base.Build();
 
-    /// <inheritdoc/>
-    public void Dispose() => buffer.Dispose();
+    // Dispose is inherited from ExtBuilder<T>.
 }

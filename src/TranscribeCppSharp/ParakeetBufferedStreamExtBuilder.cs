@@ -6,40 +6,38 @@ using TranscribeCppSharp.Interop;
 /// <summary>
 /// Fluent builder for Parakeet buffered streaming extension parameters.
 /// </summary>
-public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
+public sealed class ParakeetBufferedStreamExtBuilder : ExtBuilder<ParakeetBufferedStreamExt>
 {
-    private readonly ExtBuffer<ParakeetBufferedStreamExt> buffer;
-
-    /// <inheritdoc/>
+    /// <summary>Creates a new builder.</summary>
     public ParakeetBufferedStreamExtBuilder()
-    {
-        buffer = new ExtBuffer<ParakeetBufferedStreamExt>(
+        : base(
             NativeMethods.ParakeetBufferedStreamExtInit,
             static p => p.ext.size,
-            nameof(ParakeetBufferedStreamExtBuilder));
+            nameof(ParakeetBufferedStreamExtBuilder))
+    {
     }
 
     /// <summary>Left context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithLeftMs(int leftMs)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.leftMs = leftMs;
+        ThrowIfDisposed();
+        Params.leftMs = leftMs;
         return this;
     }
 
     /// <summary>Chunk size in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithChunkMs(int chunkMs)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.chunkMs = chunkMs;
+        ThrowIfDisposed();
+        Params.chunkMs = chunkMs;
         return this;
     }
 
     /// <summary>Right context in milliseconds.</summary>
     public ParakeetBufferedStreamExtBuilder WithRightMs(int rightMs)
     {
-        buffer.ThrowIfDisposed();
-        buffer.Params.rightMs = rightMs;
+        ThrowIfDisposed();
+        Params.rightMs = rightMs;
         return this;
     }
 
@@ -57,7 +55,7 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
     private static ParakeetBufferedStreamExt Initialized()
     {
         using var builder = new ParakeetBufferedStreamExtBuilder();
-        return builder.buffer.Params;
+        return builder.Params;
     }
 
     /// <inheritdoc cref="Initialized"/>
@@ -69,8 +67,7 @@ public sealed class ParakeetBufferedStreamExtBuilder : IDisposable
     /// <inheritdoc cref="Initialized"/>
     public static int DefaultRightMs => Initialized().rightMs;
 
-    internal IntPtr Build() => buffer.Build();
+    internal new IntPtr Build() => base.Build();
 
-    /// <inheritdoc/>
-    public void Dispose() => buffer.Dispose();
+    // Dispose is inherited from ExtBuilder<T>.
 }
