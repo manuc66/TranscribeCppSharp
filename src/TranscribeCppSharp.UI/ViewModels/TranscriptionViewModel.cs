@@ -48,6 +48,19 @@ public partial class TranscriptionViewModel : ObservableObject
     private string _windowAdjustmentNote = string.Empty;
 
     /// <summary>
+    /// True while the goal is setting the speaker intent. The checkbox and the
+    /// goal are two views of the same choice; the flag stops one from re-entering
+    /// the other and stops a checkbox toggle from rebuilding the model list.
+    /// </summary>
+    private bool _syncingGoal;
+
+    /// <summary>
+    /// How many catalog models are on disk, independent of the goal. The goal can
+    /// filter the picker to none while the cache holds other roles.
+    /// </summary>
+    private int _downloadedModelCount;
+
+    /// <summary>
     /// What produced the result on screen. Kept apart from the pickers so exporting
     /// a restored run names the model and settings that actually ran, not whatever
     /// the tab happens to have selected now.
@@ -94,7 +107,6 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowLiveText))]
     [NotifyPropertyChangedFor(nameof(ShowProgressPercent))]
     [NotifyPropertyChangedFor(nameof(ShowStatus))]
-    [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isTranscribing;
@@ -155,7 +167,6 @@ public partial class TranscriptionViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanTranscribe))]
     [NotifyPropertyChangedFor(nameof(CanProbeMemory))]
-    [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isCheckingCapabilities;
@@ -221,7 +232,8 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </summary>
     public string ResultSpeakersNote
         => HasResult && !LabelSpeakers && Result?.SpeakerSegments.Count > 0
-            ? "The result on screen already has its speaker turns; these controls describe the next run."
+            ? "The result on screen already has its speaker turns; choose Speech to text + speakers "
+                + "to include them in the next run."
             : string.Empty;
 
     /// <summary>Whether <see cref="ResultSpeakersNote"/> has something to say.</summary>
@@ -277,6 +289,149 @@ public partial class TranscriptionViewModel : ObservableObject
 
     /// <summary>Whether the speaker-name editor has anything to show.</summary>
     public bool HasSpeakerNames => SpeakerNames.Count > 0;
+
+    /// <summary>
+    /// What the reader wants out of the run. The model picker follows it, and so
+    /// does the speaker step: a text goal can be extended with the checkbox, and
+    /// choosing the speaker goal ticks it.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedGoal))]
+    [NotifyPropertyChangedFor(nameof(GoalDescription))]
+    [NotifyPropertyChangedFor(nameof(GoalRoleLabel))]
+    [NotifyPropertyChangedFor(nameof(GoalIsAsr))]
+    [NotifyPropertyChangedFor(nameof(GoalRole))]
+    [NotifyPropertyChangedFor(nameof(GoalModelHint))]
+    [NotifyPropertyChangedFor(nameof(HasGoalModelHint))]
+    [NotifyPropertyChangedFor(nameof(PipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(RunButtonText))]
+    [NotifyPropertyChangedFor(nameof(RunSummary))]
+    [NotifyPropertyChangedFor(nameof(ShowSpeakerSection))]
+    [NotifyPropertyChangedFor(nameof(ShowLanguage))]
+    [NotifyPropertyChangedFor(nameof(ShowLanguageColumn))]
+    [NotifyPropertyChangedFor(nameof(ModelColumnSpan))]
+    [NotifyPropertyChangedFor(nameof(ShowWindow))]
+    [NotifyPropertyChangedFor(nameof(ShowTranscriptSection))]
+    [NotifyPropertyChangedFor(nameof(ShowTask))]
+    [NotifyPropertyChangedFor(nameof(ShowTargetLanguage))]
+    [NotifyPropertyChangedFor(nameof(ShowAdvanced))]
+    [NotifyPropertyChangedFor(nameof(ShowAllowedLanguages))]
+    [NotifyPropertyChangedFor(nameof(CanProbeThisRole))]
+    [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
+    [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
+    private TranscriptionGoal _goal = TranscriptionGoal.Transcribe;
+
+    /// <summary>The goals the picker offers, with the words each shows.</summary>
+    public IReadOnlyList<TranscriptionGoalOption> Goals { get; } = new[]
+    {
+        new TranscriptionGoalOption(
+            TranscriptionGoal.Transcribe,
+            "Speech to text",
+            "Text only. The selected model transcribes the audio; no speaker labels.",
+            ModelRole.Asr,
+            "speech-to-text"),
+        new TranscriptionGoalOption(
+            TranscriptionGoal.TranscribeWithSpeakers,
+            "Speech to text + speakers",
+            "Text and who spoke. The model attributes speakers itself, or a dedicated diarizer runs a second pass.",
+            ModelRole.Asr,
+            "speech-to-text"),
+        new TranscriptionGoalOption(
+            TranscriptionGoal.SpeakersOnly,
+            "Speakers only",
+            "Speaker turns, no text. Needs a model whose role is diarization (Sortformer).",
+            ModelRole.Diarize,
+            "diarization"),
+        new TranscriptionGoalOption(
+            TranscriptionGoal.IdentifyLanguage,
+            "Identify language",
+            "Ranked language candidates, no text. Needs the language-identification model.",
+            ModelRole.Langid,
+            "language identification"),
+        new TranscriptionGoalOption(
+            TranscriptionGoal.DetectSpeech,
+            "Detect speech",
+            "Speech segments, no text. Needs the voice-activity model.",
+            ModelRole.Vad,
+            "speech detection"),
+    };
+
+    /// <summary>The goal row the picker displays.</summary>
+    public TranscriptionGoalOption SelectedGoal => Goals.First(o => o.Value == Goal);
+
+    /// <summary>What the chosen goal produces, in one line.</summary>
+    public string GoalDescription => SelectedGoal.Description;
+
+    /// <summary>The role in the words the empty-state hints use.</summary>
+    public string GoalRoleLabel => SelectedGoal.RoleLabel;
+
+    /// <summary>Whether the goal is one of the two ASR outcomes.</summary>
+    public bool GoalIsAsr
+        => Goal is TranscriptionGoal.Transcribe or TranscriptionGoal.TranscribeWithSpeakers;
+
+    /// <summary>The native role a model must serve for the chosen goal.</summary>
+    public TranscribeRole GoalRole => Goal switch
+    {
+        TranscriptionGoal.SpeakersOnly => TranscribeRole.Diarize,
+        TranscriptionGoal.IdentifyLanguage => TranscribeRole.Langid,
+        TranscriptionGoal.DetectSpeech => TranscribeRole.Vad,
+        _ => TranscribeRole.Asr,
+    };
+
+    /// <summary>
+    /// The actual pipeline, in the order the run executes it. It says the two
+    /// passes when a dedicated diarizer is chained, and one pass when the model
+    /// attributes speakers itself.
+    /// </summary>
+    public string PipelineSummary
+    {
+        get
+        {
+            string window = $"windows of {WindowSeconds} s";
+            return Goal switch
+            {
+                TranscriptionGoal.Transcribe =>
+                    $"Audio → speech to text ({window}) → text.",
+                TranscriptionGoal.TranscribeWithSpeakers => CanModelDiarize
+                    ? "Audio → speech to text with speaker labels (same pass) → text + speakers."
+                    : SelectedDiarizer?.Alias is { } diarizer
+                        ? $"Audio → speech to text ({window}) → speaker labels with {diarizer} (second pass) → text + speakers."
+                        : "Audio → speech to text → speaker labels need a diarizer on disk.",
+                TranscriptionGoal.SpeakersOnly =>
+                    "Audio → speaker diarization (whole file) → speaker turns.",
+                TranscriptionGoal.IdentifyLanguage =>
+                    "Audio → language identification → ranked languages.",
+                TranscriptionGoal.DetectSpeech =>
+                    $"Audio → speech detection ({window}) → speech segments.",
+                _ => string.Empty,
+            };
+        }
+    }
+
+    /// <summary>Whether any catalog model is on disk, whatever its role.</summary>
+    public bool HasAnyModelOnDisk => _downloadedModelCount > 0;
+
+    /// <summary>
+    /// What to say when the goal's role has no downloaded model while the cache
+    /// may hold other roles. Empty when the picker has something to offer.
+    /// </summary>
+    public string GoalModelHint
+    {
+        get
+        {
+            if (AvailableModels.Count > 0)
+            {
+                return string.Empty;
+            }
+
+            return HasAnyModelOnDisk
+                ? $"No {GoalRoleLabel} model on disk for this goal. The Models tab can filter on that role."
+                : "Nothing on disk yet. The Models tab downloads one.";
+        }
+    }
+
+    /// <summary>Whether <see cref="GoalModelHint"/> has something to say.</summary>
+    public bool HasGoalModelHint => GoalModelHint.Length > 0;
 
     public ObservableCollection<string> AvailableModels { get; } = new();
     public ObservableCollection<string> AvailableLanguages { get; } = new();
@@ -388,10 +543,10 @@ public partial class TranscriptionViewModel : ObservableObject
     /// controls that contradicted each other.
     /// </summary>
     public bool ShowTargetLanguage
-        => ShowTranslate && SelectedTask == TranscriptionTask.Translate;
+        => ShowTask && SelectedTask == TranscriptionTask.Translate;
 
     /// <summary>Whether the task picker applies at all.</summary>
-    public bool ShowTask => ShowTranslate;
+    public bool ShowTask => GoalIsAsr && ShowTranslate;
 
     /// <summary>
     /// Whether the language picker applies. Only an ASR session takes a language
@@ -399,8 +554,9 @@ public partial class TranscriptionViewModel : ObservableObject
     /// identifier produces one rather than consuming it.
     /// </summary>
     public bool ShowLanguage
-        => _selectedCapabilities is null
-        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+        => GoalIsAsr
+        && (_selectedCapabilities is null
+            || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr));
 
     /// <summary>
     /// Whether the language column has anything in it. A LANGID model still shows
@@ -417,27 +573,34 @@ public partial class TranscriptionViewModel : ObservableObject
     /// maximum clip.
     /// </summary>
     public bool ShowWindow
-        => _selectedCapabilities is null
-        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
-        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Vad);
+        => (Goal is TranscriptionGoal.Transcribe
+                or TranscriptionGoal.TranscribeWithSpeakers
+                or TranscriptionGoal.DetectSpeech)
+            && (_selectedCapabilities is null
+                || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
+                || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Vad));
 
     /// <summary>
     /// Whether the run-options card has a control in it at all. With no model on
     /// disk it would only show defaults for a run that cannot start.
     /// </summary>
     public bool ShowTranscriptSection
-        => _selectedCapabilities is not null
-            ? ShowTask || ShowWindow
-            : HasDownloadedModels;
+        => (Goal is TranscriptionGoal.Transcribe
+                or TranscriptionGoal.TranscribeWithSpeakers
+                or TranscriptionGoal.DetectSpeech)
+            && (_selectedCapabilities is not null
+                ? ShowTask || ShowWindow
+                : HasDownloadedModels);
 
     /// <summary>
     /// Whether the decoder tuning applies. Every field behind the disclosure is a
     /// session or ASR extension knob, and the non-ASR sessions take none of them.
     /// </summary>
     public bool ShowAdvanced
-        => _selectedCapabilities is not null
+        => GoalIsAsr
+        && (_selectedCapabilities is not null
             ? _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
-            : HasDownloadedModels;
+            : HasDownloadedModels);
 
     /// <summary>Whether the model picker may be changed now.</summary>
     public bool CanEditModel => CanEditSettings && HasDownloadedModels;
@@ -459,12 +622,13 @@ public partial class TranscriptionViewModel : ObservableObject
     /// attach a speaker to.
     /// </summary>
     public bool ShowSpeakerSection
-        => _selectedCapabilities is not null
+        => Goal == TranscriptionGoal.TranscribeWithSpeakers
+        && (_selectedCapabilities is not null
             ? _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
             // Not checked yet: show the group only when there is a model whose
             // capabilities could still arrive. With an empty cache it would be a
             // control about nothing.
-            : HasDownloadedModels;
+            : HasDownloadedModels);
 
     /// <summary>
     /// Whether the selected model attributes speakers itself. Unknown is not a yes:
@@ -494,14 +658,6 @@ public partial class TranscriptionViewModel : ObservableObject
     /// <summary>Whether the model can produce speaker labels at all.</summary>
     public bool CanAskForSpeakerLabels
         => ShowSpeakerSection && (CanModelDiarize || HasSegmentTimings);
-
-    /// <summary>
-    /// Whether the speaker checkbox may be changed now. It follows the same lock as
-    /// every other setting: a run works from its snapshot, so toggling the intent
-    /// mid-run would only change what the reader believes the run did.
-    /// </summary>
-    public bool CanEditSpeakerLabels
-        => CanEditSettings && !IsCheckingCapabilities && CanAskForSpeakerLabels;
 
     /// <summary>
     /// The reader's explicit intent: tick the box to attribute speakers, leave it
@@ -548,7 +704,9 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         get
         {
-            TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.None;
+            // The goal names the action before the probe answers; the loaded model
+            // remains the authority once it has.
+            TranscribeRole roles = _selectedCapabilities?.Roles ?? GoalRole;
             if (roles.HasFlag(TranscribeRole.Asr))
             {
                 return "Transcribe";
@@ -582,7 +740,7 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         get
         {
-            TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.None;
+            TranscribeRole roles = _selectedCapabilities?.Roles ?? GoalRole;
             // Same order as the run button: a model that transcribes runs ASR,
             // even when it can also diarize or identify a language.
             if (roles.HasFlag(TranscribeRole.Asr))
@@ -697,29 +855,22 @@ public partial class TranscriptionViewModel : ObservableObject
         {
             if (!HasDownloadedModels)
             {
-                return "Nothing to run yet: no model is on disk.";
+                return HasAnyModelOnDisk
+                    ? $"No {GoalRoleLabel} model on disk for this goal."
+                    : "Nothing to run yet: no model is on disk.";
             }
 
-            // The role decides what the tab produces. Saying it in plain words is
+            // The goal decides what the tab produces. Saying it in plain words is
             // what keeps a diarizer or a language identifier from looking like a
-            // transcription that came back empty.
-            TranscribeRole roles = _selectedCapabilities?.Roles ?? TranscribeRole.Asr;
-            if (!roles.HasFlag(TranscribeRole.Asr))
+            // transcription that came back empty; the probe can only confirm it.
+            switch (Goal)
             {
-                if (roles.HasFlag(TranscribeRole.Diarize))
-                {
-                    return "This model returns speaker turns; it produces no text transcript.";
-                }
-
-                if (roles.HasFlag(TranscribeRole.Langid))
-                {
-                    return "This model identifies the language; it produces no text transcript.";
-                }
-
-                if (roles.HasFlag(TranscribeRole.Vad))
-                {
-                    return $"This model detects speech segments, scored in windows of {WindowSeconds} s.";
-                }
+                case TranscriptionGoal.SpeakersOnly:
+                    return "This goal returns speaker turns; it produces no text transcript.";
+                case TranscriptionGoal.IdentifyLanguage:
+                    return "This goal identifies the language; it produces no text transcript.";
+                case TranscriptionGoal.DetectSpeech:
+                    return $"This goal detects speech segments, scored in windows of {WindowSeconds} s.";
             }
 
             string language = Language is "auto" or ""
@@ -730,13 +881,13 @@ public partial class TranscriptionViewModel : ObservableObject
                 : "transcribe";
             string speakers = LabelSpeakers
                 ? CanModelDiarize
-                    ? "speakers labelled by the model"
+                    ? ", speakers labelled by the model"
                     : SelectedDiarizer?.Alias is { } diarizer
-                        ? $"speakers labelled by {diarizer} in a second pass"
-                        : "speaker labels not yet available"
-                : "every segment as Speaker 0";
+                        ? $", speakers labelled by {diarizer} in a second pass"
+                        : ", speaker labels not yet available"
+                : string.Empty;
 
-            return $"Will {task}, {language}, {speakers}, windows of {WindowSeconds} s.";
+            return $"Will {task}, {language}{speakers}, windows of {WindowSeconds} s.";
         }
     }
 
@@ -883,9 +1034,10 @@ public partial class TranscriptionViewModel : ObservableObject
     /// runs ASR here, where the field is ignored.
     /// </summary>
     public bool ShowAllowedLanguages
-        => _selectedCapabilities is { } caps
-        && !caps.Roles.HasFlag(TranscribeRole.Asr)
-        && caps.Roles.HasFlag(TranscribeRole.Langid);
+        => Goal == TranscriptionGoal.IdentifyLanguage
+        && (_selectedCapabilities is null
+            || (!_selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr)
+                && _selectedCapabilities.Roles.HasFlag(TranscribeRole.Langid)));
 
     /// <summary>
     /// Whether a file is selected and still on disk. The run command checks this
@@ -908,7 +1060,9 @@ public partial class TranscriptionViewModel : ObservableObject
     /// either a model that attributes speakers itself or a dedicated diarizer.
     /// </summary>
     public bool SpeakerLabelsSatisfied
-        => !LabelSpeakers || CanModelDiarize || SelectedDiarizer?.Alias is not null;
+        => !LabelSpeakers
+        || (CanAskForSpeakerLabels
+            && (CanModelDiarize || SelectedDiarizer?.Alias is not null));
 
     /// <summary>False while a transcription or a capability check is running.</summary>
     public bool CanTranscribe => CanStartRun;
@@ -945,7 +1099,10 @@ public partial class TranscriptionViewModel : ObservableObject
 
             if (!HasDownloadedModels)
             {
-                return "No model on disk. Open the Models tab to download one.";
+                return HasAnyModelOnDisk
+                    ? $"No {GoalRoleLabel} model on disk for this goal. "
+                        + "Open the Models tab; it is filtered to that role."
+                    : "No model on disk. Open the Models tab to download one.";
             }
 
             if (string.IsNullOrWhiteSpace(AudioPath))
@@ -966,6 +1123,13 @@ public partial class TranscriptionViewModel : ObservableObject
             if (IsProbingMemory)
             {
                 return "A memory test is running; the run starts when it finishes.";
+            }
+
+            if (LabelSpeakers && !CanAskForSpeakerLabels)
+            {
+                return "The selected model reports no segment timings, so speaker labels "
+                    + "cannot be joined to its segments. Pick a model with timestamps, or "
+                    + "one that attributes speakers itself.";
             }
 
             if (!SpeakerLabelsSatisfied)
@@ -1003,7 +1167,6 @@ public partial class TranscriptionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanEditSettings))]
     [NotifyPropertyChangedFor(nameof(CanEditModel))]
     [NotifyPropertyChangedFor(nameof(CanEditLanguage))]
-    [NotifyPropertyChangedFor(nameof(CanEditSpeakerLabels))]
     [NotifyPropertyChangedFor(nameof(RunBlockedReason))]
     [NotifyPropertyChangedFor(nameof(HasRunBlockedReason))]
     private bool _isProbingMemory;
@@ -1023,8 +1186,9 @@ public partial class TranscriptionViewModel : ObservableObject
     /// for those roles.
     /// </summary>
     public bool CanProbeThisRole
-        => _selectedCapabilities is null
-        || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+        => GoalIsAsr
+        && (_selectedCapabilities is null
+            || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr));
 
     /// <summary>Whether the memory probe can run: the same conditions as a run, and not already probing.</summary>
     public bool CanProbeMemory => CanStartRun && CanProbeThisRole;
@@ -1048,26 +1212,42 @@ public partial class TranscriptionViewModel : ObservableObject
     /// only when the list is empty.
     /// </remarks>
     public string ModelPickerHint
-        => DownloadedModelCatalog.Hint(AvailableModels.Count, ModelStore.Catalog.Count);
+    {
+        get
+        {
+            if (_downloadedModelCount == 0 || AvailableModels.Count == _downloadedModelCount)
+            {
+                return DownloadedModelCatalog.Hint(_downloadedModelCount, ModelStore.Catalog.Count);
+            }
+
+            // The cache holds other roles too. Saying only the cache count under a
+            // filtered picker would imply those models are selectable here.
+            return $"{_downloadedModelCount} of {ModelStore.Catalog.Count} on disk, "
+                + $"{AvailableModels.Count} for this goal — the Models tab downloads more.";
+        }
+    }
 
     /// <summary>Raised when the reader asks to go and fetch more models.</summary>
     public event Action? OpenModelManagerRequested;
 
     /// <summary>
-    /// Raised when the reader needs a diarizer specifically. The window opens the
-    /// Models tab with the catalogue already filtered to models upstream records
-    /// as serving the diarize capability, so the answer is one click away instead
-    /// of a search through 70-odd rows.
+    /// Raised when the reader needs a model for a specific role. The window opens
+    /// the Models tab with the role filter already set, so the answer is one click
+    /// away instead of a search through 70-odd rows.
     /// </summary>
-    public event Action? OpenDiarizerModelsRequested;
+    public event Action<string>? OpenModelsForRoleRequested;
 
     /// <summary>The button under the picker. The window decides which tab that means.</summary>
     [RelayCommand]
     private void OpenModelManager() => OpenModelManagerRequested?.Invoke();
 
+    /// <summary>Open the catalogue filtered to the role this goal needs.</summary>
+    [RelayCommand]
+    private void OpenModelsForGoal() => OpenModelsForRoleRequested?.Invoke(SelectedGoal.RoleKey);
+
     /// <summary>The button shown when speaker labels need a diarizer on disk.</summary>
     [RelayCommand]
-    private void OpenDiarizerModels() => OpenDiarizerModelsRequested?.Invoke();
+    private void OpenDiarizerModels() => OpenModelsForRoleRequested?.Invoke(ModelRole.Diarize);
 
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
@@ -1188,9 +1368,17 @@ public partial class TranscriptionViewModel : ObservableObject
     private void LoadModels()
     {
         AvailableModels.Clear();
-        foreach (string alias in DownloadedModelCatalog.Aliases())
+        IReadOnlyList<string> downloaded = DownloadedModelCatalog.Aliases();
+        _downloadedModelCount = downloaded.Count;
+        foreach (string alias in downloaded)
         {
-            AvailableModels.Add(alias);
+            // The catalogue's role, not the probe's: this is what the goal can
+            // filter before a model is loaded. The probe reports the same role for
+            // the four catalogued exceptions and remains the authority at run time.
+            if (string.Equals(ModelRole.KeyOf(alias), SelectedGoal.RoleKey, StringComparison.Ordinal))
+            {
+                AvailableModels.Add(alias);
+            }
         }
 
         ModelAlias = DownloadedModelCatalog.Selection(
@@ -1200,14 +1388,23 @@ public partial class TranscriptionViewModel : ObservableObject
 
         OnPropertyChanged(nameof(ModelPickerHint));
         OnPropertyChanged(nameof(HasDownloadedModels));
+        OnPropertyChanged(nameof(HasAnyModelOnDisk));
+        OnPropertyChanged(nameof(GoalModelHint));
+        OnPropertyChanged(nameof(HasGoalModelHint));
         OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(PipelineSummary));
         OnPropertyChanged(nameof(ShowTranscriptSection));
         OnPropertyChanged(nameof(ShowAdvanced));
+        OnPropertyChanged(nameof(ShowLanguage));
+        OnPropertyChanged(nameof(ShowLanguageColumn));
+        OnPropertyChanged(nameof(ModelColumnSpan));
+        OnPropertyChanged(nameof(ShowWindow));
+        OnPropertyChanged(nameof(ShowAllowedLanguages));
         OnPropertyChanged(nameof(CanEditModel));
         OnPropertyChanged(nameof(CanEditLanguage));
+        OnPropertyChanged(nameof(CanProbeThisRole));
         OnPropertyChanged(nameof(ShowSpeakerSection));
         OnPropertyChanged(nameof(CanAskForSpeakerLabels));
-        OnPropertyChanged(nameof(CanEditSpeakerLabels));
         OnPropertyChanged(nameof(ShowDiarizerPicker));
         OnPropertyChanged(nameof(DiarizerPlan));
         OnPropertyChanged(nameof(CanTranscribe));
@@ -1269,6 +1466,39 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(HasRunBlockedReason));
     }
 
+    partial void OnGoalChanged(TranscriptionGoal value)
+    {
+        // A checkbox toggle sets the goal with this flag: update the picker's
+        // words but do not rebuild the model list, which is a role decision.
+        if (_syncingGoal)
+        {
+            return;
+        }
+
+        SyncGoalAndSpeakers();
+        LoadModels();
+        OnPropertyChanged(nameof(GoalModelHint));
+        OnPropertyChanged(nameof(HasGoalModelHint));
+        OnPropertyChanged(nameof(PipelineSummary));
+        OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
+    }
+
+    /// <summary>Lets the goal set the speaker checkbox without re-entering itself.</summary>
+    private void SyncGoalAndSpeakers()
+    {
+        _syncingGoal = true;
+        try
+        {
+            LabelSpeakers = Goal == TranscriptionGoal.TranscribeWithSpeakers;
+        }
+        finally
+        {
+            _syncingGoal = false;
+        }
+    }
+
     partial void OnModelAliasChanged(string value)
     {
         RequestCapabilityProbe(value);
@@ -1291,6 +1521,7 @@ public partial class TranscriptionViewModel : ObservableObject
     partial void OnWindowSecondsChanged(int value)
     {
         OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(PipelineSummary));
         UpdateMemoryWarning();
     }
 
@@ -1308,6 +1539,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(HasRunBlockedReason));
         OnPropertyChanged(nameof(NeedsDedicatedDiarizerDownload));
         OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(PipelineSummary));
     }
 
     /// <summary>
@@ -1317,10 +1549,14 @@ public partial class TranscriptionViewModel : ObservableObject
     /// </summary>
     private void SyncSpeakerIntent()
     {
-        // A model that can do neither cannot be asked for labels: clear the box
-        // rather than leave a request on screen that the run would ignore. The
-        // setter re-enters this method once with false, then stops.
-        if (!CanAskForSpeakerLabels && LabelSpeakers)
+        // A model that can do neither cannot be asked for labels. A text-only goal
+        // clears the box; an explicit speaker goal keeps the intent so the tab can
+        // say why it cannot be honoured instead of silently dropping it.
+        bool canHonour = CanAskForSpeakerLabels;
+        bool asrModel = _selectedCapabilities is null
+            || _selectedCapabilities.Roles.HasFlag(TranscribeRole.Asr);
+        if (!canHonour && LabelSpeakers
+            && !(Goal == TranscriptionGoal.TranscribeWithSpeakers && asrModel))
         {
             LabelSpeakers = false;
             return;
@@ -1330,7 +1566,7 @@ public partial class TranscriptionViewModel : ObservableObject
             ? DiarizeMode.DiarizeModeOn
             : DiarizeMode.DiarizeModeOff;
 
-        if (LabelSpeakers && !CanModelDiarize && SelectedDiarizer?.Alias is null)
+        if (LabelSpeakers && canHonour && !CanModelDiarize && SelectedDiarizer?.Alias is null)
         {
             // Picking the only (or first) downloaded diarizer saves a step and makes
             // the plan line name the model that will actually run. The picker stays
@@ -1344,10 +1580,35 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(DiarizerLanguageWarning));
         OnPropertyChanged(nameof(HasDiarizerLanguageWarning));
         OnPropertyChanged(nameof(NeedsDedicatedDiarizerDownload));
+        OnPropertyChanged(nameof(SpeakerLabelsSatisfied));
+        OnPropertyChanged(nameof(PipelineSummary));
         OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(RunBlockedReason));
+        OnPropertyChanged(nameof(HasRunBlockedReason));
     }
 
-    partial void OnLabelSpeakersChanged(bool value) => SyncSpeakerIntent();
+    partial void OnLabelSpeakersChanged(bool value)
+    {
+        // The checkbox is the optional speaker step; the goal is the same choice
+        // at a higher level. Keep them in step without rebuilding the model list
+        // from a checkbox click.
+        if (!_syncingGoal && Goal is TranscriptionGoal.Transcribe or TranscriptionGoal.TranscribeWithSpeakers)
+        {
+            _syncingGoal = true;
+            try
+            {
+                Goal = value
+                    ? TranscriptionGoal.TranscribeWithSpeakers
+                    : TranscriptionGoal.Transcribe;
+            }
+            finally
+            {
+                _syncingGoal = false;
+            }
+        }
+
+        SyncSpeakerIntent();
+    }
 
     partial void OnLanguageChanged(string value)
     {
@@ -1536,7 +1797,6 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(HasSegmentTimings));
         OnPropertyChanged(nameof(CanUseDedicatedDiarizer));
         OnPropertyChanged(nameof(CanAskForSpeakerLabels));
-        OnPropertyChanged(nameof(CanEditSpeakerLabels));
         OnPropertyChanged(nameof(CanProbeThisRole));
         OnPropertyChanged(nameof(CanProbeMemory));
         OnPropertyChanged(nameof(ShowDiarizerPicker));
@@ -1545,6 +1805,7 @@ public partial class TranscriptionViewModel : ObservableObject
         OnPropertyChanged(nameof(DiarizerPlan));
         OnPropertyChanged(nameof(NeedsDedicatedDiarizerDownload));
         OnPropertyChanged(nameof(RunSummary));
+        OnPropertyChanged(nameof(PipelineSummary));
         OnPropertyChanged(nameof(RunButtonText));
         OnPropertyChanged(nameof(RolesHint));
         OnPropertyChanged(nameof(ShowAllowedLanguages));

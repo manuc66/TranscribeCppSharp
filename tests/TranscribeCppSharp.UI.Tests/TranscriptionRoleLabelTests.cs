@@ -1,5 +1,6 @@
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
 using Xunit;
@@ -104,6 +105,9 @@ public class TranscriptionRoleLabelTests
         Assert.False(viewModel.ShowAllowedLanguages);
         Assert.True(viewModel.ShowLanguage);
 
+        // The field belongs to the identification goal, not to a model that can
+        // identify a language while this run is transcribing.
+        viewModel.Goal = TranscriptionGoal.IdentifyLanguage;
         viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Langid));
         Assert.True(viewModel.ShowAllowedLanguages);
         Assert.False(viewModel.ShowLanguage);

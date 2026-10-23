@@ -1,13 +1,8 @@
-using Avalonia.Automation;
-using Avalonia.Controls;
-using Avalonia.Headless.XUnit;
-using Avalonia.LogicalTree;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
 using TranscribeCppSharp.UI.Models;
 using TranscribeCppSharp.UI.Services;
 using TranscribeCppSharp.UI.ViewModels;
-using TranscribeCppSharp.UI.Views;
 using Xunit;
 
 namespace TranscribeCppSharp.UI.Tests;
@@ -73,7 +68,8 @@ public class DiarizerPickerTests
                 new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
 
             // A plain transcriber needs a second model, and the picker only appears
-            // once the reader asks for speaker labels.
+            // for the speaker goal.
+            viewModel.Goal = TranscriptionGoal.TranscribeWithSpeakers;
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
             Assert.True(viewModel.CanUseDedicatedDiarizer);
             Assert.False(viewModel.ShowDiarizerPicker);
@@ -149,6 +145,7 @@ public class DiarizerPickerTests
         {
             var viewModel = new TranscriptionViewModel(
                 new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
+            viewModel.Goal = TranscriptionGoal.TranscribeWithSpeakers;
 
             viewModel.ApplyCapabilities(
                 Snapshot(TranscribeRole.Asr, maxTimestamps: TimestampKind.TimestampsNone));
@@ -156,10 +153,26 @@ public class DiarizerPickerTests
             Assert.True(viewModel.ShowDiarizerUnavailableHint);
             Assert.Contains("timings", viewModel.DiarizerUnavailableHint, StringComparison.OrdinalIgnoreCase);
 
-            // Asking anyway is refused before the run, not silently ignored.
+            // Asking anyway keeps the intent (the goal was explicit) and refuses
+            // the run with the reason, instead of silently dropping the request.
             viewModel.LabelSpeakers = true;
-            Assert.False(viewModel.LabelSpeakers);
+            Assert.True(viewModel.LabelSpeakers);
+            Assert.False(viewModel.SpeakerLabelsSatisfied);
             Assert.Equal(DiarizeMode.DiarizeModeOff, viewModel.DiarizeMode);
+
+            viewModel.AvailableModels.Add("whisper-tiny");
+            string audio = Path.Combine(
+                Path.GetTempPath(), "tcsharp-diarizer-" + Guid.NewGuid().ToString("N") + ".wav");
+            File.WriteAllText(audio, string.Empty);
+            try
+            {
+                viewModel.AudioPath = audio;
+                Assert.Contains("timings", viewModel.RunBlockedReason, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                File.Delete(audio);
+            }
 
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
             Assert.True(viewModel.CanAskForSpeakerLabels);
@@ -181,11 +194,14 @@ public class DiarizerPickerTests
             viewModel.ModelAlias = "whisper-tiny";
             viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
 
-            // Nothing asked for: say what that means rather than leaving the reader
-            // to assume the model attributes speakers.
-            Assert.Contains("Speaker 0", viewModel.DiarizerPlan);
+            // A text-only goal has no speaker plan to show.
+            Assert.Empty(viewModel.DiarizerPlan);
 
-            viewModel.LabelSpeakers = true;
+            // The speaker goal makes the request explicit. It rebuilds the model
+            // list, so the alias and the snapshot are re-applied after it.
+            viewModel.Goal = TranscriptionGoal.TranscribeWithSpeakers;
+            viewModel.ModelAlias = "whisper-tiny";
+            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
 
             // The only downloaded diarizer is chosen for the reader, so the plan can
             // name what will actually run instead of saying "pick one".
@@ -316,35 +332,6 @@ public class DiarizerPickerTests
         });
     }
 
-    [AvaloniaFact]
-    public void TheSpeakerCheckboxFollowsTheSettingsLock()
-    {
-        InCache(() =>
-        {
-            var viewModel = new TranscriptionViewModel(
-                new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
-            viewModel.ApplyCapabilities(Snapshot(TranscribeRole.Asr));
-
-            var view = new TranscriptionView { DataContext = viewModel };
-            var window = new Window { Content = view, Width = 1100, Height = 900 };
-            window.Show();
-
-            CheckBox box = view.GetLogicalDescendants()
-                .OfType<CheckBox>()
-                .First(c => AutomationProperties.GetAutomationId(c) == "transcription-diarize");
-
-            Assert.True(box.IsEffectivelyEnabled);
-
-            // A run works from its snapshot; toggling the intent during one would
-            // change what the reader believes the run did.
-            viewModel.IsTranscribing = true;
-            Assert.False(box.IsEffectivelyEnabled);
-
-            viewModel.IsTranscribing = false;
-            Assert.True(box.IsEffectivelyEnabled);
-        });
-    }
-
     [Fact]
     public void TheGetADiarizerButtonOpensTheCatalogueFilteredToDiarization()
     {
@@ -364,7 +351,8 @@ public class DiarizerPickerTests
             transcription.OpenDiarizerModelsCommand.Execute(null);
 
             Assert.Equal(MainWindowViewModel.ModelTabIndex, root.SelectedTabIndex);
-            Assert.Equal("diarize", root.ModelManager.FeatureFilter);
+            Assert.Equal("diarize", root.ModelManager.RoleFilter?.Key);
+            Assert.Null(root.ModelManager.FeatureFilter);
         });
     }
 

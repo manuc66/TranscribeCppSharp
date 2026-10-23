@@ -112,26 +112,25 @@ caller's job.
 
 ### What the tab says before the run
 
-The speaker checkbox is offered only for a transcriber that reports at least segment
-timestamps. A model that emits no timings cannot be joined — there is nothing to overlap a
-speaker turn with — so the tab shows a note in the checkbox's place instead of a control that
-would silently leave every segment as `Speaker 0`. (37 of the 73 ASR aliases in the pinned
-catalog declare no timestamps.)
+The **Speech to text + speakers** goal is offered only for a transcriber that reports at least
+segment timestamps. A model that emits no timings cannot be joined — there is nothing to
+overlap a speaker turn with — so the tab shows a note in the speaker card instead of a control
+that would silently leave every segment as `Speaker 0`. (37 of the 73 ASR aliases in the pinned
+catalog declare no timestamps.) The text-only goal has no speaker card at all.
 
-A plan line states the outcome in one sentence, before the run. With labels off it says so
-(*"No speaker labels: every segment is Speaker 0."*); with a self-diarizing model it says the
-model does it in one pass; with a dedicated model it names both — for example *"Two passes:
-whisper-tiny, then diar_streaming_sortformer_4spk-v2.1 over the same audio. The second pass
-adds speaker turns, not text."* — and a warning appears when the diarizer's catalog record does
-not declare the chosen language. Sortformer's record declares **English only**, so a French
-transcription shows that warning before the run rather than after it. The warning quotes the
-pinned catalog, which is upstream's statement; this project has not measured the diarizer on
-French audio.
+A plan line states the outcome in one sentence, before the run. With a self-diarizing model it
+says the model does it in one pass; with a dedicated model it names both — for example *"Two
+passes: whisper-tiny, then diar_streaming_sortformer_4spk-v2.1 over the same audio. The second
+pass adds speaker turns, not text."* — and a warning appears when the diarizer's catalog record
+does not declare the chosen language. Sortformer's record declares **English only**, so a
+French transcription shows that warning before the run rather than after it. The warning quotes
+the pinned catalog, which is upstream's statement; this project has not measured the diarizer
+on French audio.
 
-If the checkbox is ticked and no diarizer is downloaded, the run button is disabled, the reason
-names the Models tab, and **Get a diarizer…** opens it filtered to the diarize capability. That
-is deliberate: the alternative would be a run that comes back with every segment as `Speaker 0`,
-which is the surprise this control exists to remove.
+If the speaker goal is chosen and no diarizer is downloaded, the run button is disabled, the
+reason names the Models tab, and **Get a diarizer…** opens it filtered to the diarization role.
+That is deliberate: the alternative would be a run that comes back with every segment as
+`Speaker 0`, which is the surprise this control exists to remove.
 
 During the second pass the status says **Diarizing…** and the bar is indeterminate: the
 diarizer runs the whole buffer in one call and reports no finer progress, so the card says that

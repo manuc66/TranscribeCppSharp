@@ -109,16 +109,26 @@ yet, or a settings file that cannot be read, the first alias is selected as befo
 
 Pick a file, a model and the decoder settings, then run.
 
-The form is ordered as the decisions are: **Audio**, **Model and language**, **Run options**,
-**Speaker labels**, then one **Advanced settings** disclosure for the decoder tuning that has
-a working default. Speaker labels come after the transcript options because they are
-post-processing: a dedicated diarizer runs as a second pass over the same audio, after the
-transcriber; a model that diarizes itself does it in the same pass. One line under the model
-restates what the run will do (`Will transcribe, language fr, every segment as Speaker 0,
-windows of 30 s`), so the pickers and the result cannot disagree after the fact. The primary button is disabled until
-a model is on disk, a file is selected and still exists, and a requested speaker attribution can
-actually be produced; when it is disabled, the line under it names the missing piece and where
-to get it instead of leaving a dead button.
+The form is ordered as the decisions are: **Audio**, **Goal**, **Model and language**,
+**Run options**, **Speaker labels** (only for the speaker goal), then one **Advanced settings**
+disclosure for the decoder tuning that has a working default. Speaker labels come after the
+transcript options because they are post-processing: a dedicated diarizer runs as a second
+pass over the same audio, after the transcriber; a model that diarizes itself does it in the
+same pass. One line under the model restates the settings (`Will transcribe, language fr,
+windows of 30 s`), so the pickers and the result cannot disagree after the fact. The primary
+button is disabled until a model for the goal is on disk, a file is selected and still exists,
+and a requested speaker attribution can actually be produced; when it is disabled, the line
+under it names the missing piece and where to get it instead of leaving a dead button.
+
+**Goal** is the outcome, not a native role: *Speech to text*, *Speech to text + speakers*,
+*Speakers only*, *Identify language* or *Detect speech*. It filters the model picker to the
+catalog role the outcome needs, so a diarizer is not offered for a text run and the
+language-identification and VAD models are not hidden among the transcribers. The line under
+the picker names the pipeline in the order it runs
+(`Audio → speech to text (windows of 30 s) → speaker labels with diar_streaming_sortformer_4spk-v2.1 (second pass) → text + speakers`).
+When no model for the goal is on disk, the picker is empty, the hint names the missing role and
+**Get more…** opens the Models tab with that role filter already set. The goal also decides the
+speaker step: choosing the speaker goal includes it, and choosing text-only leaves it out.
 
 The tab runs the **role** the selected model serves (transcribe.cpp 0.4), and the
 run button and the summary name it. An ASR model is transcribed as below; a
@@ -147,7 +157,7 @@ A 16 kHz mono 16-bit WAV is read directly. Any other format (`mp3`, `flac`, `ogg
 
 | Setting | Default | Notes |
 |---|---|---|
-| Model | the model last run, else the first on disk | The picker lists what is downloaded; the Models tab fetches and deletes models |
+| Model | the model last run for this goal, else the first on disk that serves it | The picker lists what is downloaded *and* serves the goal's role; the Models tab fetches and deletes models |
 | Language | `en`, then whatever the model allows | Before the model is probed, the picker falls back to ten codes (`en`, `fr`, `de`, `es`, `it`, `pt`, `ru`, `zh`, `ja`, `ko`). Once a model has been probed the list is what *it* declares, with `auto` added when it reports language detection, and `auto` means no language is passed at all so the model decides for itself. If the current choice is not in the new list, the picker takes the first entry instead of keeping an unavailable one. Each entry is drawn with its English name beside the code (`fr — French`), added by the app from a table of the codes the Whisper family uses; the item itself stays the code, and a code the table does not know keeps its bare form rather than being guessed at |
 | Threads | library default | Left empty on purpose. This is not a benchmarked recommendation — raising it past the core count usually makes it slower |
 | KV type | Auto | `F32` keeps the most precision and the most memory; `F16` halves the cache |
@@ -170,19 +180,18 @@ model that does not implement it, and this project has not measured how much it 
 a transcript: the field makes no accuracy claim. It applies to offline runs; the CLI has
 no flag for it.
 
-**Speaker labels** are one intent, not a mode picker. Ticking **Add speaker labels** asks
-for attribution; leaving it clear keeps every segment as `Speaker 0`. For a model that
-attributes speakers itself (MOSS, granite-speech-4.1-2b-plus) the request is passed as
-`WithDiarize` and the run stays one pass. For a model that cannot, the tab shows a **Diarizer
-model** picker with the downloaded models that serve only the DIARIZE role (Sortformer),
-selects the only one automatically, and states in one line what will run. With no diarizer
-downloaded the picker is not shown at all (the checkbox is the on/off control, so "(none)" has
-no place in it), the run is refused before it starts, and the **Get a diarizer…** button opens
-the Models tab already filtered to the models upstream records as supporting diarization,
-rather than starting a run that would silently produce `Speaker 0`. A model that only
-diarizes is not offered the checkbox: its whole result is speaker turns. The run button is
-named for what the model does (Transcribe, Diarize, Identify language or Detect speech), so
-the role is visible before the run rather than only in the result. See
+**Speaker labels** belong to the **Speech to text + speakers** goal, which is also the on/off
+choice for the step: a text-only goal leaves every segment as `Speaker 0`, and the speaker card
+is not shown at all. For a model that attributes speakers itself (MOSS,
+granite-speech-4.1-2b-plus) the request is passed as `WithDiarize` and the run stays one pass.
+For a model that cannot, the speaker card shows a **Diarizer model** picker with the downloaded
+models that serve the DIARIZE role (Sortformer), selects the only one automatically, and states
+in one line what will run. With no diarizer downloaded the picker is not shown, the run is
+refused before it starts, and the **Get a diarizer…** button opens the Models tab already
+filtered to the diarization role, rather than starting a run that would silently produce
+`Speaker 0`. A model that only diarizes is the **Speakers only** goal: its whole result is
+speaker turns. The run button is named for the goal (Transcribe, Diarize, Identify language or
+Detect speech), so the action is visible before the run rather than only in the result. See
 [Long audio and diarization](diarization.md).
 
 **Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
@@ -257,15 +266,15 @@ started with, so an edit during it would not change what the run does — it wou
 the reader thinks it did. The error report and the saved provenance describe that snapshot, not
 the pickers at the moment a failure was caught.
 
-For a model that transcribes and **cannot** diarize itself, the same checkbox reveals a
+For a model that transcribes and **cannot** diarize itself, the speaker card reveals a
 **Diarizer model** picker: it offers the downloaded models that serve only the DIARIZE role
 (Sortformer). With one chosen, the tab runs the transcriber, then the diarizer over the same
 audio, and gives each segment the speaker whose turn overlaps it most. The two run one after the
 other, so only one model is in memory at a time. The join is this app's, not the library's, and
 it is heuristic — see
 [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
-The intent is offered only when the transcriber reports segment timings; the note in its place
-explains the absence when it does not. Under the checkbox, the plan line names the two models,
+The goal is offered only when the transcriber reports segment timings; the note in its place
+explains the absence when it does not. Under the goal, the plan line names the two models,
 and a warning quotes the diarizer's declared languages when the chosen language is not among
 them (Sortformer declares English only). During the second pass the progress block says
 **Diarizing — attributing speakers** and the bar is indeterminate, because the diarizer reports

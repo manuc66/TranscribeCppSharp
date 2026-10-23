@@ -55,7 +55,7 @@ public partial class MainWindowViewModel : ObservableObject
         // to it. The event is what carries "take me to the models" upward, so the
         // decision about which tab that is stays in one place.
         Transcription.OpenModelManagerRequested += ShowModelManager;
-        Transcription.OpenDiarizerModelsRequested += ShowDiarizerModels;
+        Transcription.OpenModelsForRoleRequested += ShowModelsForRole;
         Streaming.OpenModelManagerRequested += ShowModelManager;
         Batch.OpenModelManagerRequested += ShowModelManager;
 
@@ -87,14 +87,17 @@ public partial class MainWindowViewModel : ObservableObject
     private void ShowModelManager() => SelectedTabIndex = ModelTabIndex;
 
     /// <summary>
-    /// Opens the catalogue already filtered to the models that can diarize, which
-    /// is the question the Transcription tab's button is asking. The filter is the
-    /// same one the Models tab exposes, not a second list: the reader can clear it
-    /// there and see everything.
+    /// Opens the catalogue already filtered to a role, which is the question the
+    /// Transcription tab's buttons are asking: the goal's role, or diarization for
+    /// the dedicated-diarizer step. The filter is the same one the Models tab
+    /// exposes, not a second list; the other filters are cleared so a previous
+    /// search or "on disk only" cannot hide the answer.
     /// </summary>
-    private void ShowDiarizerModels()
+    private void ShowModelsForRole(string roleKey)
     {
-        ModelManager.FeatureFilter = "diarize";
+        ModelManager.ClearFiltersCommand.Execute(null);
+        ModelManager.RoleFilter = ModelManager.Roles
+            .FirstOrDefault(role => string.Equals(role.Key, roleKey, StringComparison.Ordinal));
         SelectedTabIndex = ModelTabIndex;
     }
 

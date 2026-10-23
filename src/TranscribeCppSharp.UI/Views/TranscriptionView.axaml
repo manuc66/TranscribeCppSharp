@@ -67,6 +67,42 @@
         </StackPanel>
       </Border>
 
+      <!-- What the reader wants, before which model. The model list is filtered
+           to the role the goal needs, so a diarizer is not offered for a text
+           run and the language model is not hidden among the transcribers. -->
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Goal" Classes="section" />
+          <ComboBox ItemsSource="{Binding Goals}"
+                    SelectedValueBinding="{Binding Value}"
+                    SelectedValue="{Binding Goal}"
+                    HorizontalAlignment="Stretch"
+                    IsEnabled="{Binding CanEditSettings}"
+                    AutomationProperties.AutomationId="transcription-goal"
+                    AutomationProperties.Name="Goal">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="{Binding GoalDescription}" Classes="hint" TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="transcription-goal-description"
+                     AutomationProperties.Name="Goal description" />
+          <TextBlock Text="{Binding PipelineSummary}" Classes="hint" TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="transcription-pipeline"
+                     AutomationProperties.Name="Pipeline" />
+          <TextBlock Text="{Binding GoalModelHint}" Classes="hint" TextWrapping="Wrap"
+                     IsVisible="{Binding HasGoalModelHint}"
+                     AutomationProperties.AutomationId="transcription-goal-model-hint"
+                     AutomationProperties.Name="Model availability for this goal" />
+          <TextBlock Text="{Binding ResultSpeakersNote}" Classes="hint" TextWrapping="Wrap"
+                     IsVisible="{Binding HasResultSpeakersNote}"
+                     AutomationProperties.AutomationId="transcription-result-speakers-note"
+                     AutomationProperties.Name="Speaker turns in the current result" />
+        </StackPanel>
+      </Border>
+
       <!-- 2. Which model, in which language. -->
       <Border Classes="card">
         <StackPanel Spacing="8">
@@ -89,11 +125,11 @@
                            VerticalAlignment="Center"
                            AutomationProperties.AutomationId="transcription-model-hint"
                            AutomationProperties.Name="Model availability" />
-                <Button Grid.Column="1" Command="{Binding OpenModelManagerCommand}"
+                <Button Grid.Column="1" Command="{Binding OpenModelsForGoalCommand}"
                         Padding="8,2" Margin="8,0,0,0"
                         AutomationProperties.AutomationId="transcription-get-models"
                         AutomationProperties.Name="Get more models"
-                        ToolTip.Tip="Open the Models tab: browse the catalogue and download a model. A downloaded model appears in this picker when you come back.">
+                        ToolTip.Tip="Open the Models tab filtered to the models that serve this goal's role. A downloaded model appears in this picker when you come back.">
                   <StackPanel Classes="buttonContent">
                     <materialIcons:MaterialIcon Classes="small" Kind="CloudDownloadOutline" />
                     <TextBlock Text="Get more…" />
@@ -213,27 +249,17 @@
               AutomationProperties.Name="Speaker labels">
         <StackPanel Spacing="6">
           <TextBlock Text="Speaker labels" Classes="section" />
-          <CheckBox Content="Add speaker labels"
-                    IsChecked="{Binding LabelSpeakers}"
-                    IsEnabled="{Binding CanEditSpeakerLabels}"
-                    AutomationProperties.AutomationId="transcription-diarize"
-                    AutomationProperties.Name="Add speaker labels"
-                    ToolTip.Tip="Ask for speaker attribution in the result. This model can do it itself, or a separate diarizer model can run a second pass over the same audio. Off, every segment stays Speaker 0." />
           <TextBlock Text="{Binding DiarizerPlan}" Classes="hint" TextWrapping="Wrap"
                      AutomationProperties.AutomationId="transcription-diarizer-plan"
                      AutomationProperties.Name="Speaker plan" />
-          <TextBlock Text="{Binding ResultSpeakersNote}" Classes="hint" TextWrapping="Wrap"
-                     IsVisible="{Binding HasResultSpeakersNote}"
-                     AutomationProperties.AutomationId="transcription-result-speakers-note"
-                     AutomationProperties.Name="Speaker turns in the current result" />
           <TextBlock Text="{Binding DiarizerUnavailableHint}" Classes="hint" TextWrapping="Wrap"
                      IsVisible="{Binding ShowDiarizerUnavailableHint}"
                      AutomationProperties.AutomationId="transcription-diarizer-unavailable"
                      AutomationProperties.Name="Speaker labels unavailable" />
 
-          <!-- Only when the intent is on and the transcriber needs help: a
-               second control that means nothing while the box is clear is not
-               part of the form. -->
+          <!-- Only when the transcriber needs a second model: the card itself
+               exists only for the speaker goal, so this is the optional second
+               pass and not a control that means nothing. -->
           <StackPanel Spacing="4" IsVisible="{Binding ShowDiarizerPicker}">
             <TextBlock Text="Diarizer model" Classes="label"
                        ToolTip.Tip="A downloaded model that serves only the DIARIZE role (Sortformer). It runs after the transcriber, over the same audio; the two models are not in memory at the same time. The attribution is this app's join of the two results, not a single library call." />

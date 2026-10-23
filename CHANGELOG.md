@@ -9,6 +9,30 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: the goal picks the outcome, and the model list follows
+
+The Transcription tab now opens with **Goal**: speech to text, speech to text + speakers,
+speakers only, identify language or detect speech. It is the outcome, not a native role: the
+model picker is filtered to the catalog role the goal needs (`asr`, `diarize`, `langid`,
+`vad`), so a diarizer is no longer offered for a text run and the LANGID/VAD models stop being
+invisible among the 73 transcribers. If the goal's role has no model on disk, the picker is
+empty, the hint names the role, and **Get more…** opens the Models tab with that role filter
+already set; the run button says the same thing. A pipeline line states the actual order — one
+pass when the model diarizes itself, two when a dedicated diarizer follows the transcriber.
+
+Speaker labels are now part of the speaker goal, not a separate checkbox that could contradict
+it: the speaker card appears only for **Speech to text + speakers** and is where the diarizer
+is chosen. The text-only goal has no speaker card. The goal also hides the controls a role
+ignores: language, task/window, decoder tuning and the memory probe are only present for the
+ASR goals; the language model keeps its allowed-languages field and the VAD model its window.
+
+This is the recipe layer the existing roles can actually support today. It is not a free-form
+step editor: no pre-ASR VAD, no word-level speaker fusion, and no multi-role combined run are
+exposed, because the wrapper does not implement them.
+
+Tests: goal filtering for all five outcomes, empty-state reasons, the goal/pipeline line, the
+speaker step, and the role-filtered catalogue route; the full UI suite is 349 passed.
+
 ### New: `--vad`, an opt-in silence trim before transcription
 
 `transcribe <audio> --vad silero-vad-v6.2` runs a VAD model over the file first and
