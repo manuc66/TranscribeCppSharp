@@ -22,6 +22,9 @@ public sealed class Session : IDisposable
     private readonly Model model;
     private readonly SessionHandle handle;
 
+    /// <summary>The status of the last native run, for the result it left behind.</summary>
+    private Status lastRunStatus = Status.Ok;
+
     private Session(SessionHandle handle, Model model)
     {
         this.handle = handle;
@@ -573,11 +576,24 @@ public sealed class Session : IDisposable
         configure?.Invoke(runParams);
 
         var status = NativeMethods.Run(handle, pcm, pcm.Length, runParams.Build());
-        if (status != Status.Ok)
+        lastRunStatus = status;
+
+        // OUTPUT_TRUNCATED and OUTPUT_REPETITION are result-bearing: the native
+        // call preserved the partial transcript and set was_truncated. Throwing
+        // here discarded a valid result and made the stop look like a failure.
+        if (status != Status.Ok && !IsResultBearing(status))
         {
             throw new TranscribeException(status, nameof(Run));
         }
     }
+
+    /// <summary>
+    /// Whether a status leaves a readable result behind instead of meaning "no
+    /// result". These are the two stops the native API documents as
+    /// result-bearing; every other non-OK status is a failure.
+    /// </summary>
+    internal static bool IsResultBearing(Status status)
+        => status is Status.ErrOutputTruncated or Status.ErrOutputRepetition;
 
     private Transcript ReadResults()
     {
@@ -597,6 +613,7 @@ public sealed class Session : IDisposable
             DetectedLanguage = lang,
             WasAborted = WasAborted,
             WasTruncated = WasTruncated,
+            StatusCode = lastRunStatus,
             Timing = timings,
             Segments = segments,
             Words = words,

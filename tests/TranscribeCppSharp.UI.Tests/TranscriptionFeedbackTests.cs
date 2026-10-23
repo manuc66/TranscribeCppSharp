@@ -117,6 +117,24 @@ public class TranscriptionFeedbackTests
     }
 
     [Fact]
+    public async Task ARunCutShortByRepetitionKeepsThePartialTextAndSaysWhy()
+    {
+        // OUTPUT_REPETITION is result-bearing: the native call leaves the partial
+        // transcript readable. It must not be reported as a failed run.
+        var service = new RepetitionService();
+        await WithViewModel(service, async viewModel =>
+        {
+            await viewModel.TranscribeCommand.ExecuteAsync(null);
+
+            Assert.False(viewModel.CanCopyError);
+            Assert.Null(viewModel.LastError);
+            Assert.Equal("partial text", viewModel.FullText);
+            Assert.Contains("repeating", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("incomplete", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    [Fact]
     public async Task ASuccessfulRunClearsThePreviousError()
     {
         var failing = new FailingService(new TranscribeException(Status.ErrOom, "transcribe_run"));
@@ -296,6 +314,41 @@ public class TranscriptionFeedbackTests
             IProgress<TranscriptionStep>? step = null,
             CancellationToken cancellationToken = default)
             => Task.FromException<TranscriptionResult>(failure);
+
+        public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(
+            string modelPath, StreamOptions options,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task<MemoryProbeResult> ProbeMemoryAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<List<BatchItemResult>> BatchTranscribeAsync(
+            IReadOnlyList<string> audioPaths, string modelPath, TranscriptionOptions options,
+            IProgress<int>? progress = null, IProgress<BatchFileStep>? fileStep = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>The decoder stopped on repetition, which still leaves a partial result.</summary>
+    private sealed class RepetitionService : ITranscriptionService
+    {
+        public Task<TranscriptionResult> TranscribeAsync(
+            string audioPath, string modelPath, TranscriptionOptions options,
+            IProgress<double>? progress = null, IProgress<string>? liveText = null,
+            IProgress<TranscriptionPhase>? phase = null,
+            IProgress<TranscriptionStep>? step = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new TranscriptionResult
+            {
+                FullText = "partial text",
+                WasTruncated = true,
+                StopStatus = Status.ErrOutputRepetition,
+            });
 
         public async IAsyncEnumerable<StreamUpdate> StreamTranscribeAsync(
             string modelPath, StreamOptions options,

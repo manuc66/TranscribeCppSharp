@@ -129,7 +129,7 @@ public static class Batch
         try
         {
             var status = session.RunBatchInternal(pcmPtrArray, sampleCountArray, n, runParams);
-            if (status != Status.Ok)
+            if (status != Status.Ok && !Session.IsResultBearing(status))
             {
                 throw new TranscribeException(status, nameof(NativeMethods.RunBatch));
             }

@@ -1,6 +1,7 @@
 namespace TranscribeCppSharp;
 
 using System.Collections.Generic;
+using TranscribeCppSharp.Interop;
 
 /// <summary>
 /// Complete transcription result.
@@ -22,6 +23,15 @@ public sealed class Transcript
 
     /// <summary>True when the run was cut short by its token limit. Corresponds to native transcribe_was_truncated(session).</summary>
     public bool WasTruncated { get; init; }
+
+    /// <summary>
+    /// The status the native run returned. <see cref="Status.Ok"/> for a complete
+    /// run; <see cref="Status.ErrOutputTruncated"/> or
+    /// <see cref="Status.ErrOutputRepetition"/> for a result-bearing stop, where
+    /// the transcript above is the partial one and <see cref="WasTruncated"/> is
+    /// true. Any other status is thrown instead of returned.
+    /// </summary>
+    public Status StatusCode { get; init; } = Status.Ok;
 
     /// <summary>Segments, read via native transcribe_n_segments / transcribe_get_segment.</summary>
     public IReadOnlyList<SegmentResult> Segments { get; init; } = [];

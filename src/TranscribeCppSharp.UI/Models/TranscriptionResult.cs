@@ -1,5 +1,7 @@
 namespace TranscribeCppSharp.UI.Models;
 
+using TranscribeCppSharp.Interop;
+
 public class TranscriptionResult
 {
     /// <summary>The roles the model served; the run used the first one it has.</summary>
@@ -7,8 +9,17 @@ public class TranscriptionResult
 
     public string FullText { get; set; } = string.Empty;
     public string DetectedLanguage { get; set; } = string.Empty;
+
     public bool WasAborted { get; set; }
     public bool WasTruncated { get; set; }
+
+    /// <summary>
+    /// Why the decoder stopped before the end, when it did. <see cref="Status.Ok"/>
+    /// is a complete run; <see cref="Status.ErrOutputTruncated"/> is the decoder's
+    /// output limit, and <see cref="Status.ErrOutputRepetition"/> is the guard that
+    /// stops when the output begins looping. Both leave a partial transcript.
+    /// </summary>
+    public Status StopStatus { get; set; } = Status.Ok;
 
     /// <summary>
     /// The audio file's length, when the service read it. Null for a result from an
