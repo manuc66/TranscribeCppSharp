@@ -24,7 +24,7 @@ public class TranscriptionOptions
     /// <remarks>
     /// For a transcriber that cannot attribute speakers itself: the model is run
     /// over the same audio after the transcription, and its speaker turns are
-    /// joined to the segments by <see cref="Services.SpeakerAssignment"/>. The two
+    /// joined to the segments by <see cref="SharedSource.SpeakerAssignment"/>. The two
     /// are separate native runs — transcribe.cpp has no combined entry point.
     /// </remarks>
     public string? DiarizerModel { get; set; }

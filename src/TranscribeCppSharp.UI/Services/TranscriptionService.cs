@@ -58,7 +58,9 @@ public class TranscriptionService : ITranscriptionService
                 audioPath, options.DiarizerModel!, options, cancellationToken).ConfigureAwait(false);
 
             result.SpeakerSegments = turns;
-            result.Segments = SpeakerAssignment.Apply(result.Segments, turns);
+            // Word-level when the transcriber reported word timings: a segment can
+            // span a speaker change, and the words say which half is whose.
+            result.Segments = SpeakerAssignment.Apply(result.Segments, turns, result.Words);
             stepProgress?.Report(new TranscriptionStep(TranscriptionPhase.Diarizing, 1, 1));
             progress?.Report(1.0);
         }

@@ -121,5 +121,6 @@
     <Compile Include="..\Shared\HtmlTranscriptWriter.cs" Link="Shared\HtmlTranscriptWriter.cs" />
     <Compile Include="..\Shared\WindowAdjustment.cs" Link="Shared\WindowAdjustment.cs" />
     <Compile Include="..\Shared\SubtitleWriter.cs" Link="Shared\SubtitleWriter.cs" />
+    <Compile Include="..\Shared\SpeakerAssignment.cs" Link="Shared\SpeakerAssignment.cs" />
   </ItemGroup>
 </Project>

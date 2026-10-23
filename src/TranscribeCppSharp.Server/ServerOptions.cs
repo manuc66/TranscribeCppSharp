@@ -29,7 +29,12 @@ internal sealed class ServerOptions
           --chunk <sec>        max window per native call (default 300); longer
                                audio is split with a 1 s overlap and the seam is
                                deduplicated. The model's own limit wins when lower
-          --diarize            ask the model for speaker attribution (default off)
+          --diarize            request speaker attribution (default off). With
+                               --diarizer it runs as a second pass; otherwise the
+                               ASR model is asked, and may not support it
+          --diarizer <m>       a DIARIZE-role model (e.g. a Sortformer GGUF) run
+                               over the whole file after the transcript, then
+                               joined to the segments. Both models stay loaded
           --api-key <k>        require 'Authorization: Bearer <k>'; also read
                                from TRANSCRIBE_SERVER_API_KEY. Without it, anyone
                                who can reach the port can transcribe
@@ -76,6 +81,12 @@ internal sealed class ServerOptions
     /// <summary>Default speaker attribution for a request that does not say.</summary>
     internal bool Diarize { get; init; }
 
+    /// <summary>
+    /// A DIARIZE-role model run as a second pass, or null to rely on the ASR
+    /// model's own attribution.
+    /// </summary>
+    internal string? Diarizer { get; init; }
+
     /// <summary>Upload cap, in bytes.</summary>
     internal long MaxUploadBytes { get; init; } = 1024L * 1024 * 1024;
 
@@ -102,6 +113,7 @@ internal sealed class ServerOptions
         string? apiKey = null;
         bool allowDownloads = false;
         bool diarize = false;
+        string diarizer = string.Empty;
         long maxUploadMb = 1024;
         var urls = new List<string> { "http://127.0.0.1:8080" };
 
@@ -164,6 +176,15 @@ internal sealed class ServerOptions
                     diarize = true;
                     break;
 
+                case "--diarizer":
+                    if (!TakeValue(args, ref i, argument, out diarizer))
+                    {
+                        error = $"{argument} expects a model path or alias";
+                        return false;
+                    }
+
+                    break;
+
                 case "--max-upload-mb":
                     if (!TakeValue(args, ref i, argument, out string? sizeText)
                         || !long.TryParse(sizeText, NumberStyles.Integer, CultureInfo.InvariantCulture, out maxUploadMb)
@@ -214,6 +235,7 @@ internal sealed class ServerOptions
             ApiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim(),
             AllowDownloads = allowDownloads,
             Diarize = diarize,
+            Diarizer = string.IsNullOrWhiteSpace(diarizer) ? null : diarizer.Trim(),
             MaxUploadBytes = maxUploadMb * 1024 * 1024,
             Urls = [.. urls],
         };

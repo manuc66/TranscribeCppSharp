@@ -64,6 +64,38 @@ message naming the field, instead of a `200` that quietly ignored it:
   server;
 - any `model` other than the one this process loaded (`404 model_not_found`).
 
+## Speaker attribution: the model's own, or a second pass
+
+`--diarize` asks for speakers. How they are produced depends on `--diarizer`:
+
+- **Without it**, the ASR model is asked (`DiarizeModeOn`). A model that cannot
+  attribute speakers reports every segment as speaker 0 and the native layer
+  warns; nothing is invented on top.
+- **With `--diarizer <model>`**, the ASR run does *not* ask the model, and a
+  DIARIZE-role model (Sortformer, for example) runs over the whole file after the
+  transcript. Its turns are joined to the segments by `SpeakerAssignment` — the
+  same code the desktop app uses — assigning each segment the turn it overlaps
+  most. Explicit configuration wins over the model's own capability, which is
+  what makes the result predictable.
+
+Two costs to know before turning it on:
+
+- **Both models stay loaded.** The server caches them, so the second request does
+  not pay the load again, but the process now holds two models' weights.
+- **The diarizer reads the whole file into memory.** Upstream has no streaming
+  diarization and speaker ids are per run, so the file cannot be windowed without
+  renumbering speakers at every seam. An hour of 16 kHz mono audio is 219 MiB in
+  that pass, on top of the models.
+
+It is off by default, and a request with `diarize=false` never runs the second
+pass. `GET /v1/models` still lists only the ASR model: the diarizer is a pipeline
+stage, not a second model a client can choose.
+
+Measured while wiring it: on the 11 s `test-audio/jfk.wav` with `ggml-tiny.bin` and
+Sortformer, the diarizer returned 4 turns and the single segment was assigned
+speaker 1. That clip has one speaker and is far too short to say anything about
+diarization quality — what the run verifies is the plumbing, not the attribution.
+
 ## Concurrency, and why requests queue
 
 transcribe.cpp allows **one run per model at a time**, across all of that model's
@@ -119,7 +151,8 @@ Two things to know before running a long file on a small GPU:
 - **Not a streaming endpoint.** There is no SSE and no chunked transcript. The
   native streaming API exists but the library documents its limits; the server
   does not expose it.
-- **Not a model router.** One process, one model. `GET /v1/models` lists that one.
+- **Not a model router.** One process, one ASR model (plus an optional diarizer).
+  `GET /v1/models` lists that one.
 - **Not packaged.** There is no NuGet package and no release archive for it yet;
   run it from a clone. It needs the native runtime, which `tools/FetchNative`
   places in the output directory, and `ffmpeg` on `PATH` for any input that is not

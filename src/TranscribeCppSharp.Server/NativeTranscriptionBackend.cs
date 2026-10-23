@@ -4,10 +4,11 @@ using System.Globalization;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
 using TranscribeCppSharp.Models;
+using TranscribeCppSharp.SharedSource;
 
 /// <summary>
-/// The real backend: loads one model, then runs every request through it, one at
-/// a time.
+/// The real backend: loads one model (plus an optional diarizer), then runs every
+/// request through it, one at a time.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -30,6 +31,7 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly object stateLock = new();
     private Model? model;
+    private Model? diarizerModel;
     private bool disposed;
 
     /// <summary>Creates a backend that loads the model on its first request.</summary>
@@ -82,6 +84,8 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
         {
             model?.Dispose();
             model = null;
+            diarizerModel?.Dispose();
+            diarizerModel = null;
         }
         finally
         {
@@ -122,22 +126,40 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
 
         int windowMs = (int)Math.Min((long)options.ChunkSeconds * 1000, maxWindowMs);
 
-        return WindowRetry.Run(
+        // A configured diarizer is a second pass, so the ASR model is not asked
+        // for attribution it may not support. Explicit configuration wins over
+        // the model's own capability, which is what makes the result predictable.
+        bool askModelForSpeakers = request.Diarize && options.Diarizer is null;
+
+        FileTranscript transcript = WindowRetry.Run(
             Math.Max(1, windowMs / 1000),
-            seconds => TranscribeWindows(loaded, capabilities, pcm, totalSamples, seconds * 1000, request),
+            seconds => TranscribeWindows(
+                loaded, capabilities, pcm, totalSamples, seconds * 1000, request, askModelForSpeakers),
             (failed, next) => Console.Error.WriteLine(
                 $"transcribe-server: a {failed} s window did not fit in memory (native status {Status.ErrOom}); "
                 + $"restarting the file at {next} s, nothing from the failed attempt is kept"));
+
+        if (request.Diarize && options.Diarizer is not null)
+        {
+            IReadOnlyList<SpeakerSegmentResult> turns = RunDiarizer(pcm, request.CancellationToken);
+            transcript = transcript with
+            {
+                Segments = SpeakerAssignment.Apply(transcript.Segments, turns),
+            };
+        }
+
+        return ToOutput(transcript, request.Diarize);
     }
 
     /// <summary>One attempt: plans the windows, runs them, merges the result.</summary>
-    private static TranscriptionOutput TranscribeWindows(
+    private static FileTranscript TranscribeWindows(
         Model loaded,
         Model.ModelCapabilities capabilities,
         PcmSource pcm,
         long totalSamples,
         int windowMs,
-        TranscriptionRequest request)
+        TranscriptionRequest request,
+        bool askModelForSpeakers)
     {
         if (!WindowPlanner.TryPlan((int)totalSamples, windowMs, out IReadOnlyList<AudioWindow> windows, out string? planError))
         {
@@ -152,7 +174,7 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
         bool wantWords = request.WantWords && capabilities.MaxTimestampKind >= TimestampKind.TimestampsWord;
 
         var merger = new TranscriptMerger();
-        var words = new List<TranscriptionWord>();
+        var words = new List<WordResult>();
         string language = string.Empty;
 
         foreach (AudioWindow window in windows)
@@ -163,7 +185,7 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
                 r =>
                 {
                     r.WithTask(request.Task);
-                    r.WithDiarize(request.Diarize ? DiarizeMode.DiarizeModeOn : DiarizeMode.DiarizeModeOff);
+                    r.WithDiarize(askModelForSpeakers ? DiarizeMode.DiarizeModeOn : DiarizeMode.DiarizeModeOff);
                     if (!string.IsNullOrWhiteSpace(request.Language))
                     {
                         r.WithLanguage(request.Language);
@@ -182,11 +204,7 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
             {
                 foreach (WordResult word in transcript.Words)
                 {
-                    WordResult shifted = TranscriptMerger.Shift(window, word);
-                    words.Add(new TranscriptionWord(
-                        shifted.Text,
-                        shifted.Start.TotalSeconds,
-                        shifted.End.TotalSeconds));
+                    words.Add(TranscriptMerger.Shift(window, word));
                 }
             }
 
@@ -195,15 +213,6 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
                 language = transcript.DetectedLanguage;
             }
         }
-
-        List<TranscriptionSegment> segments = merger.Segments
-            .Select((segment, index) => new TranscriptionSegment(
-                index,
-                segment.Start.TotalSeconds,
-                segment.End.TotalSeconds,
-                segment.Text.Trim(),
-                request.Diarize ? segment.SpeakerId : null))
-            .ToList();
 
         // Some families report no detected language (whisper-tiny does not, in a
         // measured run). Falling back to the language the caller pinned is what
@@ -214,12 +223,56 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
             language = request.Language;
         }
 
-        return new TranscriptionOutput(
+        return new FileTranscript(
             merger.BuildText(),
             language,
             totalSamples / (double)WindowPlanner.SampleRate,
-            segments,
+            merger.Segments,
             words);
+    }
+
+    /// <summary>Maps the merged result to the wire shapes.</summary>
+    private static TranscriptionOutput ToOutput(FileTranscript transcript, bool diarized)
+        => new(
+            transcript.Text,
+            transcript.Language,
+            transcript.DurationSeconds,
+            transcript.Segments
+                .Select((segment, index) => new TranscriptionSegment(
+                    index,
+                    segment.Start.TotalSeconds,
+                    segment.End.TotalSeconds,
+                    segment.Text.Trim(),
+                    diarized ? segment.SpeakerId : null))
+                .ToList(),
+            transcript.Words
+                .Select(word => new TranscriptionWord(
+                    word.Text,
+                    word.Start.TotalSeconds,
+                    word.End.TotalSeconds))
+                .ToList());
+
+    /// <summary>
+    /// Runs the configured DIARIZE-role model over the whole file.
+    /// </summary>
+    /// <remarks>
+    /// The role is offline over a whole buffer: upstream has no streaming
+    /// diarization, and speaker ids are per run, so the file cannot be windowed
+    /// without renumbering speakers at every seam. That means this pass holds the
+    /// whole file in memory, on top of both models; the docs say so.
+    /// </remarks>
+    private IReadOnlyList<SpeakerSegmentResult> RunDiarizer(PcmSource pcm, CancellationToken cancellationToken)
+    {
+        Model diarizer = EnsureDiarizer();
+        using var session = diarizer.CreateDiarizeSession();
+        int total = (int)Math.Min(pcm.LengthSamples, int.MaxValue);
+        IReadOnlyList<SpeakerSegmentResult> turns = session.Run(
+            pcm.ReadWindow(0, total),
+            ct: cancellationToken);
+
+        Console.Error.WriteLine(
+            $"transcribe-server: diarizer {options.Diarizer} returned {turns.Count} speaker turn(s) for the whole file");
+        return turns;
     }
 
     private Model EnsureModel()
@@ -232,13 +285,7 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
             }
         }
 
-        string path = ResolveModelPath();
-        if (!ServerOptions.TryParseBackendName(options.Backend, out BackendRequest backend))
-        {
-            throw new ModelUnavailableException($"unknown backend '{options.Backend}'");
-        }
-
-        Model loaded = Model.Load(path, p => p.WithBackend(backend));
+        Model loaded = Model.Load(ResolvePath(options.Model, "model"), p => p.WithBackend(Backend()));
         lock (stateLock)
         {
             model = loaded;
@@ -247,18 +294,54 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
         return loaded;
     }
 
-    private string ResolveModelPath()
+    private Model EnsureDiarizer()
     {
-        if (File.Exists(options.Model))
+        lock (stateLock)
         {
-            return Path.GetFullPath(options.Model);
+            if (diarizerModel is not null)
+            {
+                return diarizerModel;
+            }
+        }
+
+        string spec = options.Diarizer
+            ?? throw new InvalidOperationException("no diarizer is configured");
+
+        Model loaded = Model.Load(ResolvePath(spec, "diarizer"), p => p.WithBackend(Backend()));
+        TranscribeRole roles = loaded.Roles;
+        if (!roles.HasFlag(TranscribeRole.Diarize))
+        {
+            loaded.Dispose();
+            throw new ModelUnavailableException(
+                $"'{spec}' does not serve the DIARIZE role (roles: {roles}); "
+                + "use a diarizer such as diar_streaming_sortformer_4spk-v2.1");
+        }
+
+        lock (stateLock)
+        {
+            diarizerModel = loaded;
+        }
+
+        return loaded;
+    }
+
+    private BackendRequest Backend()
+        => ServerOptions.TryParseBackendName(options.Backend, out BackendRequest backend)
+            ? backend
+            : throw new ModelUnavailableException($"unknown backend '{options.Backend}'");
+
+    private string ResolvePath(string spec, string label)
+    {
+        if (File.Exists(spec))
+        {
+            return Path.GetFullPath(spec);
         }
 
         if (!options.AllowDownloads)
         {
             throw new ModelUnavailableException(
-                $"'{options.Model}' is not a file, and this server was started without --allow-download. "
-                + "Pass a path to a GGUF file, fetch the alias first with the transcribe CLI, "
+                $"'{spec}' is not a file, and this server was started without --allow-download. "
+                + $"Pass a path to a {label} GGUF file, fetch the alias first with the transcribe CLI, "
                 + "or restart with --allow-download to let the first request fetch it.");
         }
 
@@ -268,12 +351,12 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
         var log = new StringWriter(CultureInfo.InvariantCulture);
         try
         {
-            return ModelStore.Resolve(options.Model, quant: null, log);
+            return ModelStore.Resolve(spec, quant: null, log);
         }
         catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException)
         {
             throw new ModelUnavailableException(
-                $"'{options.Model}' could not be fetched: {ex.Message} (details on stderr)", ex);
+                $"'{spec}' could not be fetched: {ex.Message} (details on stderr)", ex);
         }
         finally
         {
@@ -284,4 +367,12 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
             }
         }
     }
+
+    /// <summary>The merged result, before it is mapped to the wire shapes.</summary>
+    private sealed record FileTranscript(
+        string Text,
+        string Language,
+        double DurationSeconds,
+        IReadOnlyList<MergedSegment> Segments,
+        IReadOnlyList<WordResult> Words);
 }

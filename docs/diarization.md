@@ -94,18 +94,22 @@ The DIARIZE-role models (Sortformer) produce speaker turns and no text, so their
 paired with a transcriber that cannot attribute speakers itself. transcribe.cpp has **no
 combined entry point**: you run the two models separately and join the results.
 
-The app does exactly that. On the Transcription tab, ticking **Label who is speaking** is the
-one request for attribution. A model that diarizes itself satisfies it in one pass; a model
+The app does exactly that. On the Transcription tab, choosing **Speech to text + speakers** is
+the one request for attribution. A model that diarizes itself satisfies it in one pass; a model
 that cannot shows a **Diarizer model** picker, offering the downloaded DIARIZE-role models and
 preselecting the only one. With one chosen, the run is two passes: the transcriber over the
-audio, then the diarizer over the same audio, then a join — each transcript segment takes the
-speaker of the diarizer turn that overlaps it most, and a segment overlapping no turn keeps
+audio, then the diarizer over the same audio, then a join. The join is **word-level when the
+transcriber reports word timings**: each word takes the diarizer turn that overlaps it most,
+and the segment takes the speaker of most of its words (ties go to the longer speech, then the
+lower id). A segment with no words, or whose words overlap no turn, falls back to the
+segment-level rule: the turn with the largest overlap. A segment overlapping no turn keeps
 speaker 0. The two passes run one after the other, so only one model is in memory at a time.
 
 Two honest limits:
 
-- **The join is ours, not the library's**, and it is heuristic: the largest time overlap is a
-  choice, not a measurement. Nothing here claims it is verified against a reference alignment.
+- **The join is ours, not the library's**, and it is heuristic: the majority-word rule and the
+  largest-overlap fallback are choices, not measurements. Nothing here claims they are verified
+  against a reference alignment.
 - **The diarizer is offline and whole-buffer.** Sortformer reads the whole file at once and
   the app loads it in memory for that pass; the transcriber's windowing does not apply to it.
 

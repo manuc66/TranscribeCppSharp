@@ -33,6 +33,7 @@ public sealed class ServerOptionsTests
         Assert.Equal("auto", options.Backend);
         Assert.Equal(300, options.ChunkSeconds);
         Assert.Null(options.ApiKey);
+        Assert.Null(options.Diarizer);
         Assert.False(options.AllowDownloads);
         Assert.False(options.Diarize);
         Assert.Equal(1024L * 1024 * 1024, options.MaxUploadBytes);
@@ -49,6 +50,7 @@ public sealed class ServerOptionsTests
             "--api-key", "k",
             "--allow-download",
             "--diarize",
+            "--diarizer", "diar_streaming_sortformer_4spk-v2.1",
             "--max-upload-mb", "64",
             "--urls", "http://0.0.0.0:9000;http://127.0.0.1:9001");
 
@@ -58,6 +60,7 @@ public sealed class ServerOptionsTests
         Assert.Equal("k", options.ApiKey);
         Assert.True(options.AllowDownloads);
         Assert.True(options.Diarize);
+        Assert.Equal("diar_streaming_sortformer_4spk-v2.1", options.Diarizer);
         Assert.Equal(64L * 1024 * 1024, options.MaxUploadBytes);
         Assert.Equal(TwoUrls, options.Urls);
     }

@@ -9,6 +9,22 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### UI: speaker attribution prefers word timings
+
+The join between a transcriber and a dedicated diarizer was segment-level: the segment took the
+turn with the largest time overlap, so a Whisper segment that spanned a speaker change gave the
+whole segment to one speaker. It now uses the word timings the transcriber already reports:
+each word takes the turn that overlaps it most, and the segment takes the speaker of most of its
+words (ties go to the longer speech, then the lower id). A segment with no words, or whose words
+overlap no turn, falls back to the old segment-level rule, so a model without word timestamps
+behaves as before.
+
+This is still a heuristic, not a verified alignment: the words are the decoder's, the turns are
+the diarizer's, and the two can disagree. No accuracy claim is made; the tests pin the rule on
+synthetic timings, not against a reference diarization.
+
+Tests: majority, tie-break, no-word fallback, words-overlap-no-turn fallback; 359 UI tests pass.
+
 ### Fix: an upload over the limit is a 413, not a 400
 
 Kestrel's body-limit failure surfaces inside `ReadFormAsync` as a

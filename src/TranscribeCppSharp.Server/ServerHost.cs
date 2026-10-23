@@ -34,6 +34,7 @@ internal static class ServerHost
         Console.Out.WriteLine($"  backend  : {options.Backend}");
         Console.Out.WriteLine($"  window   : {options.ChunkSeconds} s, split and deduplicated above that");
         Console.Out.WriteLine($"  diarize  : {(options.Diarize ? "on by default" : "off by default")}");
+        Console.Out.WriteLine($"  diarizer : {options.Diarizer ?? "(none: the ASR model is asked)"}");
         Console.Out.WriteLine($"  auth     : {(options.ApiKey is null ? "DISABLED — anyone who can reach the port can transcribe" : "Bearer token required (health stays open)")}");
         Console.Out.WriteLine($"  download : {(options.AllowDownloads ? "enabled on first request" : "disabled")}");
         Console.Out.WriteLine("  requests : serialized, one native run per model at a time");

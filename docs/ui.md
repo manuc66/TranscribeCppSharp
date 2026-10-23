@@ -281,9 +281,10 @@ the pickers at the moment a failure was caught.
 For a model that transcribes and **cannot** diarize itself, the speaker card reveals a
 **Diarizer model** picker: it offers the downloaded models that serve only the DIARIZE role
 (Sortformer). With one chosen, the tab runs the transcriber, then the diarizer over the same
-audio, and gives each segment the speaker whose turn overlaps it most. The two run one after the
-other, so only one model is in memory at a time. The join is this app's, not the library's, and
-it is heuristic — see
+audio, and joins them: word-level when the transcriber reports word timings (each word takes the
+turn that overlaps it most, and the segment takes the majority speaker), with the segment-level
+largest-overlap rule as the fallback. The two run one after the other, so only one model is in
+memory at a time. The join is this app's, not the library's, and it is heuristic — see
 [Combining a diarizer with a transcriber](diarization.md#combining-a-diarizer-with-a-transcriber).
 The goal is offered only when the transcriber reports segment timings; the note in its place
 explains the absence when it does not. Under the goal, the plan line names the two models,
