@@ -80,11 +80,15 @@ memory at a time. That is the same math as the CLI, with the same results.
 
 Two things to know before running a long file on a small GPU:
 
-- The server does **not** lower the window and retry after an out-of-memory
-  failure. The desktop app does (`AutoAdjustWindow`); the server currently does
-  not, so set `--chunk` conservatively for the device you are on.
-- A window that does not fit fails the request with the native error. It does not
-  silently fall back to another backend or device.
+- If a window does not fit in memory, the native layer returns its out-of-memory
+  status and the server **halves the window and restarts the file**, down to 5 s,
+  for at most ten values. Each retry is logged to stderr. The failed attempt's
+  partial transcript is discarded, so the result cannot contain duplicates; the
+  cost is re-transcribing the windows that had already succeeded. The policy is
+  `WindowAdjustment`, shared with the desktop app.
+- Only that out-of-memory status is retried. Any other native failure is returned
+  to the client as a `500`; the server never falls back to another backend or
+  device.
 
 ## Access and safety
 

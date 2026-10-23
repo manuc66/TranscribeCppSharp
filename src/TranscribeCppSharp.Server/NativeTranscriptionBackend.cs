@@ -111,17 +111,40 @@ internal sealed class NativeTranscriptionBackend : ITranscriptionBackend
                 + "the window planner counts samples in a 32-bit integer, so this server accepts at most ~37 h");
         }
 
-        using var session = loaded.CreateSession();
-        Session.SessionLimitsInfo limits = session.GetLimits();
-        int maxWindowMs = limits.EffectiveMaxAudioMs > 0
-            ? (int)Math.Clamp(limits.EffectiveMaxAudioMs - WindowPlanner.OverlapMs, 1, int.MaxValue)
-            : int.MaxValue;
+        int maxWindowMs;
+        using (var limitsSession = loaded.CreateSession())
+        {
+            Session.SessionLimitsInfo limits = limitsSession.GetLimits();
+            maxWindowMs = limits.EffectiveMaxAudioMs > 0
+                ? (int)Math.Clamp(limits.EffectiveMaxAudioMs - WindowPlanner.OverlapMs, 1, int.MaxValue)
+                : int.MaxValue;
+        }
+
         int windowMs = (int)Math.Min((long)options.ChunkSeconds * 1000, maxWindowMs);
 
+        return WindowRetry.Run(
+            Math.Max(1, windowMs / 1000),
+            seconds => TranscribeWindows(loaded, capabilities, pcm, totalSamples, seconds * 1000, request),
+            (failed, next) => Console.Error.WriteLine(
+                $"transcribe-server: a {failed} s window did not fit in memory (native status {Status.ErrOom}); "
+                + $"restarting the file at {next} s, nothing from the failed attempt is kept"));
+    }
+
+    /// <summary>One attempt: plans the windows, runs them, merges the result.</summary>
+    private static TranscriptionOutput TranscribeWindows(
+        Model loaded,
+        Model.ModelCapabilities capabilities,
+        PcmSource pcm,
+        long totalSamples,
+        int windowMs,
+        TranscriptionRequest request)
+    {
         if (!WindowPlanner.TryPlan((int)totalSamples, windowMs, out IReadOnlyList<AudioWindow> windows, out string? planError))
         {
             throw new InvalidOperationException(planError ?? "the audio could not be split into windows");
         }
+
+        using var session = loaded.CreateSession();
 
         // Word timestamps are asked for only when the model reports it can
         // produce them. Asking anyway is how a caller ends up with a 200 and an

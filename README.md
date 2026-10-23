@@ -235,9 +235,9 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
   ([Desktop app](#desktop-app)).
 - **The server serves one model and one request at a time.** transcribe.cpp allows one run per
   model at a time, so the OpenAI-compatible server queues requests behind a semaphore; a long
-  file blocks the queue. It has no streaming route, no subtitle response formats yet, and does
-  not lower the window after an out-of-memory failure the way the desktop app does
-  ([OpenAI-compatible server](docs/server.md)).
+  file blocks the queue. It has no streaming route, and an out-of-memory window is retried by
+  restarting the file at half the size (down to 5 s), which is slower but keeps the request
+  alive ([OpenAI-compatible server](docs/server.md)).
 
 The formats the decoder is *verified* to read are listed, with the tests that cover them,
 on [Audio input](docs/audio-input.md).

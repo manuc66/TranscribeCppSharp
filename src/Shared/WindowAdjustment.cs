@@ -1,4 +1,4 @@
-namespace TranscribeCppSharp.UI.Services;
+namespace TranscribeCppSharp.SharedSource;
 
 /// <summary>
 /// How far a run may lower its window after the first one does not fit in memory.
@@ -11,7 +11,7 @@ namespace TranscribeCppSharp.UI.Services;
 /// one call to be worth transcribing. The values are a policy, not a measurement;
 /// the measurement is the run that succeeded.
 /// </remarks>
-internal static class WindowAdjustment
+public static class WindowAdjustment
 {
     /// <summary>The smallest window an automatic retry will try.</summary>
     public const int MinimumSeconds = 5;

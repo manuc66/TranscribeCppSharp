@@ -9,6 +9,28 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### New: the server retries a window that does not fit in memory
+
+When the native layer returns `ErrOom`, the server halves the window and restarts
+the file, down to 5 s, for at most ten values, logging each retry to stderr. The
+failed attempt's merged transcript is discarded, so the output cannot contain
+duplicates; the cost is re-transcribing the windows that had already succeeded.
+Only `ErrOom` is retried — any other native failure is returned as a 500, and the
+server never switches backend or device.
+
+The halving policy is `WindowAdjustment`, moved from the UI project to
+`src/Shared/WindowAdjustment.cs` and compiled into both front ends, so the two
+cannot drift apart. The server retries a failure at any window, not only the
+first: unlike the GUI it throws away the partial result and starts over, which is
+what makes that safe.
+
+Verified: 6 `WindowRetryTests` (first-attempt success, the halving sequence and the
+reported pairs, a non-OOM status rethrown, the floor, the attempt budget,
+cancellation) and the server suite is 47 tests; the UI's 19 window tests still pass
+with the shared type. **Not verified: a real out-of-memory failure.** The local
+machine has no GPU to force one, so the retry path is covered by a fake attempt,
+not by a native OOM.
+
 ### UI: the goal picks the outcome, and the model list follows
 
 The Transcription tab now opens with **Goal**: speech to text, speech to text + speakers,
