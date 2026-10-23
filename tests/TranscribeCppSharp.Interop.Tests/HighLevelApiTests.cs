@@ -728,7 +728,21 @@ public class HighLevelApiTests : IDisposable
     public void Model_Load_NonExistentFile_ShouldThrow()
     {
         var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.gguf");
-        Assert.ThrowsAny<Exception>(() => Model.Load(nonExistentPath));
+        Assert.Throws<TranscribeException>(() => Model.Load(nonExistentPath));
+    }
+
+    [Fact]
+    public void Model_Load_NonExistentFile_ReportsAnErrorStatusAndMethodName()
+    {
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.gguf");
+
+        var ex = Assert.Throws<TranscribeException>(() => Model.Load(nonExistentPath));
+
+        // The wrapper must surface the native status honestly, not a generic
+        // message: the status is an error and the failed method is named.
+        Assert.NotEqual(Status.Ok, ex.StatusCode);
+        Assert.Equal(nameof(NativeMethods.ModelLoadFile), ex.FailedMethod);
+        Assert.False(string.IsNullOrWhiteSpace(ex.Message));
     }
 
     [SkippableFact]
