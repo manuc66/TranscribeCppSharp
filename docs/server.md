@@ -75,8 +75,14 @@ different ports — not a second thread in the same process.
 ## Long audio, memory, and the window
 
 Above `--chunk` seconds (default 300, and never above the model's own limit) the
-audio is split with a 1 s overlap and the seam is deduplicated, one window in
-memory at a time. That is the same math as the CLI, with the same results.
+audio is split with a 1 s overlap, one window in memory at a time. The seam is
+deduplicated with a **500 ms tolerance**: a segment that starts slightly before
+the previous one ended is kept rather than dropped, because dropping it would lose
+the audio after the seam. The cost is that up to 500 ms of audio can be
+transcribed twice. Measured on `test-audio/jfk.wav` at `--chunk 5`, the merged
+text read `... ask not! not what ...` — the same result the CLI produces, because
+it is the same `TranscriptMerger`. The tolerance is a tradeoff, not a
+measurement.
 
 Two things to know before running a long file on a small GPU:
 
@@ -101,9 +107,10 @@ Two things to know before running a long file on a small GPU:
 - Downloads are **off** by default: a request cannot make the server fetch
   something from the network unless the process was started with
   `--allow-download`. A path to an existing GGUF always works.
-- Uploads are capped at `--max-upload-mb` (default 1024). Files are buffered to
-  disk by ASP.NET, then copied to a temporary file that is deleted after the
-  request, on success or failure.
+- Uploads are capped at `--max-upload-mb` (default 1024), and an upload over the
+  cap is refused with `413 payload_too_large`. Files are buffered to disk by
+  ASP.NET, then copied to a temporary file that is deleted after the request, on
+  success or failure.
 - Nothing is logged but request lines and errors; no audio or transcript is
   written to disk by the server itself.
 

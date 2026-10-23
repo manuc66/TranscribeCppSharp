@@ -213,6 +213,22 @@ public sealed class ServerEndpointTests
     }
 
     [Fact]
+    public async Task An_upload_over_the_limit_is_refused_with_413()
+    {
+        var limited = new ServerOptions
+        {
+            Model = "fake-model",
+            Urls = ["http://127.0.0.1:0"],
+            MaxUploadBytes = 64,
+        };
+
+        Reply reply = await PostAsync(limited, new FakeBackend(), TestServer.Form());
+
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, reply.Status);
+        Assert.Equal("payload_too_large", reply.Json()["error"]!["code"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task The_api_key_is_required_but_health_stays_open()
     {
         await using TestServer server = await TestServer.StartAsync(Options(apiKey: "s3cret"), new FakeBackend());

@@ -9,6 +9,27 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Fix: an upload over the limit is a 413, not a 400
+
+Kestrel's body-limit failure surfaces inside `ReadFormAsync` as a
+`BadHttpRequestException`, which the generic handler reported as a malformed
+multipart body. It is now answered with `413 payload_too_large` and a message
+naming `--max-upload-mb`. Verified against a real server started with
+`--max-upload-mb 1` and a 1.4 MB file, and covered by a test that sends a form
+larger than a 64-byte cap.
+
+### Docs correction: the seam is deduplicated with a tolerance, not fully
+
+Found while testing the server on a multi-window file (`--chunk 5` on the 11 s
+`jfk.wav`): the merged text read `... ask not! not what ...`. A segment that
+starts slightly before the previous one ended is kept rather than dropped,
+because dropping it would lose the audio after the seam; up to 500 ms can
+therefore be transcribed twice. That is `TranscriptMerger`'s existing, tested
+tradeoff (`ASmallMisalignmentAcrossTheSeamStillKeepsBothSides`), not a
+regression — the docs said "deduplicated" without the tolerance and now say what
+actually happens. `docs/server.md` and `docs/diarization.md` carry the measured
+example.
+
 ### UI: an opt-in VAD trim before transcription
 
 The Advanced settings of an ASR goal now offer **Skip silence with a VAD model**, off by

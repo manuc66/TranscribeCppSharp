@@ -116,6 +116,19 @@ internal static class ServerApp
         {
             form = await context.Request.ReadFormAsync(context.RequestAborted);
         }
+        catch (BadHttpRequestException ex) when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        {
+            // Kestrel refuses the body while the form is being read, so this is
+            // reached here rather than as a body-limit error of its own. 413 is
+            // what the client asked for and what OpenAI-compatible clients expect;
+            // reporting it as a 400 would blame the multipart syntax instead.
+            return Error(
+                StatusCodes.Status413PayloadTooLarge,
+                $"the upload is larger than this server accepts "
+                + $"({options.MaxUploadBytes / (1024 * 1024)} MiB, see --max-upload-mb)",
+                param: "file",
+                code: "payload_too_large");
+        }
         catch (Exception ex) when (ex is InvalidDataException or IOException)
         {
             return Error(

@@ -10,7 +10,10 @@ nav_order: 7
 Audio longer than one window is split with a 1 s overlap and deduplicated;
 `--chunk` sets the window size in seconds (default 300, lowered automatically if
 the model reports a smaller maximum). A window must be longer than the overlap,
-so `--chunk 1` is rejected rather than looping.
+so `--chunk 1` is rejected rather than looping. The seam keeps a segment that
+starts up to 500 ms before the previous one ended, rather than dropping the audio
+after it, so that much can be transcribed twice — the tolerance and its reason
+are on `TranscriptMerger.SeamToleranceMs`.
 
 Audio is read one window at a time rather than loaded whole — the measured memory
 effect is on [Audio input](audio-input.md).
