@@ -727,7 +727,7 @@ or class changes what the app does, and none carries a claim about it.
   documentation disagree, the documentation is describing the code and the app is the thing
   that is wrong.
 - **It cannot attribute speakers while streaming.** `transcribe_stream_params` has no
-  `diarize` field in transcribe.cpp v0.4.0, so the streaming API cannot request it
+  `diarize` field in transcribe.cpp v0.4.1, so the streaming API cannot request it
   ([Diarization](diarization.md#diarization-models-and-the-diarize-role)). The Speakers tab belongs to the
   Transcription tab, which runs offline.
 - **It does not time models for you against published numbers.** `Measure` runs on your

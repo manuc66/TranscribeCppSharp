@@ -34,7 +34,7 @@
       "transcribecppsharp": {
         "type": "Project",
         "dependencies": {
-          "TranscribeCppSharp.Interop": "[0.4.0, )"
+          "TranscribeCppSharp.Interop": "[0.4.1, )"
         }
       },
       "transcribecppsharp.interop": {

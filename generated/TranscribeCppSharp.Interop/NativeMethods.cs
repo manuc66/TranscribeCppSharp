@@ -383,16 +383,17 @@ public enum PncMode
 /// emit a WARN and proceed with default behavior.
 /// </para>
 /// <para>
-/// DEFAULT (0): family default. Zero-init gives this value. Most families
-/// follow their upstream default; <c>sensevoice</c> is the
-/// exception and resolves DEFAULT to ON, because there the
-/// ITN toggle is also the only source of casing and
-/// punctuation, so ITN-off would hand an unconfigured caller
-/// lowercase unpunctuated text. For sensevoice, DEFAULT is
-/// therefore NOT the setting the published WER tables were
-/// measured at — the harness pins ITN off (docs/tools/wer.md).
-/// <c>funasr_nano</c> has the same shape of toggle but keeps the
-/// upstream <c>itn=False</c> default.
+/// DEFAULT (0): family default. Zero-init gives this value.
+/// <c>sensevoice</c> and <c>fun-asr-mlt-nano-2512</c> resolve DEFAULT
+/// to ON, because there the ITN toggle is also the only
+/// source of casing and punctuation, so ITN-off would hand an
+/// unconfigured caller lowercase unpunctuated text. For MLT
+/// this is also upstream's default (<c>itn=True</c>); <c>sensevoice</c>
+/// diverges from its upstream <c>itn=False</c>, and its published
+/// WER is still measured with ITN off (docs/tools/wer.md).
+/// <c>fun-asr-nano-2512</c> resolves DEFAULT to OFF: it emits
+/// cased English without ITN, and with ITN on can emit
+/// English in all caps.
 /// OFF:         explicit ITN off. Supporting families emit verbatim
 /// spoken-form text. Non-supporting families ignore (WARN).
 /// ON:          explicit ITN on. Supporting families apply ITN.
@@ -1065,6 +1066,33 @@ public struct DeviceInfo
 /// Handles are process-local. Persist device_id (when available), then
 /// enumerate and resolve a fresh handle in each process.
 /// </para>
+/// <para>
+/// no_mmap: false (the default) memory-maps the model file and serves the
+/// weights straight from it wherever the primary device can use host
+/// memory: the CPU on every platform, and Metal on Apple silicon.
+/// The weights then live in clean, file-backed pages that the OS can
+/// reclaim, share between models loaded from the same file, and does
+/// not count as the process's anonymous memory (what the Android
+/// low-memory killer and iOS/macOS jetsam charge). Loading is faster
+/// too; a first run on a cold page cache reads the weights from disk.
+/// Devices with their own memory (Vulkan, CUDA, ROCm) always get a
+/// copy, and weights a family converts at load are copied as well.
+/// true copies every weight into backend memory and closes the file,
+/// the behavior before memory mapping.
+/// </para>
+/// <para>
+/// While a memory-mapped model is loaded its file must not be
+/// truncated or rewritten in place: a later access to a changed page
+/// kills the process (SIGBUS; EXCEPTION_IN_PAGE_ERROR on Windows).
+/// Update a model file by writing a new file and renaming it over the
+/// old one. On Windows the file cannot be opened for writing or
+/// truncated until the model is freed. Use no_mmap for models on
+/// removable or network storage that may disappear.
+/// </para>
+/// <para>
+/// Setting the TRANSCRIBE_NO_MMAP environment variable (to anything
+/// but "0") forces no_mmap for every load in the process.
+/// </para>
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 public struct ModelLoadParams
@@ -1072,6 +1100,8 @@ public struct ModelLoadParams
     public ulong structSize;
     public BackendRequest backend;
     public IntPtr device;
+    [MarshalAs(UnmanagedType.I1)]
+    public bool noMmap;
 }
 
 /// <summary>
@@ -2393,7 +2423,7 @@ internal static class AbiLayout
         ("Ext", 16, 8, [("size", 0), ("kind", 8)]),
         ("BackendInitParams", 24, 8, [("structSize", 0), ("artifactDir", 8), ("allowedBackends", 16)]),
         ("DeviceInfo", 64, 8, [("structSize", 0), ("name", 8), ("description", 16), ("kind", 24), ("deviceId", 32), ("memoryTotal", 40), ("memoryFree", 48), ("deviceType", 56)]),
-        ("ModelLoadParams", 24, 8, [("structSize", 0), ("backend", 8), ("device", 16)]),
+        ("ModelLoadParams", 32, 8, [("structSize", 0), ("backend", 8), ("device", 16), ("noMmap", 24)]),
         ("SessionParams", 24, 8, [("structSize", 0), ("nThreads", 8), ("kvType", 12), ("nCtx", 16)]),
         ("RunParams", 104, 8, [("structSize", 0), ("task", 8), ("timestamps", 12), ("pnc", 16), ("itn", 20), ("diarize", 24), ("language", 32), ("targetLanguage", 40), ("keepSpecialTags", 48), ("family", 56), ("specKDrafts", 64), ("vocabulary", 72), ("nVocabulary", 80), ("prompt", 88), ("prefix", 96)]),
         ("Capabilities", 56, 8, [("structSize", 0), ("nativeSampleRate", 8), ("nLanguages", 12), ("languages", 16), ("maxTimestampKind", 24), ("supportsLanguageDetect", 28), ("supportsTranslate", 29), ("supportsStreaming", 30), ("supportsSpecDecode", 31), ("maxAudioMs", 32), ("nTranslateTargetLanguages", 40), ("translateTargetLanguages", 48)]),

@@ -85,7 +85,7 @@ unchanged: they still attribute speakers through the run-time toggle above.
 There is **no streaming diarization**: upstream has no stream entry point for the
 DIARIZE role, and the streaming Sortformer extension that existed in 0.3 was
 removed in 0.4. `transcribe_stream_params` has no `diarize` field in transcribe.cpp
-v0.4.0 either, so the streaming API cannot request speaker attribution; we do not
+v0.4.1 either, so the streaming API cannot request speaker attribution; we do not
 invent one.
 
 ## Combining a diarizer with a transcriber

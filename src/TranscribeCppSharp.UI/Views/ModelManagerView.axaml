@@ -39,7 +39,7 @@
                that can disagree with the figures in this grid. -->
           <HyperlinkButton Classes="link"
                            Content="transcribe.cpp's per-model accuracy tables ↗"
-                           NavigateUri="https://github.com/handy-computer/transcribe.cpp/tree/v0.4.0/docs/models"
+                           NavigateUri="https://github.com/handy-computer/transcribe.cpp/tree/v0.4.1/docs/models"
                            AutomationProperties.Name="Open transcribe.cpp's per-model model docs"
                            ToolTip.Tip="Open the upstream model docs for the pinned transcribe.cpp revision. Each family page carries the published WER tables and the model cards." />
         </StackPanel>

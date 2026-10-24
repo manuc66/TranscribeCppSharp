@@ -131,7 +131,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
   upstream 0.x limitation, not one this wrapper imposes
   ([Concurrency](concurrency.md#thread-safety)).
 - **Streaming cannot attribute speakers.** `transcribe_stream_params` has no `diarize`
-  field in transcribe.cpp v0.4.0, so the streaming API cannot request it; we do not
+  field in transcribe.cpp v0.4.1, so the streaming API cannot request it; we do not
   invent one ([Diarization](diarization.md#diarization-models-and-the-diarize-role)).
 - **No CUDA runtime ships in the packages.** The bundled binaries are CPU + Vulkan on
   Windows/Linux and Metal on macOS; an NVIDIA GPU means supplying your own CUDA build

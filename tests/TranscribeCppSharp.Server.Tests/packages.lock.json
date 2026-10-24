@@ -119,7 +119,7 @@
       "transcribecppsharp": {
         "type": "Project",
         "dependencies": {
-          "TranscribeCppSharp.Interop": "[0.4.0, )"
+          "TranscribeCppSharp.Interop": "[0.4.1, )"
         }
       },
       "transcribecppsharp.interop": {
@@ -128,7 +128,7 @@
       "transcribecppsharp.server": {
         "type": "Project",
         "dependencies": {
-          "TranscribeCppSharp": "[0.4.0, )"
+          "TranscribeCppSharp": "[0.4.1, )"
         }
       }
     }

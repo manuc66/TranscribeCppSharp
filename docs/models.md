@@ -94,7 +94,7 @@ curate their licenses.
 
 Before using a model in a commercial product, check the license on the page
 you download it from (typically Hugging Face). The [upstream transcribe.cpp
-docs](https://github.com/handy-computer/transcribe.cpp/blob/v0.4.0/docs/models)
+docs](https://github.com/handy-computer/transcribe.cpp/blob/v0.4.1/docs/models)
 describe each supported family and where its models come from; that is the
 source of truth, not this page.
 

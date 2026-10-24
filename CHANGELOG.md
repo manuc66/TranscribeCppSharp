@@ -9,6 +9,70 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Bind transcribe.cpp v0.4.1 (models are memory-mapped by default)
+
+The pinned upstream version moves from v0.4.0 to v0.4.1 (released 2026-10-22).
+The wrapper's own version moves to `0.4.1`: nothing was removed or renamed, and
+the only public addition is the `noMmap` field the regenerated Interop
+`ModelLoadParams` struct mirrors from the new header — the wrapper itself gains
+no new call.
+
+Native ABI, verified by diffing the two public headers:
+
+- **One additive field**: `bool no_mmap` at the end of
+  `transcribe_model_load_params` (the struct grows from 24 to 32 bytes, the size
+  `AbiValidation` now checks). No function, enum value or other struct changed,
+  and `TRANSCRIBE_VERSION_PATCH` moves to 1.
+- **The field is not surfaced yet.** `ModelLoadParamsBuilder` leaves it at
+  `false`, so every model load takes upstream's new default path. There is no
+  `WithNoMmap` in this release; callers that must avoid the mmap can set the
+  `TRANSCRIBE_NO_MMAP` environment variable the header documents.
+
+Behaviour changes that need no wrapper work but are worth knowing:
+
+- **Model weights are memory-mapped by default** (`no_mmap: false`). On CPU and
+  Apple-silicon Metal the weights are served from the file instead of copied
+  into anonymous memory, so a loaded model shares pages with the page cache and
+  no longer counts as process memory. Two consequences the header spells out:
+  the model file must not be truncated or rewritten in place while it is loaded
+  (a later access to a changed page kills the process — SIGBUS, or
+  `EXCEPTION_IN_PAGE_ERROR` on Windows), and on Windows the file cannot be
+  opened for writing until the model is freed. Write a new file and rename it
+  over the old one. Devices with their own memory (Vulkan, CUDA) still get a
+  copy.
+- **ITN defaults moved** for two families: `fun-asr-mlt-nano-2512` now resolves
+  `TRANSCRIBE_ITN_MODE_DEFAULT` to ON (upstream's own default) and
+  `fun-asr-nano-2512` to OFF. Only `ITN_MODE.DEFAULT` is affected; an explicit
+  ON/OFF still wins.
+
+Upstream's v0.4.1 GitHub release has no notes (the body is just the version
+string), so the rest of their changes come from the 17 commits between the two
+tags and were **not** verified against the binaries here: gigaam and parakeet
+long-form memory fixes, a moonshine-streaming out-of-bounds read past 82 s,
+bounded encoder memory for moonshine streaming, Phonon-2 support,
+`flatten multitalker`, and a renamed granite 5 catalogue entry. This wrapper
+does not surface any of them beyond what the shared ABI already exposes.
+
+Tooling and pin:
+
+- Catalog re-pinned to v0.4.1: 77 records (1 new: `phonon-2`). `models.json` is
+  left at its 76 aliases: upstream publishes no GGUF repository for Phonon-2
+  (checked the `handy-computer` HuggingFace org), so there is nothing to pin a
+  download to. The catalog browser shows the record; the download path does not
+  offer it.
+
+Verified: the full solution builds; 631 Interop and 365 UI tests pass against the
+0.4.1 native library, and the smoke test transcribes `jfk.wav` with
+`ggml-tiny.bin` through the default (memory-mapped) load path. The Interop and UI
+runs used an empty `XDG_CACHE_HOME`: two UI tests
+(`LanguageNameDisplayTests.ThePickerDrawsTheNameButHoldsTheCode`,
+`DiarizerPickerTests.AModelThatDiarizesItselfGetsTheOnRequestWithoutASecondModel`)
+fail against this machine's populated `~/.cache/TranscribeCppSharp`, and they
+fail the same way at the parent commit with either native version, so that is a
+test-hygiene problem, not a regression from 0.4.1. Not verified: the mmap-specific
+failure modes (SIGBUS on an in-place rewrite, the Windows write lock) — they are
+upstream's documented behaviour, not something this repository tested.
+
 ### Server
 
 #### OpenAI-compatible HTTP server

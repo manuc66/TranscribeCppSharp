@@ -40,7 +40,7 @@ public class UpstreamCatalogDetailTests
         using Stream? stream = assembly.GetManifestResourceStream("catalog.zip");
         Assert.NotNull(stream);
         using var zip = new ZipArchive(stream!, ZipArchiveMode.Read);
-        Assert.Equal(76, zip.Entries.Count(e => !string.IsNullOrEmpty(e.Name)));
+        Assert.Equal(77, zip.Entries.Count(e => !string.IsNullOrEmpty(e.Name)));
     }
 
     [Fact]
