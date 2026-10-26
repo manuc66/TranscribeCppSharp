@@ -36,7 +36,7 @@
     </PackageReference>
     <PackageReference Include="Avalonia.Headless" Version="12.1.4" />
     <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.4" />
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.402" />
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.403" />
   </ItemGroup>
 
   <ItemGroup>
