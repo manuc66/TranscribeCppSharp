@@ -49,8 +49,8 @@ public static class UiLog
         {
             lock (Gate)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-                File.AppendAllText(FilePath, entry);
+                // 0600 in a 0700 directory: the log holds paths and stack traces.
+                PrivateFile.AppendAllText(FilePath, entry);
             }
         }
         catch (Exception)

@@ -38,6 +38,15 @@ holds — a 44-byte file claiming 2 GB used to size the read buffer from the
 header before the first read failed (measured: peak RSS stayed around 30 MB, so
 this was an avoidable allocation, not a demonstrated denial of service).
 
+**Saved data.** The files the desktop app keeps between runs — one JSON per saved
+transcript, `ui-settings.json`, `logs/ui.log` — were created 0644 in 0755
+directories, so on a shared host every local account could read every saved
+transcript, which holds the text and the audio path. On Unix the directories the
+app creates are now 0700 and the files 0600. An existing file is tightened when
+it is read or rewritten, so an install from an earlier version is corrected
+without the user doing anything; a directory that already exists is left alone,
+because the app directory can be a shared, pre-provisioned cache.
+
 **HTTP server.** A multipart POST is a CORS "simple request", so a page on any
 site could make the browser have the server transcribe an uploaded blob.
 Requests carrying a foreign `Origin` (or `Origin: null`), or

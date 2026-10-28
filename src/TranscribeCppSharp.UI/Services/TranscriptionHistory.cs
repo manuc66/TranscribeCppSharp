@@ -78,30 +78,12 @@ public static class TranscriptionHistory
 
         lock (Gate)
         {
-            Directory.CreateDirectory(DirectoryPath);
             string path = UniquePath(stamp);
-            string temporary = path + ".tmp";
-            try
-            {
-                File.WriteAllText(temporary, JsonSerializer.Serialize(document, Json));
-                File.Move(temporary, path, overwrite: true);
-            }
-            finally
-            {
-                try
-                {
-                    if (File.Exists(temporary))
-                    {
-                        File.Delete(temporary);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // A leftover .tmp is harmless and is ignored by List; letting
-                    // the cleanup throw would hide the write failure that sent us
-                    // to this finally in the first place.
-                }
-            }
+
+            // The directory is owner-only and the file is written 0600: a saved
+            // transcript is the audio's content, and the default 0644 let every
+            // local account read it.
+            PrivateFile.WriteAllText(path, JsonSerializer.Serialize(document, Json));
 
             return Entry(path, document);
         }
@@ -126,8 +108,13 @@ public static class TranscriptionHistory
             var entries = new List<HistoryEntry>();
             try
             {
+                // One-time migration for entries an earlier version wrote 0644:
+                // every transcript already on disk becomes owner-only when the
+                // list is read, not only when it is saved again.
                 foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json"))
                 {
+                    PrivateFile.EnsureFile(path);
+
                     SavedRun? document = Read(path);
                     if (document?.Result is not null)
                     {

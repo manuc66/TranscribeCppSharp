@@ -430,9 +430,16 @@ public static class UiSettings
     {
         try
         {
-            return File.Exists(FilePath)
-                ? JsonSerializer.Deserialize<Document>(File.ReadAllText(FilePath), Json) ?? new Document()
-                : new Document();
+            if (!File.Exists(FilePath))
+            {
+                return new Document();
+            }
+
+            // A version that wrote 0644 is corrected here, on first read, rather
+            // than only when the user changes a setting.
+            PrivateFile.EnsureFile(FilePath);
+
+            return JsonSerializer.Deserialize<Document>(File.ReadAllText(FilePath), Json) ?? new Document();
         }
         catch (Exception)
         {
@@ -444,36 +451,17 @@ public static class UiSettings
 
     private static void Write(Document document)
     {
-        // Write a sibling and rename it into place: a crash during
-        // File.WriteAllText would otherwise leave a truncated file that the next
-        // launch reads as "no settings at all". The rename is atomic on the file
-        // systems the app targets, so a reader sees either the old file or the
-        // new one, never a half-written one.
-        string path = FilePath;
-        string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(temporary, JsonSerializer.Serialize(document, Json));
-            File.Move(temporary, path, overwrite: true);
+            // Written to a sibling and renamed into place, so a crash leaves the
+            // old file rather than a truncated one, and 0600 in a 0700 directory:
+            // the settings carry recent paths and the speaker names typed for a
+            // transcript.
+            PrivateFile.WriteAllText(FilePath, JsonSerializer.Serialize(document, Json));
         }
         catch (Exception)
         {
             // Losing the preference must not become the failure the reader sees.
-        }
-        finally
-        {
-            try
-            {
-                if (File.Exists(temporary))
-                {
-                    File.Delete(temporary);
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // A leftover .tmp is harmless; the next write uses a new name.
-            }
         }
     }
 
