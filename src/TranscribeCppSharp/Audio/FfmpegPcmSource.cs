@@ -46,18 +46,7 @@ public sealed class FfmpegPcmSource : PcmSource
     public override void Dispose()
     {
         stream.Dispose();
-        try
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // A leftover temporary file must not fail the run.
-        }
-
+        StagingFile.Release(tempFile);
         base.Dispose();
     }
 }

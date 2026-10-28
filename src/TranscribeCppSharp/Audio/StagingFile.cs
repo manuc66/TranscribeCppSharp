@@ -1,40 +1,65 @@
+namespace TranscribeCppSharp.Audio;
+
+using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 
-namespace TranscribeCppSharp.Cli;
-
 /// <summary>
-/// Owns the temporary file that holds the decoded audio when ffmpeg has to
-/// convert it, and makes sure it does not outlive the run.
+/// Owns the temporary file that holds ffmpeg's decoded audio, and makes sure it
+/// does not outlive the run.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Decoding goes through a file rather than a pipe because a pipe carries no
 /// length: reading one means buffering the entire stream before its size is
 /// known, which measured 610 MiB of resident memory for 30 minutes of audio
 /// against 263 MiB for the file. The file is 4 bytes per 16 kHz sample, so
 /// 219.7 MiB per hour of audio, and it exists for the whole run.
-///
+/// </para>
+/// <para>
 /// Three endings have to be covered, and they are not the same case:
-///
+/// </para>
 /// <list type="bullet">
-/// <item>Normal exit and Ctrl+C: the <c>using</c> in the command disposes the
-/// source and the file goes. Verified.</item>
+/// <item>Normal exit: disposing the source (<see cref="FfmpegPcmSource"/>)
+/// releases the file. Verified.</item>
 /// <item>SIGTERM and SIGHUP — what <c>docker stop</c>, systemd and CI send — do
-/// not unwind the stack, so the <c>using</c> never runs. <see cref="Sweep"/>
-/// plus the ProcessExit hook covers those.</item>
+/// not unwind the stack, so the dispose never runs. <see cref="Sweep"/> plus the
+/// ProcessExit hook covers those.</item>
 /// <item>SIGKILL, an OOM kill or a power cut cannot be handled from inside the
-/// process at all. Only the next run can clean those up, which is what
-/// <see cref="Sweep"/> is for.</item>
+/// process at all. On Unix the name is already gone (<see cref="OpenForReading"/>),
+/// so there is nothing to leave; elsewhere only the next run can clean those up,
+/// which is what <see cref="SweepOnce"/> is for.</item>
 /// </list>
 /// </remarks>
-internal static class TempAudioFile
+internal static class StagingFile
 {
     /// <summary>Prefix every staging file carries, so leftovers are identifiable.</summary>
     internal const string Prefix = "transcribe-";
 
     private const string Extension = ".f32";
 
+    /// <summary>Files this process created and has not released yet.</summary>
+    /// <remarks>
+    /// A set rather than "the last path": the library is used by a long-running
+    /// server too, where each request decodes its own file, and a single-slot
+    /// registration would leave every file but the first out of the exit path.
+    /// </remarks>
+    private static readonly ConcurrentDictionary<string, byte> Live = new(StringComparer.Ordinal);
+
+    private static readonly object RegistrationGate = new();
+    private static bool handlersRegistered;
+    private static bool swept;
+
+    /// <summary>
+    /// A new path in the system temp directory, named for this process.
+    /// </summary>
+    internal static string NewPath()
+        => Path.Combine(
+            Path.GetTempPath(),
+            $"{Prefix}{Environment.ProcessId.ToString(CultureInfo.InvariantCulture)}-{Guid.NewGuid():N}{Extension}");
 
     /// <summary>
     /// Opens a staging file for reading and, on Unix, immediately removes its
@@ -50,12 +75,13 @@ internal static class TempAudioFile
     ///
     /// The exposure that remains is the window between ffmpeg finishing the write
     /// and this call opening the file — on a long input that is the decode phase,
-    /// so it is not negligible. It is a much smaller window than before, where
-    /// the file stayed named for the whole transcription, but it is not zero.
-    ///
-    /// On Windows the file keeps its name and is removed by <see cref="TryDelete"/>
-    /// on a normal or signalled exit, with <see cref="Sweep"/> covering the rest.
+    /// so it is not negligible. The file is created owner-only (see
+    /// <see cref="PrivateTempFile"/>), which is what bounds that window. On
+    /// Windows the file keeps its name and is removed by <see cref="Release"/> on
+    /// a normal or signalled exit, with <see cref="Sweep"/> covering the rest.
     /// </remarks>
+    /// <param name="path">The staging file to open.</param>
+    /// <returns>The opened stream; the caller owns it.</returns>
     internal static FileStream OpenForReading(string path)
     {
         // FileShare.None: the owner must not be able to delete or rewrite it
@@ -81,10 +107,101 @@ internal static class TempAudioFile
     }
 
     /// <summary>
-    /// A new path in the system temp directory for this process's run.
+    /// Deletes a staging file (if it still has a name) and stops tracking it.
     /// </summary>
-    internal static string NewPath()
-        => Path.Combine(Path.GetTempPath(), $"{Prefix}{Environment.ProcessId.ToString(CultureInfo.InvariantCulture)}-{Guid.NewGuid():N}{Extension}");
+    /// <param name="path">The file to release. Missing is fine.</param>
+    internal static void Release(string path)
+    {
+        Live.TryRemove(path, out _);
+
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A leftover temporary file must not fail a run that already produced
+            // its audio; the sweep of the next run covers it.
+        }
+    }
+
+    /// <summary>
+    /// Registers a staging file for deletion when the process ends, including on
+    /// the signals that do not unwind the stack.
+    /// </summary>
+    /// <param name="path">The file to delete on exit.</param>
+    /// <remarks>
+    /// The handlers are installed once and iterate over every live file; nothing
+    /// accumulates per decode. This is the belt to <see cref="Sweep"/>'s braces:
+    /// it cannot help a process that never gets to run its exit path at all,
+    /// which is why both exist.
+    /// </remarks>
+    internal static void RegisterCleanup(string path)
+    {
+        Live[path] = 0;
+
+        lock (RegistrationGate)
+        {
+            if (handlersRegistered)
+            {
+                return;
+            }
+
+            handlersRegistered = true;
+        }
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => ReleaseAll();
+
+        if (OperatingSystem.IsWindows())
+        {
+            // No POSIX signals on Windows; Ctrl+C and the console close handler
+            // do run ProcessExit, so the hook above is all there is to do.
+            return;
+        }
+
+        foreach ((PosixSignal signal, int posixNumber) in Handled)
+        {
+            try
+            {
+                PosixSignalRegistration.Create(signal, context =>
+                {
+                    context.Cancel = true;
+                    ReleaseAll();
+
+                    // 128 + the POSIX signal number, which is the status a shell
+                    // reports for a process killed by that signal, so the exit
+                    // code looks the same as if the default action had run.
+                    // Exiting explicitly is required: registering a handler
+                    // cancels the default action, so without this the process
+                    // would ignore the signal and carry on.
+                    Environment.Exit(128 + posixNumber);
+                });
+            }
+            catch (Exception ex) when (ex is PlatformNotSupportedException or ArgumentException)
+            {
+                // Signal not available on this platform; ProcessExit still
+                // covers a normal end.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes staging files abandoned by an earlier run, at most once per process.
+    /// </summary>
+    /// <returns>How many files were removed, or 0 when the sweep already ran.</returns>
+    internal static int SweepOnce()
+    {
+        if (swept)
+        {
+            return 0;
+        }
+
+        swept = true;
+        return Sweep();
+    }
 
     /// <summary>
     /// Removes staging files abandoned by an earlier run that could not clean up
@@ -136,6 +253,14 @@ internal static class TempAudioFile
         }
 
         return removed;
+    }
+
+    private static void ReleaseAll()
+    {
+        foreach (string path in Live.Keys)
+        {
+            Release(path);
+        }
     }
 
     private static bool IsAbandoned(string path)
@@ -199,59 +324,6 @@ internal static class TempAudioFile
     }
 
     /// <summary>
-    /// Registers a hook that deletes <paramref name="path"/> when the process
-    /// ends, including on the signals that do not unwind the stack.
-    /// </summary>
-    /// <remarks>
-    /// Only the most recent staging file is tracked, so a process that decodes
-    /// more than once input does not accumulate handlers. This is the belt to
-    /// <see cref="Sweep"/>'s braces: it cannot help a process that never gets to
-    /// run its exit path at all, which is why both exist.
-    /// </remarks>
-    internal static void RegisterCleanup(string path)
-    {
-        if (cleanupRegistered)
-        {
-            return;
-        }
-
-        cleanupRegistered = true;
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => TryDelete(path);
-
-        if (OperatingSystem.IsWindows())
-        {
-            // No POSIX signals on Windows; Ctrl+C and the console close handler
-            // do run ProcessExit, so the hook above is all there is to do.
-            return;
-        }
-
-        foreach ((PosixSignal Signal, int PosixNumber) in Handled)
-        {
-            try
-            {
-                PosixSignalRegistration.Create(Signal, context =>
-                {
-                    context.Cancel = true;
-                    TryDelete(path);
-
-                    // 128 + the POSIX signal number, which is the status a shell
-                    // reports for a process killed by that signal, so the exit
-                    // code looks the same as if the default action had run.
-                    // Exiting explicitly is required: registering a handler
-                    // cancels the default action, so without this the process
-                    // would ignore the signal and carry on.
-                    Environment.Exit(128 + PosixNumber);
-                });
-            }
-            catch (Exception ex) when (ex is PlatformNotSupportedException or ArgumentException)
-            {
-                // Signal not available on this platform; ProcessExit still
-                // covers a normal end.
-            }
-        }
-    }
-
-    /// <summary>
     /// The signals this class handles, with their POSIX numbers.
     /// </summary>
     /// <remarks>
@@ -265,21 +337,4 @@ internal static class TempAudioFile
         (PosixSignal.SIGTERM, 15),
         (PosixSignal.SIGHUP, 1),
     ];
-
-    private static bool cleanupRegistered;
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Nothing useful to do while exiting.
-        }
-    }
 }

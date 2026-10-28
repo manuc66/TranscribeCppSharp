@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
-using TranscribeCppSharp.Cli;
+using TranscribeCppSharp.Audio;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -17,13 +17,13 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// systemd and CI send) are caught, and a process that cannot be caught at all
 /// is cleaned up by the next run.
 /// </remarks>
-[Collection(nameof(TempAudioFileTests))]
-public class TempAudioFileTests(ITestOutputHelper output)
+[Collection(nameof(StagingFileTests))]
+public class StagingFileTests(ITestOutputHelper output)
 {
     [Fact]
     public void NewPath_IsInTheTempDirectoryAndIsNotARealFileYet()
     {
-        string path = TempAudioFile.NewPath();
+        string path = StagingFile.NewPath();
 
         // Compared with the separators normalised, because GetTempPath keeps a
         // trailing separator on Unix and the assertion is about the directory,
@@ -31,7 +31,7 @@ public class TempAudioFileTests(ITestOutputHelper output)
         string expectedDir = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
         string actualDir = Path.GetDirectoryName(Path.GetFullPath(path))!.TrimEnd(Path.DirectorySeparatorChar);
         Assert.Equal(expectedDir, actualDir);
-        Assert.StartsWith(TempAudioFile.Prefix, Path.GetFileName(path));
+        Assert.StartsWith(StagingFile.Prefix, Path.GetFileName(path));
         Assert.EndsWith(".f32", path);
         Assert.False(File.Exists(path));
     }
@@ -41,7 +41,7 @@ public class TempAudioFileTests(ITestOutputHelper output)
     {
         // Two runs in the same process must not collide, and the process id in
         // the name means two concurrent runs do not either.
-        Assert.NotEqual(TempAudioFile.NewPath(), TempAudioFile.NewPath());
+        Assert.NotEqual(StagingFile.NewPath(), StagingFile.NewPath());
     }
 
     [Fact]
@@ -50,13 +50,13 @@ public class TempAudioFileTests(ITestOutputHelper output)
         // This is the crash case, and it is why the sweep reads the process id out
         // of the name instead of a timestamp: a run killed a second ago must not
         // sit in the temp directory for a day.
-        string orphan = TempAudioFile.NewPath();
+        string orphan = StagingFile.NewPath();
         File.WriteAllBytes(orphan, new byte[1024]);
         orphan = RewritePid(orphan, DeadPid);
 
         try
         {
-            int removed = TempAudioFile.Sweep();
+            int removed = StagingFile.Sweep();
             output.WriteLine($"sweep removed {removed}");
 
             Assert.False(File.Exists(orphan));
@@ -72,13 +72,13 @@ public class TempAudioFileTests(ITestOutputHelper output)
     {
         // A concurrent run's audio. Deleting this would break a live
         // transcription, so the conservative answer has to win here.
-        string live = TempAudioFile.NewPath();
+        string live = StagingFile.NewPath();
         File.WriteAllBytes(live, new byte[1024]);
         live = RewritePid(live, Environment.ProcessId);
 
         try
         {
-            TempAudioFile.Sweep();
+            StagingFile.Sweep();
             Assert.True(File.Exists(live));
         }
         finally
@@ -93,14 +93,14 @@ public class TempAudioFileTests(ITestOutputHelper output)
         // A dead process id but a file that cannot be opened is being read by
         // something. Process ids get reused, so the lock is the second,
         // independent signal and it outranks the id.
-        string held = TempAudioFile.NewPath();
+        string held = StagingFile.NewPath();
         File.WriteAllBytes(held, new byte[1024]);
         held = RewritePid(held, DeadPid);
 
         try
         {
             using var owner = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None);
-            TempAudioFile.Sweep();
+            StagingFile.Sweep();
             Assert.True(File.Exists(held));
         }
         finally
@@ -114,12 +114,12 @@ public class TempAudioFileTests(ITestOutputHelper output)
     {
         // No parsable process id in the name: not ours to interpret, so not ours
         // to delete.
-        string odd = Path.Combine(Path.GetTempPath(), $"{TempAudioFile.Prefix}no-pid-here.f32");
+        string odd = Path.Combine(Path.GetTempPath(), $"{StagingFile.Prefix}no-pid-here.f32");
         File.WriteAllBytes(odd, new byte[16]);
 
         try
         {
-            TempAudioFile.Sweep();
+            StagingFile.Sweep();
             Assert.True(File.Exists(odd));
         }
         finally
@@ -142,12 +142,12 @@ public class TempAudioFileTests(ITestOutputHelper output)
             return;
         }
 
-        string path = TempAudioFile.NewPath();
+        string path = StagingFile.NewPath();
         File.WriteAllBytes(path, new byte[64]);
 
         try
         {
-            using FileStream stream = TempAudioFile.OpenForReading(path);
+            using FileStream stream = StagingFile.OpenForReading(path);
 
             Assert.False(File.Exists(path));
             Assert.Equal(64, stream.Length);
@@ -196,11 +196,11 @@ public class TempAudioFileTests(ITestOutputHelper output)
     {
         string dir = Path.GetDirectoryName(path)!;
         string name = Path.GetFileName(path);
-        int dash = name.IndexOf('-', TempAudioFile.Prefix.Length);
+        int dash = name.IndexOf('-', StagingFile.Prefix.Length);
         string guid = dash < 0 ? "00000000000000000000000000000000" : name[(dash + 1)..];
         string renamed = Path.Combine(
             dir,
-            $"{TempAudioFile.Prefix}{pid.ToString(CultureInfo.InvariantCulture)}-{guid}");
+            $"{StagingFile.Prefix}{pid.ToString(CultureInfo.InvariantCulture)}-{guid}");
         File.Move(path, renamed, overwrite: true);
         return renamed;
     }
@@ -216,7 +216,7 @@ public class TempAudioFileTests(ITestOutputHelper output)
 
         try
         {
-            TempAudioFile.Sweep();
+            StagingFile.Sweep();
             Assert.True(File.Exists(mine));
         }
         finally
@@ -231,13 +231,13 @@ public class TempAudioFileTests(ITestOutputHelper output)
         // Not worth failing a transcription over, and there is nothing to assert
         // beyond "it returned". If the directory were gone entirely, EnumerateFiles
         // would throw; the guard is what stops that becoming a crash.
-        int removed = TempAudioFile.Sweep();
+        int removed = StagingFile.Sweep();
         Assert.True(removed >= 0);
     }
 
     /// <summary>Keeps these off each other's files in the shared temp directory.</summary>
-    [CollectionDefinition(nameof(TempAudioFileTests), DisableParallelization = true)]
-    public class TempAudioFileTestGroup
+    [CollectionDefinition(nameof(StagingFileTests), DisableParallelization = true)]
+    public class StagingFileTestGroup
     {
     }
 }

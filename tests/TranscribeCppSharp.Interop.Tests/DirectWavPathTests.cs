@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using TranscribeCppSharp.Audio;
 using Xunit;
 using Xunit.Abstractions;
@@ -48,6 +49,28 @@ public class DirectWavPathTests(ITestOutputHelper output)
         {
             Assert.Equal(samples[i], read[i], 3);
         }
+    }
+
+    [Fact]
+    public void TryOpen_ClampsADataChunkThatIsLargerThanTheFile()
+    {
+        using var temp = new TempWorkspace();
+
+        // 1600 samples of silence, but the header claims 400,000,000 of them.
+        // The declared size used to size the read buffer before the first read
+        // failed; the chunk is what the file actually holds.
+        string path = temp.WriteWav("lying.wav", new float[1600]);
+        byte[] bytes = File.ReadAllBytes(path);
+        int data = bytes.AsSpan().IndexOf("data"u8);
+        Assert.True(data > 0);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(data + 4), 800_000_000);
+        temp.WriteBytes("lying.wav", bytes);
+
+        using WavPcmSource? source = WavPcmSource.TryOpen(path);
+
+        Assert.NotNull(source);
+        Assert.Equal(1600, source.LengthSamples);
+        Assert.Equal(1600, source.ReadWindow(0, int.MaxValue).Length);
     }
 
     [Fact]

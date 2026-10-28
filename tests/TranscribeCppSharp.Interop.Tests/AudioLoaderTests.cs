@@ -20,6 +20,21 @@ public class AudioLoaderTests(ITestOutputHelper output)
     private static bool HasFfmpeg => TestConfig.HasFfmpeg();
 
     [Fact]
+    public void DecodeArguments_PassEachPathAsOneArgument()
+    {
+        // The paths are arguments, not a command line to quote: a quote in the
+        // name cannot end it, and no later option can be smuggled in.
+        IReadOnlyList<string> arguments = AudioLoader.BuildDecodeArguments("a\"b -y.wav", "/tmp/out x.f32");
+
+        Assert.Contains("a\"b -y.wav", arguments);
+        Assert.Contains("/tmp/out x.f32", arguments);
+        Assert.Single(arguments, a => a == "-i");
+        Assert.Single(arguments, a => a == "-ar");
+        Assert.Equal("16000", arguments[arguments.ToList().IndexOf("-ar") + 1]);
+        Assert.Equal("/tmp/out x.f32", arguments[^1]);
+    }
+
+    [Fact]
     public void Load_ReadsA16kHzMonoWav()
     {
         using var temp = new TempWorkspace();

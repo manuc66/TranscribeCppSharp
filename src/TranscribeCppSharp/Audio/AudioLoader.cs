@@ -5,6 +5,7 @@
 namespace TranscribeCppSharp.Audio;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -77,16 +78,30 @@ public static class AudioLoader
 
     private static FfmpegPcmSource DecodeToSourceWithFfmpeg(string path)
     {
-        string temp = Path.Combine(Path.GetTempPath(), $"transcribe_{Guid.NewGuid():N}.f32");
+        // Before creating anything: remove what a previous run could not. The
+        // decoded PCM is the audio itself, so debris is not just disk usage.
+        StagingFile.SweepOnce();
+
+        string temp = StagingFile.NewPath();
 
         try
         {
-            var psi = new ProcessStartInfo
+            // Reserve the file owner-only before ffmpeg opens it: "-y" truncates
+            // the existing file in place and keeps its mode, so the decoded
+            // audio is never readable by another local user.
+            using (PrivateTempFile.Create(temp))
             {
-                FileName = ResolveTool("ffmpeg"),
-                Arguments = $"-nostdin -v error -y -i \"{path}\" -ar 16000 -ac 1 -f f32le \"{temp}\"",
+            }
+
+            var psi = new ProcessStartInfo(ResolveTool("ffmpeg"))
+            {
                 UseShellExecute = false,
+                CreateNoWindow = true,
             };
+            foreach (string argument in BuildDecodeArguments(path, temp))
+            {
+                psi.ArgumentList.Add(argument);
+            }
 
             Process proc;
             try
@@ -115,55 +130,69 @@ public static class AudioLoader
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            TryDelete(temp);
+            StagingFile.Release(temp);
             throw new AudioLoadException($"could not decode {path}: ffmpeg ran but its output could not be staged in the temporary directory ({temp}): {ex.Message}", ex);
         }
         catch
         {
-            TryDelete(temp);
+            StagingFile.Release(temp);
             throw;
         }
     }
+
+    /// <summary>
+    /// The ffmpeg arguments that decode <paramref name="input"/> to raw f32 PCM.
+    /// </summary>
+    /// <remarks>
+    /// A list rather than a command line: the input and the output are paths,
+    /// and a path is not something to quote by hand. A name containing a quote
+    /// used to end the quoted argument, and on Windows the quoting rules of
+    /// <see cref="ProcessStartInfo.Arguments"/> let a crafted name move the
+    /// following arguments; <see cref="ProcessStartInfo.ArgumentList"/> passes
+    /// each element as one argument, with no parsing on either side.
+    /// </remarks>
+    /// <param name="input">The audio file to decode.</param>
+    /// <param name="output">Where the raw f32 PCM goes.</param>
+    /// <returns>The arguments, in order.</returns>
+    internal static IReadOnlyList<string> BuildDecodeArguments(string input, string output) =>
+    [
+        "-nostdin",
+        "-v", "error",
+        "-y",
+        "-i", input,
+        "-ar", "16000",
+        "-ac", "1",
+        "-f", "f32le",
+        output,
+    ];
 
     private static FfmpegPcmSource OpenF32File(string temp, string source)
     {
         var info = new FileInfo(temp);
         if (!info.Exists)
         {
-            TryDelete(temp);
+            StagingFile.Release(temp);
             throw new AudioLoadException($"ffmpeg reported success but produced no output for {source}.");
         }
 
         long length = info.Length;
         if (length % sizeof(float) != 0)
         {
-            TryDelete(temp);
+            StagingFile.Release(temp);
             throw new AudioLoadException($"ffmpeg returned a truncated PCM stream for {source}.");
         }
 
         if (length / sizeof(float) > int.MaxValue)
         {
-            TryDelete(temp);
+            StagingFile.Release(temp);
             throw new AudioLoadException(
                 $"{source} decodes to {length / sizeof(float)} samples, which is more than this tool can index.");
         }
 
-        var stream = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read);
+        // Register before opening: on Unix the open removes the name, so a later
+        // registration by path would have nothing to find.
+        StagingFile.RegisterCleanup(temp);
+        FileStream stream = StagingFile.OpenForReading(temp);
         return new FfmpegPcmSource(temp, stream, length / sizeof(float));
-    }
-
-    private static void TryDelete(string temp)
-    {
-        try
-        {
-            if (File.Exists(temp))
-            {
-                File.Delete(temp);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // A leftover temporary file must not fail the run.
-        }
     }
 }

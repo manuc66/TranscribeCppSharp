@@ -145,7 +145,12 @@ public sealed class WavPcmSource : PcmSource
                     throw new InvalidDataException($"Expected 16kHz, got {sampleRate}Hz");
                 }
 
-                return (start, size, channels);
+                // The size comes from the header and the file may be shorter:
+                // a 44-byte file claiming 2 GB used to size the read buffer from
+                // the claim, before the first read failed. The chunk is what the
+                // file actually holds.
+                long available = Math.Max(0, stream.Length - start);
+                return (start, (int)Math.Min(size, available), channels);
             }
             else
             {
