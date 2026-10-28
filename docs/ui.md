@@ -453,13 +453,21 @@ requested diarization, window, date — under `<cache>/../history`, beside the l
 settings. It is self-contained: an entry opens after the audio file has moved or been deleted.
 
 The tab lists the entries newest first with the date, audio name, model, language, length and
-segment count, with **Open**, **Delete** and **Refresh**. **Open**
-loads a saved transcript into the Transcription tab, where it can be exported again; nothing is
-re-transcribed and nothing is saved twice. The export then names the model and settings recorded
-with that run, not whatever the pickers happen to say now — an old transcript exported after
-switching models still describes the run that produced it. A file that cannot be parsed is left
-out of the list rather than failing the tab. Nothing is pruned automatically — entries stay until
-they are deleted — and the tab shows the folder path so it can be managed outside the app.
+segment count, and says how many are saved and how much they take on disk. **Refresh** re-reads
+the folder. **Open** loads a saved transcript into the Transcription tab, where it can be exported
+again; nothing is re-transcribed and nothing is saved twice. The export then names the model and
+settings recorded with that run, not whatever the pickers happen to say now — an old transcript
+exported after switching models still describes the run that produced it.
+
+The grid takes a multiple selection (ctrl- or shift-click). **Delete selected** removes the
+selected rows: one row goes at once, several ask for confirmation first, because a transcript
+cannot be downloaded again and the only way back is re-transcribing audio that may have been
+moved. **Delete all** empties the history after the same inline confirmation. **Open folder** shows
+the history folder in the file manager, for the cases the tab does not cover.
+
+A file that cannot be parsed is left out of the list rather than failing the tab. Nothing is
+pruned automatically — entries stay until they are deleted — and the tab shows the folder path so
+it can be managed outside the app as well.
 
 What it does **not** save: a cancelled run (its partial result is discarded), a failed run, or a
 batch's per-file results. Only a finished run from the Transcription tab is written. If the

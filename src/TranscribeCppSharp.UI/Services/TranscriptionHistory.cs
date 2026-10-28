@@ -197,7 +197,25 @@ public static class TranscriptionHistory
             WindowSeconds = document.WindowSeconds,
             SegmentCount = document.Result?.Segments.Count ?? 0,
             Duration = document.Result?.Duration,
+            FileSizeBytes = SizeOf(path),
         };
+
+    /// <summary>
+    /// The file's size, or 0 when it vanished or cannot be read. Used for the
+    /// tab's total; a size is not worth failing a list over.
+    /// </summary>
+    private static long SizeOf(string path)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            return file.Exists ? file.Length : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
 
     private static SavedRun? Read(string path)
     {

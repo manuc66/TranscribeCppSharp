@@ -111,6 +111,118 @@ public class HistoryViewModelTests
         });
     }
 
+    private static void SaveRuns(int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            TranscriptionHistory.Save(
+                $"/audio/{i}.wav", "whisper-tiny", "en", "on", 300, Result($"text {i}"),
+                new DateTimeOffset(2026, 10, 20, 10, i, 0, TimeSpan.Zero));
+        }
+    }
+
+    [Fact]
+    public void DeletingSeveralRowsAsksFirstAndDeletesOnConfirmation()
+    {
+        using var directory = new HistoryDirectoryScope();
+        WithEnvironment(() =>
+        {
+            SaveRuns(3);
+            var viewModel = new HistoryViewModel();
+            viewModel.UpdateSelection([.. viewModel.Entries]);
+
+            viewModel.DeleteSelectedCommand.Execute(null);
+
+            // Nothing is gone yet: a transcript cannot be downloaded again.
+            Assert.True(viewModel.IsConfirmingDelete);
+            Assert.Contains("3", viewModel.ConfirmationMessage, StringComparison.Ordinal);
+            Assert.Equal(3, viewModel.Entries.Count);
+            Assert.Equal(3, TranscriptionHistory.List().Count);
+
+            viewModel.ConfirmDeleteCommand.Execute(null);
+
+            Assert.False(viewModel.IsConfirmingDelete);
+            Assert.Empty(viewModel.Entries);
+            Assert.Empty(TranscriptionHistory.List());
+            Assert.Empty(Directory.GetFiles(directory.DirectoryPath, "*.json"));
+            Assert.Contains("Deleted 3", viewModel.StatusMessage, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void CancellingTheConfirmationKeepsTheFiles()
+    {
+        using var directory = new HistoryDirectoryScope();
+        WithEnvironment(() =>
+        {
+            SaveRuns(2);
+            var viewModel = new HistoryViewModel();
+            viewModel.UpdateSelection([.. viewModel.Entries]);
+
+            viewModel.DeleteSelectedCommand.Execute(null);
+            viewModel.CancelDeleteCommand.Execute(null);
+
+            Assert.False(viewModel.IsConfirmingDelete);
+            Assert.Equal(2, viewModel.Entries.Count);
+            Assert.Equal(2, TranscriptionHistory.List().Count);
+            Assert.Contains("Nothing was deleted", viewModel.StatusMessage, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void DeleteAllAsksAndThenEmptiesTheHistory()
+    {
+        using var directory = new HistoryDirectoryScope();
+        WithEnvironment(() =>
+        {
+            SaveRuns(3);
+            var viewModel = new HistoryViewModel();
+
+            viewModel.DeleteAllCommand.Execute(null);
+
+            Assert.True(viewModel.IsConfirmingDelete);
+            Assert.Equal(3, viewModel.Entries.Count);
+
+            viewModel.ConfirmDeleteCommand.Execute(null);
+
+            Assert.Empty(viewModel.Entries);
+            Assert.Empty(Directory.GetFiles(directory.DirectoryPath, "*.json"));
+        });
+    }
+
+    [Fact]
+    public void DeletingOneSelectedRowDoesNotAsk()
+    {
+        using var directory = new HistoryDirectoryScope();
+        WithEnvironment(() =>
+        {
+            SaveRuns(2);
+            var viewModel = new HistoryViewModel();
+            viewModel.UpdateSelection([viewModel.Entries[0]]);
+
+            viewModel.DeleteSelectedCommand.Execute(null);
+
+            Assert.False(viewModel.IsConfirmingDelete);
+            Assert.Single(viewModel.Entries);
+            Assert.Single(TranscriptionHistory.List());
+        });
+    }
+
+    [Fact]
+    public void TheStatusLineCountsTheBytesOnDisk()
+    {
+        using var directory = new HistoryDirectoryScope();
+        WithEnvironment(() =>
+        {
+            SaveRuns(1);
+            var viewModel = new HistoryViewModel();
+
+            Assert.Contains("1 saved transcription", viewModel.StatusMessage, StringComparison.Ordinal);
+            Assert.Contains("on disk", viewModel.StatusMessage, StringComparison.Ordinal);
+            Assert.Matches(@"[0-9]+(\.[0-9]+)? (KB|MB|GB)", viewModel.StatusMessage);
+        });
+    }
+
     [Fact]
     public void AFinishedRunIsSavedWithoutBeingAsked()
     {

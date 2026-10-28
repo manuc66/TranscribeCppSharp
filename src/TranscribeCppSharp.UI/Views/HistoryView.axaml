@@ -21,7 +21,7 @@
       </StackPanel>
     </StackPanel>
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
       <Button Command="{Binding RefreshCommand}"
               AutomationProperties.AutomationId="history-refresh"
@@ -40,13 +40,31 @@
           <TextBlock Text="Open" />
         </StackPanel>
       </Button>
-      <Button Command="{Binding DeleteCommand}" IsEnabled="{Binding Entries.Count}" Margin="8,0,0,0"
+      <Button Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding Entries.Count}" Margin="8,0,0,0"
               AutomationProperties.AutomationId="history-delete"
-              AutomationProperties.Name="Delete saved transcription"
-              ToolTip.Tip="Delete the selected entry's file from this machine.">
+              AutomationProperties.Name="Delete selected saved transcriptions"
+              ToolTip.Tip="Delete the selected rows. One row is deleted at once; several ask first.">
         <StackPanel Classes="buttonContent">
           <materialIcons:MaterialIcon Kind="Delete" />
-          <TextBlock Text="Delete" />
+          <TextBlock Text="Delete selected" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding DeleteAllCommand}" IsEnabled="{Binding Entries.Count}" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="history-delete-all"
+              AutomationProperties.Name="Delete every saved transcription"
+              ToolTip.Tip="Delete every saved run from this machine. It asks first.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="DeleteSweep" />
+          <TextBlock Text="Delete all" />
+        </StackPanel>
+      </Button>
+      <Button Click="OnOpenFolder" Margin="8,0,0,0"
+              AutomationProperties.AutomationId="history-open-folder"
+              AutomationProperties.Name="Open the history folder"
+              ToolTip.Tip="Show the folder that holds the saved runs, in the file manager.">
+        <StackPanel Classes="buttonContent">
+          <materialIcons:MaterialIcon Kind="Folder" />
+          <TextBlock Text="Open folder" />
         </StackPanel>
       </Button>
       <TextBlock Text="{Binding HistoryPath}" Classes="hint" VerticalAlignment="Center" Margin="16,0,0,0"
@@ -54,7 +72,37 @@
                  AutomationProperties.Name="History folder" />
     </StackPanel>
 
-    <DataGrid Grid.Row="1" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
+    <!-- Inline confirmation: the app has no modal dialogs, and a transcript
+         cannot be downloaded again. Shown only for a bulk delete. -->
+    <Border Grid.Row="1" IsVisible="{Binding IsConfirmingDelete}" Margin="0,0,0,8"
+            Padding="12,8" CornerRadius="4"
+            Background="{DynamicResource AppTentativeBrush}"
+            BorderBrush="{DynamicResource AppTentativeBorderBrush}" BorderThickness="1">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding ConfirmationMessage}" VerticalAlignment="Center" TextWrapping="Wrap"
+                   AutomationProperties.AutomationId="history-confirm-panel"
+                   AutomationProperties.Name="Delete confirmation" />
+        <Button Command="{Binding ConfirmDeleteCommand}"
+                AutomationProperties.AutomationId="history-confirm"
+                AutomationProperties.Name="Confirm deletion">
+          <StackPanel Classes="buttonContent">
+            <materialIcons:MaterialIcon Kind="Delete" />
+            <TextBlock Text="Delete" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding CancelDeleteCommand}"
+                AutomationProperties.AutomationId="history-cancel"
+                AutomationProperties.Name="Cancel deletion">
+          <StackPanel Classes="buttonContent">
+            <materialIcons:MaterialIcon Kind="Close" />
+            <TextBlock Text="Cancel" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Border>
+
+    <DataGrid Grid.Row="2" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
+              SelectionMode="Extended" SelectionChanged="OnSelectionChanged"
               AutoGenerateColumns="False" IsReadOnly="True"
               AutomationProperties.AutomationId="history-grid"
               AutomationProperties.Name="Saved transcriptions">
@@ -68,7 +116,7 @@
       </DataGrid.Columns>
     </DataGrid>
 
-    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,8,0,0"
+    <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,8,0,0"
                AutomationProperties.AutomationId="history-status"
                AutomationProperties.Name="History status" />
     </Grid>

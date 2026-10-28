@@ -33,6 +33,9 @@ public sealed class HistoryEntry
     /// <summary>The audio's length, when the saved run recorded it.</summary>
     public TimeSpan? Duration { get; init; }
 
+    /// <summary>The saved file's size in bytes, or 0 when it could not be read.</summary>
+    public long FileSizeBytes { get; init; }
+
     /// <summary>The saved time as the grid shows it, in the machine's time zone.</summary>
     public string SavedAtDisplay
         => SavedAt.ToLocalTime().ToString(

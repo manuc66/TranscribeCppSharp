@@ -827,6 +827,27 @@ repository links as selectable text. The native version was already shown under
 
 (See New features — Local history.)
 
+#### History management: bulk delete, total size, opening the folder
+
+The tab listed and deleted one entry at a time, which is fine for a handful and
+tedious for a year of runs. The grid now takes a multiple selection and gains
+**Delete selected** and **Delete all**. One row is still deleted at once, like a
+model in the Models tab; more than one asks first, because a transcript cannot
+be downloaded again — the only way back is re-transcribing audio that may have
+moved. The confirmation is inline in the tab rather than a modal: the app has no
+dialog infrastructure, and inline state is testable in the headless suite.
+
+The status line now counts the entries and their size on disk
+("12 saved transcription(s), 1.4 MB on disk"), which is what a delete is meant to
+reclaim. **Open folder** hands the history directory to the file manager through
+Avalonia's storage provider, for what the tab does not do; it reports "does not
+exist yet" rather than failing when nothing has been saved.
+
+Tests: the view model's bulk paths (ask, confirm, cancel, single row immediate,
+size text) and one headless test that selects two rows through the real DataGrid
+and checks the selection reaches the view model — the plumbing a silent failure
+would hide.
+
 ### Streaming
 
 #### Memory and model capabilities
