@@ -108,6 +108,8 @@ public sealed class ServerOptionsTests
     [InlineData("--chunk", "soon")]
     [InlineData("--max-upload-mb", "0")]
     [InlineData("--max-pending", "0")]
+    [InlineData("--max-upload-mb", "9223372036854775807")]
+    [InlineData("--max-upload-mb", "8796093022208")]
     [InlineData("--max-pending", "many")]
     [InlineData("--allowed-host", " ")]
     [InlineData("--urls", "")]

@@ -13,6 +13,17 @@ using System.Globalization;
 /// </remarks>
 internal sealed class ServerOptions
 {
+    /// <summary>
+    /// Largest <c>--max-upload-mb</c> whose byte count still fits in a long.
+    /// </summary>
+    /// <remarks>
+    /// The value is multiplied by 1024 * 1024 to become <see cref="MaxUploadBytes"/>.
+    /// An unchecked overflow turned that negative, and Kestrel then refused to start
+    /// with an <c>ArgumentOutOfRangeException</c> and a stack trace — an operator
+    /// typo should be a one-line error, not a crash.
+    /// </remarks>
+    internal const long MaxUploadMbLimit = long.MaxValue / (1024 * 1024);
+
     /// <summary>Environment variable read when <c>--api-key</c> is absent.</summary>
     internal const string ApiKeyVariable = "TRANSCRIBE_SERVER_API_KEY";
 
@@ -226,9 +237,10 @@ internal sealed class ServerOptions
                 case "--max-upload-mb":
                     if (!TakeValue(args, ref i, argument, out string? sizeText)
                         || !long.TryParse(sizeText, NumberStyles.Integer, CultureInfo.InvariantCulture, out maxUploadMb)
-                        || maxUploadMb < 1)
+                        || maxUploadMb < 1
+                        || maxUploadMb > MaxUploadMbLimit)
                     {
-                        error = $"{argument} expects a whole number of MiB, at least 1";
+                        error = $"{argument} expects a whole number of MiB between 1 and {MaxUploadMbLimit}";
                         return false;
                     }
 
