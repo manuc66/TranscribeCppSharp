@@ -76,7 +76,7 @@ internal static class StagingFile
     /// The exposure that remains is the window between ffmpeg finishing the write
     /// and this call opening the file — on a long input that is the decode phase,
     /// so it is not negligible. The file is created owner-only (see
-    /// <see cref="PrivateTempFile"/>), which is what bounds that window. On
+    /// <see cref="SharedSource.PrivateTempFile"/>), which is what bounds that window. On
     /// Windows the file keeps its name and is removed by <see cref="Release"/> on
     /// a normal or signalled exit, with <see cref="Sweep"/> covering the rest.
     /// </remarks>

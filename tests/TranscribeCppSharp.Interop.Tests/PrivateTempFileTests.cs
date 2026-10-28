@@ -1,3 +1,4 @@
+using TranscribeCppSharp.SharedSource;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;

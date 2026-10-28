@@ -24,6 +24,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Owner-only temporary files, shared as source with the server: both write
+         audio uploads to the temp directory, and both used to leave them 0644. -->
+    <Compile Include="..\Shared\PrivateTempFile.cs" Link="Shared\PrivateTempFile.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Known-model manifest (names -> HuggingFace repo/revision/sha256). Lives
          with ModelStore in the wrapper, not in one front end, so the CLI and the
          GUI read the same catalogue and share one cache layout. -->

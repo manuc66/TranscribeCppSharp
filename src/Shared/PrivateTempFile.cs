@@ -1,4 +1,4 @@
-namespace TranscribeCppSharp;
+namespace TranscribeCppSharp.SharedSource;
 
 using System;
 using System.IO;

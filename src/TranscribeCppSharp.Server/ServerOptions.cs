@@ -40,6 +40,13 @@ internal sealed class ServerOptions
                                who can reach the port can transcribe
           --allow-download     let a request fetch the alias when it is not cached
           --max-upload-mb <n>  refuse uploads larger than n MiB (default 1024)
+          --max-pending <n>    refuse with 429 when n requests are already
+                               being handled (default 4), before the upload is
+                               written to disk
+          --allowed-host <h>   also refuse requests whose Host is not h (repeat
+                               or separate with ';'); the defense against DNS
+                               rebinding, off by default because a reverse proxy
+                               forwards its own name
           --urls <u>           listen address (default http://127.0.0.1:8080)
           --help               show this help
 
@@ -90,6 +97,28 @@ internal sealed class ServerOptions
     /// <summary>Upload cap, in bytes.</summary>
     internal long MaxUploadBytes { get; init; } = 1024L * 1024 * 1024;
 
+    /// <summary>
+    /// How many requests may be in flight before new ones are refused with 429.
+    /// </summary>
+    /// <remarks>
+    /// The native library allows one run at a time, so every extra request is a
+    /// queued upload on disk. This is the bound on that queue: a client that
+    /// ignores it gets a 429 instead of a gigabyte staged in the temp directory.
+    /// </remarks>
+    internal int MaxPendingRequests { get; init; } = 4;
+
+    /// <summary>
+    /// Host names accepted in the <c>Host</c> header, or empty for any.
+    /// </summary>
+    /// <remarks>
+    /// Off by default: <c>curl http://127.0.0.1:8080</c> and a reverse proxy
+    /// forwarding its own name both work, and only the operator knows which names
+    /// are legitimate. Setting it is what closes DNS rebinding, which the
+    /// <c>Origin</c> check cannot see (the browser thinks the rebound name is the
+    /// origin it asked for).
+    /// </remarks>
+    internal string[] AllowedHosts { get; init; } = [];
+
     /// <summary>Listen addresses.</summary>
     internal string[] Urls { get; init; } = ["http://127.0.0.1:8080"];
 
@@ -115,6 +144,8 @@ internal sealed class ServerOptions
         bool diarize = false;
         string diarizer = string.Empty;
         long maxUploadMb = 1024;
+        int maxPending = 4;
+        var allowedHosts = new List<string>();
         var urls = new List<string> { "http://127.0.0.1:8080" };
 
         options = null;
@@ -196,6 +227,28 @@ internal sealed class ServerOptions
 
                     break;
 
+                case "--max-pending":
+                    if (!TakeValue(args, ref i, argument, out string? pendingText)
+                        || !int.TryParse(pendingText, NumberStyles.Integer, CultureInfo.InvariantCulture, out maxPending)
+                        || maxPending < 1)
+                    {
+                        error = $"{argument} expects a whole number of requests, at least 1";
+                        return false;
+                    }
+
+                    break;
+
+                case "--allowed-host":
+                    if (!TakeValue(args, ref i, argument, out string? hostText)
+                        || hostText.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) is not { Length: > 0 } hosts)
+                    {
+                        error = $"{argument} expects a host name such as 127.0.0.1 or transcribe.example.com";
+                        return false;
+                    }
+
+                    allowedHosts.AddRange(hosts);
+                    break;
+
                 case "--urls":
                     if (!TakeValue(args, ref i, argument, out string? urlText))
                     {
@@ -237,6 +290,8 @@ internal sealed class ServerOptions
             Diarize = diarize,
             Diarizer = string.IsNullOrWhiteSpace(diarizer) ? null : diarizer.Trim(),
             MaxUploadBytes = maxUploadMb * 1024 * 1024,
+            MaxPendingRequests = maxPending,
+            AllowedHosts = [.. allowedHosts],
             Urls = [.. urls],
         };
 

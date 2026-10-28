@@ -23,7 +23,7 @@ public sealed class ServerEndpointTests
 
     private static async Task<Reply> WithServerAsync(
         ServerOptions options,
-        FakeBackend backend,
+        ITranscriptionBackend backend,
         Func<TestServer, Task<HttpResponseMessage>> send)
     {
         await using TestServer server = await TestServer.StartAsync(options, backend);
@@ -290,6 +290,136 @@ public sealed class ServerEndpointTests
         Assert.Equal("ok", reply.Json()["status"]!.GetValue<string>());
         Assert.True(reply.Json()["loaded"]!.GetValue<bool>());
     }
+
+    [Fact]
+    public async Task ACrossSiteOriginIsRefusedBeforeTheAudioIsRead()
+    {
+        var backend = new FakeBackend();
+        await using TestServer server = await TestServer.StartAsync(Options(), backend);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/audio/transcriptions")
+        {
+            Content = TestServer.Form(),
+        };
+        request.Headers.Add("Origin", "https://evil.example");
+
+        using HttpResponseMessage response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("cross_site_request", Code(await ReadAsync(response)));
+        Assert.Empty(backend.Requests);
+    }
+
+    [Fact]
+    public async Task ASandboxedFrameSendsOriginNullAndIsRefused()
+    {
+        var backend = new FakeBackend();
+        await using TestServer server = await TestServer.StartAsync(Options(), backend);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/audio/transcriptions")
+        {
+            Content = TestServer.Form(),
+        };
+        request.Headers.Add("Origin", "null");
+
+        using HttpResponseMessage response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(backend.Requests);
+    }
+
+    [Fact]
+    public async Task ASameOriginBrowserRequestIsAccepted()
+    {
+        // The check must not get in the way of a page served from the same
+        // address (a local UI, or a proxy that forwards Origin unchanged).
+        var backend = new FakeBackend();
+        await using TestServer server = await TestServer.StartAsync(Options(), backend);
+        string origin = server.Client.BaseAddress!.GetLeftPart(UriPartial.Authority);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/audio/transcriptions")
+        {
+            Content = TestServer.Form(),
+        };
+        request.Headers.Add("Origin", origin);
+        request.Headers.Add("Sec-Fetch-Site", "same-origin");
+
+        using HttpResponseMessage response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Single(backend.Requests);
+    }
+
+    [Fact]
+    public async Task AHostOutsideTheAllowedListIsRefused()
+    {
+        var backend = new FakeBackend();
+        var options = new ServerOptions
+        {
+            Model = "fake-model",
+            Urls = ["http://127.0.0.1:0"],
+            AllowedHosts = ["127.0.0.1"],
+        };
+        await using TestServer server = await TestServer.StartAsync(options, backend);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/audio/transcriptions")
+        {
+            Content = TestServer.Form(),
+        };
+        request.Headers.Host = "rebound.example";
+
+        using HttpResponseMessage response = await server.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("host_not_allowed", Code(await ReadAsync(response)));
+        Assert.Empty(backend.Requests);
+    }
+
+    [Fact]
+    public async Task ARequestBeyondTheLimitIsRefusedWith429()
+    {
+        var backend = new BlockingBackend();
+        var options = new ServerOptions
+        {
+            Model = "fake-model",
+            Urls = ["http://127.0.0.1:0"],
+            MaxPendingRequests = 1,
+        };
+        await using TestServer server = await TestServer.StartAsync(options, backend);
+
+        Task<HttpResponseMessage> first = server.Client.PostAsync(
+            "/v1/audio/transcriptions", TestServer.Form());
+        await backend.Entered;
+
+        using HttpResponseMessage second = await server.Client.PostAsync(
+            "/v1/audio/transcriptions", TestServer.Form());
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+        Assert.Equal(TimeSpan.FromSeconds(5), second.Headers.RetryAfter?.Delta);
+        Assert.Equal(1, backend.Calls);
+
+        backend.Release();
+        using HttpResponseMessage firstResponse = await first;
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task AFailureInsideTheBackendIsReportedWithoutItsDetail()
+    {
+        var backend = new ThrowingBackend(
+            () => new IOException("no space left on /tmp/a-path-the-client-does-not-need"));
+
+        Reply reply = await WithServerAsync(
+            Options(),
+            backend,
+            server => server.Client.PostAsync("/v1/audio/transcriptions", TestServer.Form()));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, reply.Status);
+        Assert.Equal("audio_io", reply.Json()["error"]!["code"]!.GetValue<string>());
+        Assert.DoesNotContain("a-path-the-client-does-not-need", reply.Body, StringComparison.Ordinal);
+    }
+
+    private static string? Code(Reply reply) => reply.Json()["error"]?["code"]?.GetValue<string>();
 
     private static async Task<Reply> ReadAsync(HttpResponseMessage response)
     {

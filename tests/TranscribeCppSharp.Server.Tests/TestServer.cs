@@ -40,6 +40,48 @@ internal sealed class FakeBackend : ITranscriptionBackend
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
+/// <summary>A backend that answers only when the test lets it, for queue tests.</summary>
+internal sealed class BlockingBackend : ITranscriptionBackend
+{
+    private readonly TaskCompletionSource<bool> entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<bool> release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int calls;
+
+    public string ModelId => "fake-model";
+
+    public bool IsModelLoaded => true;
+
+    /// <summary>Completes when a request has reached the backend.</summary>
+    internal Task Entered => entered.Task;
+
+    internal int Calls => Volatile.Read(ref calls);
+
+    internal void Release() => release.TrySetResult(true);
+
+    public async Task<TranscriptionOutput> TranscribeAsync(TranscriptionRequest request)
+    {
+        Interlocked.Increment(ref calls);
+        entered.TrySetResult(true);
+        await release.Task.ConfigureAwait(false);
+        return new TranscriptionOutput("hello world", "en", 1, [], []);
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+/// <summary>A backend whose call fails, to test how the endpoint reports it.</summary>
+internal sealed class ThrowingBackend(Func<Exception> failure) : ITranscriptionBackend
+{
+    public string ModelId => "fake-model";
+
+    public bool IsModelLoaded => true;
+
+    public Task<TranscriptionOutput> TranscribeAsync(TranscriptionRequest request)
+        => Task.FromException<TranscriptionOutput>(failure());
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
 /// <summary>A running server on a loopback port, plus the client pointed at it.</summary>
 internal sealed class TestServer : IAsyncDisposable
 {

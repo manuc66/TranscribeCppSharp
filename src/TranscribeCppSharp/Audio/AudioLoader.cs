@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using TranscribeCppSharp.SharedSource;
 
 /// <summary>
 /// Opens the input audio as a random-access source of 16 kHz mono float PCM.

@@ -51,6 +51,52 @@ internal static class ServerApp
 
         WebApplication app = builder.Build();
 
+        // DNS rebinding: after evil.example resolves to 127.0.0.1, the browser
+        // sends Origin and Host as the same name, so the Origin check below
+        // cannot see it. The Host header is the only thing left, and it is opt-in
+        // because a reverse proxy legitimately forwards its own name.
+        string[] allowedHosts = options.AllowedHosts;
+        if (allowedHosts.Length > 0)
+        {
+            app.Use(async (context, next) =>
+            {
+                string host = BareHost(context.Request.Host.Host);
+                if (!allowedHosts.Contains(host, StringComparer.OrdinalIgnoreCase))
+                {
+                    await WriteErrorAsync(
+                        context,
+                        StatusCodes.Status403Forbidden,
+                        $"host '{host}' is not one of --allowed-host; add it there if this is your server",
+                        param: null,
+                        code: "host_not_allowed");
+                    return;
+                }
+
+                await next(context);
+            });
+        }
+
+        // A multipart POST is a CORS "simple request": a page on any site can
+        // make the browser send one to 127.0.0.1 with no preflight, and the
+        // response being unreadable does not stop the server from transcribing
+        // the uploaded blob. Origin, and Sec-Fetch-Site which current browsers
+        // send, is what tells such a request apart from a direct client.
+        app.Use(async (context, next) =>
+        {
+            if (IsCrossSite(context.Request))
+            {
+                await WriteErrorAsync(
+                    context,
+                    StatusCodes.Status403Forbidden,
+                    "cross-site requests are refused: this endpoint is for direct clients",
+                    param: null,
+                    code: "cross_site_request");
+                return;
+            }
+
+            await next(context);
+        });
+
         if (!string.IsNullOrEmpty(options.ApiKey))
         {
             string expected = "Bearer " + options.ApiKey;
@@ -88,11 +134,17 @@ internal static class ServerApp
             new ModelList("list", [new ModelCard(backend.ModelId, "model", "transcribe.cpp")]),
             Json));
 
+        // The native library allows one run at a time, so every accepted request
+        // is a queued upload on disk. This bounds that queue, and it is taken
+        // before the body is read: a saturated server must not stage a gigabyte
+        // per client that ignores the 429.
+        var admission = new SemaphoreSlim(options.MaxPendingRequests);
+
         app.MapPost("/v1/audio/transcriptions", (Func<HttpContext, Task<IResult>>)(context =>
-            HandleAsync(context, options, backend, TranscriptionTask.Transcribe)));
+            HandleAsync(context, options, backend, TranscriptionTask.Transcribe, admission)));
 
         app.MapPost("/v1/audio/translations", (Func<HttpContext, Task<IResult>>)(context =>
-            HandleAsync(context, options, backend, TranscriptionTask.Translate)));
+            HandleAsync(context, options, backend, TranscriptionTask.Translate, admission)));
 
         return app;
     }
@@ -101,7 +153,8 @@ internal static class ServerApp
         HttpContext context,
         ServerOptions options,
         ITranscriptionBackend backend,
-        TranscriptionTask task)
+        TranscriptionTask task,
+        SemaphoreSlim admission)
     {
         if (!context.Request.HasFormContentType)
         {
@@ -111,6 +164,34 @@ internal static class ServerApp
                 param: "file");
         }
 
+        if (!await admission.WaitAsync(TimeSpan.Zero))
+        {
+            context.Response.Headers.RetryAfter = "5";
+            return Error(
+                StatusCodes.Status429TooManyRequests,
+                $"the server is already handling {options.MaxPendingRequests} request(s); "
+                + "retry in a few seconds",
+                param: null,
+                code: "too_many_requests");
+        }
+
+        try
+        {
+            return await TranscribeAsync(context, options, backend, task);
+        }
+        finally
+        {
+            admission.Release();
+        }
+    }
+
+    /// <summary>Reads the upload, runs it, and shapes the answer.</summary>
+    private static async Task<IResult> TranscribeAsync(
+        HttpContext context,
+        ServerOptions options,
+        ITranscriptionBackend backend,
+        TranscriptionTask task)
+    {
         IFormCollection form;
         try
         {
@@ -215,7 +296,7 @@ internal static class ServerApp
         TranscriptionOutput output;
         try
         {
-            await using (FileStream stream = File.Create(audioPath))
+            await using (FileStream stream = PrivateTempFile.Create(audioPath))
             {
                 await file.CopyToAsync(stream, context.RequestAborted);
             }
@@ -234,7 +315,14 @@ internal static class ServerApp
         }
         catch (TranscribeException ex)
         {
-            return Error(StatusCodes.Status500InternalServerError, ex.Message, param: null, code: "native_error");
+            // The native detail can carry paths and internal state; it goes to
+            // the log, and the client gets a sentence it can act on.
+            Console.Error.WriteLine($"transcribe-server: native error: {ex.Message}");
+            return Error(
+                StatusCodes.Status500InternalServerError,
+                "the native transcription failed; the server log has the detail",
+                param: null,
+                code: "native_error");
         }
         catch (InvalidOperationException ex)
         {
@@ -246,7 +334,12 @@ internal static class ServerApp
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return Error(StatusCodes.Status500InternalServerError, ex.Message, param: null, code: "audio_io");
+            Console.Error.WriteLine($"transcribe-server: audio i/o error: {ex}");
+            return Error(
+                StatusCodes.Status500InternalServerError,
+                "the uploaded audio could not be read; the server log has the detail",
+                param: null,
+                code: "audio_io");
         }
         finally
         {
@@ -386,6 +479,46 @@ internal static class ServerApp
             // that already produced its transcript; the OS cleans the directory.
         }
     }
+
+    /// <summary>
+    /// Whether the request comes from a page on another origin.
+    /// </summary>
+    /// <remarks>
+    /// A browser sends <c>Origin</c> on a cross-origin POST, and current ones
+    /// also send <c>Sec-Fetch-Site</c>; a direct client sends neither. Both are
+    /// checked because each covers a case the other misses: <c>Origin: null</c>
+    /// from a sandboxed frame is not a URI, and an older browser may omit
+    /// <c>Sec-Fetch-Site</c>.
+    /// </remarks>
+    private static bool IsCrossSite(HttpRequest request)
+    {
+        string fetchSite = request.Headers["Sec-Fetch-Site"].ToString();
+        if (string.Equals(fetchSite, "cross-site", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string origin = request.Headers.Origin.ToString();
+        return origin.Length > 0 && !IsSameOrigin(origin, request);
+    }
+
+    /// <summary>Whether <paramref name="origin"/> is the origin this request was sent to.</summary>
+    private static bool IsSameOrigin(string origin, HttpRequest request)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out Uri? uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return false;
+        }
+
+        int port = request.Host.Port ?? (request.IsHttps ? 443 : 80);
+        return uri.Port == port
+            && string.Equals(uri.Scheme, request.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(BareHost(uri.Host), BareHost(request.Host.Host), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The host without the brackets <see cref="Uri"/> and HostString keep for IPv6.</summary>
+    private static string BareHost(string host) => host.Trim('[', ']');
 
     private static bool FixedTimeEquals(string provided, string expected)
     {

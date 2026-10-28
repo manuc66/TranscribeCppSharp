@@ -106,6 +106,12 @@ second request waits for the first instead of racing it. A long file blocks the
 queue for as long as it runs. Raising that ceiling means one process per model on
 different ports — not a second thread in the same process.
 
+Because every waiting request is an upload staged on disk, the queue is bounded:
+`--max-pending` (default 4) is how many requests may be in flight at once, and
+the next one gets `429 too_many_requests` with `Retry-After: 5` **before** its
+body is read. The check happens first on purpose: a client that ignores the 429
+must not be able to fill the temp directory one gigabyte at a time.
+
 ## Long audio, memory, and the window
 
 Above `--chunk` seconds (default 300, and never above the model's own limit) the
@@ -137,16 +143,36 @@ Two things to know before running a long file on a small GPU:
 - Without `--api-key` (or `TRANSCRIBE_SERVER_API_KEY`), **anyone who can reach the
   port can transcribe**. With a key, every route but `/health` requires
   `Authorization: Bearer <key>`. The comparison is fixed-time; this is not a full
-  auth system, and `--urls` does not add TLS.
+  auth system, and `--urls` does not add TLS. `/health` stays open so a
+  supervisor can tell "not up yet" from "up but refusing"; it echoes the model
+  argument, which is a path when `--model` was given one.
+- **Cross-site requests are refused** (`403 cross_site_request`). A multipart
+  POST is a CORS "simple request", so any page in the user's browser could send
+  one to the loopback address without a preflight and have the server transcribe
+  the uploaded blob; the response is unreadable to that page, but the work is
+  done. A request carrying an `Origin` that is not this server, or
+  `Sec-Fetch-Site: cross-site`, is refused before the body is read. Direct
+  clients send neither header and are unaffected.
+- **DNS rebinding is only closed with `--allowed-host`.** After a name resolves
+  to `127.0.0.1`, the browser sends `Origin` and `Host` as that same name, so the
+  origin check above cannot see it. Passing `--allowed-host <name>` (repeatable,
+  or `;`-separated) makes any other `Host` get `403 host_not_allowed`. It is off
+  by default because a reverse proxy legitimately forwards its own name; behind
+  one, either pass the public name here or do the check in the proxy.
 - Downloads are **off** by default: a request cannot make the server fetch
   something from the network unless the process was started with
   `--allow-download`. A path to an existing GGUF always works.
 - Uploads are capped at `--max-upload-mb` (default 1024), and an upload over the
-  cap is refused with `413 payload_too_large`. Files are buffered to disk by
-  ASP.NET, then copied to a temporary file that is deleted after the request, on
-  success or failure.
-- Nothing is logged but request lines and errors; no audio or transcript is
-  written to disk by the server itself.
+  cap is refused with `413 payload_too_large`.
+- **Nothing audio-related is kept after the request.** The upload is copied to a
+  temporary file created `0600` on Unix (so no other local user can read it),
+  and that file is deleted in a `finally`. Audio that is not a 16 kHz mono 16-bit
+  WAV is decoded by `ffmpeg` into a second temporary file, also `0600`, opened
+  and unlinked on Unix: once decoding is done the name is gone even if the
+  process is killed. Neither file survives the request.
+- Nothing is logged but request lines and errors; no transcript is written to
+  disk by the server. Native and I/O failures answer a generic `500` and put the
+  detail (paths included) on stderr, not in the response.
 
 ## What it is not
 

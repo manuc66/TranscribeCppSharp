@@ -37,6 +37,8 @@ public sealed class ServerOptionsTests
         Assert.False(options.AllowDownloads);
         Assert.False(options.Diarize);
         Assert.Equal(1024L * 1024 * 1024, options.MaxUploadBytes);
+        Assert.Equal(4, options.MaxPendingRequests);
+        Assert.Empty(options.AllowedHosts);
         Assert.Equal(DefaultUrls, options.Urls);
     }
 
@@ -52,6 +54,8 @@ public sealed class ServerOptionsTests
             "--diarize",
             "--diarizer", "diar_streaming_sortformer_4spk-v2.1",
             "--max-upload-mb", "64",
+            "--max-pending", "2",
+            "--allowed-host", "127.0.0.1;transcribe.example.com",
             "--urls", "http://0.0.0.0:9000;http://127.0.0.1:9001");
 
         Assert.Equal("models/x.gguf", options.Model);
@@ -62,6 +66,8 @@ public sealed class ServerOptionsTests
         Assert.True(options.Diarize);
         Assert.Equal("diar_streaming_sortformer_4spk-v2.1", options.Diarizer);
         Assert.Equal(64L * 1024 * 1024, options.MaxUploadBytes);
+        Assert.Equal(2, options.MaxPendingRequests);
+        Assert.Equal(["127.0.0.1", "transcribe.example.com"], options.AllowedHosts);
         Assert.Equal(TwoUrls, options.Urls);
     }
 
@@ -99,6 +105,9 @@ public sealed class ServerOptionsTests
     [InlineData("--chunk", "1")]
     [InlineData("--chunk", "soon")]
     [InlineData("--max-upload-mb", "0")]
+    [InlineData("--max-pending", "0")]
+    [InlineData("--max-pending", "many")]
+    [InlineData("--allowed-host", " ")]
     [InlineData("--urls", "")]
     [InlineData("--model", "")]
     public void Bad_values_are_refused(string flag, string value)
