@@ -51,6 +51,15 @@ internal static class ServerApp
 
         WebApplication app = builder.Build();
 
+        // The text and subtitle responses carry the transcript verbatim, and it
+        // is whatever the audio said. Declaring the content type only helps if
+        // the browser is told not to second-guess it, so no response is sniffed.
+        app.Use(async (context, next) =>
+        {
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            await next(context);
+        });
+
         // DNS rebinding: after evil.example resolves to 127.0.0.1, the browser
         // sends Origin and Host as the same name, so the Origin check below
         // cannot see it. The Host header is the only thing left, and it is opt-in

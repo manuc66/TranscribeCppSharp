@@ -419,6 +419,18 @@ public sealed class ServerEndpointTests
         Assert.DoesNotContain("a-path-the-client-does-not-need", reply.Body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ResponsesAreNotSniffed()
+    {
+        // The transcript goes out as text/plain or application/x-subrip, and it
+        // is whatever the audio said: without nosniff a browser is free to
+        // second-guess the type it was given.
+        await using TestServer server = await TestServer.StartAsync(Options(), new FakeBackend());
+        using HttpResponseMessage response = await server.Client.GetAsync("/health");
+
+        Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
+    }
+
     private static string? Code(Reply reply) => reply.Json()["error"]?["code"]?.GetValue<string>();
 
     private static async Task<Reply> ReadAsync(HttpResponseMessage response)
