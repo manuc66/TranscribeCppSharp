@@ -31,3 +31,15 @@ updates:
       # once Avalonia ships a Headless.XUnit on xunit.v3 4.x.
       - dependency-name: "xunit.v3"
         versions: ["4.x"]
+
+  # The workflow pins every action by commit sha (a tag can be moved), so the
+  # pins have to be maintained by something. Grouped: one PR per week for all of
+  # them, instead of one per action.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"

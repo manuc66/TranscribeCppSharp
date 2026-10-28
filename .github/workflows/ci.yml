@@ -1,5 +1,11 @@
 name: CI
 
+# Read-only by default: every job that needs more says so on its own job. A
+# workflow with no block inherits the repository default, which is broader than
+# any job here needs.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -18,7 +24,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       wrapper-version: ${{ steps.version.outputs.wrapper-version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - id: version
         run: |
           UPSTREAM=$(cat build/TRANSCRIBE_VERSION | xargs)
@@ -42,9 +48,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
           cache: true
@@ -53,7 +59,7 @@ jobs:
       - run: dotnet restore
 
       - name: Cache native libraries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -61,7 +67,7 @@ jobs:
           key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION', 'build/native-sha256.json') }}
 
       - name: Cache test assets
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             test-models
@@ -73,6 +79,13 @@ jobs:
       # if the libs are not there yet.
       - name: Fetch native libraries
         run: dotnet run --project tools/FetchNative
+
+      # The cache above is restored as-is, and FetchNative skips a download when
+      # its ".done" marker is there, so the archive hash is never checked on a
+      # cache hit. Re-hashing the installed files is what catches a stale or
+      # tampered cache before the tests (and later the packages) use it.
+      - name: Verify the installed native libraries
+        run: dotnet run --project tools/FetchNative -- --verify
 
       - run: dotnet build --no-restore
 
@@ -93,7 +106,7 @@ jobs:
 
       - name: Upload coverage report
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage
           path: test-results/coverage.cobertura.xml
@@ -111,7 +124,7 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
@@ -121,18 +134,17 @@ jobs:
   license-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Verify license declarations and attribution
         run: |
           chmod +x tools/license-check.sh
           ./tools/license-check.sh
 
   sbom:
+    # Uploads the SBOM as a build artifact; nothing is written to the repository.
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
         with:
           path: ./
@@ -142,9 +154,9 @@ jobs:
   check-bindings-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
@@ -167,14 +179,14 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
       - name: Cache native libraries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -182,7 +194,7 @@ jobs:
           key: native-libs-${{ runner.os }}-${{ hashFiles('tools/FetchNative/Program.cs', 'build/TRANSCRIBE_VERSION', 'build/native-sha256.json') }}
 
       - name: Cache test assets
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             test-models
@@ -209,14 +221,14 @@ jobs:
     needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
       - name: Cache native libraries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -225,13 +237,16 @@ jobs:
 
       - run: dotnet run --project tools/FetchNative -- --all
 
+      - name: Verify the installed native libraries
+        run: dotnet run --project tools/FetchNative -- --verify
+
       - name: Pack native NuGets
         run: |
           for dir in native-packages/win-x64 native-packages/linux-x64 native-packages/linux-arm64 native-packages/osx-arm64 native-packages/osx-x64; do
             dotnet pack "$dir" -c Release -o nupkgs /p:Version=${{ needs.get-version.outputs.version }}
           done
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: native-nupkg
           # Native packages are content-only (no compiled assemblies) and never
@@ -242,9 +257,9 @@ jobs:
     needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
@@ -255,7 +270,7 @@ jobs:
           dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs \
             /p:Version=${{ needs.get-version.outputs.version }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: interop-nupkg
           path: |
@@ -266,9 +281,9 @@ jobs:
     needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
@@ -278,7 +293,7 @@ jobs:
             /p:Version=${{ needs.get-version.outputs.version }} \
             /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: wrapper-nupkg
           path: |
@@ -292,14 +307,14 @@ jobs:
     needs: [build-and-test, get-version, pack-native, pack-wrapper]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
       - name: Download native NuGets (local feed for restore)
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: native-nupkg
           path: local-feed
@@ -312,7 +327,7 @@ jobs:
             /p:NativeVersion=${{ needs.get-version.outputs.version }} \
             "/p:RestoreAdditionalProjectSources=$(pwd)/local-feed"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bundle-nupkg
           path: nupkgs/*.nupkg
@@ -324,14 +339,14 @@ jobs:
     needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
       - name: Cache native libraries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -341,13 +356,16 @@ jobs:
       - name: Fetch native libraries (all RIDs, embedded per RID package)
         run: dotnet run --project tools/FetchNative -- --all
 
+      - name: Verify the installed native libraries
+        run: dotnet run --project tools/FetchNative -- --verify
+
       - name: Pack tool (RID-specific)
         run: |
           dotnet pack src/TranscribeCppSharp.Cli -c Release -o nupkgs \
             /p:Version=${{ needs.get-version.outputs.wrapper-version }} \
             /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: tool-nupkg
           path: nupkgs/*.nupkg
@@ -362,14 +380,14 @@ jobs:
     needs: [build-and-test, get-version]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.x'
 
       - name: Cache native libraries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           # Cache only the downloaded binaries, not the .csproj files, so a
           # stale cache never overwrites project changes from the checkout.
@@ -378,6 +396,9 @@ jobs:
 
       - name: Fetch native libraries (all RIDs, one per archive)
         run: dotnet run --project tools/FetchNative -- --all
+
+      - name: Verify the installed native libraries
+        run: dotnet run --project tools/FetchNative -- --verify
 
       - name: Publish self-contained app per RID and zip
         # Cross-publishes every RID from Linux: the app is fully managed and the
@@ -395,7 +416,7 @@ jobs:
             (cd publish && zip -rq "$GITHUB_WORKSPACE/ui-zips/TranscribeCppSharp.UI-$version-$rid.zip" "$rid")
           done
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ui-release
           path: ui-zips/*.zip
@@ -415,7 +436,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: nupkgs
           pattern: '*-nupkg'
@@ -448,23 +469,23 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download the NuGet packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: nupkgs
           pattern: '*-nupkg'
           merge-multiple: true
 
       - name: Download the desktop-app archives
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ui-release
           path: ui
 
       - name: Download the SBOM
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: sbom.spdx.json
           path: sbom
