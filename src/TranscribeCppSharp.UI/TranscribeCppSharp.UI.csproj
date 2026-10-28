@@ -57,7 +57,7 @@
          Avalonia 12.1.4, so the two apps render them the same way. -->
     <PackageReference Include="Material.Icons.Avalonia" Version="3.0.2" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
     <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.403" />
   </ItemGroup>
 
