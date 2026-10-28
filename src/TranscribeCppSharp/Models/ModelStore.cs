@@ -127,7 +127,10 @@ public static class ModelStore
     /// <param name="descriptor">The alias to locate.</param>
     /// <returns>An absolute path under <see cref="CacheRoot"/>.</returns>
     public static string CachedPath(ModelDescriptor descriptor)
-        => Path.Combine(CacheDirectory(descriptor.Repo, descriptor.Revision), descriptor.File.Replace('/', '_'));
+    {
+        string dir = Contain(CacheRoot(), CacheDirectory(descriptor.Repo, descriptor.Revision));
+        return Contain(dir, Path.Combine(dir, FlatFileName(descriptor.File)));
+    }
 
     /// <summary>
     /// Whether the alias is already downloaded.
@@ -228,7 +231,10 @@ public static class ModelStore
             int at = file.LastIndexOf('@');
             if (at >= 0)
             {
-                revision = file[(at + 1)..];
+                // The revision is free text in a spec and ends up as a directory
+                // name: "..", an absolute path or an embedded separator would
+                // move the download (and the overwrite) outside the cache.
+                revision = PathSegment(file[(at + 1)..], "revision");
                 file = file[..at];
             }
 
@@ -331,6 +337,64 @@ public static class ModelStore
     private static string CacheDirectory(string repo, string revision)
         => Path.Combine(CacheRoot(), repo.Replace('/', '_'), revision);
 
+    /// <summary>
+    /// The file name used inside the per-revision cache directory.
+    /// </summary>
+    /// <remarks>
+    /// Both separators are replaced. A HuggingFace path uses '/', but a
+    /// repository can hold a file whose name contains '\', which Windows reads
+    /// as a separator: flattening it is what keeps the write inside the cache.
+    /// </remarks>
+    private static string FlatFileName(string file) => file.Replace('/', '_').Replace('\\', '_');
+
+    /// <summary>
+    /// A single path component that cannot leave the cache.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Path.Combine(string, string, string)"/> discards the earlier
+    /// segments when a later one is absolute, and ".." walks up, so a value that
+    /// comes from the user is refused unless it is one plain segment.
+    /// </remarks>
+    internal static string PathSegment(string value, string what)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || value is "." or ".."
+            || Path.IsPathRooted(value)
+            || value.IndexOfAny(['/', '\\', ':', '\0']) >= 0)
+        {
+            throw new ArgumentException(
+                $"'{what}' is not a single path segment: '{value}'. "
+                + "Use a commit sha or a tag name, without a slash or a leading path.",
+                what);
+        }
+
+        return value;
+    }
+
+    /// <summary>
+    /// Returns <paramref name="candidate"/> as a full path, or refuses it when it
+    /// is not inside <paramref name="root"/>.
+    /// </summary>
+    /// <remarks>
+    /// Kept separate from <see cref="PathSegment"/> on purpose: this is the
+    /// backstop, whatever produced the value (a spec, a manifest entry, or a file
+    /// name read from the HuggingFace API).
+    /// </remarks>
+    internal static string Contain(string root, string candidate)
+    {
+        string full = Path.GetFullPath(candidate);
+        string prefix = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        if (!full.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"refusing to use '{full}': it is outside the model cache '{root}'.");
+        }
+
+        return full;
+    }
+
     private static void TryPruneEmptyDirectory(string? directory)
     {
         if (string.IsNullOrEmpty(directory))
@@ -363,8 +427,8 @@ public static class ModelStore
         IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
-        string dir = CacheDirectory(repo, revision);
-        string dest = Path.Combine(dir, file.Replace('/', '_'));
+        string dir = Contain(CacheRoot(), CacheDirectory(repo, revision));
+        string dest = Contain(dir, Path.Combine(dir, FlatFileName(file)));
         if (File.Exists(dest))
         {
             // The download verifies the sha256, but a cache written by an older

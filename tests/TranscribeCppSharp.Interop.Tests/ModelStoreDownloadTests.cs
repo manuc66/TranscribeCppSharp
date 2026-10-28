@@ -181,6 +181,63 @@ public class ModelStoreDownloadTests : IDisposable
         Assert.Contains($"https://huggingface.co/{repo}", error.ToString());
     }
 
+    [Theory]
+    [InlineData("../../../../tmp/escaped")]
+    [InlineData("/tmp/escaped")]
+    [InlineData("..")]
+    [InlineData("main/../..")]
+    public void ASpecRevisionThatIsNotOneSegmentIsRefusedBeforeAnyRequest(string revision)
+    {
+        var error = new StringWriter();
+
+        ArgumentException ex = Assert.Throws<ArgumentException>(
+            () => ModelStore.Resolve($"someone/custom-model/model.gguf@{revision}", null, error));
+
+        Assert.Contains("revision", ex.Message, StringComparison.Ordinal);
+        // Refused while parsing the spec, before any lookup ...
+        Assert.Empty(_handler.Requests);
+        // ... so nothing was created, least of all outside the cache.
+        Assert.False(Directory.Exists(ModelStore.CacheRootOverride!));
+    }
+
+    [Fact]
+    public void AFileNameWithASeparatorIsFlattenedInsideTheRevisionDirectory()
+    {
+        var descriptor = new ModelDescriptor(
+            "x",
+            "someone/custom-model",
+            "rev1",
+            "MIT",
+            string.Empty,
+            "Q5",
+            "..\\..\\escaped.gguf",
+            new string('0', 64),
+            0);
+
+        string path = ModelStore.CachedPath(descriptor);
+        string cacheRoot = Path.GetFullPath(ModelStore.CacheRootOverride!) + Path.DirectorySeparatorChar;
+
+        Assert.StartsWith(cacheRoot, Path.GetFullPath(path), StringComparison.Ordinal);
+        Assert.Equal(".._.._escaped.gguf", Path.GetFileName(path));
+    }
+
+    [Fact]
+    public void ARevisionThatWalksUpIsRefusedWhenLocatingACachedFile()
+    {
+        var descriptor = new ModelDescriptor(
+            "x",
+            "someone/custom-model",
+            "..",
+            "MIT",
+            string.Empty,
+            "Q5",
+            "model.gguf",
+            new string('0', 64),
+            0);
+
+        Assert.Throws<InvalidOperationException>(() => ModelStore.CachedPath(descriptor));
+    }
+
     [Fact]
     public void ASecondResolveReusesTheCachedWeights()
     {
