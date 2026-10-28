@@ -125,10 +125,9 @@ public partial class TranscriptionViewModel
 
         if (AvailableLanguages.Count == 0)
         {
-            if (!AvailableLanguages.Contains("en"))
-            {
-                AvailableLanguages.Add("en");
-            }
+            // Empty here, so the "does it already contain en" test the earlier
+            // version made could never be true.
+            AvailableLanguages.Add("en");
         }
 
         // If the model does not accept the chosen language, fall back to the

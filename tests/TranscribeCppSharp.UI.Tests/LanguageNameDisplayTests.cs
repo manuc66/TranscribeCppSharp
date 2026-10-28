@@ -51,6 +51,12 @@ public class LanguageNameDisplayTests
         string? previous = ModelStore.CacheRootOverride;
         ModelStore.CacheRootOverride = Path.Combine(
             Path.GetTempPath(), "tcsharp-ui-tests-language-name-cache");
+
+        // The language column is only built for an ASR goal, and the goal is read
+        // from the settings file: without this scope the test used whatever the
+        // machine running it had saved, and passed or failed on that. Same
+        // isolation as the two goal-dependent tests in test(ui).
+        using var settings = new UiSettingsScope();
         try
         {
             var viewModel = new TranscriptionViewModel(

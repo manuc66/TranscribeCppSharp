@@ -182,7 +182,10 @@ public partial class TranscriptionService : ITranscriptionService
     {
         return await System.Threading.Tasks.Task.Run(() =>
         {
-            string vadPath = ModelStore.Resolve(options.VadModel!, quant: null, TextWriter.Null);
+            // The token reaches the download too: cancelling a run that is still
+            // fetching the VAD model should stop the transfer, not let it finish
+            // before the cancellation is noticed.
+            string vadPath = ModelStore.Resolve(options.VadModel!, quant: null, TextWriter.Null, cancellationToken: cancellationToken);
             using var model = LoadModel(vadPath, options.BackendRequest, options.Device);
 
             if (!model.Roles.HasFlag(TranscribeRole.Vad))
