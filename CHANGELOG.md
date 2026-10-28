@@ -88,6 +88,29 @@ tool's output. The server sets `X-Content-Type-Options: nosniff`, so a transcrip
 delivered as `text/plain` is not second-guessed into HTML by a browser. Exported
 files keep the text itself: only the framing around it is neutralized.
 
+**Second pass.** A second review found four more issues, all closed here. The
+cache containment check compared strings, so a revision directory that is a
+symlink pointing outside the cache passed it while the write landed elsewhere;
+both sides are now resolved component by component, and a symlinked cache root
+(weights on another disk) still works. `--max-upload-mb` was multiplied without
+a bound, so an absurd value made `MaxUploadBytes` negative and the server died
+at startup with an unhandled `ArgumentOutOfRangeException`; the value is bounded
+in the parser now. `FetchNative --verify` ignored a platform that was not
+installed, so a pack job could publish a native package with no binaries —
+`--verify --all` requires all five, and the pack jobs use it. A model download
+wrote until EOF and only then checked the sha256, so a server that kept sending
+filled the disk first; the announced LFS size is a hard cap now.
+
+The input parsers and writers gained property-style tests with fixed seeds:
+300 random files through the WAV reader (an accepted file may not claim more
+samples than it holds), and hostile text through SRT, WebVTT, ASS, HTML and JSON
+(the text can add no timing line, no script tag, and cannot break the document).
+The two remaining Sonar findings in the 0.4.1 code — an uncancellable VAD model
+download and a redundant emptiness test — are fixed, which is what the quality
+gate was measuring. The language-picker test that had been failing since before
+this work read the machine's real settings file; it is isolated now, so the
+suite is green.
+
 `SECURITY.md` states what is in scope — and, plainly, what is not: the native
 library, ggml and the models are not this project's code and are not sandboxed.
 
