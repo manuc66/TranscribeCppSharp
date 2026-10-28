@@ -4,11 +4,30 @@ set -e
 VERSION=$(cat build/TRANSCRIBE_VERSION)
 TAG="v${VERSION}"
 REPO="https://github.com/handy-computer/transcribe.cpp"
+PINNED_COMMIT_FILE="build/TRANSCRIBE_COMMIT"
 TMPDIR=$(mktemp -d)
 
 echo "Regenerating bindings from ${TAG}..."
 
 git clone --depth 1 --branch "${TAG}" "${REPO}" "${TMPDIR}"
+
+# A tag can be moved; a commit cannot. The commit of this tag is recorded so the
+# bindings and the vendored headers are known to come from the tree that was
+# reviewed, not from whatever the tag points at today.
+if [[ ! -f "${PINNED_COMMIT_FILE}" ]]; then
+    echo "Error: ${PINNED_COMMIT_FILE} is missing; it must hold the commit ${TAG} resolves to." >&2
+    rm -rf "${TMPDIR}"
+    exit 1
+fi
+
+expected_commit="$(tr -d '[:space:]' < "${PINNED_COMMIT_FILE}")"
+actual_commit="$(git -C "${TMPDIR}" rev-parse HEAD)"
+if [[ "${actual_commit}" != "${expected_commit}" ]]; then
+    echo "Error: ${TAG} points at ${actual_commit}, not at the pinned ${expected_commit}." >&2
+    echo "The tag moved upstream. Read the upstream diff, then update ${PINNED_COMMIT_FILE} deliberately." >&2
+    rm -rf "${TMPDIR}"
+    exit 1
+fi
 
 FFI_PATH="${TMPDIR}/bindings/rust/sys/src/transcribe_sys.rs"
 if [[ ! -f "${FFI_PATH}" ]]; then

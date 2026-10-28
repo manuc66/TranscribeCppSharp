@@ -79,10 +79,16 @@ jobs:
           Rough checklist:
           - [ ] Read the upstream release notes and any migration doc.
           - [ ] Bump \`build/TRANSCRIBE_VERSION\`.
+          - [ ] Set \`build/TRANSCRIBE_COMMIT\` to the commit the new tag points at
+                (\`git ls-remote https://github.com/handy-computer/transcribe.cpp
+                'refs/tags/vX.Y.Z^{}'\`); the regeneration script refuses a tag
+                that does not resolve to it.
           - [ ] \`./scripts/regenerate-bindings.sh\` and commit the regenerated
                 \`generated/TranscribeCppSharp.Interop/NativeMethods.cs\`.
           - [ ] \`dotnet run --project tools/FetchNative -- --all --update-hashes\`
                 (review the new hashes before committing).
+          - [ ] \`dotnet run --project tools/FetchNative -- --all --update-libs-hashes\`
+                (the per-file hashes the build verifies; review them too).
           - [ ] Update \`catalog/PINNED.json\`, \`catalog/SHA256SUMS\` and any test
                 that asserts the old tag.
           - [ ] Migrate the wrapper for behavioural changes; run the tests and
