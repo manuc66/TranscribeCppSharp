@@ -73,6 +73,37 @@ public sealed class SubtitleWriterTests
     }
 
     [Fact]
+    public void Vtt_EscapesTheVoiceNameToo()
+    {
+        // The name is typed in the app. Inside a voice tag, '>' would end the
+        // tag and turn the rest of the name into cue text.
+        var writer = new StringWriter(CultureInfo.InvariantCulture);
+        SubtitleWriter.Write(
+            writer,
+            SubtitleFormat.Vtt,
+            [new SubtitleCue(0, 1000, 1, "hello")],
+            speakerLabels: true,
+            speakerNames: new Dictionary<int, string> { [1] = "a > b & c" });
+
+        Assert.Contains("<v a &gt; b &amp; c>hello</v>", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Srt_KeepsACueOnOneLineSoItCannotBeForged()
+    {
+        var writer = new StringWriter(CultureInfo.InvariantCulture);
+        SubtitleWriter.Write(
+            writer,
+            SubtitleFormat.Srt,
+            [new SubtitleCue(0, 1000, 0, "text\n\n2\n00:00:09,000 --> 00:00:10,000\nforged")],
+            speakerLabels: false);
+
+        string content = writer.ToString();
+        Assert.DoesNotContain("\n2\n", content, StringComparison.Ordinal);
+        Assert.Contains("text 2 00:00:09,000 --> 00:00:10,000 forged", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Ass_HasAScriptHeaderAndCentisecondTimestamps()
     {
         string text = Render(SubtitleFormat.Ass, speakerLabels: false);

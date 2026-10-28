@@ -104,9 +104,9 @@ public partial class TranscriptionViewModel
 
         var sb = new System.Text.StringBuilder();
         sb.Append("# ").Append(EscapeMarkdown(title)).Append("\n\n");
-        sb.Append("- **Source:** `").Append(AudioPath).Append("`\n");
-        sb.Append("- **Model:** `").Append(provenance.ModelAlias).Append("`\n");
-        sb.Append("- **Language:** `").Append(provenance.Language).Append("`\n");
+        sb.Append("- **Source:** ").Append(CodeSpan(AudioPath)).Append('\n');
+        sb.Append("- **Model:** ").Append(CodeSpan(provenance.ModelAlias)).Append('\n');
+        sb.Append("- **Language:** ").Append(CodeSpan(provenance.Language)).Append('\n');
         sb.Append("- **Diarization:** ").Append(provenance.Diarize).Append('\n');
         sb.Append("- **Window:** ").Append(provenance.WindowSeconds).Append(" s\n");
         sb.Append("- **Generated:** ")
@@ -175,6 +175,33 @@ public partial class TranscriptionViewModel
     /// <summary>HH:MM:SS, always with hours, as the HTML renderer writes it.</summary>
     private static string FormatClock(TimeSpan time)
         => $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}";
+
+    /// <summary>
+    /// A backtick code span that survives a value containing backticks.
+    /// </summary>
+    /// <remarks>
+    /// A backslash does not escape anything inside a code span, so the value
+    /// needs a fence longer than the longest run of backticks it contains. A
+    /// file name is user input: "notes` $(rm -rf).wav" must stay one value.
+    /// </remarks>
+    /// <param name="value">The value to show verbatim.</param>
+    /// <returns>The Markdown code span.</returns>
+    private static string CodeSpan(string value)
+    {
+        string flat = value.Replace('\n', ' ').Replace('\r', ' ');
+        int longest = 0;
+        int run = 0;
+        foreach (char c in flat)
+        {
+            run = c == '`' ? run + 1 : 0;
+            longest = Math.Max(longest, run);
+        }
+
+        string fence = new('`', longest + 1);
+        return longest == 0
+            ? $"{fence}{flat}{fence}"
+            : $"{fence} {flat} {fence}";
+    }
 
     /// <summary>
     /// Escapes the characters that would turn a sentence into markup, and turns

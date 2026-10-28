@@ -63,6 +63,22 @@ cannot. Every action in the workflows is pinned by commit sha (they were partly
 pinned by tag), the workflows default to `contents: read`, and Dependabot
 watches `github-actions` so the pins are maintained.
 
+**Transcript text in the exports and on the console.** The transcript is
+whatever the audio said, and the audio is often something the user did not write.
+The HTML export already encoded it; the other sinks did not all agree. The CLI's
+streaming WebVTT writer now escapes `<`, `>` and `&` like the whole-file renderer
+does (an unescaped `<` there is a tag, not text), a WebVTT voice name typed in the
+app is escaped inside `<v …>`, and every text format keeps one segment on one
+line — a line break in a cue ends it, and the rest of the sentence becomes a cue
+of its own. The Markdown note's source, model and language now use a code fence
+longer than any backtick run in the value, because a backslash does not escape
+inside a code span. Console output driven by model output (and by file names) is
+stripped of ESC, CR, DEL, C1 controls and bidi overrides, so a transcript cannot
+reprogram the terminal it is printed to or forge a line that looks like this
+tool's output. The server sets `X-Content-Type-Options: nosniff`, so a transcript
+delivered as `text/plain` is not second-guessed into HTML by a browser. Exported
+files keep the text itself: only the framing around it is neutralized.
+
 `SECURITY.md` states what is in scope — and, plainly, what is not: the native
 library, ggml and the models are not this project's code and are not sandboxed.
 

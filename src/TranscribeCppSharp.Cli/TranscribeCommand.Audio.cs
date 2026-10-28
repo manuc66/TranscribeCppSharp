@@ -37,7 +37,7 @@ internal static partial class TranscribeCommand
             }
         });
         string modelLabel = $"{model.Architecture}/{model.Variant}";
-        stdout.WriteLine($"model : {modelLabel}");
+        stdout.WriteLine($"model : {TerminalText.Safe(modelLabel)}");
         stdout.WriteLine($"compute: {DescribeCompute(choice, model)}");
 
         // transcribe.cpp 0.4 gives a model one or more roles. An ASR model keeps
@@ -160,15 +160,17 @@ internal static partial class TranscribeCommand
                 }
                 catch (TranscribeException ex)
                 {
-                    stderr.WriteLine($"  transcription failed: {ex.Message}");
+                    stderr.WriteLine($"  transcription failed: {TerminalText.Safe(ex.Message)}");
                     return 1;
                 }
 
-                stdout.WriteLine($"  lang   : {transcript.DetectedLanguage}   aborted: {transcript.WasAborted}  truncated: {transcript.WasTruncated}");
-                stdout.WriteLine($"  full   : {transcript.FullText.Trim()}");
+                // Everything below is model output: it goes through TerminalText
+                // so a transcript cannot drive the terminal it is printed to.
+                stdout.WriteLine($"  lang   : {TerminalText.Safe(transcript.DetectedLanguage)}   aborted: {transcript.WasAborted}  truncated: {transcript.WasTruncated}");
+                stdout.WriteLine($"  full   : {TerminalText.Safe(transcript.FullText.Trim())}");
                 if (options.Diarize != DiarizeMode.DiarizeModeOff || transcript.RawText.Length > 0)
                 {
-                    stdout.WriteLine($"  raw    : {transcript.RawText.Trim()}");
+                    stdout.WriteLine($"  raw    : {TerminalText.Safe(transcript.RawText.Trim())}");
                 }
 
                 double windowSec = windowSw.Elapsed.TotalSeconds;
@@ -189,10 +191,10 @@ internal static partial class TranscribeCommand
                     if (outFile is not null)
                     {
                         TranscriptWriter.WriteSegment(outFile, options.Format, line);
-                        stdout.WriteLine($"  -> [{Fmt.Ts(start)} -> {Fmt.Ts(end)}] Speaker {seg.SpeakerId}: {text}");
+                        stdout.WriteLine($"  -> [{Fmt.Ts(start)} -> {Fmt.Ts(end)}] Speaker {seg.SpeakerId}: {TerminalText.Safe(text)}");
                     }
 
-                    merged.AppendLine(CultureInfo.CurrentCulture, $"[{Fmt.Ts(start)} -> {Fmt.Ts(end)}] Speaker {seg.SpeakerId}: {text}");
+                    merged.AppendLine(CultureInfo.CurrentCulture, $"[{Fmt.Ts(start)} -> {Fmt.Ts(end)}] Speaker {seg.SpeakerId}: {TerminalText.Safe(text)}");
                 }
             }
 
@@ -201,7 +203,7 @@ internal static partial class TranscribeCommand
                 // The plain and VTT footers ignore the segment list, so passing
                 // an empty one is what the non-JSON/HTML path now has.
                 TranscriptWriter.WriteFooter(outFile, options.Format, info, lines ?? []);
-                stdout.WriteLine($"\ntranscript written to: {options.OutPath} ({FormatName(options.Format)})");
+                stdout.WriteLine($"\ntranscript written to: {TerminalText.Safe(options.OutPath ?? string.Empty)} ({FormatName(options.Format)})");
             }
 
             double totalSec = overall.Elapsed.TotalSeconds;
@@ -210,12 +212,12 @@ internal static partial class TranscribeCommand
             stdout.WriteLine($"  windows: {windows.Count}");
             if (options.OutPath is not null)
             {
-                stdout.WriteLine($"  file   : {options.OutPath} ({FormatName(options.Format)})");
+                stdout.WriteLine($"  file   : {TerminalText.Safe(options.OutPath)} ({FormatName(options.Format)})");
             }
         }
 
         stdout.WriteLine("\n=== merged transcript (speaker-attributed) ===");
-        stdout.WriteLine(merged.ToString());
+        stdout.WriteLine(TerminalText.Safe(merged.ToString()));
         return 0;
     }
 

@@ -131,6 +131,64 @@ public class TranscriptWriterTests
     }
 
     [Fact]
+    public void Vtt_EscapesMarkupInAStreamedCue()
+    {
+        // The streaming writer builds the file as windows arrive, so it cannot
+        // use the whole-document renderer. It still writes a markup format: an
+        // unescaped '<' in model output would be read as a tag by the player.
+        string content = Write(w => TranscriptWriter.WriteSegment(
+            w, TranscriptFormat.Vtt, new TranscriptLine(0, 1000, 0, "a < b & c > d")));
+
+        Assert.Contains("<v Speaker 0>a &lt; b &amp; c &gt; d</v>", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Vtt_KeepsACueOnOneLine()
+    {
+        // A cue ends at a blank line. A line break in the text would let the rest
+        // of it pose as a timestamp of its own.
+        string content = Write(w => TranscriptWriter.WriteSegment(
+            w,
+            TranscriptFormat.Vtt,
+            new TranscriptLine(0, 1000, 0, "first\n\n00:00:05.000 --> 00:00:06.000\nforged")));
+
+        // The newlines are gone, and the ">" of the forged arrow is escaped:
+        // there is no line that looks like a cue timestamp.
+        Assert.Contains(
+            content.Split('\n'),
+            line => line.Contains("first", StringComparison.Ordinal)
+                && line.Contains("forged", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            content.Split('\n'),
+            line => line.StartsWith("00:00:05.000", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Vtt_NoteStaysOneCommentWhenThePathContainsALineBreak()
+    {
+        TranscriptInfo info = Info with { AudioPath = "/audio/a\n\n00:00:01.000 --> 00:00:02.000\nx.wav" };
+
+        string content = Write(w => TranscriptWriter.WriteHeader(w, TranscriptFormat.Vtt, info));
+
+        // Two NOTES, still two lines: the path cannot end the comment block or
+        // add a cue of its own.
+        Assert.Equal(2, content.Split('\n').Count(l => l.StartsWith("NOTE", StringComparison.Ordinal)));
+        Assert.DoesNotContain(
+            content.Split('\n'),
+            line => line.StartsWith("00:00:01.000", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Plain_KeepsASegmentOnOneLine()
+    {
+        string content = Write(w => TranscriptWriter.WriteSegment(
+            w, TranscriptFormat.Plain, new TranscriptLine(0, 1000, 0, "first\n# done: 2099-01-01 00:00:00")));
+
+        Assert.Contains("Speaker 0: first # done: 2099-01-01 00:00:00", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n# done:", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Vtt_TimestampsUseHoursEvenForShortAudio()
     {
         string content = Write(w => TranscriptWriter.WriteSegment(
@@ -431,6 +489,19 @@ public class TranscriptWriterTests
         Assert.Contains("<span class=\"speaker\">Bob:</span>", content);
         Assert.DoesNotContain("Speaker 0:", content);
         Assert.DoesNotContain("Speaker 2:", content);
+    }
+
+    [Fact]
+    public void Html_EscapesASpeakerNameThatLooksLikeMarkup()
+    {
+        // Speaker names are typed in the app, so they are user input in the same
+        // document as the transcript.
+        string content = WriteHtml(
+            HtmlSegments,
+            speakerNames: new Dictionary<int, string> { [0] = "<img src=x onerror=alert(1)>" });
+
+        Assert.DoesNotContain("<img", content, StringComparison.Ordinal);
+        Assert.Contains("&lt;img", content, StringComparison.Ordinal);
     }
 
     [Fact]

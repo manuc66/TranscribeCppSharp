@@ -360,6 +360,20 @@ public class ExportOptionsTests
     }
 
     [Fact]
+    public void BuildMarkdownExport_KeepsABacktickInThePathInsideItsCodeSpan()
+    {
+        WithViewModel(viewModel =>
+        {
+            viewModel.AudioPath = "/audio/a`b.wav";
+            Load(viewModel, Result((0, 5, 0, "first")));
+
+            // A backslash does not escape inside a code span, so the fence has to
+            // be longer than the longest run of backticks in the value.
+            Assert.Contains("- **Source:** `` /audio/a`b.wav ``", viewModel.BuildMarkdownExport());
+        });
+    }
+
+    [Fact]
     public void BuildMarkdownExport_MarksPausesWhenEnabled()
     {
         WithViewModel(viewModel =>

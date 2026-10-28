@@ -138,6 +138,19 @@ The document records the model, the language, whether diarization was requested,
 the window and the segment count; it records nothing about accuracy, because this
 project publishes no accuracy figure.
 
+**Text that looks like markup** is treated as text. The transcript is whatever
+the audio said, so it can contain `<`, `&`, `{` or a backtick — and the same is
+true of a speaker name typed in the app and of the audio file's own name. The
+HTML and WebVTT exports escape those characters (`&lt;`, `&amp;`), the ASS export
+escapes its `{...}` override blocks, and the Markdown note puts the source, model
+and language inside a code fence long enough to survive a backtick in the value.
+SRT, plain and JSON keep the text, but on one line per segment: a line break
+inside a cue would end it, and let the rest of the sentence pose as a new cue or
+as a header. The same text printed to the console is stripped of control
+characters (ESC, CR, DEL, the C1 range and the invisible bidi overrides), because
+a terminal reads those as instructions rather than as text. None of this changes
+what was transcribed; it changes only how a consumer is allowed to read it.
+
 **What it is not.** This is a static report, not an editable transcript. The
 desktop app has no editor: there is no audio-follows-cursor playback and no
 search-and-replace over the transcript. The line numbers exist so a reader can

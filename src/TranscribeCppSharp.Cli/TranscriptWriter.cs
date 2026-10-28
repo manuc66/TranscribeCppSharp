@@ -37,9 +37,11 @@ internal static class TranscriptWriter
         {
             case TranscriptFormat.Vtt:
                 WriteLine(writer, "WEBVTT");
-                WriteLine(writer, $"NOTE source: {info.AudioPath}");
+                // A NOTE runs until a blank line, and a file name can contain
+                // one: collapsing the values keeps the comment a comment.
+                WriteLine(writer, $"NOTE source: {Fmt.Normalize(info.AudioPath)}");
                 WriteLine(writer,
-                    $"NOTE audio {info.Duration:c} model {info.ModelLabel} lang {info.Language} "
+                    $"NOTE audio {info.Duration:c} model {Fmt.Normalize(info.ModelLabel)} lang {Fmt.Normalize(info.Language)} "
                     + $"diarize {Fmt.DiarizeState(info.Diarize)} window {info.WindowSeconds}s generated {info.Generated:yyyy-MM-dd HH:mm:ss}");
                 WriteLine(writer);
                 break;
@@ -52,10 +54,10 @@ internal static class TranscriptWriter
 
             default:
                 WriteLine(writer, "# TranscribeCppSharp diarization transcript");
-                WriteLine(writer, $"# source   : {info.AudioPath}");
+                WriteLine(writer, $"# source   : {Fmt.Normalize(info.AudioPath)}");
                 WriteLine(writer, $"# audio    : {info.Duration:c}");
-                WriteLine(writer, $"# model    : {info.ModelLabel}");
-                WriteLine(writer, $"# lang     : {info.Language}   diarize: {Fmt.DiarizeState(info.Diarize)}   window: {info.WindowSeconds}s");
+                WriteLine(writer, $"# model    : {Fmt.Normalize(info.ModelLabel)}");
+                WriteLine(writer, $"# lang     : {Fmt.Normalize(info.Language)}   diarize: {Fmt.DiarizeState(info.Diarize)}   window: {info.WindowSeconds}s");
                 WriteLine(writer, $"# generated: {info.Generated:yyyy-MM-dd HH:mm:ss}");
                 WriteLine(writer);
                 break;
@@ -68,13 +70,18 @@ internal static class TranscriptWriter
         switch (format)
         {
             case TranscriptFormat.Vtt:
+                // WebVTT has markup: an unescaped '<' or '&' in model output is
+                // read as a tag. The shared helper is the same one the whole-file
+                // renderer uses, so the streamed and buffered files agree.
                 WriteLine(writer, $"{Fmt.VttTs(line.StartMs)} --> {Fmt.VttTs(line.EndMs)}");
-                WriteLine(writer, $"<v Speaker {line.Speaker}>{line.Text}</v>");
+                WriteLine(writer, $"<v Speaker {line.Speaker}>{SubtitleWriter.CueText(line.Text, SubtitleFormat.Vtt)}</v>");
                 WriteLine(writer);
                 break;
 
             case TranscriptFormat.Plain:
-                WriteLine(writer, $"[{Fmt.Ts(line.StartMs)} -> {Fmt.Ts(line.EndMs)}] Speaker {line.Speaker}: {line.Text}");
+                // One segment, one line: a line break in the text would let the
+                // rest of a sentence pose as a header or another segment.
+                WriteLine(writer, $"[{Fmt.Ts(line.StartMs)} -> {Fmt.Ts(line.EndMs)}] Speaker {line.Speaker}: {Fmt.Normalize(line.Text)}");
                 break;
 
             case TranscriptFormat.Json:

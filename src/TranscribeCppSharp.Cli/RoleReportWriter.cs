@@ -115,8 +115,10 @@ internal static class RoleReportWriter
     private static void Header(TextWriter w, string kind, string audioPath, string modelLabel, TimeSpan duration, DateTime generated)
     {
         Line(w, $"# TranscribeCppSharp {kind} report");
-        Line(w, $"# source   : {audioPath}");
-        Line(w, $"# model    : {modelLabel}");
+        // Collapsed to one line: a path or a model label with a line break in it
+        // would otherwise write the rest as a report header of its own.
+        Line(w, $"# source   : {Fmt.Normalize(audioPath)}");
+        Line(w, $"# model    : {Fmt.Normalize(modelLabel)}");
         Line(w, $"# audio    : {duration:c}");
         Line(w, $"# generated: {generated:yyyy-MM-dd HH:mm:ss}");
         Line(w);

@@ -91,6 +91,32 @@ public static class SubtitleWriter
         _ => throw new ArgumentOutOfRangeException(nameof(format), format, "unknown subtitle format"),
     };
 
+    /// <summary>
+    /// One cue's text as the container needs it: a single line, escaped where the
+    /// format has markup.
+    /// </summary>
+    /// <remarks>
+    /// The text is model output, so it is whatever the audio contained. In
+    /// WebVTT, a raw <c>&lt;</c> or <c>&amp;</c> is markup rather than text; in
+    /// Ass, <c>{...}</c> is an override block. SRT has neither, but it still gets
+    /// the single line, because a line break inside a cue would end it and let
+    /// the rest of the text pose as a new cue. The CLI's streaming writer and the
+    /// renderer here share this so the two cannot diverge.
+    /// </remarks>
+    /// <param name="text">The segment text.</param>
+    /// <param name="format">The format the cue is written to.</param>
+    /// <returns>The text to write.</returns>
+    public static string CueText(string text, SubtitleFormat format)
+    {
+        string oneLine = Normalize(SingleLine(text));
+        return format switch
+        {
+            SubtitleFormat.Vtt => EscapeVtt(oneLine),
+            SubtitleFormat.Ass => EscapeAss(oneLine),
+            _ => oneLine,
+        };
+    }
+
     private static void WriteSrt(
         TextWriter writer,
         IEnumerable<SubtitleCue> cues,
@@ -100,7 +126,7 @@ public static class SubtitleWriter
         int index = 0;
         foreach (SubtitleCue cue in cues)
         {
-            string text = Normalize(SingleLine(cue.Text));
+            string text = CueText(cue.Text, SubtitleFormat.Srt);
             if (text.Length == 0)
             {
                 continue;
@@ -131,16 +157,19 @@ public static class SubtitleWriter
 
         foreach (SubtitleCue cue in cues)
         {
-            string text = Normalize(SingleLine(cue.Text));
+            string text = CueText(cue.Text, SubtitleFormat.Vtt);
             if (text.Length == 0)
             {
                 continue;
             }
 
             WriteLine(writer, $"{VttTime(cue.StartMs)} --> {VttTime(cue.EndMs)}");
+            // The voice span's name is user-typed in the app, so it is escaped
+            // too: a name with '>' would otherwise end the tag and turn the rest
+            // of the name into cue text.
             WriteLine(writer, speakerLabels
-                ? $"<v {Name(cue.Speaker, speakerNames)}>{EscapeVtt(text)}</v>"
-                : EscapeVtt(text));
+                ? $"<v {EscapeVtt(Name(cue.Speaker, speakerNames))}>{text}</v>"
+                : text);
             WriteLine(writer);
         }
     }
@@ -181,7 +210,9 @@ public static class SubtitleWriter
             }
 
             string dialogue = speakerLabels ? Prefix(cue.Speaker, text, speakerNames) : text;
-            dialogue = EscapeAss(dialogue).Replace("\n", "\\N", StringComparison.Ordinal);
+            // The speaker name is user-typed; escaping the whole line covers the
+            // braces an override block needs, in the name and in the text alike.
+            dialogue = EscapeAss(dialogue);
             WriteLine(writer,
                 $"Dialogue: 0,{AssTime(cue.StartMs)},{AssTime(cue.EndMs)},Default,,0,0,0,,{dialogue}");
         }
