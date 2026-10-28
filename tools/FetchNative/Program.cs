@@ -12,7 +12,8 @@ if (args.Length > 0 && args[0] is "--help" or "-h")
     Console.WriteLine("  --all                 Fetch native libs for all platforms");
     Console.WriteLine("  --update-hashes       Update build/native-sha256.json from downloaded archives");
     Console.WriteLine("  --verify              Re-hash the installed libraries and compare them with");
-    Console.WriteLine("                        build/native-libs-sha256.json; downloads nothing");
+    Console.WriteLine("                        build/native-libs-sha256.json; downloads nothing.");
+    Console.WriteLine("                        Add --all to require every platform to be installed");
     Console.WriteLine("  --update-libs-hashes  Record the installed libraries in that file");
     return 0;
 }
@@ -43,7 +44,13 @@ if (verify)
 {
     // Offline on purpose: verification is what a build runs after restoring a
     // cache, and a missing library must fail instead of being fetched silently.
-    return VerifyInstalled(dest, version, libsHashesPath) ? 0 : 1;
+    return VerifyInstalled(
+        dest,
+        version,
+        libsHashesPath,
+        fetchAll ? [.. archives.Keys] : null)
+        ? 0
+        : 1;
 }
 
 var currentRid = GetCurrentRid();
@@ -312,7 +319,11 @@ static Dictionary<string, Dictionary<string, SortedDictionary<string, string>>> 
     return result;
 }
 
-static bool VerifyInstalled(string dest, string version, string path)
+static bool VerifyInstalled(
+    string dest,
+    string version,
+    string path,
+    IReadOnlyCollection<string>? required = null)
 {
     var byVersion = LoadLibHashes(path);
     if (!byVersion.TryGetValue(version, out var expected))
@@ -324,6 +335,16 @@ static bool VerifyInstalled(string dest, string version, string path)
 
     var problems = new List<string>();
     var verified = 0;
+
+    // --all means every platform, not "whatever happens to be here": a release
+    // packs all five, and a missing one would otherwise publish an empty package.
+    foreach (var rid in required ?? [])
+    {
+        if (!Directory.Exists(InstalledRoot(dest, rid)))
+        {
+            problems.Add($"{rid}: not installed, and --all was requested");
+        }
+    }
     foreach (var rid in Directory.GetDirectories(dest).Select(Path.GetFileName).OrderBy(x => x, StringComparer.Ordinal))
     {
         if (rid is null || !Directory.Exists(InstalledRoot(dest, rid)))

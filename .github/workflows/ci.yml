@@ -238,7 +238,7 @@ jobs:
       - run: dotnet run --project tools/FetchNative -- --all
 
       - name: Verify the installed native libraries
-        run: dotnet run --project tools/FetchNative -- --verify
+        run: dotnet run --project tools/FetchNative -- --verify --all
 
       - name: Pack native NuGets
         run: |
@@ -357,7 +357,7 @@ jobs:
         run: dotnet run --project tools/FetchNative -- --all
 
       - name: Verify the installed native libraries
-        run: dotnet run --project tools/FetchNative -- --verify
+        run: dotnet run --project tools/FetchNative -- --verify --all
 
       - name: Pack tool (RID-specific)
         run: |
@@ -398,7 +398,7 @@ jobs:
         run: dotnet run --project tools/FetchNative -- --all
 
       - name: Verify the installed native libraries
-        run: dotnet run --project tools/FetchNative -- --verify
+        run: dotnet run --project tools/FetchNative -- --verify --all
 
       - name: Publish self-contained app per RID and zip
         # Cross-publishes every RID from Linux: the app is fully managed and the
