@@ -9,6 +9,63 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Security hardening
+
+An internal review of the repository, and what it changed. None of it fixes a
+vulnerability known to be exploited; the wording below is what was verified, not
+what could be imagined.
+
+**Model cache.** A HuggingFace spec (`owner/repo/file.gguf@<revision>`) put the
+revision straight into the cache directory name, and `Path.Combine` drops the
+earlier segments when a later one is absolute: `@../../..` and `@/tmp/x` moved
+the download, and the overwrite that follows it, outside the cache (verified by
+running the code). The revision is now a single path segment, checked while the
+spec is parsed (before any request), and every cache path is containment-checked
+— `CachedPath`, `IsCached`, `Delete` included. Both `/` and `\` are flattened
+in the on-disk name; a Windows build read the second one as a separator.
+
+**Staged audio.** Decoded PCM was created `0644` by the umask and kept its name
+for the whole run, so on a shared host the audio being transcribed was readable
+by every local user. It is now reserved `0600` before ffmpeg opens it, and
+unlinked as soon as it is opened on Unix, so a `SIGKILL` leaves nothing behind.
+`TempAudioFile`, which already did that but was referenced only by its own tests,
+moves into the library as `StagingFile` and the audio loader uses it; it tracks
+every live path instead of the last one, which is what a server decoding per
+request needs. ffmpeg now receives an `ArgumentList`, not an interpolated
+command line: a name containing a quote can no longer spill into the next
+argument. The declared WAV `data` size is also clamped to the bytes the file
+holds — a 44-byte file claiming 2 GB used to size the read buffer from the
+header before the first read failed (measured: peak RSS stayed around 30 MB, so
+this was an avoidable allocation, not a demonstrated denial of service).
+
+**HTTP server.** A multipart POST is a CORS "simple request", so a page on any
+site could make the browser have the server transcribe an uploaded blob.
+Requests carrying a foreign `Origin` (or `Origin: null`), or
+`Sec-Fetch-Site: cross-site`, now get `403 cross_site_request` before the body is
+read; direct clients send neither header. `--max-pending` (default 4) bounds the
+queue that sits behind the single native run: the request after that gets
+`429 too_many_requests` with `Retry-After`, **before** its upload is staged, so a
+client that ignores the 429 cannot fill the temp directory. `--allowed-host`
+(opt-in) refuses a foreign `Host`, which is what closes DNS rebinding — after
+rebinding, `Origin` and `Host` agree, so the origin check alone cannot see it.
+500 responses no longer carry the exception text (paths and native detail go to
+stderr), and `--api-key` warns that a command line is visible in `ps`.
+`docs/server.md` now says what is actually staged on disk, instead of claiming
+that no audio is written there at all.
+
+**Supply chain.** `FetchNative --verify` re-hashes the installed native
+libraries against `build/native-libs-sha256.json` and runs before tests, packing
+and the app archives. It closes the gap left by the `.done` marker, which skips
+the archive hash on a restored cache — the bytes that ship are checked, not only
+the bytes that were downloaded. Regenerating the bindings now verifies that the
+upstream tag resolves to `build/TRANSCRIBE_COMMIT`: a tag can be moved, a commit
+cannot. Every action in the workflows is pinned by commit sha (they were partly
+pinned by tag), the workflows default to `contents: read`, and Dependabot
+watches `github-actions` so the pins are maintained.
+
+`SECURITY.md` states what is in scope — and, plainly, what is not: the native
+library, ggml and the models are not this project's code and are not sandboxed.
+
 ### Server
 
 #### OpenAI-compatible HTTP server
