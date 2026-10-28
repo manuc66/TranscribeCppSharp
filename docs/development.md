@@ -16,6 +16,12 @@ nav_order: 13
 # Download native libraries for your current platform
 dotnet run --project tools/FetchNative
 
+# Check the installed libraries against build/native-libs-sha256.json. Offline:
+# it re-hashes what is there, which is what catches a tampered or stale tree
+# (FetchNative skips a download when its ".done" marker is present, so a cache
+# restored as-is never goes through the archive hash).
+dotnet run --project tools/FetchNative -- --verify
+
 # Run unit and integration tests
 ./scripts/run-integration-tests.sh
 

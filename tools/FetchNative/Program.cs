@@ -7,20 +7,26 @@ using System.Text.Json;
 
 if (args.Length > 0 && args[0] is "--help" or "-h")
 {
-    Console.WriteLine("Usage: FetchNative [--all] [--update-hashes]");
-    Console.WriteLine("  (no args)         Fetch native libs for the current platform only");
-    Console.WriteLine("  --all             Fetch native libs for all platforms");
-    Console.WriteLine("  --update-hashes   Update build/native-sha256.json from downloaded archives");
+    Console.WriteLine("Usage: FetchNative [--all] [--update-hashes] [--verify] [--update-libs-hashes]");
+    Console.WriteLine("  (no args)             Fetch native libs for the current platform only");
+    Console.WriteLine("  --all                 Fetch native libs for all platforms");
+    Console.WriteLine("  --update-hashes       Update build/native-sha256.json from downloaded archives");
+    Console.WriteLine("  --verify              Re-hash the installed libraries and compare them with");
+    Console.WriteLine("                        build/native-libs-sha256.json; downloads nothing");
+    Console.WriteLine("  --update-libs-hashes  Record the installed libraries in that file");
     return 0;
 }
 
 var fetchAll = args.Contains("--all");
 var updateHashes = args.Contains("--update-hashes");
+var verify = args.Contains("--verify");
+var updateLibHashes = args.Contains("--update-libs-hashes");
 var repoRoot = FindRepoRoot();
 var version = (await File.ReadAllTextAsync(Path.Combine(repoRoot, "build", "TRANSCRIBE_VERSION"))).Trim();
 var baseUrl = $"https://github.com/handy-computer/transcribe.cpp/releases/download/v{version}";
 var dest = Path.Combine(repoRoot, "native-packages");
 var hashesPath = Path.Combine(repoRoot, "build", "native-sha256.json");
+var libsHashesPath = Path.Combine(repoRoot, "build", "native-libs-sha256.json");
 
 var archives = new Dictionary<string, string>
 {
@@ -32,6 +38,13 @@ var archives = new Dictionary<string, string>
 };
 
 var expectedHashes = LoadExpectedHashes(hashesPath, version);
+
+if (verify)
+{
+    // Offline on purpose: verification is what a build runs after restoring a
+    // cache, and a missing library must fail instead of being fetched silently.
+    return VerifyInstalled(dest, version, libsHashesPath) ? 0 : 1;
+}
 
 var currentRid = GetCurrentRid();
 var toFetch = fetchAll
@@ -57,6 +70,11 @@ if (updateHashes)
 {
     SaveHashes(hashesPath, version, expectedHashes);
     Console.WriteLine($"Updated {hashesPath}. Review the values before committing (they came from the download URL itself).");
+}
+
+if (updateLibHashes)
+{
+    UpdateLibHashes(dest, version, libsHashesPath);
 }
 
 return 0;
@@ -190,6 +208,176 @@ static void MoveContentsToTarget(string tmpExtract, string target)
             }
         }
     }
+}
+
+// ── Installed-file integrity ────────────────────────────────────────────────
+//
+// build/native-sha256.json pins the archive that is downloaded; this pins the
+// files that end up in the package. They are not the same check: FetchNative
+// skips a download when the ".done" marker and the library are present, so a
+// restored CI cache (or a tampered tree) never passes through the archive hash
+// at all. The build re-hashes the installed files instead, which is also the
+// octet that ships.
+
+static string InstalledRoot(string dest, string rid)
+    => Path.Combine(dest, rid, "runtimes", rid, "native");
+
+static SortedDictionary<string, string> HashInstalledFiles(string root)
+{
+    var files = new SortedDictionary<string, string>(StringComparer.Ordinal);
+    foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+    {
+        var relative = Path.GetRelativePath(root, path).Replace('\\', '/');
+        if (relative is ".done" or "native-libs-sha256.json")
+        {
+            continue;
+        }
+
+        using var stream = File.OpenRead(path);
+        files[relative] = "sha256:" + Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+    }
+
+    return files;
+}
+
+static void UpdateLibHashes(string dest, string version, string path)
+{
+    var byVersion = LoadLibHashes(path);
+    var installed = new Dictionary<string, SortedDictionary<string, string>>(StringComparer.Ordinal);
+    foreach (var rid in Directory.GetDirectories(dest).Select(Path.GetFileName).OrderBy(x => x, StringComparer.Ordinal))
+    {
+        if (rid is null)
+        {
+            continue;
+        }
+
+        var root = InstalledRoot(dest, rid);
+        if (Directory.Exists(root))
+        {
+            installed[rid] = HashInstalledFiles(root);
+        }
+    }
+
+    if (installed.Count == 0)
+    {
+        Console.Error.WriteLine($"No installed libraries under {dest}; run without --update-libs-hashes first.");
+        return;
+    }
+
+    // Keep every version already recorded, and every RID of this version that is
+    // not installed here: a machine with one platform must not drop the others.
+    byVersion.TryGetValue(version, out var existing);
+    existing ??= new Dictionary<string, SortedDictionary<string, string>>(StringComparer.Ordinal);
+    foreach (var (rid, files) in installed)
+    {
+        existing[rid] = files;
+    }
+
+    byVersion[version] = existing;
+
+    var ordered = byVersion
+        .OrderBy(kv => Version.TryParse(kv.Key, out var parsed) ? parsed : new Version(0, 0))
+        .ToDictionary(kv => kv.Key, kv => (object)kv.Value);
+    File.WriteAllText(path, JsonSerializer.Serialize(ordered, FetchNative.JsonOptions.Instance) + Environment.NewLine);
+    Console.WriteLine($"Updated {path} for {string.Join(", ", installed.Keys)}.");
+    Console.WriteLine("Review the values before committing: they describe what was installed, not what upstream published.");
+}
+
+static Dictionary<string, Dictionary<string, SortedDictionary<string, string>>> LoadLibHashes(string path)
+{
+    var result = new Dictionary<string, Dictionary<string, SortedDictionary<string, string>>>(StringComparer.Ordinal);
+    if (!File.Exists(path))
+    {
+        return result;
+    }
+
+    using var doc = JsonDocument.Parse(File.ReadAllText(path));
+    foreach (var versionEntry in doc.RootElement.EnumerateObject())
+    {
+        var rids = new Dictionary<string, SortedDictionary<string, string>>(StringComparer.Ordinal);
+        foreach (var ridEntry in versionEntry.Value.EnumerateObject())
+        {
+            var files = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            foreach (var fileEntry in ridEntry.Value.EnumerateObject())
+            {
+                files[fileEntry.Name] = fileEntry.Value.GetString() ?? string.Empty;
+            }
+
+            rids[ridEntry.Name] = files;
+        }
+
+        result[versionEntry.Name] = rids;
+    }
+
+    return result;
+}
+
+static bool VerifyInstalled(string dest, string version, string path)
+{
+    var byVersion = LoadLibHashes(path);
+    if (!byVersion.TryGetValue(version, out var expected))
+    {
+        Console.Error.WriteLine($"No entry for {version} in {path}.");
+        Console.Error.WriteLine("Run: dotnet run --project tools/FetchNative -- --all --update-libs-hashes");
+        return false;
+    }
+
+    var problems = new List<string>();
+    var verified = 0;
+    foreach (var rid in Directory.GetDirectories(dest).Select(Path.GetFileName).OrderBy(x => x, StringComparer.Ordinal))
+    {
+        if (rid is null || !Directory.Exists(InstalledRoot(dest, rid)))
+        {
+            continue;
+        }
+
+        if (!expected.TryGetValue(rid, out var expectedFiles))
+        {
+            problems.Add($"{rid}: installed but has no recorded hashes");
+            continue;
+        }
+
+        var actualFiles = HashInstalledFiles(InstalledRoot(dest, rid));
+        foreach (var (relative, expectedHash) in expectedFiles)
+        {
+            if (!actualFiles.TryGetValue(relative, out var actualHash))
+            {
+                problems.Add($"{rid}/{relative}: missing");
+            }
+            else if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+            {
+                problems.Add($"{rid}/{relative}: expected {expectedHash}, got {actualHash}");
+            }
+        }
+
+        foreach (var relative in actualFiles.Keys.Except(expectedFiles.Keys, StringComparer.Ordinal))
+        {
+            problems.Add($"{rid}/{relative}: present but not recorded");
+        }
+
+        verified++;
+    }
+
+    if (verified == 0)
+    {
+        Console.Error.WriteLine($"No installed libraries under {dest} to verify.");
+        return false;
+    }
+
+    if (problems.Count > 0)
+    {
+        Console.Error.WriteLine($"Installed native libraries do not match {path}:");
+        foreach (var problem in problems)
+        {
+            Console.Error.WriteLine($"  {problem}");
+        }
+
+        Console.Error.WriteLine("Delete native-packages/*/runtimes and re-run without --verify, or update the hashes deliberately.");
+        return false;
+    }
+
+    Console.WriteLine($"Verified {verified} RID(s) against {path}.");
+    return true;
 }
 
 static Dictionary<string, string> LoadExpectedHashes(string path, string version)
