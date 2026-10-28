@@ -173,7 +173,7 @@ internal static class ServerApp
                 param: "file");
         }
 
-        if (!await admission.WaitAsync(TimeSpan.Zero))
+        if (!await admission.WaitAsync(TimeSpan.Zero, context.RequestAborted))
         {
             context.Response.Headers.RetryAfter = "5";
             return Error(
@@ -553,6 +553,7 @@ internal static class ServerApp
         context.Response.ContentType = "application/json; charset=utf-8";
         await context.Response.WriteAsJsonAsync(
             new ErrorEnvelope(new ErrorBody(message, "invalid_request_error", param, code)),
-            Json);
+            Json,
+            context.RequestAborted);
     }
 }

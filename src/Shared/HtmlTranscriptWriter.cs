@@ -24,7 +24,9 @@ public readonly record struct HtmlTranscriptInfo(
     string SourcePath,
     TimeSpan? Duration,
     string ModelLabel,
-    string Language,
+    // Null when a saved history entry carries no language; the document then
+    // omits the lang attribute rather than inventing one.
+    string? Language,
     string Diarize,
     int WindowSeconds,
     DateTime Generated);
@@ -189,18 +191,31 @@ public static class HtmlTranscriptWriter
     /// The lang attribute, or nothing when the value is not a language tag. The
     /// CLI uses "auto" when the model chooses for itself, which is not a tag.
     /// </summary>
-    private static string LangAttribute(string language)
+    /// <summary>
+    /// The lang attribute, or nothing when the value is not a language tag.
+    /// </summary>
+    /// <remarks>
+    /// Nullable on purpose: the desktop app reads the language back from a saved
+    /// history entry, and a JSON document without it deserializes to null even
+    /// though the record says otherwise.
+    /// </remarks>
+    private static string LangAttribute(string? language)
         => IsLanguageTag(language) ? $" lang=\"{Encode(language)}\"" : string.Empty;
 
-    private static bool IsLanguageTag(string language)
+    private static bool IsLanguageTag(string? language)
     {
+        if (string.IsNullOrEmpty(language))
+        {
+            return false;
+        }
+
         // "auto" is the CLI's sentinel for "the model chooses", not a language.
         if (string.Equals(language, "auto", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        if (string.IsNullOrEmpty(language) || !char.IsAsciiLetter(language[0]) || !char.IsAsciiLetter(language[^1]))
+        if (!char.IsAsciiLetter(language[0]) || !char.IsAsciiLetter(language[^1]))
         {
             return false;
         }
@@ -252,7 +267,7 @@ public static class HtmlTranscriptWriter
     /// Escapes text for HTML. Forgetting this is how a transcript containing
     /// "&lt;" or "&amp;" becomes a document that no longer renders what was said.
     /// </summary>
-    private static string Encode(string value) => WebUtility.HtmlEncode(value);
+    private static string Encode(string? value) => WebUtility.HtmlEncode(value) ?? string.Empty;
 
     /// <summary>Writes one "\n"-terminated line, whatever the writer's newline is.</summary>
     private static void WriteLine(TextWriter writer, string line)

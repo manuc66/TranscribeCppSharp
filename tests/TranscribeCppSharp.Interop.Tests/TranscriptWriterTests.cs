@@ -355,6 +355,30 @@ public class TranscriptWriterTests
     }
 
     [Fact]
+    public void Html_OmitsTheLanguageWhenAnEntryCarriesNone()
+    {
+        // A saved history entry whose JSON has no language deserializes to null,
+        // even though the record said string. The desktop app passes it straight
+        // to the renderer, which must not crash and must not invent an attribute.
+        var writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
+        TranscribeCppSharp.SharedSource.HtmlTranscriptWriter.Write(
+            writer,
+            new TranscribeCppSharp.SharedSource.HtmlTranscriptInfo(
+                "/audio/jfk.wav",
+                TimeSpan.FromSeconds(11),
+                "whisper/web",
+                Language: null,
+                "on",
+                300,
+                new DateTime(2026, 1, 1, 9, 0, 0, DateTimeKind.Unspecified)),
+            HtmlSegments);
+
+        string content = writer.ToString();
+        Assert.Contains("<html>", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("lang=", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Html_HeaderIsEmpty_BecauseTheDocumentIsWrittenOnceAtTheEnd()
     {
         string content = Write(w => TranscriptWriter.WriteHeader(
