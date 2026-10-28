@@ -99,6 +99,9 @@ public class TranscriptionRoleLabelTests
     [Fact]
     public void AllowedLanguagesOnlyAppearForALanguageIdentificationRun()
     {
+        // This test moves the goal, and the change handler saves it; without a
+        // scope the next view model built anywhere in the run restores it.
+        using var settings = new UiSettingsScope();
         TranscriptionViewModel viewModel = ViewModel();
 
         // ASR wins over LANGID when a model serves both, so the ranking filter

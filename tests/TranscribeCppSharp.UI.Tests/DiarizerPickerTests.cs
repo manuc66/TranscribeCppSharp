@@ -42,9 +42,22 @@ public class DiarizerPickerTests
         File.WriteAllText(path, "placeholder");
     }
 
-    /// <summary>Runs the body with a temporary cache root, then restores it.</summary>
+    /// <summary>
+    /// Runs the body with a temporary cache root and settings file, then restores
+    /// both.
+    /// </summary>
+    /// <remarks>
+    /// The settings file must be redirected too: without it the view model reads
+    /// <c>ui-settings.json</c> from the temporary directory's parent, which other
+    /// tests share. A goal left there by another test (say
+    /// <see cref="TranscriptionGoal.IdentifyLanguage"/>) is restored by the
+    /// constructor, and ticking the speaker box then no longer moves the goal to
+    /// <see cref="TranscriptionGoal.TranscribeWithSpeakers"/> — so the intent is
+    /// cleared again and the test fails for a reason it never set up.
+    /// </remarks>
     private static void InCache(Action body)
     {
+        using var settings = new UiSettingsScope();
         string previous = ModelStore.CacheRootOverride ?? string.Empty;
         bool hadOverride = ModelStore.CacheRootOverride is not null;
         ModelStore.CacheRootOverride = Path.Combine(
