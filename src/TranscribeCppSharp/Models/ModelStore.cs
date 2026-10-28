@@ -129,7 +129,7 @@ public static class ModelStore
     public static string CachedPath(ModelDescriptor descriptor)
     {
         string dir = Contain(CacheRoot(), CacheDirectory(descriptor.Repo, descriptor.Revision));
-        return Contain(dir, Path.Combine(dir, FlatFileName(descriptor.File)));
+        return ContainResolved(CacheRoot(), Path.Combine(dir, FlatFileName(descriptor.File)));
     }
 
     /// <summary>
@@ -395,6 +395,87 @@ public static class ModelStore
         return full;
     }
 
+    /// <summary>
+    /// <see cref="Contain"/> plus a check on where the path really leads.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Contain"/> compares strings, and a symbolic link is not a string
+    /// difference: a revision directory that points outside the cache passes it
+    /// while the write lands elsewhere (verified by linking one at a cache the
+    /// app then wrote through). Both sides are resolved component by component, so
+    /// a symlinked cache root — a legitimate way to keep weights on another disk —
+    /// still matches, and a link that leaves it does not.
+    /// </remarks>
+    internal static string ContainResolved(string root, string candidate)
+    {
+        string full = Contain(root, candidate);
+        string realRoot = RealPath(root);
+        string real = RealPath(full);
+
+        if (!string.Equals(real, realRoot, StringComparison.Ordinal)
+            && !real.StartsWith(
+                realRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"refusing to use '{full}': it resolves outside the model cache ({real}).");
+        }
+
+        return full;
+    }
+
+    /// <summary>
+    /// The path with every symbolic link resolved, component by component.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Path.GetFullPath(string)"/> normalises ".." but does not follow
+    /// links, and <see cref="FileSystemInfo.ResolveLinkTarget(bool)"/> only
+    /// resolves one when the path named <em>is</em> the link: a symlinked parent
+    /// directory would otherwise pass a containment check. Each component is
+    /// resolved before the next one is appended.
+    /// </remarks>
+    private static string RealPath(string path)
+    {
+        string full = Path.GetFullPath(path);
+        string root = Path.GetPathRoot(full) ?? string.Empty;
+        if (root.Length == 0)
+        {
+            return full;
+        }
+
+        string current = root;
+        string[] parts = full[root.Length..].Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (string part in parts)
+        {
+            current = Path.Combine(current, part);
+            try
+            {
+                FileSystemInfo info = Directory.Exists(current)
+                    ? new DirectoryInfo(current)
+                    : new FileInfo(current);
+                if (!info.Exists)
+                {
+                    // Missing, or a broken link: nothing left to follow.
+                    continue;
+                }
+
+                // A chain of links is followed to the end, not one hop.
+                current = info.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? current;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Unreadable component: keep the lexical path; the write itself
+                // reports the problem.
+            }
+        }
+
+        return current;
+    }
+
     private static void TryPruneEmptyDirectory(string? directory)
     {
         if (string.IsNullOrEmpty(directory))
@@ -448,6 +529,13 @@ public static class ModelStore
         }
 
         Directory.CreateDirectory(dir);
+
+        // Now that the directory exists, check where it really leads. Both sides
+        // are measured against the cache root, not against each other: a revision
+        // directory linked elsewhere is inside itself and outside the cache.
+        dir = ContainResolved(CacheRoot(), dir);
+        dest = ContainResolved(CacheRoot(), dest);
+
         string url = $"https://huggingface.co/{repo}/resolve/{revision}/{file}";
         error.WriteLine($"Downloading '{file}' ({(size > 0 ? $"{ModelSizeFormat.Format(size)}, " : string.Empty)}{license}) from HuggingFace...");
         error.WriteLine($"  {url}");
@@ -459,7 +547,7 @@ public static class ModelStore
         string tmp = dest + ".part-" + Guid.NewGuid().ToString("N");
         try
         {
-            DownloadAsync(url, tmp, progress, cancellationToken).GetAwaiter().GetResult();
+            DownloadAsync(url, tmp, file, size, progress, cancellationToken).GetAwaiter().GetResult();
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -539,9 +627,24 @@ public static class ModelStore
             ?? throw new InvalidDataException($"Could not resolve the current revision of {repo}.");
     }
 
+    /// <summary>
+    /// Downloads <paramref name="url"/> to <paramref name="destination"/>.
+    /// </summary>
+    /// <param name="url">Where to read from.</param>
+    /// <param name="destination">The file to write.</param>
+    /// <param name="file">The name to report in errors.</param>
+    /// <param name="expectedSize">
+    /// The size the metadata announced, or 0 when it is unknown. The sha256 is only
+    /// checked once the whole file is on disk, so this is what stops a server that
+    /// keeps sending from filling the disk first.
+    /// </param>
+    /// <param name="progress">Reports 0..1.</param>
+    /// <param name="cancellationToken">Stops the transfer.</param>
     private static async Task DownloadAsync(
         string url,
         string destination,
+        string file,
+        long expectedSize,
         IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
@@ -564,6 +667,14 @@ public static class ModelStore
         {
             await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             received += read;
+
+            if (expectedSize > 0 && received > expectedSize)
+            {
+                throw new InvalidDataException(
+                    $"'{file}' was announced as {expectedSize} bytes but the server sent more; "
+                    + "aborting instead of filling the disk.");
+            }
+
             if (total > 0)
             {
                 progress?.Report((double)received / total);

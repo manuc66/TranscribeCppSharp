@@ -239,6 +239,94 @@ public class ModelStoreDownloadTests : IDisposable
     }
 
     [Fact]
+    public void AServerThatSendsMoreThanItAnnouncedIsStopped()
+    {
+        // The sha256 is only checked once the whole file is on disk, so without a
+        // byte cap a server that keeps sending fills the disk before the mismatch
+        // is noticed.
+        const string repo = "someone/custom-model";
+        const string revision = "abc123";
+        const string file = "model.gguf";
+        byte[] content = Payload("more than announced");
+        ServeTree(repo, revision, file, Sha256Of(content), size: 4);
+        ServeFile(repo, revision, file, content);
+
+        var error = new StringWriter();
+        InvalidDataException ex = Assert.Throws<InvalidDataException>(
+            () => ModelStore.Resolve($"{repo}/{file}@{revision}", null, error));
+
+        Assert.Contains("announced as 4 bytes", ex.Message, StringComparison.Ordinal);
+        string cacheRoot = ModelStore.CacheRootOverride!;
+        if (Directory.Exists(cacheRoot))
+        {
+            Assert.Empty(Directory.EnumerateFiles(cacheRoot, "*", SearchOption.AllDirectories));
+        }
+    }
+
+    [Fact]
+    public void ASymlinkedRevisionDirectoryThatLeavesTheCacheIsRefused()
+    {
+        // Contain() compares strings; a link is not a string difference. Creating
+        // one needs no privilege on Unix, and nothing on Windows without developer
+        // mode, so that case is skipped rather than pretended to pass.
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string cacheRoot = ModelStore.CacheRootOverride!;
+        string outside = Path.Combine(_temp.Path, "outside");
+        Directory.CreateDirectory(Path.Combine(cacheRoot, "someone_custom-model"));
+        Directory.CreateDirectory(outside);
+        Directory.CreateSymbolicLink(
+            Path.Combine(cacheRoot, "someone_custom-model", "abc123"),
+            outside);
+
+        var descriptor = new ModelDescriptor(
+            "x", "someone/custom-model", "abc123", "MIT", string.Empty, "Q5",
+            "model.gguf", new string('0', 64), 0);
+
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
+            () => ModelStore.CachedPath(descriptor));
+
+        Assert.Contains("resolves outside the model cache", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ASymlinkedCacheRootIsStillInsideItself()
+    {
+        // Keeping the weights on another disk is a legitimate setup: the root is a
+        // link, and everything under it resolves under its target.
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string real = Path.Combine(_temp.Path, "real-cache");
+        Directory.CreateDirectory(Path.Combine(real, "someone_custom-model", "abc123"));
+        string linked = Path.Combine(_temp.Path, "linked-cache");
+        Directory.CreateSymbolicLink(linked, real);
+        string? previous = ModelStore.CacheRootOverride;
+        ModelStore.CacheRootOverride = linked;
+        try
+        {
+            var descriptor = new ModelDescriptor(
+                "x", "someone/custom-model", "abc123", "MIT", string.Empty, "Q5",
+                "model.gguf", new string('0', 64), 0);
+
+            string path = ModelStore.CachedPath(descriptor);
+
+            Assert.Equal(
+                Path.Combine(linked, "someone_custom-model", "abc123", "model.gguf"),
+                path);
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = previous;
+        }
+    }
+
+    [Fact]
     public void ASecondResolveReusesTheCachedWeights()
     {
         const string repo = "someone/custom-model";
