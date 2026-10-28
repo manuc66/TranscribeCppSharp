@@ -36,6 +36,12 @@ internal static class ServerHost
         Console.Out.WriteLine($"  diarize  : {(options.Diarize ? "on by default" : "off by default")}");
         Console.Out.WriteLine($"  diarizer : {options.Diarizer ?? "(none: the ASR model is asked)"}");
         Console.Out.WriteLine($"  auth     : {(options.ApiKey is null ? "DISABLED — anyone who can reach the port can transcribe" : "Bearer token required (health stays open)")}");
+        if (options.ApiKey is not null && options.ApiKeyFromCommandLine)
+        {
+            // stderr, so a supervisor collecting stdout still sees only the banner
+            Console.Error.WriteLine("  warning  : --api-key is readable in the process list; prefer TRANSCRIBE_SERVER_API_KEY");
+        }
+
         Console.Out.WriteLine($"  download : {(options.AllowDownloads ? "enabled on first request" : "disabled")}");
         Console.Out.WriteLine("  requests : serialized, one native run per model at a time");
     }

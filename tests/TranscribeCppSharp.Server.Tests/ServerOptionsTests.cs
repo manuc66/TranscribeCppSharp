@@ -85,6 +85,7 @@ public sealed class ServerOptionsTests
             out _));
 
         Assert.Equal("from-env", fromEnvironment!.ApiKey);
+        Assert.False(fromEnvironment.ApiKeyFromCommandLine);
     }
 
     [Fact]
@@ -98,6 +99,7 @@ public sealed class ServerOptionsTests
             out _));
 
         Assert.Equal("explicit", options!.ApiKey);
+        Assert.True(options.ApiKeyFromCommandLine);
     }
 
     [Theory]

@@ -35,9 +35,10 @@ internal sealed class ServerOptions
           --diarizer <m>       a DIARIZE-role model (e.g. a Sortformer GGUF) run
                                over the whole file after the transcript, then
                                joined to the segments. Both models stay loaded
-          --api-key <k>        require 'Authorization: Bearer <k>'; also read
-                               from TRANSCRIBE_SERVER_API_KEY. Without it, anyone
-                               who can reach the port can transcribe
+          --api-key <k>        require 'Authorization: Bearer <k>'. Prefer
+                               TRANSCRIBE_SERVER_API_KEY: a command line is
+                               visible in 'ps'. Without a key, anyone who can
+                               reach the port can transcribe
           --allow-download     let a request fetch the alias when it is not cached
           --max-upload-mb <n>  refuse uploads larger than n MiB (default 1024)
           --max-pending <n>    refuse with 429 when n requests are already
@@ -81,6 +82,12 @@ internal sealed class ServerOptions
 
     /// <summary>Bearer token required on every endpoint but <c>/health</c>.</summary>
     internal string? ApiKey { get; init; }
+
+    /// <summary>
+    /// Whether <see cref="ApiKey"/> came from <c>--api-key</c> rather than the
+    /// environment, so the banner can say it is visible to other local users.
+    /// </summary>
+    internal bool ApiKeyFromCommandLine { get; init; }
 
     /// <summary>Whether a request may trigger a model download.</summary>
     internal bool AllowDownloads { get; init; }
@@ -278,6 +285,7 @@ internal sealed class ServerOptions
             return false;
         }
 
+        bool keyFromCommandLine = !string.IsNullOrWhiteSpace(apiKey);
         apiKey = string.IsNullOrWhiteSpace(apiKey) ? readEnvironment(ApiKeyVariable) : apiKey;
 
         var candidate = new ServerOptions
@@ -286,6 +294,7 @@ internal sealed class ServerOptions
             Backend = backend.Trim().ToLowerInvariant(),
             ChunkSeconds = chunkSeconds,
             ApiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim(),
+            ApiKeyFromCommandLine = keyFromCommandLine,
             AllowDownloads = allowDownloads,
             Diarize = diarize,
             Diarizer = string.IsNullOrWhiteSpace(diarizer) ? null : diarizer.Trim(),
