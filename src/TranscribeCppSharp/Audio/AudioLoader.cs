@@ -90,8 +90,10 @@ public static class AudioLoader
             // Reserve the file owner-only before ffmpeg opens it: "-y" truncates
             // the existing file in place and keeps its mode, so the decoded
             // audio is never readable by another local user.
-            using (PrivateTempFile.Create(temp))
+            using (FileStream reserved = PrivateTempFile.Create(temp))
             {
+                // Nothing to write: creating the file here is what fixes its 0600
+                // mode, and ffmpeg's "-y" below truncates it in place.
             }
 
             var psi = new ProcessStartInfo(ResolveTool("ffmpeg"))

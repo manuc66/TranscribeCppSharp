@@ -533,7 +533,7 @@ public static class ModelStore
         // Now that the directory exists, check where it really leads. Both sides
         // are measured against the cache root, not against each other: a revision
         // directory linked elsewhere is inside itself and outside the cache.
-        dir = ContainResolved(CacheRoot(), dir);
+        ContainResolved(CacheRoot(), dir);
         dest = ContainResolved(CacheRoot(), dest);
 
         string url = $"https://huggingface.co/{repo}/resolve/{revision}/{file}";

@@ -75,8 +75,8 @@ internal static class Doctor
                 CheckAbi(checks);
             }
 
-            CheckTool(checks, "ffmpeg", required: true, why: "non-WAV input is decoded with it");
-            CheckTool(checks, "ffplay", required: false, why: "only the desktop app plays excerpts");
+            CheckTool(checks, "ffmpeg", why: "non-WAV input is decoded with it");
+            CheckTool(checks, "ffplay", why: "only the desktop app plays excerpts");
             CheckBackends(checks);
             CheckCache(checks, verifyCache);
             CheckSavedData(checks);
@@ -128,10 +128,8 @@ internal static class Doctor
     {
         try
         {
-            using (var run = new RunParamsBuilder())
-            using (var load = new ModelLoadParamsBuilder())
-            {
-            }
+            using var run = new RunParamsBuilder();
+            using var load = new ModelLoadParamsBuilder();
 
             checks.Add(new DoctorCheck(
                 "abi",
@@ -148,7 +146,7 @@ internal static class Doctor
     }
 
     /// <summary>Whether an external tool is on PATH.</summary>
-    private static void CheckTool(List<DoctorCheck> checks, string name, bool required, string why)
+    private static void CheckTool(List<DoctorCheck> checks, string name, string why)
     {
         string? path = FindOnPath(name);
         if (path is not null)
@@ -157,10 +155,7 @@ internal static class Doctor
             return;
         }
 
-        checks.Add(new DoctorCheck(
-            name,
-            required ? DoctorStatus.Warn : DoctorStatus.Warn,
-            $"not found on PATH; {why}"));
+        checks.Add(new DoctorCheck(name, DoctorStatus.Warn, $"not found on PATH; {why}"));
     }
 
     /// <summary>Which compute devices the native layer sees.</summary>
@@ -258,47 +253,52 @@ internal static class Doctor
         }
 
         string appDirectory = Path.GetDirectoryName(ModelStore.CacheRoot())!;
-        var exposed = new List<string>();
-
-        AddIfExposed(Path.Combine(appDirectory, "ui-settings.json"));
-        AddIfExposed(Path.Combine(appDirectory, "logs", "ui.log"));
+        var paths = new List<string>
+        {
+            Path.Combine(appDirectory, "ui-settings.json"),
+            Path.Combine(appDirectory, "logs", "ui.log"),
+        };
 
         string history = Path.Combine(appDirectory, "history");
         if (Directory.Exists(history))
         {
-            AddIfExposed(history);
-            foreach (string file in Directory.EnumerateFiles(history, "*.json"))
-            {
-                AddIfExposed(file);
-            }
+            paths.Add(history);
+            paths.AddRange(Directory.EnumerateFiles(history, "*.json"));
         }
 
-        checks.Add(exposed.Count == 0
+        string[] exposed = [.. paths.Where(IsReadableByOthers).Select(Path.GetFileName)!];
+
+        checks.Add(exposed.Length == 0
             ? new DoctorCheck("privacy", DoctorStatus.Ok, "settings, history and log are owner-only")
             : new DoctorCheck(
                 "privacy",
                 DoctorStatus.Warn,
                 $"readable by other local accounts: {string.Join(", ", exposed)}"));
+    }
 
-        void AddIfExposed(string path)
+    /// <summary>Whether another local account can read this file or directory.</summary>
+    private static bool IsReadableByOthers(string path)
+    {
+        if (OperatingSystem.IsWindows())
         {
-            try
-            {
-                if (!File.Exists(path) && !Directory.Exists(path))
-                {
-                    return;
-                }
+            // No mode bits: the profile ACL limits these files to the user.
+            return false;
+        }
 
-                UnixFileMode mode = File.GetUnixFileMode(path);
-                if ((mode & (UnixFileMode.GroupRead | UnixFileMode.OtherRead)) != 0)
-                {
-                    exposed.Add(Path.GetFileName(path));
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        try
+        {
+            if (!File.Exists(path) && !Directory.Exists(path))
             {
-                // Not ours to inspect; the report says nothing about it.
+                return false;
             }
+
+            UnixFileMode mode = File.GetUnixFileMode(path);
+            return (mode & (UnixFileMode.GroupRead | UnixFileMode.OtherRead)) != 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Not ours to inspect; the report says nothing about it.
+            return false;
         }
     }
 
