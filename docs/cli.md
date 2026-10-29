@@ -107,6 +107,7 @@ Usage: transcribe <audio> [model] [options]
                  json, html (numbered paragraphs with timestamps and
                  speakers; ASR models only), srt or ass (subtitles,
                  ASR models only)
+  --version      print the tool and native library versions and exit
   --help         show this help
 ```
 

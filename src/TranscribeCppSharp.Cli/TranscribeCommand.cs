@@ -7,6 +7,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using TranscribeCppSharp.Audio;
 using TranscribeCppSharp.Interop;
@@ -75,8 +76,46 @@ internal static partial class TranscribeCommand
                          json, html (numbered paragraphs with timestamps and
                          speakers; ASR models only), srt or ass (subtitles,
                          ASR models only)
+          --version      print the tool and native library versions and exit
           --help         show this help
         """;
+
+    /// <summary>This executable's version, with the commit when the build recorded one.</summary>
+    internal static string ToolVersion
+        => typeof(TranscribeCommand).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? typeof(TranscribeCommand).Assembly.GetName().Version?.ToString()
+            ?? "unknown";
+
+    /// <summary>
+    /// Prints the tool version and the native library it loads.
+    /// </summary>
+    /// <remarks>
+    /// Two numbers, because they answer different questions and can disagree: the
+    /// package the user installed and the native library it found on the machine.
+    /// A missing native library is reported as a sentence here rather than as the
+    /// resolver's exception: <c>--version</c> is exactly the command someone runs
+    /// when nothing works.
+    /// </remarks>
+    private static void WriteVersion(TextWriter stdout)
+    {
+        stdout.WriteLine($"{ToolName} {ToolVersion}");
+
+        try
+        {
+            string version = Backends.Version;
+            string commit = Backends.VersionCommit;
+            stdout.WriteLine(string.IsNullOrEmpty(version)
+                ? "transcribe.cpp: version not reported by the library"
+                : $"transcribe.cpp {version}{(string.IsNullOrEmpty(commit) ? string.Empty : $" ({commit})")}");
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException)
+        {
+            stdout.WriteLine(
+                "transcribe.cpp: native library not found; add the TranscribeCppSharp.Native "
+                + $"package for this platform (see '{ToolName} --help')");
+        }
+    }
 
     /// <summary>
     /// Prints what upstream's pinned catalog adds to what the manifest already said.
@@ -197,6 +236,14 @@ internal static partial class TranscribeCommand
 
     private static int RunCore(string[] args, TextWriter stdout, TextWriter stderr)
     {
+        // First, because it must work even when the native library is missing or
+        // a backend fails to initialise: a bug report needs both versions.
+        if (Has(args, "--version"))
+        {
+            WriteVersion(stdout);
+            return 0;
+        }
+
         // Flags answered without touching the model or the network.
         if (Has(args, "--list-models"))
         {

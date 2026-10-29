@@ -7,6 +7,27 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 `TranscribeCppSharp.Interop` and `TranscribeCppSharp.Native.*` track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
+## Unreleased
+
+### Command-line tool
+
+#### `--version`
+
+`transcribe --version` prints the installed package's version and the native
+library it found, then exits 0:
+
+```
+transcribe 0.4.1+bb8e6aa
+transcribe.cpp 0.4.1 (4d7c1cc)
+```
+
+Two numbers because they answer different questions and can disagree — a native
+package that does not match the wrapper is the usual cause of an odd failure.
+The flag is answered before anything else (no model, no network, no backend
+initialisation), so it also works when the native library is missing: the second
+line then says so instead of raising the resolver's exception. `--help` lists it,
+and `docs/cli.md` quotes the block, which `ReadmeExamplesTest` keeps in sync.
+
 ## [0.4.1] - wrapper release
 
 ### Security hardening

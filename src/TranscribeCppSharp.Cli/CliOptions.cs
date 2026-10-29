@@ -143,7 +143,7 @@ internal sealed record CliOptions
                 case "--vad":
                     if (!TakeValue(args, ref i, "--vad", out vad, out error)) { return false; }
                     break;
-                case "--help" or "-h" or "--list-models" or "--list-devices":
+                case "--help" or "-h" or "--version" or "--list-models" or "--list-devices":
                     // Answered before parsing; accepted here so a stray one is
                     // never reported as an unknown option.
                     break;

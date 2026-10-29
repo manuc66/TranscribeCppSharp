@@ -341,6 +341,11 @@ public class CliOptionsTests
         // must not be reported as unknown options.
         Assert.True(CliOptions.TryParse([audio, "--help"], out _, out var help));
         Assert.Null(help);
+
+        // Answered before parsing, like --help: accepted here so a stray one is
+        // never reported as an unknown option, and never treated as the audio.
+        Assert.True(CliOptions.TryParse([audio, "--version"], out _, out var version));
+        Assert.Null(version);
         Assert.True(CliOptions.TryParse([audio, "--list-models"], out _, out var list));
         Assert.Null(list);
         // The value of --model-info is consumed, not mistaken for the audio file.

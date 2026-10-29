@@ -68,6 +68,24 @@ public class CliProcessTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Version_PrintsBothVersionsAndExitsZero()
+    {
+        ProcessResult result = Run("--version");
+
+        Assert.Equal(0, result.ExitCode);
+        AssertNoStackTrace(result);
+
+        string[] lines = result.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // The package the user installed, then the native library it found. Both
+        // are semver: asserting the numbers would break on every bump, so the
+        // shape is checked and the native commit is left optional.
+        Assert.Matches(@"^transcribe \d+\.\d+\.\d+", lines[0]);
+        Assert.Matches(@"^transcribe\.cpp \d+\.\d+\.\d+", lines[1]);
+        Assert.Empty(result.Error);
+    }
+
+    [Fact]
     public void NoArguments_PrintsTheHelpAndExitsOne()
     {
         ProcessResult result = Run();
