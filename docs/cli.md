@@ -81,6 +81,9 @@ Usage: transcribe <audio> [model] [options]
                  Q8_0, F16); default is per model (see --list-models)
   --list-models  list the known model aliases and exit
   --model-info <alias>  show details (family, params, license, upstream catalog)
+  --cache-size   how many models are cached, and how much they take
+  --remove-model <alias>  delete a cached model's file and report what
+                 was freed
   --backend <b>  compute backend: auto (default), cpu, cpu-accel,
                  metal, vulkan, cuda, rocm. 'auto' runs on the GPU
                  when one initializes (every discrete GPU is probed
@@ -107,6 +110,10 @@ Usage: transcribe <audio> [model] [options]
                  json, html (numbered paragraphs with timestamps and
                  speakers; ASR models only), srt or ass (subtitles,
                  ASR models only)
+  --doctor       check the native library, ffmpeg and the compute devices,
+                 and print what is missing (never downloads); with
+                 --verify-cache it also re-hashes the cached models;
+                 --json prints one object instead of the lines
   --version      print the tool and native library versions and exit
   --help         show this help
 ```
@@ -115,6 +122,38 @@ This block is kept honest by a test: `HelpTextBlock_ShouldBeTheRealHelpText`
 in `tests/TranscribeCppSharp.Interop.Tests/ReadmeExamplesTest.cs` compares it to
 `TranscribeCommand.HelpText` on every build. It had drifted once — the compute
 options were missing here and present in the tool — which is why the check exists.
+
+## Diagnose: `--doctor`, `--cache-size`, `--remove-model`
+
+`transcribe --doctor` answers "why doesn't this work?" in one pass, without a
+model, a network or a download:
+
+```
+ok    tool      0.4.1+bb8e6aa
+ok    native    transcribe.cpp 0.4.1 (4d7c1cc)
+ok    abi       RunParams and ModelLoadParams match the native library
+ok    ffmpeg    /usr/bin/ffmpeg
+warn  ffplay    not found on PATH; only the desktop app plays excerpts
+ok    backends  Vulkan0, Vulkan1, CPU
+ok    cache     /home/you/.cache/TranscribeCppSharp/models: 8 model(s), 7.17 GB
+warn  privacy   readable by other local accounts: ui.log
+```
+
+It exits 1 only when a check **fails** (no native library, a wrapper and a
+native package from different versions, no compute device, a cached model whose
+bytes do not match the manifest); a warning is something to know about, not a
+blocker. `--json` prints one object instead of the lines, so a script can read
+it — the native logger is routed to stderr for exactly that reason.
+`--verify-cache` adds a check that re-hashes every cached model against the
+sha256 the manifest pins; that reads every cached weight, so it takes as long as
+reading the cache.
+
+`--cache-size` prints how many models are cached and what they take.
+`--remove-model <alias>` deletes one cached model and says what it freed; an
+alias that is not cached is not an error, and an unknown alias names
+`--list-models`. Files cached from a HuggingFace spec (not a curated alias) are
+not in the manifest, so they are reported by `--doctor --verify-cache` only when
+they match an alias; remove those from the cache directory by hand.
 
 ## What the CLI does not do
 

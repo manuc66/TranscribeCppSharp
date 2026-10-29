@@ -143,14 +143,16 @@ internal sealed record CliOptions
                 case "--vad":
                     if (!TakeValue(args, ref i, "--vad", out vad, out error)) { return false; }
                     break;
-                case "--help" or "-h" or "--version" or "--list-models" or "--list-devices":
+                case "--help" or "-h" or "--version" or "--list-models" or "--list-devices"
+                    or "--cache-size" or "--doctor" or "--json" or "--verify-cache":
                     // Answered before parsing; accepted here so a stray one is
                     // never reported as an unknown option.
                     break;
                 case "--model-info":
-                    // Also answered before parsing, but it takes a value that
+                case "--remove-model":
+                    // Also answered before parsing, but they take a value that
                     // must not be mistaken for a positional argument.
-                    if (!TakeValue(args, ref i, "--model-info", out _, out error)) { return false; }
+                    if (!TakeValue(args, ref i, args[i], out _, out error)) { return false; }
                     break;
                 default:
                     if (args[i].Length > 1 && args[i][0] == '-')

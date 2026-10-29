@@ -50,6 +50,9 @@ internal static partial class TranscribeCommand
                          Q8_0, F16); default is per model (see --list-models)
           --list-models  list the known model aliases and exit
           --model-info <alias>  show details (family, params, license, upstream catalog)
+          --cache-size   how many models are cached, and how much they take
+          --remove-model <alias>  delete a cached model's file and report what
+                         was freed
           --backend <b>  compute backend: auto (default), cpu, cpu-accel,
                          metal, vulkan, cuda, rocm. 'auto' runs on the GPU
                          when one initializes (every discrete GPU is probed
@@ -76,9 +79,78 @@ internal static partial class TranscribeCommand
                          json, html (numbered paragraphs with timestamps and
                          speakers; ASR models only), srt or ass (subtitles,
                          ASR models only)
+          --doctor       check the native library, ffmpeg and the compute devices,
+                         and print what is missing (never downloads); with
+                         --verify-cache it also re-hashes the cached models;
+                         --json prints one object instead of the lines
           --version      print the tool and native library versions and exit
           --help         show this help
         """;
+
+    /// <summary>
+    /// Prints how many models are cached and how much they take.
+    /// </summary>
+    /// <remarks>
+    /// Uses <see cref="ModelStore.IsCached"/> rather than the filesystem, so a
+    /// cache holding a file whose name the manifest does not know is not counted.
+    /// That is the same set the desktop app's Models tab shows.
+    /// </remarks>
+    private static void PrintCacheSize(TextWriter stdout)
+    {
+        ModelDescriptor[] cached = [.. ModelStore.Catalog.Where(ModelStore.IsCached)];
+        long bytes = 0;
+        foreach (ModelDescriptor descriptor in cached)
+        {
+            bytes += ModelStore.CachedSize(descriptor);
+        }
+
+        stdout.WriteLine(
+            $"{cached.Length} model(s) cached, {ModelSizeFormat.Format(bytes)} in {ModelStore.CacheRoot()}");
+    }
+
+    /// <summary>
+    /// Deletes one alias' cached file.
+    /// </summary>
+    /// <param name="alias">The alias to remove, as --list-models spells it.</param>
+    /// <param name="stdout">Where the result is reported.</param>
+    /// <param name="stderr">Where a refusal is reported.</param>
+    /// <returns>0 when the file is gone (or was not there), 1 when it could not be removed.</returns>
+    private static int RemoveCachedModel(string alias, TextWriter stdout, TextWriter stderr)
+    {
+        ModelDescriptor? descriptor = ModelStore.Find(alias);
+        if (descriptor is null)
+        {
+            stderr.WriteLine($"Unknown alias '{alias}'. Run '{ToolName} --list-models' for the list, "
+                + "or delete a HuggingFace spec's file from the cache directory by hand.");
+            return 1;
+        }
+
+        long bytes = ModelStore.CachedSize(descriptor);
+        if (!ModelStore.IsCached(descriptor))
+        {
+            // Idempotent: asking twice is not an error, and saying so is clearer
+            // than a silent success.
+            stdout.WriteLine($"{alias} is not cached.");
+            return 0;
+        }
+
+        try
+        {
+            if (!ModelStore.Delete(descriptor))
+            {
+                stdout.WriteLine($"{alias} is not cached.");
+                return 0;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            stderr.WriteLine($"Could not remove {alias}: {ex.Message}");
+            return 1;
+        }
+
+        stdout.WriteLine($"Removed {alias} ({descriptor.Quant}, {ModelSizeFormat.Format(bytes)}).");
+        return 0;
+    }
 
     /// <summary>This executable's version, with the commit when the build recorded one.</summary>
     internal static string ToolVersion
@@ -244,6 +316,15 @@ internal static partial class TranscribeCommand
             return 0;
         }
 
+        if (Has(args, "--doctor"))
+        {
+            return Doctor.Run(
+                stdout,
+                stderr,
+                json: Has(args, "--json"),
+                verifyCache: Has(args, "--verify-cache"));
+        }
+
         // Flags answered without touching the model or the network.
         if (Has(args, "--list-models"))
         {
@@ -261,6 +342,18 @@ internal static partial class TranscribeCommand
 
             PrintUpstreamCatalog(alias, stdout);
             return 0;
+        }
+
+        if (Has(args, "--cache-size"))
+        {
+            PrintCacheSize(stdout);
+            return 0;
+        }
+
+        if (Has(args, "--remove-model"))
+        {
+            string alias = CliOptions.ValueAfter(args, "--remove-model") ?? string.Empty;
+            return RemoveCachedModel(alias, stdout, stderr);
         }
 
         if (Has(args, "--list-devices"))

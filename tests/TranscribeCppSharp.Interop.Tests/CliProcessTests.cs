@@ -86,6 +86,19 @@ public class CliProcessTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void DoctorJsonStaysParseableInARealProcess()
+    {
+        // The native logger writes to the process' stdout by default. In-process
+        // tests cannot see that, so the purity of the JSON is checked on the real
+        // executable: a stray log line would make the document unparsable.
+        ProcessResult result = Run("--doctor", "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(result.Out);
+        Assert.True(document.RootElement.GetProperty("ok").GetBoolean());
+    }
+
+    [Fact]
     public void NoArguments_PrintsTheHelpAndExitsOne()
     {
         ProcessResult result = Run();

@@ -11,6 +11,28 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ### Command-line tool
 
+#### `--doctor`, `--cache-size`, `--remove-model`
+
+The failure modes this project actually gets asked about are all first-run
+environment problems, and each of them surfaced one at a time while
+transcribing. `transcribe --doctor` collects them in one pass, changes nothing
+and never downloads: tool and native versions, the ABI check the builders
+perform, `ffmpeg`/`ffplay` on PATH, the compute devices the native layer sees,
+the cache and how much it takes, and whether the desktop app's saved settings,
+history and log are owner-only. It exits 1 only on a real failure (no native
+library, mismatched wrapper/native, no device, a cached model whose bytes do not
+match the manifest); `--verify-cache` adds the re-hashing of every cached model,
+and `--json` prints one object instead of the lines — the native logger is
+routed to stderr so the document stays parsable.
+
+Running it on the machine that produced this release immediately found a real
+one: `logs/ui.log` was still `0644`, because the earlier fix tightens a file on
+its next write and the log is only written on a failure.
+
+`--cache-size` and `--remove-model <alias>` close the gap with the desktop app,
+which could already list and delete cached models. Both are idempotent and local:
+no network, no download.
+
 #### `--version`
 
 `transcribe --version` prints the installed package's version and the native
