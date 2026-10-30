@@ -33,10 +33,10 @@ signatures do not.
 
 Two version numbers are in play, decoupled on purpose:
 
-- **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper. The user-facing packages **`TranscribeCppSharp.Bundle`** (meta-package) and **`TranscribeCppSharp.Cli`** (the `transcribe` tool) follow the wrapper's version too.
-- **`TranscribeCppSharp.Interop`** and the **`TranscribeCppSharp.Native.*`** runtime packages are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.4.1` = transcribe.cpp v0.4.1). They track the ABI, not the wrapper's API.
+- **`TranscribeCppSharp`** (this wrapper) follows [Semantic Versioning (SemVer)](https://semver.org/) for its **own C# API**. Breaking API changes bump the major/minor version of the wrapper. The user-facing packages **`TranscribeCppSharp.Interop`**, **`TranscribeCppSharp.Bundle`** (meta-package) and **`TranscribeCppSharp.Cli`** (the `transcribe` tool) follow the wrapper's version too: the Interop assembly is generated C# that is rebuilt with every wrapper release, so it is republished under the wrapper's number.
+- **`TranscribeCppSharp.Native.*`** runtime packages are versioned to match the **upstream `transcribe.cpp` version** they bind to (e.g. `0.4.1` = transcribe.cpp v0.4.1). They track the ABI.
 
-So `TranscribeCppSharp 0.4.1` depends on `TranscribeCppSharp.Interop 0.4.1`; `TranscribeCppSharp.Bundle 0.4.1` pulls a wrapper and the native runtime packages of the matching upstream version. A later upstream release will ship as a new Interop/Native version without necessarily changing the wrapper's own version. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](https://github.com/manuc66/TranscribeCppSharp/blob/main/CHANGELOG.md).
+So `TranscribeCppSharp 0.4.2` depends on `TranscribeCppSharp.Interop 0.4.2`, while the bundle it ships pulls the `TranscribeCppSharp.Native.*` packages of the upstream version it binds (`0.4.1` here). An upstream release ships as new Native packages without necessarily changing the wrapper's own version; a wrapper release always republishes Interop, because its assets changed with the wrapper even when the ABI did not. The correspondence between a wrapper release and the upstream version it targets is recorded in [CHANGELOG.md](https://github.com/manuc66/TranscribeCppSharp/blob/main/CHANGELOG.md).
 
 This decoupling is why documentation here cites upstream behaviour at a specific
 version — "transcribe.cpp v0.4.1" appears in the streaming, thread-safety and CUDA

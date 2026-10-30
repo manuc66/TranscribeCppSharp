@@ -280,9 +280,13 @@ jobs:
       - name: Pack Interop NuGet (core, no native runtimes)
         # The Interop package is platform-agnostic: consumers add the native
         # package for their RID, or the TranscribeCppSharp.Bundle meta-package.
+        # It follows the wrapper's version, not the upstream ABI: its assets are
+        # rebuilt with every wrapper release, so republishing under the upstream
+        # number would collide with the Interop already on nuget.org (see
+        # docs/architecture.md#versioning--compatibility).
         run: |
           dotnet pack generated/TranscribeCppSharp.Interop -c Release -o nupkgs \
-            /p:Version=${{ needs.get-version.outputs.version }}
+            /p:Version=${{ needs.get-version.outputs.wrapper-version }}
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -304,7 +308,7 @@ jobs:
       - name: Pack Wrapper NuGet
         run: |
           dotnet pack src/TranscribeCppSharp -c Release -o nupkgs \
-            /p:Version=${{ needs.get-version.outputs.version }} \
+            /p:Version=${{ needs.get-version.outputs.wrapper-version }} \
             /p:WrapperPackageVersion=${{ needs.get-version.outputs.wrapper-version }}
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

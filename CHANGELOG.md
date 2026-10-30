@@ -3,11 +3,12 @@
 All notable changes to this project are documented in this file.
 
 The versioning scheme is described in the [README](README.md#versioning--compatibility):
-the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
-`TranscribeCppSharp.Interop` and `TranscribeCppSharp.Native.*` track the upstream
+the wrapper (`TranscribeCppSharp`), `TranscribeCppSharp.Interop`, the bundle and the
+CLI follow the wrapper's SemVer, while the `TranscribeCppSharp.Native.*` runtime
+packages track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
-## Unreleased
+## [0.4.2] - wrapper release
 
 ### Packages
 
@@ -22,6 +23,13 @@ three packed assemblies have the same size and differ only in metadata.
 gained one dependency group per target — without that, a net8.0/net9.0 consumer
 installing the bundle would get NU1202 on its own wrapper dependency. The native
 packages were already `netstandard2.0` content and are untouched.
+
+Interop moves with the wrapper from this release: `TranscribeCppSharp.Interop`
+is versioned to the wrapper (`0.4.2`) instead of the upstream ABI, because its
+assembly is rebuilt with every wrapper release and republishing it under
+`0.4.1` would collide with the version already on nuget.org — the net8.0/net9.0
+constructors would never reach a consumer. `TranscribeCppSharp.Native.*` still
+track upstream, and the bundle keeps depending on them at `0.4.1`.
 
 The lower targets are a compatibility floor, not a support promise: .NET 9 has
 been out of support since May 2026, .NET 8 reaches end of support in November

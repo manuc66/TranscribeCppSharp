@@ -11,6 +11,11 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
     <IsLibrary>true</IsLibrary>
+    <!-- Interop follows the wrapper's version, not the upstream ABI: its
+         assembly is rebuilt with every wrapper release, while the Native.*
+         packages are the ones that track transcribe.cpp. See "Versioning &
+         compatibility" in docs/architecture.md. -->
+    <Version>$(WrapperVersionFile)</Version>
     <PackageId>TranscribeCppSharp.Interop</PackageId>
 
     <!-- CS1591 (missing XML doc) is not enforced here: NativeMethods.cs is
