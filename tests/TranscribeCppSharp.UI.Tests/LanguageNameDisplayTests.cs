@@ -18,6 +18,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// model reported, so the assertion that matters is that the item is still the
 /// code while what is drawn is not.
 /// </summary>
+[Collection("UiGlobalState")]
 public class LanguageNameDisplayTests
 {
     [Theory]

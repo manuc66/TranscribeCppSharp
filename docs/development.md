@@ -29,8 +29,8 @@ dotnet run --project tools/FetchNative -- --verify
 # speaker-attribution test
 WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
 
-# Run the smoke test sample
-dotnet run --project samples/SmokeTest -- model.gguf audio.wav
+# Run the smoke test sample (it multi-targets net8.0/net9.0/net10.0, so pick one)
+dotnet run --project samples/SmokeTest -f net10.0 -- model.gguf audio.wav
 
 # Run the CLI from source (see "Command-line tool" for the installed tool).
 # WAV is read directly; other formats (ogg, mp3, …) are decoded with ffmpeg.

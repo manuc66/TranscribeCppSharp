@@ -24,8 +24,18 @@ namespace TranscribeCppSharp.UI.Tests;
 /// direction is read back from it rather than from the column: Avalonia's column
 /// exposes no public sort direction, so the arrow lives in the header text.
 /// </remarks>
-public class ModelGridSortingTests
+[Collection("UiGlobalState")]
+public class ModelGridSortingTests : IDisposable
 {
+    /// <summary>An empty cache directory of its own, restored after the test.</summary>
+    private readonly CacheRootScope _cache = new("tcsharp-ui-tests-grid-sort");
+
+    public void Dispose()
+    {
+        _cache.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     /// <summary>The columns with an order behind them, and the ones without.</summary>
     private static readonly string[] SortableColumns =
         ["Alias", "Family", "Size", "On disk", "Licence", "Languages", "x realtime", "Diarization"];
@@ -34,9 +44,6 @@ public class ModelGridSortingTests
 
     private static (Window Window, ModelManagerViewModel ViewModel, DataGrid Grid) Show()
     {
-        ModelStore.CacheRootOverride = Path.Combine(
-            Path.GetTempPath(), "tcsharp-ui-tests-grid-sort");
-
         var root = new MainWindowViewModel(
             new TranscriptionViewModel(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),
             new StreamingViewModel(new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache()),

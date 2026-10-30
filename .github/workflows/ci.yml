@@ -183,7 +183,13 @@ jobs:
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: '10.x'
+          # One SDK per framework the wrapper ships: building only needs 10.x
+          # (the net8.0/net9.0 reference packs come from NuGet), but running the
+          # sample on those TFMs needs their runtimes installed.
+          dotnet-version: |
+            10.x
+            9.x
+            8.x
 
       - name: Cache native libraries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -204,18 +210,26 @@ jobs:
       - run: dotnet run --project tools/FetchNative
 
       # Build after FetchNative so the CopyNativeLib target copies the libs
-      # into the output dir; the run below uses --no-build.
+      # into every TFM's output dir; the runs below use --no-build.
       - run: dotnet build samples/SmokeTest -c Release
 
-      - name: Run smoke test
+      - name: Run smoke test on every shipped framework
+        # The libraries ship lib/net8.0, lib/net9.0 and lib/net10.0 assets. Only
+        # net10.0 is covered by the test suite (the CLI it also references is
+        # net10.0-only); these three runs are what proves the lower assets
+        # actually load the native library and transcribe, instead of being
+        # published on the strength of a successful compile.
         run: |
           # The model and audio are needed for smoke test too
           mkdir -p test-models test-audio
           [ -f test-models/ggml-tiny.bin ] || curl -fSL --proto '=https' --proto-redir '=https' -o test-models/ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
           [ -f test-audio/jfk.wav ] || curl -fSL --proto '=https' --proto-redir '=https' -o test-audio/jfk.wav https://github.com/ggerganov/whisper.cpp/raw/master/samples/jfk.wav
-          
-          dotnet run --project samples/SmokeTest -c Release --no-build -- \
-          test-models/ggml-tiny.bin test-audio/jfk.wav
+
+          for tfm in net10.0 net9.0 net8.0; do
+            echo "=== Smoke test on $tfm ==="
+            dotnet run --project samples/SmokeTest -c Release --no-build -f "$tfm" -- \
+              test-models/ggml-tiny.bin test-audio/jfk.wav
+          done
 
   pack-native:
     needs: [build-and-test, get-version]

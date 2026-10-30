@@ -21,6 +21,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// from the Models tab has to show what was just downloaded — otherwise the guidance
 /// points at a download that never appears.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class DownloadedModelPickerTests : IDisposable
 {
     /// <summary>

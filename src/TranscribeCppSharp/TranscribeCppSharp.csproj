@@ -1,7 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- The wrapper is plain managed code over P/Invoke and uses no API newer
+         than .NET 8, so it also builds for net8.0/net9.0: a consumer still on
+         those runtimes gets a usable asset instead of NU1202. The lower targets
+         are a compatibility floor, not a support promise — .NET 8 and .NET 9 are
+         both out of support (November 2026 and May 2026), .NET 10 is the LTS.
+         LangVersion is pinned to 14.0 in Directory.Build.props, so the language
+         is not the constraint; the net8.0 leg is only the runtime guard (a
+         feature that needs net9+ runtime support, such as `allows ref struct`,
+         fails it with CS9240). -->
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

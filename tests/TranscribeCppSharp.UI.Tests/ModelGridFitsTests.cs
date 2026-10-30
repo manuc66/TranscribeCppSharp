@@ -22,6 +22,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// see. A screenshot would show it, but a test states it in pixels, so this is a
 /// measurement rather than an impression.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class ModelGridFitsTests
 {
     [AvaloniaFact]

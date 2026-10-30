@@ -22,8 +22,18 @@ namespace TranscribeCppSharp.UI.Tests;
 /// that matter are that "(model default)" is always labelled — never a blank box —
 /// and that a choice the model no longer declares is dropped rather than passed on.
 /// </remarks>
-public class TargetLanguagePickerTests
+[Collection("UiGlobalState")]
+public class TargetLanguagePickerTests : IDisposable
 {
+    /// <summary>An empty cache directory of its own, restored after the test.</summary>
+    private readonly CacheRootScope _cache = new("tcsharp-ui-tests-target-language");
+
+    public void Dispose()
+    {
+        _cache.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     /// <summary>Expected labels, hoisted so the analyser does not see it rebuilt per call.</summary>
     private static readonly string[] ExpectedLabels = ["(model default)", "en", "fr"];
 
@@ -100,14 +110,9 @@ public class TargetLanguagePickerTests
 
     private static (TranscriptionViewModel ViewModel, ComboBox Combo) Bound()
     {
-        // An empty cache: no model to load, so nothing is reported and the probe
-        // cannot run away with the test.
-        // Deliberately not restored: every test that cares about the cache sets
-        // its own root first, so leaving one behind cannot make a test read another
-        // test's model as its own.
-        ModelStore.CacheRootOverride = Path.Combine(
-            Path.GetTempPath(), "tcsharp-ui-tests-target-language");
-
+        // The cache root is set by the CacheRootScope field: an empty cache, no
+        // model to load, so nothing is reported and the probe cannot run away
+        // with the test. It is restored when the test ends.
         var viewModel = new TranscriptionViewModel(
             new StubTranscriptionService(), new SettingsViewModel(), new ModelCapabilityCache());
         var view = new TranscriptionView { DataContext = viewModel };

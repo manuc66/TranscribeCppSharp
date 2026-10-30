@@ -22,6 +22,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// and scrolling the page takes the column headers and the detail pane off the
 /// screen with it. Both are things a reader needs while looking at a row.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class ModelGridLayoutTests
 {
     private static (Window Window, DataGrid Grid, Control Detail) Show()

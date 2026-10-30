@@ -11,6 +11,7 @@ using Xunit;
 
 namespace TranscribeCppSharp.UI.Tests;
 
+[Collection("UiGlobalState")]
 public class TranscriptionDefaultsTests
 {
     [AvaloniaFact]

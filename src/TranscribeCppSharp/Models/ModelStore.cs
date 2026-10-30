@@ -128,8 +128,13 @@ public static class ModelStore
     /// <returns>An absolute path under <see cref="CacheRoot"/>.</returns>
     public static string CachedPath(ModelDescriptor descriptor)
     {
-        string dir = Contain(CacheRoot(), CacheDirectory(descriptor.Repo, descriptor.Revision));
-        return ContainResolved(CacheRoot(), Path.Combine(dir, FlatFileName(descriptor.File)));
+        // Read the root once for the whole call. CacheRootOverride is a test
+        // seam, and reading it twice let a test that moved it between the two
+        // reads build the directory under one root and check it against the
+        // other, which Contain then correctly rejected.
+        string root = CacheRoot();
+        string dir = Contain(root, CacheDirectory(root, descriptor.Repo, descriptor.Revision));
+        return ContainResolved(root, Path.Combine(dir, FlatFileName(descriptor.File)));
     }
 
     /// <summary>
@@ -334,8 +339,8 @@ public static class ModelStore
             entry.UpstreamRepo,
             entry.UpstreamCommit);
 
-    private static string CacheDirectory(string repo, string revision)
-        => Path.Combine(CacheRoot(), repo.Replace('/', '_'), revision);
+    private static string CacheDirectory(string root, string repo, string revision)
+        => Path.Combine(root, repo.Replace('/', '_'), revision);
 
     /// <summary>
     /// The file name used inside the per-revision cache directory.
@@ -508,7 +513,8 @@ public static class ModelStore
         IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
-        string dir = Contain(CacheRoot(), CacheDirectory(repo, revision));
+        string root = CacheRoot();
+        string dir = Contain(root, CacheDirectory(root, repo, revision));
         string dest = Contain(dir, Path.Combine(dir, FlatFileName(file)));
         if (File.Exists(dest))
         {
@@ -533,8 +539,8 @@ public static class ModelStore
         // Now that the directory exists, check where it really leads. Both sides
         // are measured against the cache root, not against each other: a revision
         // directory linked elsewhere is inside itself and outside the cache.
-        ContainResolved(CacheRoot(), dir);
-        dest = ContainResolved(CacheRoot(), dest);
+        ContainResolved(root, dir);
+        dest = ContainResolved(root, dest);
 
         string url = $"https://huggingface.co/{repo}/resolve/{revision}/{file}";
         error.WriteLine($"Downloading '{file}' ({(size > 0 ? $"{ModelSizeFormat.Format(size)}, " : string.Empty)}{license}) from HuggingFace...");

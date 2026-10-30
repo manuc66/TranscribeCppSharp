@@ -13,7 +13,8 @@ namespace TranscribeCppSharp.UI.Tests;
 /// xUnit's default parallelism, another class can move the same value in between —
 /// which is what made a test read a settings file a parallel test had written, and
 /// fail on an alias it never set. Classes that touch either value join this
-/// collection and run one at a time with respect to each other.
+/// collection and run one at a time with respect to each other;
+/// <see cref="CacheRootScope"/> is what puts the cache root back when a test ends.
 /// </remarks>
 [CollectionDefinition("UiGlobalState", DisableParallelization = true)]
 public static class UiGlobalStateTestGroup

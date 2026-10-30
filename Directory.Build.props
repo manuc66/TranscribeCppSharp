@@ -19,6 +19,19 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
+    <!-- Language version pinned instead of left to the per-TFM default. The
+         wrapper and Interop multi-target net8.0/net9.0/net10.0, and the SDK
+         would otherwise compile the same sources as C# 12, 13 and 14
+         respectively — making the lowest leg a silent language ceiling for the
+         whole repository. At 14.0 the compiler-only features (field, ?.=,
+         extension members, params ReadOnlySpan) work on every target, including
+         net8.0, while the net8.0 leg still rejects what needs runtime support:
+         `allows ref struct` fails with CS9240. So the oldest TFM stays a
+         compatibility guard rather than a syntax budget. Bump this deliberately
+         with the SDK; `latest` is avoided so a runner update cannot change the
+         language under the build. -->
+    <LangVersion>14.0</LangVersion>
+
     <!-- Package metadata -->
     <Authors>manuc66</Authors>
     <Copyright>Copyright (c) 2026 manuc66</Copyright>

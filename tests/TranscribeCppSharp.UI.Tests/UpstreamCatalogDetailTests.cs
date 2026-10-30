@@ -22,6 +22,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// records and their measurements, and a model without a record must leave them
 /// blank rather than fill them with a dash or a zero that reads as a measurement.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class UpstreamCatalogDetailTests
 {
     private static ModelCatalogItem Item(string alias)

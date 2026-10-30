@@ -1,7 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- A meta-package carries no assembly, but its dependency group is written
+         per target framework: with only net10.0 here, a net8.0/net9.0 consumer
+         installing the Bundle would get NU1202 on its wrapper dependency. The
+         TFMs mirror the wrapper's floor (see TranscribeCppSharp.csproj). -->
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <!-- Meta-package: no assembly of its own, only dependencies. -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>

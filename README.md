@@ -44,6 +44,15 @@ dotnet add package TranscribeCppSharp.Bundle
 Native runtime packages: `TranscribeCppSharp.Native.linux-x64`,
 `.linux-arm64`, `.win-x64`, `.osx-arm64`, `.osx-x64`.
 
+The wrapper and `TranscribeCppSharp.Interop` ship `lib/net8.0`, `lib/net9.0` and
+`lib/net10.0` assemblies, and `TranscribeCppSharp.Bundle` mirrors that list as one
+dependency group per target. The lower two exist so a project still on those
+runtimes can reference the package at all; they are compatibility assets, not a
+support promise — .NET 9 has been out of support since May 2026, .NET 8 reaches
+end of support in November 2026, and .NET 10 is the current LTS. CI runs the
+smoke test on all three, so the net8.0/net9.0 assemblies are at least known to
+load the native library and transcribe; the test suite itself runs on net10.0.
+
 *Note: For Linux Alpine (musl) or other platforms, see
 [Building from source](docs/development.md#building-from-source). Like
 [Using CUDA](docs/compute.md#using-cuda), a custom native build is picked up

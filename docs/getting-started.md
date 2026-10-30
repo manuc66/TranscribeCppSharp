@@ -36,6 +36,8 @@ Native runtime packages:
 
 *Note: For Linux Alpine (musl) or other platforms, please refer to [Building from source](development.md#building-from-source). Like [Using CUDA](compute.md#using-cuda), a custom native build is picked up automatically when placed in the app output directory.*
 
+The wrapper, `TranscribeCppSharp.Interop` and the bundle multi-target `net8.0`, `net9.0` and `net10.0`, so a project on an older runtime still resolves an asset instead of failing with NU1202. Those two lower targets are compatibility assets rather than supported runtimes: .NET 9 has been out of support since May 2026, .NET 8 reaches end of support in November 2026, and the test suite runs on net10.0 — CI only smoke-tests the older assemblies (load the native library and transcribe).
+
 The wrapper resolves `libtranscribe` automatically in plain `dotnet run` scenarios (no `<RuntimeIdentifier>` needed): it searches the app output directory — including the `runtimes/<rid>/native/` layout where .NET places runtime-package binaries — and the NuGet global packages folder. If the native library is still missing at runtime (e.g. you forgot the runtime package), the wrapper throws a `DllNotFoundException` that lists the exact package to add for your platform (e.g. `dotnet add package TranscribeCppSharp.Native.linux-x64`) and the paths it searched. It does not silently produce a misleading error.
 
 The search order and the resolver itself are described under [Native library loading](architecture.md#native-library-loading).
@@ -116,8 +118,8 @@ separately, because its options, its export formats and its limits are its own �
 ## Run the samples
 
 ```bash
-# Run the smoke test sample
-dotnet run --project samples/SmokeTest -- model.gguf audio.wav
+# Run the smoke test sample (it multi-targets net8.0/net9.0/net10.0, so pick one)
+dotnet run --project samples/SmokeTest -f net10.0 -- model.gguf audio.wav
 ```
 
 See [Development](development.md) for the prerequisites and the full test command.

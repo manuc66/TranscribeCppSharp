@@ -9,6 +9,59 @@ the wrapper (`TranscribeCppSharp`) follows SemVer for its own C# API, while
 
 ## Unreleased
 
+### Packages
+
+#### The wrapper, Interop and bundle target net8.0, net9.0 and net10.0
+
+Issue #27 asked for .NET 9 assets, and nothing in the wrapper ever needed .NET 10:
+it is managed code over P/Invoke, with no `PackageReference` at all and no
+`#if NET*` anywhere, so the same sources build for net8.0 as for net10.0 — the
+three packed assemblies have the same size and differ only in metadata.
+`TranscribeCppSharp`, `TranscribeCppSharp.Interop` and the
+`TranscribeCppSharp.Bundle` meta-package now ship all three, and the bundle
+gained one dependency group per target — without that, a net8.0/net9.0 consumer
+installing the bundle would get NU1202 on its own wrapper dependency. The native
+packages were already `netstandard2.0` content and are untouched.
+
+The lower targets are a compatibility floor, not a support promise: .NET 9 has
+been out of support since May 2026, .NET 8 reaches end of support in November
+2026, and .NET 10 is the LTS. Publishing an asset nobody ever ran would be the
+wrong kind of claim, so `samples/SmokeTest` multi-targets the same three
+frameworks and the CI smoke job now runs it on each one (load the native
+library, run, batch, tokenize, stream) against the tiny model. The test suite
+itself stays on net10.0, because it references the CLI, which remains a net10.0
+app.
+
+The language is not pinned by the floor: `LangVersion` is set to 14.0 in
+`Directory.Build.props` instead of being left to the per-TFM default (which
+would have compiled the net8.0 leg as C# 12 and the net10.0 leg as C# 14).
+The compiler-only features — `field`, `?.=`, extension members, `params
+ReadOnlySpan<T>` — therefore work on every target, net8.0 included, while the
+net8.0 leg keeps refusing what needs net9+ runtime support: `allows ref struct`
+fails it with CS9240. The oldest TFM stays a compatibility guard, not a syntax
+budget.
+
+### Tests
+
+#### The UI suite no longer races on the cache root
+
+`ModelStore.CacheRootOverride` is a single process-wide value, and xUnit runs one
+collection per test class in parallel by default. Only the classes enrolled in
+the `UiGlobalState` collection were serialized; eleven others — quick filters,
+grid fit/sort/layout, the language pickers, the downloaded-model picker,
+`TranscriptionDefaults`, `UpstreamCatalogDetail` — wrote the same static while
+running in parallel. `CachedPath` also read the root twice, so a write landing
+between the two reads built the directory under one root and checked it against
+the other; the containment guard then threw `refusing to use '…': it is outside
+the model cache '…'`, intermittently, which is what made it read as a flaky test.
+
+Every writer now joins the collection, and the three that never put the previous
+value back do so through `CacheRootScope`, so a test cannot inherit another
+test's planted cache. `CachedPath` and `EnsureLocal` read the root once and pass
+it down, which makes one call atomic: the two-thread repro that produced 203k of
+those exceptions in five seconds now produces none, and the UI suite is green on
+repeated runs where it used to fail every few.
+
 ### Command-line tool
 
 #### `--doctor`, `--cache-size`, `--remove-model`

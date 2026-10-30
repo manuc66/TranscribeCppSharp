@@ -1,7 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Same compatibility floor as the wrapper: LibraryImport is available
+         since .NET 7 and nothing here needs a newer BCL. Keep both projects in
+         step so one dependency graph never mixes a net8.0 Interop with a net10.0
+         wrapper in the package. -->
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

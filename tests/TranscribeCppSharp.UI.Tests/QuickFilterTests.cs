@@ -24,13 +24,20 @@ namespace TranscribeCppSharp.UI.Tests;
 /// the interface that looked present and was inert. These tests assert the round
 /// trip from the control to the rows, which is the only thing that notices.
 /// </remarks>
-public class QuickFilterTests
+[Collection("UiGlobalState")]
+public class QuickFilterTests : IDisposable
 {
+    /// <summary>An empty cache directory of its own, restored after the test.</summary>
+    private readonly CacheRootScope _cache = new("tcsharp-ui-tests-quick-filters");
+
+    public void Dispose()
+    {
+        _cache.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     private static (Window Window, ModelManagerViewModel ViewModel, MainWindowViewModel Root) Show()
     {
-        ModelStore.CacheRootOverride = Path.Combine(
-            Path.GetTempPath(), "tcsharp-ui-tests-quick-filters");
-
         var cache = new ModelCapabilityCache();
         var root = new MainWindowViewModel(
             new TranscriptionViewModel(new StubTranscriptionService(), new SettingsViewModel(), cache),

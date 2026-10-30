@@ -23,6 +23,7 @@ namespace TranscribeCppSharp.UI.Tests;
 /// with <c>Language</c> reading <c>"en"</c>, which a screenshot of this very tab
 /// caught. Asserting the two sides agree is the only thing that notices.
 /// </remarks>
+[Collection("UiGlobalState")]
 public class LanguagePickerTests
 {
     /// <summary>What the fake model reports it accepts.</summary>
