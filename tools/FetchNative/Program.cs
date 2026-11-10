@@ -68,7 +68,7 @@ using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 
 foreach (var (rid, archive) in toFetch)
 {
-    await FetchOneAsync(http, rid, archive, baseUrl, dest, expectedHashes, updateHashes);
+    await FetchOneAsync(http, rid, archive, baseUrl, dest, version, expectedHashes, updateHashes);
 }
 
 Console.WriteLine("Done.");
@@ -92,18 +92,30 @@ static async Task FetchOneAsync(
     string archive,
     string baseUrl,
     string dest,
+    string version,
     Dictionary<string, string> expectedHashes,
     bool updateHashes)
 {
     var target = Path.Combine(dest, rid, "runtimes", rid, "native");
     var doneFile = Path.Combine(target, ".done");
-    var libFile = Path.Combine(target, NativeLibFileName());
+    var libFile = Path.Combine(target, NativeLibFileName(rid));
+    var marker = Marker(version);
 
-    if (!updateHashes && File.Exists(doneFile) && File.Exists(libFile))
+    if (!updateHashes && File.Exists(doneFile) && File.Exists(libFile) && ReadMarker(doneFile) == marker)
     {
-        Console.WriteLine($"Already have {rid}");
+        Console.WriteLine($"Already have {rid} ({version})");
         return;
     }
+
+    // A different pinned version is installed (or the marker predates the
+    // version record): the old tree is replaced, so a file upstream removed
+    // does not linger next to the new library. The marker has to carry the
+    // version — checking only that it exists made a pin bump reuse the previous
+    // release's binaries, and every caller then loaded a native the bindings
+    // were not generated against. The old tree is only dropped after the
+    // download and its checksum succeeded, so a network failure leaves the
+    // working copy in place.
+    var replaceTree = !updateHashes && Directory.Exists(target) && ReadMarker(doneFile) != marker;
 
     var url = $"{baseUrl}/{archive}";
     Console.WriteLine($"Downloading {url}");
@@ -125,9 +137,16 @@ static async Task FetchOneAsync(
 
         await File.WriteAllBytesAsync(tmpGz, bytes);
         await DecompressToTarAsync(tmpGz, tmpTar);
+
+        if (replaceTree)
+        {
+            Directory.Delete(target, recursive: true);
+            Directory.CreateDirectory(target);
+        }
+
         await ExtractToTargetAsync(tmpTar, target);
 
-        await File.WriteAllTextAsync(doneFile, $"fetched {DateTime.UtcNow:O}");
+        await File.WriteAllTextAsync(doneFile, marker);
         Console.WriteLine($"Installed {rid}");
     }
     finally
@@ -137,10 +156,22 @@ static async Task FetchOneAsync(
     }
 }
 
-static string NativeLibFileName()
+// The ".done" marker records the pinned version it was fetched for. Existence
+// alone is not enough: after a pin bump the previous release's files are still
+// there and would otherwise be reported as "already have".
+static string Marker(string version) => $"transcribe.cpp {version}";
+
+static string? ReadMarker(string path)
+    => File.Exists(path) ? File.ReadAllText(path).Trim() : null;
+
+// NativeLibFileName is keyed on the RID being fetched, not on the host OS:
+// `--all` runs on one machine for all five platforms, and asking a win-x64
+// tree for libtranscribe.so made the presence check fail and re-download it
+// every time.
+static string NativeLibFileName(string rid)
 {
-    if (OperatingSystem.IsWindows()) return "transcribe.dll";
-    if (OperatingSystem.IsMacOS()) return "libtranscribe.dylib";
+    if (rid.StartsWith("win", StringComparison.Ordinal)) return "transcribe.dll";
+    if (rid.StartsWith("osx", StringComparison.Ordinal)) return "libtranscribe.dylib";
     return "libtranscribe.so";
 }
 

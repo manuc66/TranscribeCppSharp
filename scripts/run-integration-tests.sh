@@ -146,7 +146,11 @@ case "$OS" in
     ;;
 esac
 
-# Check if native library exists — fetch if missing
+# Fetch (or refresh after a pin bump) before requiring the library. Running
+# FetchNative is a no-op when the ".done" marker matches build/TRANSCRIBE_VERSION,
+# and it replaces a tree fetched for an earlier release instead of letting the
+# tests load a native the bindings were not generated against (the resolver
+# would reject that one).
 LIBFILE="${NATIVE_DIR}/libtranscribe.so"
 if [[ "$OS" = "Darwin" ]]; then LIBFILE="${NATIVE_DIR}/libtranscribe.dylib"; fi
 case "$OS" in
@@ -154,14 +158,11 @@ case "$OS" in
   *) ;;
 esac
 
+echo "Fetching native libraries (no-op when already current)..."
+dotnet run --project tools/FetchNative
 if [[ ! -f "$LIBFILE" ]]; then
-    echo "Native library not found in ${NATIVE_DIR}. Fetching..."
-    dotnet run --project tools/FetchNative
-    # Re-check after fetch
-    if [[ ! -f "$LIBFILE" ]]; then
-        echo "Error: Fetch failed. Native library still missing in ${NATIVE_DIR}." >&2
-        exit 1
-    fi
+    echo "Error: Fetch failed. Native library still missing in ${NATIVE_DIR}." >&2
+    exit 1
 fi
 
 echo ""

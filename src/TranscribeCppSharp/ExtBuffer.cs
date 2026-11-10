@@ -35,8 +35,9 @@ internal sealed class ExtBuffer<T> : IDisposable
         if (reportedSize != (ulong)size)
         {
             throw new InvalidOperationException(
-                $"ABI struct size mismatch for {typeName}: C# expects {size} bytes, native reports {reportedSize} bytes. " +
-                "Regenerate bindings or update the struct definition.");
+                $"ABI struct size mismatch for {typeName}: C# expects {size} bytes, native reports {reportedSize} bytes." +
+                AbiValidation.DescribeLoadedNativeLibrary() +
+                " Regenerate bindings or update the struct definition.");
         }
     }
 

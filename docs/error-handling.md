@@ -27,10 +27,13 @@ than exceptional and both are reported rather than swallowed:
 ## Missing native library
 
 A missing or unloadable `libtranscribe` is not a `TranscribeException` — it surfaces as
-a `DllNotFoundException` that names the exact runtime package to add for your platform
-and lists the paths that were searched. That is deliberate: the common cause is a
-forgotten platform package, and a bare "not found" would send you looking in the wrong
-place. See [Installation](getting-started.md#installation).
+a `DllNotFoundException` that names the exact runtime package (and the `transcribe.cpp`
+version) to add, lists the paths that were searched, and reports any candidate that was
+rejected for its version. That is deliberate: the common cause is a forgotten platform
+package, and a bare "not found" would send you looking in the wrong place. The version
+matters because the NuGet packages folder keeps every release the machine ever restored:
+loading an older one would otherwise pass the search and fail later on a struct-size
+check. See [Installation](getting-started.md#installation).
 
 ## When a model cannot do what you asked
 
