@@ -293,7 +293,7 @@ The models you load are *not* covered by it — see
 [Model licenses](docs/models.md#model-licenses).
 
 **Versioning**: the wrapper and the native runtime are versioned separately on purpose;
-`TranscribeCppSharp 0.4.2` binds `transcribe.cpp` v0.4.1 (the Interop assembly follows
+`TranscribeCppSharp 0.4.3` binds `transcribe.cpp` v0.4.1 (the Interop assembly follows
 the wrapper, the `Native.*` packages follow upstream). See
 [Versioning & compatibility](docs/architecture.md#versioning--compatibility) and
 [CHANGELOG.md](CHANGELOG.md).
