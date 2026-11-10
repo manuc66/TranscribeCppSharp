@@ -77,6 +77,6 @@
 
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.403" />
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.404" />
   </ItemGroup>
 </Project>
