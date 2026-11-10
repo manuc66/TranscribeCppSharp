@@ -2,5 +2,18 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "Avalonia packages must move as one set: the app (src/TranscribeCppSharp.UI), its test host (tests/TranscribeCppSharp.UI.Tests) and the screenshot sample (samples/UIScreenshot) each pin their own references, and a per-package update leaves them on different patches, so the next restore fails with NU1605. Mirrors the avalonia group in .github/dependabot.yml.",
+      "matchPackageNames": ["/^Avalonia/"],
+      "groupName": "avalonia"
+    },
+    {
+      "description": "xunit.v3 4.x is blocked: Avalonia.Headless.XUnit (12.1.6, latest) depends on xunit.v3.extensibility.core 3.2.2, and 4.x both breaks its [AvaloniaFact] discoverer and drops the VSTest target `dotnet test` uses, turning CI red. Mirrors the ignore in .github/dependabot.yml; lift both together with the pin in tests/TranscribeCppSharp.UI.Tests.",
+      "matchPackageNames": ["xunit.v3"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
   ]
 }

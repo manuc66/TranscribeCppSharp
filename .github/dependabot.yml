@@ -22,15 +22,22 @@ updates:
         patterns:
           - "Avalonia*"
     ignore:
-      # Avalonia.Headless.XUnit (12.1.4, the latest) still depends on
+      # Avalonia.Headless.XUnit (12.1.6, the latest) still depends on
       # xunit.v3.extensibility.core 3.2.2. Moving to xunit.v3 4.x makes its
       # discoverer throw MissingMethodException for every [AvaloniaFact] and
       # drops the VSTest target `dotnet test` uses here, which turns the whole
-      # UI.Tests project red in CI (this is what 4.0.2 did, PR #25). Lift this
-      # together with the pinned version in tests/TranscribeCppSharp.UI.Tests,
-      # once Avalonia ships a Headless.XUnit on xunit.v3 4.x.
+      # UI.Tests project red in CI (this is what 4.0.2 did, PR #25, and 4.0.3
+      # again, PR #47). Lift this together with the pinned version in
+      # tests/TranscribeCppSharp.UI.Tests, once Avalonia ships a Headless.XUnit
+      # on xunit.v3 4.x.
+      #
+      # `update-types: semver-major` rather than `versions: ["4.x"]`: the
+      # versions form is not honoured for nuget here — both 4.0.2 (PR #30) and
+      # 4.0.3 (PR #47) were opened with this ignore already in place. Semantics
+      # we want are identical: any major of xunit.v3 stays blocked.
       - dependency-name: "xunit.v3"
-        versions: ["4.x"]
+        update-types:
+          - "version-update:semver-major"
 
   # The workflow pins every action by commit sha (a tag can be moved), so the
   # pins have to be maintained by something. Grouped: one PR per week for all of

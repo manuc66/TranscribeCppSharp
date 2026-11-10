@@ -132,10 +132,10 @@
       },
       "Avalonia.Themes.Fluent": {
         "type": "Transitive",
-        "resolved": "12.1.4",
-        "contentHash": "vx7P4as07WLQqA2mhMy4iBsqhkWEGwZI7g9Rd2DlJgz3uKS2tSvY6nZqHq3sWMFDBYBT65jkTsetPrgV8oprsQ==",
+        "resolved": "12.1.6",
+        "contentHash": "CafSFU8q6I2ij7VRWy3D5qw3ObrDEOXRqIvFqVuEh7vqk1EC9ob94KYRmbHLZRsyj3Ob2xsF/tgcF5YF2uiKzQ==",
         "dependencies": {
-          "Avalonia": "12.1.4"
+          "Avalonia": "12.1.6"
         }
       },
       "Avalonia.Win32": {
@@ -292,7 +292,7 @@
           "Avalonia.Controls.DataGrid": "[12.1.2, )",
           "Avalonia.Desktop": "[12.1.6, )",
           "Avalonia.Fonts.Inter": "[12.1.6, )",
-          "Avalonia.Themes.Fluent": "[12.1.4, )",
+          "Avalonia.Themes.Fluent": "[12.1.6, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Material.Icons.Avalonia": "[3.0.2, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.14, )",
