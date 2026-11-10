@@ -11,9 +11,19 @@
   </PropertyGroup>
 
   <!-- Auto-fetch native libraries if missing (portable: resolves the current
-       RID via NETCoreSdkPortableRuntimeIdentifier, e.g. linux-x64 / osx-arm64). -->
+       RID via NETCoreSdkPortableRuntimeIdentifier, e.g. linux-x64 / osx-arm64).
+       The ".done" marker records the transcribe.cpp version it was fetched for:
+       checking only that it exists kept a pre-bump tree in place after a pin
+       move, and the tests then ran against a native the bindings were not
+       generated against. -->
+  <PropertyGroup>
+    <FetchedNativeDir>$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native</FetchedNativeDir>
+    <FetchedNativeMarker>$(FetchedNativeDir)/.done</FetchedNativeMarker>
+    <FetchedNativeVersion Condition="Exists('$(FetchedNativeMarker)')">$([System.IO.File]::ReadAllText('$(FetchedNativeMarker)').Trim())</FetchedNativeVersion>
+  </PropertyGroup>
+
   <Target Name="FetchNativeLibs" BeforeTargets="BeforeBuild"
-          Condition="!Exists('$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/.done')">
+          Condition="'$(FetchedNativeVersion)' != 'transcribe.cpp $(TranscribeVersionFile)'">
     <Exec Command="dotnet run --project $(MSBuildThisFileDirectory)../../tools/FetchNative"
           IgnoreExitCode="true"
           ConsoleToMSBuild="true" />

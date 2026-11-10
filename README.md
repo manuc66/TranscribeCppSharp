@@ -59,10 +59,12 @@ load the native library and transcribe; the test suite itself runs on net10.0.
 automatically when placed in the app output directory.*
 
 The wrapper resolves `libtranscribe` automatically in plain `dotnet run` scenarios (no
-`<RuntimeIdentifier>` needed). If the native library is still missing at runtime (e.g. you
-forgot the runtime package), the wrapper throws a `DllNotFoundException` that lists the
-exact package to add for your platform and the paths it searched. It does not silently
-produce a misleading error. See
+`<RuntimeIdentifier>` needed), and accepts only the `transcribe.cpp` version the bindings
+were generated for. If no compatible native library is found (e.g. you forgot the runtime
+package, or only an older version is left in the NuGet cache), the wrapper throws a
+`DllNotFoundException` that lists the exact package and version to add, the paths it
+searched, and any candidate it rejected for its version. It does not silently load a
+stale library or produce a misleading error. See
 [Installation](docs/getting-started.md#installation) and
 [Native library loading](docs/architecture.md#native-library-loading).
 

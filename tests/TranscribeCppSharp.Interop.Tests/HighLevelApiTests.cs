@@ -681,6 +681,12 @@ public class HighLevelApiTests : IDisposable
     {
         var version = Backends.Version;
         Assert.False(string.IsNullOrWhiteSpace(version));
+
+        // The resolver accepts only the version the bindings were generated
+        // against, so the loaded library must report exactly that pin. This is
+        // the successful half of the stale-cache guard: a candidate that reports
+        // another version is never returned as the loaded library.
+        Assert.Equal(NativeMethods.ExpectedNativeVersion, version);
     }
 
     [Fact]

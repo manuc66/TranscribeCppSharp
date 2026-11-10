@@ -41,10 +41,32 @@ internal static class AbiValidation
         if (csSize != nativeSize)
         {
             throw new InvalidOperationException(
-                $"ABI struct size mismatch for {typeName}: C# expects {csSize} bytes, native reports {nativeSize} bytes. " +
-                "Regenerate bindings or update the struct definition.");
+                $"ABI struct size mismatch for {typeName}: C# expects {csSize} bytes, native reports {nativeSize} bytes." +
+                DescribeLoadedNativeLibrary() +
+                " Regenerate bindings or update the struct definition.");
         }
 
         SChecked.TryAdd(key, true);
+    }
+
+    /// <summary>
+    /// Names the native library that is actually loaded, so a size mismatch
+    /// points at the side that is out of step. The resolver only accepts a
+    /// library whose version matches the bindings, so a mismatch here means a
+    /// development build with moved structs rather than a stale package — but
+    /// the path and version still make that visible.
+    /// </summary>
+    internal static string DescribeLoadedNativeLibrary()
+    {
+        var path = NativeMethods.LoadedNativeLibraryPath;
+        if (string.IsNullOrEmpty(path))
+        {
+            return string.Empty;
+        }
+
+        var version = NativeMethods.LoadedNativeVersion;
+        return string.IsNullOrEmpty(version)
+            ? $" Loaded native: {path}."
+            : $" Loaded native: {path} (transcribe.cpp {version}).";
     }
 }

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Xunit;
 
 namespace TranscribeCppSharp.Interop.Tests;
@@ -11,15 +10,61 @@ namespace TranscribeCppSharp.Interop.Tests;
 /// </summary>
 public class NativeResolverTests
 {
+    private static readonly string RepoRoot = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+
+    private static readonly string[] PublishedRids =
+        ["win-x64", "linux-x64", "linux-arm64", "osx-arm64", "osx-x64"];
+
     [Fact]
     public void BuildNotFoundMessage_ContainsRid()
     {
-        var rid = RuntimeInformation.RuntimeIdentifier;
         var message = NativeMethods.BuildNotFoundMessage(new List<string> { "/tmp/libtranscribe.so" });
 
-        Assert.Contains(rid, message);
+        Assert.Contains(NativeMethods.SupportedRid, message);
         Assert.Contains("dotnet add package TranscribeCppSharp.Native.", message);
         Assert.Contains("/tmp/libtranscribe.so", message);
+        Assert.Contains("--version", message);
+    }
+
+    [Fact]
+    public void SuggestedPackageRid_IsOneOfThePublishedRids()
+    {
+        // RuntimeInformation.RuntimeIdentifier is distro-specific on platforms
+        // outside .NET's RID graph (Arch Linux reports "arch-x64"), so the
+        // package named in the error must be mapped from OS + architecture.
+        Assert.Contains(NativeMethods.SupportedRid, PublishedRids);
+    }
+
+    [Fact]
+    public void BuildNotFoundMessage_NamesRejectedCandidates()
+    {
+        var rejected = new List<(string Path, string Reason)>
+        {
+            ("/home/user/.nuget/packages/transcribecppsharp.native.linux-x64/0.4.0/runtimes/linux-x64/native/libtranscribe.so",
+                "reports transcribe.cpp 0.4.0"),
+        };
+
+        var message = NativeMethods.BuildNotFoundMessage(
+            ["/tmp/libtranscribe.so", rejected[0].Path],
+            rejected);
+
+        Assert.Contains("Rejected candidates:", message);
+        Assert.Contains(rejected[0].Path, message);
+        Assert.Contains("reports transcribe.cpp 0.4.0", message);
+        Assert.Contains("stale package", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExpectedNativeVersion_MatchesThePinnedUpstreamVersion()
+    {
+        // The version gate is only as good as this link: the value is injected
+        // as assembly metadata by the Interop project from build/TRANSCRIBE_VERSION.
+        string pinned = File.ReadAllText(
+            Path.Combine(RepoRoot, "build", "TRANSCRIBE_VERSION")).Trim();
+
+        Assert.False(string.IsNullOrEmpty(NativeMethods.ExpectedNativeVersion));
+        Assert.Equal(pinned, NativeMethods.ExpectedNativeVersion);
     }
 
     [Fact]

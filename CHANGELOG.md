@@ -8,6 +8,56 @@ CLI follow the wrapper's SemVer, while the `TranscribeCppSharp.Native.*` runtime
 packages track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
+## [Unreleased]
+
+### Native resolution
+
+#### A stale native package can no longer be loaded silently (#42)
+
+Issue #42 showed `ABI struct size mismatch for ModelLoadParams: C# expects 32 bytes,
+native reports 24 bytes` from a project whose only package references were the wrapper
+and Interop. The bindings were right: `ModelLoadParams` is 32 bytes since transcribe.cpp
+v0.4.1, which is the release the 0.4.2 wrapper targets. What was wrong was the library the
+resolver picked. The wrapper does not depend on a native package by design, so that
+project had none; `NativeResolver` then fell back to scanning
+`~/.nuget/packages/transcribecppsharp.native.*/*/runtimes/*/native/` in filesystem order
+and loaded a 0.4.0 `libtranscribe` left in the cache by an earlier restore. The first ABI
+check failed with a message that told the user to regenerate bindings.
+
+The resolver now gates every candidate on `transcribe_version()`: the Interop assembly
+carries the pinned upstream version as assembly metadata (from
+`build/TRANSCRIBE_VERSION`), a library that reports another version is unloaded again,
+and the search continues. If none matches, the `DllNotFoundException` names the expected
+version, the paths searched, and each rejected candidate with the version it reported,
+and the `dotnet add package` line carries `--version <pinned>` — without it a restore
+would be free to pick the same stale version from the cache again. The ABI mismatch
+messages themselves (central `AbiValidation` and the extension builders' `ExtBuffer`) now
+name the loaded native library and its version, so future drift points at the library
+rather than at the bindings.
+
+`tools/FetchNative` had the same stale-native failure in the other direction: its `.done`
+marker recorded only a timestamp, and its presence was treated as "this platform is
+fetched". After `build/TRANSCRIBE_VERSION` moved, a local tree kept the previous
+release's binaries while the bindings expected the new ones (CI invalidates its native
+cache on that file, a developer's checkout does not), and both the test project's
+`BeforeBuild` target and `scripts/run-integration-tests.sh` skipped the fetch for the
+same reason. The marker now records `transcribe.cpp <version>`, a mismatch drops the old
+tree and refetches, the target compares the marker's contents instead of only its
+existence, and the test script runs the fetch every time (a no-op when current) instead
+of only when the library file is absent. `--all` also looks for the
+native file name of the RID being fetched instead of the host's (`transcribe.dll` on
+win-x64, not `libtranscribe.so`), which had made it re-download Windows and macOS
+archives on every Linux run.
+
+Verified on Linux: the Interop suite passes (670 tests, 7 skipped), and the issue's setup
+was reproduced by pointing `NUGET_PACKAGES` at a cache holding a 0.4.0 `libtranscribe`
+next to a 0.4.1 one — the resolver unloads and names the 0.4.0 candidate, then loads
+0.4.1, where the previous code aborted with the 32-vs-24 `ModelLoadParams` message. A
+stale copy dropped in the app output directory is rejected the same way before the good
+one is found. `FetchNative` was run against a marker in the previous (timestamp) format:
+it deleted the tree, downloaded 0.4.1 and wrote `transcribe.cpp 0.4.1`; a second run
+reports "already have" and `--verify` passes.
+
 ## [0.4.2] - wrapper release
 
 ### Packages

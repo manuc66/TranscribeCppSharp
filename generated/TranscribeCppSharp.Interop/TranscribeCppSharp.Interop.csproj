@@ -35,6 +35,13 @@
 
   <ItemGroup>
     <Import Include="System.Runtime.InteropServices" />
+    <!-- The upstream version these bindings were generated against, read at
+         load time by NativeResolver.cs. It is the same pin as the Native.*
+         packages and build/TRANSCRIBE_VERSION: a native that reports another
+         version is rejected instead of being loaded from a stale NuGet cache
+         entry. NativeResolverTests asserts the metadata is present and matches
+         the pin. -->
+    <AssemblyMetadata Include="TranscribeNativeVersion" Value="$(TranscribeVersionFile)" />
     <InternalsVisibleTo Include="TranscribeCppSharp.Interop.Tests" />
     <InternalsVisibleTo Include="SmokeTest" />
     <InternalsVisibleTo Include="TranscribeCppSharp" />
