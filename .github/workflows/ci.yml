@@ -52,7 +52,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
           cache: true
           cache-dependency-path: '**/packages.lock.json'
 
@@ -158,7 +158,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Regenerate bindings and check for drift
         run: |
@@ -239,7 +239,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Cache native libraries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -275,7 +275,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Pack Interop NuGet (core, no native runtimes)
         # The Interop package is platform-agnostic: consumers add the native
@@ -303,7 +303,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Pack Wrapper NuGet
         run: |
@@ -329,7 +329,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Download native NuGets (local feed for restore)
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -361,7 +361,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Cache native libraries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -402,7 +402,7 @@ jobs:
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Cache native libraries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
