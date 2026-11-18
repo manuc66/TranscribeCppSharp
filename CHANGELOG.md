@@ -8,6 +8,67 @@ CLI follow the wrapper's SemVer, while the `TranscribeCppSharp.Native.*` runtime
 packages track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
+## [Unreleased]
+
+### Upstream pin: transcribe.cpp v0.4.2
+
+The pin moves from v0.4.1 to v0.4.2 (released 2026-11-12). Upstream's release body is
+just the version string, so the eight commits are read from the diff, not the notes. No
+ABI change: diffing the two public headers shows only `TRANSCRIBE_VERSION_PATCH`, so the
+P/Invoke surface is unchanged and `generated/TranscribeCppSharp.Interop/NativeMethods.cs`
+regenerates byte-identical. The five native archives are rebuilt upstream, so every
+entry in `build/native-sha256.json` and every per-file hash in
+`build/native-libs-sha256.json` moves while the shipped file set does not. The resolver
+still checks `transcribe_version()`: a 0.4.0 or 0.4.1 library is now the stale one it
+unloads and names.
+
+Three upstream changes are visible through the wrapper:
+
+- **NeMo-family mel frontend.** Parakeet, Canary and Canary-Qwen drop the padding frame
+  before the encoder, in one-shot and batch runs; Kestrel-masked checkpoints keep
+  masking in-graph and are untouched. Nothing in the API moved, but transcripts and
+  timestamps can differ from 0.4.1 for those families — the intent is to match NeMo's
+  own preprocessing.
+- **Whisper vocabulary prompt.** The vocabulary list is rendered as ", "-joined terms
+  instead of `Glossary: …` in the `<|startofprev|>` slot. The wrapper's vocabulary
+  field and the app's Vocabulary box pass through unchanged; the prompt text the model
+  sees differs, so a result should not be compared token-for-token with 0.4.1.
+- **CPU backend selection.** ggml-cpu skips x86 variants whose register state the OS has
+  not enabled instead of selecting one and faulting on its first wide instruction.
+
+Upstream also fixes two build checks (Fedora's `vulkan-loader-devel`, CBLAS symbol
+verification) and adds a GigaAM Multilingual Large CTC converter. The catalog record was
+already published, and there is still no GGUF repository for that model under
+`handy-computer`, so `models.json` stays at 76 aliases — the same call as Phonon-2 in
+0.4.1, and for the same reason: an alias exists to pin a download, and there is nothing
+to pin.
+
+Catalog and packaging:
+
+- The catalog is re-pinned to v0.4.2, but its 77 model records are byte-identical to
+  v0.4.1 (checked file by file against the tag), so `catalog.zip`, `SHA256SUMS` and the
+  zip hash do not change; only `catalog/PINNED.json` and `catalog/README.md` move the
+  tag, its object and the commit.
+- Wrapper and Interop go to 0.4.4 (Interop follows the wrapper); `Native.*` goes to
+  0.4.2. README, docs, the Models-tab link and every test that asserts the old tag move
+  with it; the streaming/thread-safety claims were re-checked against the new header and
+  still hold, since it did not change.
+
+### Build
+
+#### A pin bump no longer leaves a stale native in a test or sample output
+
+The Interop test project and the two samples copy `native-packages/<rid>` into their
+output directory with `SkipUnchangedFiles="true"`. Upstream's release archives store an
+epoch-0 mtime, and 0.4.1 and 0.4.2 ship a `libtranscribe.so` of the **same size**, so
+after this bump an incremental build kept the 0.4.1 library in `bin/` and the resolver's
+version gate rejected it: 207 Interop tests failed with the `DllNotFoundException` that
+names 0.4.2 and lists the 0.4.1 candidate, rather than running against the wrong native.
+A clean CI checkout never sees this — there is no stale destination to skip — which is
+why it only appears on a developer machine after a bump. All three now copy
+unconditionally, matching `build/CopyNativeLib.targets`, which already carried this rule
+with the same example (0.3.0 and 0.4.0 shipped a `libggml.so` of equal size).
+
 ## [0.4.3] - wrapper release
 
 ### Native resolution

@@ -1,11 +1,11 @@
 {
   "repository": "https://github.com/handy-computer/transcribe.cpp",
-  "tag": "v0.4.1",
+  "tag": "v0.4.2",
   "contents": "catalog/*.json, verbatim, one entry per model",
   "files": 77,
   "sha256_of_zip": "8581d49fe716b1be7853e39e5cff73a2d062c842813f59a93cf2e2efa67cb74a",
   "upstream_licence": "MIT (see their LICENSE)",
   "note": "Per-file checksums are in SHA256SUMS and are verified by tests. The .db their releases publish is not shipped: querying it needs SQLite, a native binary this project does not add.",
-  "tag_object": "1ea3e87f2f50ca913c09da661701744a9d654674",
-  "commit": "4d7c1ccefd39e5a9ea36cca5f8fefc6dcc14b99b"
+  "tag_object": "22337ad2eebe38f4506823613a5da362ef380d02",
+  "commit": "275cd50d2c4104c204009a197ac091b9687668e5"
 }

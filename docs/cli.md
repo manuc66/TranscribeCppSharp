@@ -129,8 +129,8 @@ options were missing here and present in the tool — which is why the check exi
 model, a network or a download:
 
 ```
-ok    tool      0.4.1+bb8e6aa
-ok    native    transcribe.cpp 0.4.1 (4d7c1cc)
+ok    tool      0.4.4+bb8e6aa
+ok    native    transcribe.cpp 0.4.2 (275cd50)
 ok    abi       RunParams and ModelLoadParams match the native library
 ok    ffmpeg    /usr/bin/ffmpeg
 warn  ffplay    not found on PATH; only the desktop app plays excerpts

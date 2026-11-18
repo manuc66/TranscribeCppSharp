@@ -34,7 +34,9 @@
       <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/ggml*.dll"
                  Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     </ItemGroup>
-    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true"
+    <!-- Unconditional copy: the archives carry an epoch-0 mtime, so a pin bump can
+         leave a stale library that looks up to date. See build/CopyNativeLib.targets. -->
+    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="false"
           Condition="@(NativeLib) != ''" />
   </Target>
 

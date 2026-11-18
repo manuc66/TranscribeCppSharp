@@ -224,7 +224,7 @@ Stated plainly, so nothing is implied. Each item has its own page with the detai
   numbers, the controls and the reproduction are in
   [Streaming benchmarks](docs/streaming-bench.md).
 - **Streaming cannot attribute speakers.** `transcribe_stream_params` has no `diarize`
-  field in transcribe.cpp v0.4.1, so the streaming API cannot request it; we do not
+  field in transcribe.cpp v0.4.2, so the streaming API cannot request it; we do not
   invent one ([Diarization](docs/diarization.md#not-available-streaming)).
 - **No CUDA runtime ships in the packages.** The bundled binaries are CPU + Vulkan on
   Windows/Linux and Metal on macOS; an NVIDIA GPU means supplying your own CUDA build
@@ -293,7 +293,7 @@ The models you load are *not* covered by it — see
 [Model licenses](docs/models.md#model-licenses).
 
 **Versioning**: the wrapper and the native runtime are versioned separately on purpose;
-`TranscribeCppSharp 0.4.3` binds `transcribe.cpp` v0.4.1 (the Interop assembly follows
+`TranscribeCppSharp 0.4.3` binds `transcribe.cpp` v0.4.2 (the Interop assembly follows
 the wrapper, the `Native.*` packages follow upstream). See
 [Versioning & compatibility](docs/architecture.md#versioning--compatibility) and
 [CHANGELOG.md](CHANGELOG.md).

@@ -46,7 +46,12 @@
       <NativeLib Include="$(MSBuildThisFileDirectory)../../native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/ggml*.dll"
                  Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     </ItemGroup>
-    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true"
+    <!-- Not SkipUnchangedFiles="true": release archives store an epoch-0 mtime, so
+         after a pin bump an old and a new library can have the same timestamp and
+         size (0.4.1 and 0.4.2 libtranscribe.so are both 2 434 312 bytes) and the
+         stale copy would be left in place. The resolver then rejects it by version,
+         which is how this surfaced. Same reasoning as build/CopyNativeLib.targets. -->
+    <Copy SourceFiles="@(NativeLib)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="false"
           Condition="@(NativeLib) != ''" />
   </Target>
 

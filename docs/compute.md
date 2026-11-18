@@ -68,12 +68,12 @@ build of transcribe.cpp and place it next to your app; the wrapper prefers
 native binaries in the app output directory over the packaged ones.
 
 1. **Download** the upstream CUDA archive for your platform (this project is
-   bound to transcribe.cpp v0.4.1):
+   bound to transcribe.cpp v0.4.2):
 
-   - Linux x64: `transcribe-native-0.4.1-linux-x86_64-cuda.tar.gz`
-   - Windows x64: `transcribe-native-0.4.1-windows-x86_64-cuda.tar.gz`
+   - Linux x64: `transcribe-native-0.4.2-linux-x86_64-cuda.tar.gz`
+   - Windows x64: `transcribe-native-0.4.2-windows-x86_64-cuda.tar.gz`
 
-   from the [transcribe.cpp v0.4.1 release](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.4.1).
+   from the [transcribe.cpp v0.4.2 release](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.4.2).
 
 2. **Extract** it and copy `libtranscribe.so` (Linux) or `transcribe.dll`
    (Windows) — plus the sibling `libggml*.so` / `ggml*.dll` files — into your

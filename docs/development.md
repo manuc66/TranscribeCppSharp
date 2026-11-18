@@ -87,7 +87,7 @@ You need to build from source when:
 - You want to enable specific hardware optimizations not included in the default build.
 
 **Steps:**
-1.  Clone [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) at the tag this project binds to — `build/TRANSCRIBE_VERSION`, currently `v0.4.1`. The resolver checks `transcribe_version()` before accepting a native, so a build from another tag is rejected and named in the error rather than loaded against bindings generated for a different struct layout.
+1.  Clone [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) at the tag this project binds to — `build/TRANSCRIBE_VERSION`, currently `v0.4.2`. The resolver checks `transcribe_version()` before accepting a native, so a build from another tag is rejected and named in the error rather than loaded against bindings generated for a different struct layout.
 2.  Build the native library using `cmake` (ensure `BUILD_SHARED_LIBS=ON`). On Alpine, build inside the distro so the resulting library links against `musl`.
 3.  Copy the resulting `libtranscribe.so` (or `.dll`/`.dylib`) — **and the sibling `libggml*.so` files it loads** — into your application's output directory. As with [Using CUDA](compute.md#using-cuda), the wrapper prefers native binaries in the app output directory over the packaged ones, so no `LD_LIBRARY_PATH` is needed. The C# interop contract is unchanged as long as the version matches: only the native binaries differ, not the P/Invoke signatures.
 

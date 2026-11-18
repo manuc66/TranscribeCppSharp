@@ -7,9 +7,9 @@ the project whose native library this one packages. Everything here is their wor
 ```json
 {
   "repository": "https://github.com/handy-computer/transcribe.cpp",
-  "tag": "v0.4.1",
-  "tag_object": "1ea3e87f2f50ca913c09da661701744a9d654674",
-  "commit": "4d7c1ccefd39e5a9ea36cca5f8fefc6dcc14b99b",
+  "tag": "v0.4.2",
+  "tag_object": "22337ad2eebe38f4506823613a5da362ef380d02",
+  "commit": "275cd50d2c4104c204009a197ac091b9687668e5",
   "files": 77
 }
 ```
