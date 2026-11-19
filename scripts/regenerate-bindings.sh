@@ -60,7 +60,9 @@ if [[ -d "${TMPDIR}/include/transcribe" ]]; then
     cp "${TMPDIR}/include/transcribe/"*.h ffi/c/transcribe/
 fi
 
-dotnet run --project src/Generator -- "${FFI_PATH}" "ffi/c"
+# The generator is confined to the checkout, so it is handed the vendored
+# copies above rather than the temporary clone they came from.
+dotnet run --project src/Generator -- "ffi/rust/transcribe_sys.rs" "ffi/c"
 
 rm -rf "${TMPDIR}"
 echo "Done. Bindings match ${TAG}."

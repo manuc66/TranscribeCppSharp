@@ -69,6 +69,34 @@ why it only appears on a developer machine after a bump. All three now copy
 unconditionally, matching `build/CopyNativeLib.targets`, which already carried this rule
 with the same example (0.3.0 and 0.4.0 shipped a `libggml.so` of equal size).
 
+### Security hardening
+
+#### Build tooling is confined to the tree it owns
+
+The SAST review flagged eleven file operations in `src/Generator`,
+`src/TranscribeCppSharp/PcmExtensions.cs` and the two tools as path traversal.
+Triaged one by one: the tooling paths come from the operator and the repository,
+but three of them were worth a backstop, and two parser APIs were doing I/O they
+had no business doing.
+
+- `src/Shared/BuildPath.cs` confines a path to a root (same rule as
+  `ModelStore.Contain` for the model cache). The generator and
+  `tools/UpdateModelManifest` are confined to the repository root,
+  `tools/FetchNative` to `native-packages/` — the tree it deletes recursively
+  when the pin moves, which is the one place a derived name could have removed
+  something else.
+- `scripts/regenerate-bindings.sh` now hands the generator the vendored
+  `ffi/rust/transcribe_sys.rs`, not the temporary clone it was copied from, so
+  the confined generator still sees the same bytes.
+- `CHeaderDoc.FromFile/FromFiles/FromDirectory` and
+  `RustFfiParser.FromFile` are gone: both types take text and the caller reads the
+  checkout. The generator does that once, through the confined paths.
+
+`PcmExtensions.ReadWavToPcm(string)` is unchanged on purpose: a library reads the
+file its caller names, and the caller already holds the same filesystem rights,
+so there is no privilege boundary to enforce. `SECURITY.md` now records that
+contract, and why the CLI and server callers are not a traversal path.
+
 ## [0.4.3] - wrapper release
 
 ### Native resolution

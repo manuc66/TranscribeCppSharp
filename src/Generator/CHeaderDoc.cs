@@ -10,55 +10,32 @@ using System.Text.RegularExpressions;
 /// </summary>
 public partial class CHeaderDoc(string content)
 {
-    public static CHeaderDoc FromFile(string path) => new(File.ReadAllText(path));
-
     /// <summary>
-    /// Builds a doc source from several headers. Upstream splits the public
-    /// surface across <c>include/transcribe.h</c> and <c>include/transcribe/*.h</c>
-    /// (extensions, sortformer, vad, langid, diarize, ...); the root header does
-    /// not include them, so they must be merged here to document every function
-    /// the Rust binding declares. A separator banner is inserted between files so
-    /// a declaration at the top of one file cannot pick up the trailing comment
-    /// of the previous one.
+    /// Builds a doc source from the contents of several headers. Upstream splits
+    /// the public surface across <c>include/transcribe.h</c> and
+    /// <c>include/transcribe/*.h</c> (extensions, sortformer, vad, langid,
+    /// diarize, ...); the root header does not include them, so they must be
+    /// merged here to document every function the Rust binding declares. A
+    /// separator banner is inserted between files so a declaration at the top of
+    /// one file cannot pick up the trailing comment of the previous one.
     /// </summary>
-    public static CHeaderDoc FromFiles(IEnumerable<string> paths)
+    /// <remarks>
+    /// Contents, not paths: reading the checkout is the caller's job (the
+    /// generator confines its inputs to the repository), so this parser stays a
+    /// pure text transform and tests can feed it literals.
+    /// </remarks>
+    public static CHeaderDoc FromContents(IEnumerable<string> contents)
     {
         var sb = new StringBuilder();
-        foreach (var path in paths)
+        foreach (var content in contents)
         {
             sb.AppendLine();
             sb.AppendLine("/* ----------------------------------------------------------------------- */");
             sb.AppendLine();
-            sb.AppendLine(File.ReadAllText(path));
+            sb.AppendLine(content);
         }
 
         return new CHeaderDoc(sb.ToString());
-    }
-
-    /// <summary>
-    /// Loads every upstream header under <paramref name="directory"/>:
-    /// <c>transcribe.h</c> plus the <c>transcribe/*.h</c> sub-headers, in a
-    /// deterministic order. Returns null when the directory has no header. This
-    /// is the layout <c>scripts/regenerate-bindings.sh</c> vendors into
-    /// <c>ffi/c/</c>, and the single place the pipeline and the golden test
-    /// agree on which headers make up the public surface.
-    /// </summary>
-    public static CHeaderDoc? FromDirectory(string directory)
-    {
-        var paths = new List<string>();
-        var rootHeader = Path.Combine(directory, "transcribe.h");
-        if (File.Exists(rootHeader))
-        {
-            paths.Add(rootHeader);
-        }
-
-        var subHeaderDir = Path.Combine(directory, "transcribe");
-        if (Directory.Exists(subHeaderDir))
-        {
-            paths.AddRange(Directory.GetFiles(subHeaderDir, "*.h").OrderBy(p => p, StringComparer.Ordinal));
-        }
-
-        return paths.Count == 0 ? null : FromFiles(paths);
     }
 
     // ── Lookup API ─────────────────────────────────────────────────

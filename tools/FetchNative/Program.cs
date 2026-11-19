@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
+using TranscribeCppSharp.SharedSource;
 
 if (args.Length > 0 && args[0] is "--help" or "-h")
 {
@@ -96,9 +97,11 @@ static async Task FetchOneAsync(
     Dictionary<string, string> expectedHashes,
     bool updateHashes)
 {
-    var target = Path.Combine(dest, rid, "runtimes", rid, "native");
-    var doneFile = Path.Combine(target, ".done");
-    var libFile = Path.Combine(target, NativeLibFileName(rid));
+    // Confined to native-packages/: the tree is deleted recursively when the
+    // pin moves, so the RID and the version may name it but may not escape it.
+    var target = BuildPath.Contain(dest, Path.Combine(dest, rid, "runtimes", rid, "native"));
+    var doneFile = BuildPath.Contain(target, Path.Combine(target, ".done"));
+    var libFile = BuildPath.Contain(target, Path.Combine(target, NativeLibFileName(rid)));
     var marker = Marker(version);
 
     if (!updateHashes && File.Exists(doneFile) && File.Exists(libFile) && ReadMarker(doneFile) == marker)

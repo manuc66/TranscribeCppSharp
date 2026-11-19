@@ -25,8 +25,6 @@ public partial class RustFfiParser(string content)
 
     private const string ValueGroup = "value";
 
-    public static RustFfiParser FromFile(string path) => new(File.ReadAllText(path));
-
     // ── Public parse methods ───────────────────────────────────────
     public List<RustEnumDecl> ParseEnums()
     {

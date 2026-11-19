@@ -13,11 +13,16 @@ using System.IO.Compression;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TranscribeCppSharp.SharedSource;
 using TranscribeCppSharp.Tools.UpdateModelManifest;
 
+// Every path this tool touches is a repository file: the manifest it rewrites,
+// the pinned catalog zip it reads, a mode's input. The repository root is the
+// boundary, so a mistyped or file-provided value cannot land elsewhere.
+string repoRoot = FindRepoRoot();
 string author = ArgAfter("--author") ?? "handy-computer";
 string quant = ArgAfter("--quant") ?? "Q5_K_M";
-string outPath = ArgAfter("--out") ?? Path.Combine(FindRepoRoot(), "src", "TranscribeCppSharp", "models.json");
+string outPath = BuildPath.Contain(repoRoot, ArgAfter("--out") ?? Path.Combine(repoRoot, "src", "TranscribeCppSharp", "models.json"));
 
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
 http.DefaultRequestHeaders.UserAgent.ParseAdd("TranscribeCppSharp.UpdateModelManifest/1.0");
@@ -28,7 +33,9 @@ http.DefaultRequestHeaders.UserAgent.ParseAdd("TranscribeCppSharp.UpdateModelMan
 string? fromCatalog = ArgAfter("--from-catalog");
 if (fromCatalog is not null)
 {
-    await EnrichFromCatalogAsync(ArgAfter("--zip")!, fromCatalog);
+    await EnrichFromCatalogAsync(
+        BuildPath.Contain(repoRoot, ArgAfter("--zip")!),
+        BuildPath.Contain(repoRoot, fromCatalog));
     return;
 }
 
@@ -39,7 +46,7 @@ if (fromCatalog is not null)
 string? languagesOnly = ArgAfter("--languages-only");
 if (languagesOnly is not null)
 {
-    await EnrichLanguagesAsync(http, languagesOnly);
+    await EnrichLanguagesAsync(http, BuildPath.Contain(repoRoot, languagesOnly));
     return;
 }
 

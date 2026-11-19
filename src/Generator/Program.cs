@@ -1,8 +1,16 @@
 using TranscribeCppSharp.Generator;
+using TranscribeCppSharp.SharedSource;
 
-var ffiPath = args.Length > 0 ? args[0] : "ffi/rust/transcribe_sys.rs";
-var headerPath = args.Length > 1 ? args[1] : "ffi/c/transcribe.h";
-var outputDir = args.Length > 2 ? args[2] : "generated/TranscribeCppSharp.Interop";
+// The generator only reads what the repository vendors (ffi/rust, ffi/c) and
+// writes generated/. The boundary is the checkout, so a path read from a file
+// or mistyped on the command line cannot reach outside it.
+string repoRoot = FindRepoRoot();
+var ffiPath = Resolve(args.Length > 0 ? args[0] : "ffi/rust/transcribe_sys.rs");
+var headerPath = Resolve(args.Length > 1 ? args[1] : "ffi/c/transcribe.h");
+var outputDir = Resolve(args.Length > 2 ? args[2] : "generated/TranscribeCppSharp.Interop");
+
+string Resolve(string path)
+    => BuildPath.Contain(repoRoot, Path.IsPathRooted(path) ? path : Path.Combine(repoRoot, path));
 
 if (!File.Exists(ffiPath))
 {
@@ -12,7 +20,7 @@ if (!File.Exists(ffiPath))
 }
 
 Console.WriteLine($"Parsing: {ffiPath}");
-var parser = RustFfiParser.FromFile(ffiPath);
+var parser = new RustFfiParser(await File.ReadAllTextAsync(ffiPath));
 
 var enums = parser.ParseEnums();
 var functions = parser.ParseFunctions();
@@ -28,10 +36,11 @@ if (Directory.Exists(headerPath))
     // Upstream splits the public surface across transcribe.h and
     // transcribe/*.h; merge them so extension, VAD, LANGID and diarize
     // functions get their doc comments too.
-    headerDoc = CHeaderDoc.FromDirectory(headerPath);
-    if (headerDoc is not null)
+    string[] headers = HeaderFiles(headerPath);
+    if (headers.Length > 0)
     {
-        Console.WriteLine($"Docs from: {headerPath}");
+        headerDoc = CHeaderDoc.FromContents(headers.Select(File.ReadAllText));
+        Console.WriteLine($"Docs from: {headerPath} ({headers.Length} header(s))");
     }
     else
     {
@@ -40,7 +49,7 @@ if (Directory.Exists(headerPath))
 }
 else if (File.Exists(headerPath))
 {
-    headerDoc = CHeaderDoc.FromFile(headerPath);
+    headerDoc = CHeaderDoc.FromContents([await File.ReadAllTextAsync(headerPath)]);
     Console.WriteLine($"Docs from: {headerPath}");
 }
 else
@@ -58,3 +67,39 @@ Console.WriteLine($"Generated: {outputPath}");
 
 Console.WriteLine("Done.");
 return 0;
+
+// Kept in step with GoldenFileTest.HeaderContents: the golden snapshot depends
+// on this order, so a drift between the two fails that test rather than shipping.
+static string[] HeaderFiles(string directory)
+{
+    var paths = new List<string>();
+    string rootHeader = Path.Combine(directory, "transcribe.h");
+    if (File.Exists(rootHeader))
+    {
+        paths.Add(rootHeader);
+    }
+
+    string subHeaderDir = Path.Combine(directory, "transcribe");
+    if (Directory.Exists(subHeaderDir))
+    {
+        paths.AddRange(Directory.GetFiles(subHeaderDir, "*.h").OrderBy(p => p, StringComparer.Ordinal));
+    }
+
+    return [.. paths];
+}
+
+static string FindRepoRoot()
+{
+    var dir = AppContext.BaseDirectory;
+    while (dir is not null)
+    {
+        if (File.Exists(Path.Combine(dir, "TranscribeCppSharp.slnx")))
+        {
+            return dir;
+        }
+
+        dir = Path.GetDirectoryName(dir);
+    }
+
+    throw new DirectoryNotFoundException("Could not find the repository root (TranscribeCppSharp.slnx).");
+}

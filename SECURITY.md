@@ -35,6 +35,23 @@ trust decision, not something the wrapper can contain.
 - The workflows pin every action by commit sha, default to `contents: read`, and
   run gitleaks over the full history.
 
+## File paths and the build tooling
+
+The generator (`src/Generator`) and the two build tools (`tools/FetchNative`,
+`tools/UpdateModelManifest`) run against a checkout, on a developer's machine or
+in CI. Their inputs are repository paths, and each refuses a path that resolves
+outside the directory it owns (`src/Shared/BuildPath.cs`): the generator and the
+manifest tool are confined to the repository root, `FetchNative` to
+`native-packages/` — the tree it deletes recursively when the pin moves.
+`CHeaderDoc` and `RustFfiParser` take header text rather than paths, so reading
+the checkout is the caller's job and the parsers stay text transforms.
+
+`PcmExtensions.ReadWavToPcm(string)` is different by design: a library reads the
+file its caller names, and the caller already holds whatever filesystem rights
+the process has, so there is no privilege boundary for a path check to enforce.
+The CLI passes the file named on its command line; the server never passes user
+input there, because an upload is staged to a private temporary file first.
+
 ## What is not claimed
 
 There is no bug bounty and no third-party audit. Nothing here is claimed to be
