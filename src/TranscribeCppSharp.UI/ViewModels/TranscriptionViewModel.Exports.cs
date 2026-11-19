@@ -126,7 +126,7 @@ public partial class TranscriptionViewModel
                 {
                     int dots = Math.Clamp((int)Math.Floor(gapMs / 1000.0), 1, 10);
                     sb.Append("*[")
-                      .Append(new string('.', dots))
+                      .Append('.', dots)
                       .Append("]*\n\n");
                 }
             }
