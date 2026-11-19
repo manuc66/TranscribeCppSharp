@@ -24,6 +24,10 @@ public static class PcmExtensions
     /// </summary>
     public static float[] ReadWavToPcm(string wavPath)
     {
+        if (wavPath == null || wavPath.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
         using var fs = File.OpenRead(wavPath);
         using var br = new BinaryReader(fs);
 
