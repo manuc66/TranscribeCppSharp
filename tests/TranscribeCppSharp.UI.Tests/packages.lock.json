@@ -442,7 +442,7 @@
       "transcribecppsharp": {
         "type": "Project",
         "dependencies": {
-          "TranscribeCppSharp.Interop": "[0.4.3, )"
+          "TranscribeCppSharp.Interop": "[0.4.4, )"
         }
       },
       "transcribecppsharp.interop": {
@@ -459,7 +459,7 @@
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Material.Icons.Avalonia": "[3.0.2, )",
           "Microsoft.Extensions.DependencyInjection": "[11.0.0, )",
-          "TranscribeCppSharp": "[0.4.3, )"
+          "TranscribeCppSharp": "[0.4.4, )"
         }
       }
     }

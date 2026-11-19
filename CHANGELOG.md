@@ -8,7 +8,7 @@ CLI follow the wrapper's SemVer, while the `TranscribeCppSharp.Native.*` runtime
 packages track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
-## [Unreleased]
+## [0.4.4] - wrapper release
 
 ### Upstream pin: transcribe.cpp v0.4.2
 
