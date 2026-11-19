@@ -1,5 +1,6 @@
 namespace TranscribeCppSharp.Generator;
 
+using System;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -10,7 +11,14 @@ using System.Text.RegularExpressions;
 /// </summary>
 public partial class CHeaderDoc(string content)
 {
-    public static CHeaderDoc FromFile(string path) => new(File.ReadAllText(path));
+    public static CHeaderDoc FromFile(string path)
+    {
+        if (path == null || path.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+        return new(File.ReadAllText(path));
+    }
 
     /// <summary>
     /// Builds a doc source from several headers. Upstream splits the public
