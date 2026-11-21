@@ -58,16 +58,25 @@
           AfterTargets="Build"
           Condition="'$(Configuration)' == 'Debug'
                      and '$(RuntimeIdentifier)' == ''
+                     and '$(CI)' != 'true'
                      and Exists('$(OutDir)runtimes')">
     <ItemGroup>
       <!-- Directory.GetDirectories, not an Include glob: MSBuild globs expand to
-           files, and runtimes/ holds only directories, so a glob matched nothing. -->
-      <_ForeignNativeAsset Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes', 'win*'))"
-                           Condition="$([MSBuild]::IsOSPlatform('Linux')) Or $([MSBuild]::IsOSPlatform('OSX'))" />
-      <_ForeignNativeAsset Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes', 'osx*'))"
-                           Condition="$([MSBuild]::IsOSPlatform('Linux')) Or $([MSBuild]::IsOSPlatform('Windows'))" />
-      <_ForeignNativeAsset Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes', 'linux*'))"
-                           Condition="$([MSBuild]::IsOSPlatform('Windows')) Or $([MSBuild]::IsOSPlatform('OSX'))" />
+           files, and runtimes/ holds only directories, so a glob matched nothing.
+           Keep the RID this SDK builds for and drop every other one: SkiaSharp
+           and HarfBuzz ship thirteen Linux RIDs (musl, bionic, loongarch64,
+           riscv64...), ~180 MiB of files this machine cannot load. Comparing
+           the directory name, not a path, keeps it separator-agnostic. -->
+      <_NativeRuntimeDirectory Include="$([System.IO.Directory]::GetDirectories('$(OutDir)runtimes'))" />
+      <!-- The host's RID and its family fallback (runtimes/osx, runtimes/win)
+           stay; every other RID goes. The family is kept because a native
+           library can fall back to it when the RID-specific folder is absent. -->
+      <_ForeignNativeAsset Include="@(_NativeRuntimeDirectory)"
+                           Condition="$([MSBuild]::IsOSPlatform('Linux')) and '%(Filename)' != '$(NETCoreSdkPortableRuntimeIdentifier)' and '%(Filename)' != 'linux'" />
+      <_ForeignNativeAsset Include="@(_NativeRuntimeDirectory)"
+                           Condition="$([MSBuild]::IsOSPlatform('OSX')) and '%(Filename)' != '$(NETCoreSdkPortableRuntimeIdentifier)' and '%(Filename)' != 'osx'" />
+      <_ForeignNativeAsset Include="@(_NativeRuntimeDirectory)"
+                           Condition="$([MSBuild]::IsOSPlatform('Windows')) and '%(Filename)' != '$(NETCoreSdkPortableRuntimeIdentifier)' and '%(Filename)' != 'win'" />
     </ItemGroup>
     <RemoveDir Directories="@(_ForeignNativeAsset)" />
   </Target>

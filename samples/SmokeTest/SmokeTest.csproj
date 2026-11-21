@@ -5,7 +5,7 @@
     <!-- Multi-targeted on purpose: this sample is the end-to-end runtime check
          for every framework the wrapper ships (CI runs it on net8.0, net9.0 and
          net10.0), so `dotnet run` without -f is ambiguous here. -->
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>$(TranscribeTargetFrameworks)</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

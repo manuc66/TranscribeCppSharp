@@ -30,7 +30,8 @@ dotnet run --project tools/FetchNative -- --verify
 # speaker-attribution test
 WITH_DIARIZATION_MODEL=1 ./scripts/run-integration-tests.sh
 
-# Run the smoke test sample (it multi-targets net8.0/net9.0/net10.0, so pick one)
+# Run the smoke test sample. A local Debug build targets net10.0 only; CI and
+# Release builds also produce net8.0/net9.0, so -f names the one to run.
 dotnet run --project samples/SmokeTest -f net10.0 -- model.gguf audio.wav
 
 # Run the CLI from source (see "Command-line tool" for the installed tool).
@@ -45,14 +46,26 @@ Every command above needs `tools/FetchNative` to have run first, so the native
 libraries are in the output directory. The screenshot generator does too — it
 opens the real window, which initializes the compute backends.
 
-A local **Debug** build prunes the other platforms' native assets from its
-output. A build with no `RuntimeIdentifier` otherwise carries every
-`runtimes/<rid>` tree of Avalonia's SkiaSharp and HarfBuzzSharp dependencies —
-about 375 MiB of Windows and macOS files on Linux, which this host cannot load
-(measured here: the UI's Debug output went from 629 MiB to 256 MiB). The host's
-own tree and the native libraries `CopyNativeLib.targets` places at the output
-root are kept, and a publish (`-r <rid>`) keeps the full portable output. See the
-target and its comment in `Directory.Build.targets`.
+A local **Debug** build keeps only what this machine can load, and prunes the
+rest from its output:
+
+- of the `runtimes/<rid>` trees that Avalonia's SkiaSharp and HarfBuzzSharp
+  dependencies bring, only the host's RID and its family folder (`osx`, `win`)
+  stay. On this Linux machine that is `linux-x64` alone instead of thirteen
+  Linux RIDs (musl, bionic, loongarch64, riscv64…): 14 MiB instead of 180 MiB
+  for the desktop app's output;
+- the projects that ship `net8.0`/`net9.0`/`net10.0` assets build `net10.0`
+  only, so a sample that references them is not copied three times. Restore
+  still resolves all three, so `packages.lock.json` keeps its per-framework
+  sections and a local build cannot rewrite a versioned file.
+
+Measured here, the UI's Debug output went from 263 MiB to 97 MiB and the whole
+`bin`+`obj` tree from 1.6 GiB to 0.7 GiB. **What ships does not change**: with
+`CI=true`, in `Release`, and for a pack or a publish, every framework is built
+and the full portable `runtimes/` tree is kept (`-r <rid>`); the trim is skipped
+outside a local Debug build. See `TranscribeTargetFrameworks` in
+`Directory.Build.props` and `TrimForeignNativeAssets` in
+`Directory.Build.targets`.
 
 The screenshots are byte-identical across runs **on one machine**, which is what
 makes regenerating them safe: on that machine, a changed PNG means something in

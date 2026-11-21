@@ -8,6 +8,32 @@ CLI follow the wrapper's SemVer, while the `TranscribeCppSharp.Native.*` runtime
 packages track the upstream
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) version they bind to.
 
+## Unreleased
+
+### Development
+
+#### A local Debug build no longer mirrors every platform and framework
+
+Working on this repository filled the disk: a Debug build produced 1.6 GiB of
+`bin`/`obj` on a Linux machine, most of it files the host cannot load. Two
+causes, both local-only:
+
+- the desktop app's output carried the native assets of **thirteen Linux RIDs**
+  (musl, bionic, loongarch64, riscv64…), not just the host's — 180 MiB, of which
+  14 MiB are usable. Only the host RID and its family folder (`osx`, `win`) are
+  kept now;
+- the projects shipping `net8.0`/`net9.0`/`net10.0` assets built all three, so
+  every sample output existed three times. A local Debug build targets
+  `net10.0`; restore still resolves all three, so `packages.lock.json` does not
+  change.
+
+Measured here: the UI's Debug output 263 → 97 MiB, the whole tree 1.6 → 0.7 GiB.
+**Nothing that ships changes**: `CI=true`, `Release`, `pack` and `publish`
+still build every framework and keep the full portable `runtimes/` tree, and
+`-r <rid>` is untouched. Override with
+`-p:TranscribeTargetFrameworks=net8.0;net9.0;net10.0` (or any list) when a
+local build needs another set.
+
 ## [0.4.4] - wrapper release
 
 ### Upstream pin: transcribe.cpp v0.4.2

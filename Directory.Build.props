@@ -8,6 +8,25 @@
          version so consumers know which ABI they target. -->
     <Version Condition="'$(Version)' == ''">$(TranscribeVersionFile)</Version>
 
+    <!-- Target frameworks of the libraries that ship net8.0/net9.0/net10.0
+         assets (the wrapper, the Interop bindings, the Bundle, and the sample
+         that consumes them).
+
+         A local Debug build produces net10.0 only. Each framework is a complete
+         copy of the output, and on Linux that output already carries ~180 MiB of
+         SkiaSharp/HarfBuzz native assets for thirteen RIDs plus ~64 MiB of ggml,
+         so three frameworks meant three times a directory nothing on this machine
+         loads. What ships must not change: CI (`CI=true`), a Release build, a pack
+         and a publish still produce every framework.
+
+         Restore is the exception: it always resolves all three, so
+         packages.lock.json keeps its per-framework sections and a local build
+         cannot rewrite a versioned file. Pass
+         -p:TranscribeTargetFrameworks=... to build a different set. -->
+    <TranscribeTargetFrameworks Condition="'$(MSBuildRestoreSessionId)' != ''">net8.0;net9.0;net10.0</TranscribeTargetFrameworks>
+    <TranscribeTargetFrameworks Condition="'$(TranscribeTargetFrameworks)' == '' and ('$(CI)' == 'true' or '$(Configuration)' == 'Release')">net8.0;net9.0;net10.0</TranscribeTargetFrameworks>
+    <TranscribeTargetFrameworks Condition="'$(TranscribeTargetFrameworks)' == ''">net10.0</TranscribeTargetFrameworks>
+
     <!-- Pedantic analysis for every project in the repository.
          TreatWarningsAsErrors / EnforceCodeStyleInBuild live in
          Directory.Build.targets, which is imported after the project body (the

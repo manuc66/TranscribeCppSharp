@@ -118,7 +118,8 @@ separately, because its options, its export formats and its limits are its own â
 ## Run the samples
 
 ```bash
-# Run the smoke test sample (it multi-targets net8.0/net9.0/net10.0, so pick one)
+# Run the smoke test sample. A local Debug build targets net10.0 only; Release
+# and CI also produce net8.0/net9.0, so -f names the one to run.
 dotnet run --project samples/SmokeTest -f net10.0 -- model.gguf audio.wav
 ```
 

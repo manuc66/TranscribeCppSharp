@@ -10,7 +10,7 @@
          is not the constraint; the net8.0 leg is only the runtime guard (a
          feature that needs net9+ runtime support, such as `allows ref struct`,
          fails it with CS9240). -->
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>$(TranscribeTargetFrameworks)</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
