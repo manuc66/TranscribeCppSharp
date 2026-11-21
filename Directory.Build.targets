@@ -61,6 +61,7 @@
           AfterTargets="CopyNativeLib"
           Condition="'$(CI)' != 'true'
                      and '$(RuntimeIdentifier)' == ''
+                     and '$(OutputPath)' != ''
                      and !$([MSBuild]::IsOSPlatform('Windows'))">
     <ItemGroup>
       <_NativeCanonical
