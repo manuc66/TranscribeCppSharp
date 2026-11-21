@@ -56,14 +56,20 @@ underruns at exactly that feed, and the transcript stutters. The bench reports:
 |---------|-----------------|-------|-----|----------|-------|
 | Vulkan | model default | 33 s | 0.218 | 553 ms | no |
 | Vulkan | model default | 66 s | 0.510 | 3507 ms | no |
-| Vulkan | 1000 ms | 88 s | 0.664 | 3529 ms | no |
-| Vulkan | 1000 ms | 132 s | 1.287 | 3577 ms | no |
-| Vulkan | 1000 ms | 198 s | 2.705 | 7331 ms | no |
+| Vulkan | 1000 ms | 88 s | *invalid* | 3529 ms | no (hit frame limit) |
+| Vulkan | 1000 ms | 132 s | *invalid* | 3577 ms | no (hit frame limit) |
+| Vulkan | 1000 ms | 198 s | *invalid* | 3228 ms | no (hit frame limit) |
 | CPU | model default | 66 s | 0.681 | 1348 ms | no |
 | CPU | 1000 ms | 66 s | 0.677 | 1407 ms | no |
 | CPU | stable-prefix commit | 66 s | 0.667 | 1339 ms | no |
 | CPU | 1000 ms | 77 s | 0.980 | 5145 ms | no |
 | CPU | 1000 ms | 88 s | — | — | **yes, at feed 83** |
+
+Rows marked *invalid* ran past the model's 81.9 s frame ceiling: audio beyond
+that point is silently ignored, so the RTF divides compute by audio that was
+never transcribed. Only the 33 s and 66 s rows are valid measurements of
+processing speed. The max-feed column is still informative — it is the worst
+single `Feed()` before the limit kicked in.
 
 Three things follow, and the third is why this page exists.
 
@@ -73,7 +79,11 @@ First text at 34–69 ms, first committed word at 124–211 ms, across every run
 both backends. A user sees a committed word within a fifth of a second of
 speaking. The incremental API delivers what it advertises.
 
-### 2. The commit knobs do essentially nothing
+### 2. The commit knobs do essentially nothing (on the 66 s that is valid)
+
+The 88 s, 132 s and 198 s rows above are invalid, so any conclusion about
+knobs on long audio is unsupported. On the 66 s that is valid, all three settings
+land within noise of each other:
 
 At 66 s on CPU, all three settings land within noise of each other:
 
@@ -88,37 +98,46 @@ knob on this wrapper that makes a stream keep up**; the earlier version of this
 page claimed the decode interval was the lever, and that was wrong — see
 [Corrections](#corrections).
 
-### 3. Per-feed cost grows with stream length, saturating far above real time
+### 3. The real finding: Moonshine streaming tiny has an 82-second ceiling
 
-This is the finding that matters. Per-feed latency, Vulkan backend, 198 s run,
-mean per band of 19 feeds:
+This is the finding that matters, and it came from re-measuring the 198 s run
+on an idle machine. The earlier version of this section claimed a monotonic
+growth plateauing at ~5.5x real time. That was an artefact of two things
+stacked together, and it is wrong:
+
+1. **The model stops processing at 81.9 s of audio.** Moonshine streaming tiny
+   has a hard frame limit of 4096 frames, which is 81.9 s at 16 kHz. Audio fed
+   after that is silently ignored — `Feed()` returns in 0 ms, and the transcript
+   stops growing. The "plateau" was the model doing nothing. The bench now
+   records the warning the native library emits:
+   `input reached the model's 4096-frame limit (81.9 s of audio); later audio is
+   ignored`. This is an architectural ceiling of this model, not a tuning problem.
+2. **The degenerate tiled input drives the growth.** The model hears the same
+   sentence 18 times and keeps generating tokens until it hits its 152-token
+   budget, then drops repeating blocks. That is why the per-feed cost climbs: it
+   is generating more and more before each commit, not because the KV cache is
+   growing. Real speech with pauses would generate far fewer tokens.
+
+**What the clean measurement actually shows** (first 83 feeds, the only ones
+that do work):
 
 | feeds (audio) | mean per feed |
 |---------------|---------------|
-| 1–19 (0–19 s) | 104 ms |
-| 20–38 (19–38 s) | 461 ms |
-| 39–57 (38–57 s) | 726 ms |
-| 58–76 (57–76 s) | 932 ms |
-| 77–95 (76–95 s) | 1306 ms |
-| 96–114 (95–114 s) | 2221 ms |
-| 115–133 (114–133 s) | 3396 ms |
-| 134–152 (133–152 s) | 4786 ms |
-| 153–171 (152–171 s) | 5924 ms |
-| 172–190 (171–190 s) | 5773 ms |
-| 191–198 (190–198 s) | 5509 ms |
+| 1–20 (0–20 s) | 137 ms |
+| 21–40 (20–40 s) | 573 ms |
+| 41–60 (40–60 s) | 1313 ms |
+| 61–82 (60–82 s) | 713 ms |
 
-The cost rises 55x from the first band to the last, and the last band reads
-~5 500 ms — **but this plateau figure is provisional.** The run that produced
-it finished during a concurrent 4-core workload (`LocalityGap`, ~400 % CPU),
-so the per-feed values in the last few bands are almost certainly inflated.
-The *shape* — monotonic growth, no return to baseline — is consistent with the
-cleaner 132 s run, but the absolute level is not yet verified. Re-measuring
-the 198 s run on an idle machine is the first thing to do before relying on
-this number.
+RTF on the processed portion: **0.679**, consistent with the 66 s run (0.681).
+The growth is not monotonic — it peaks around 40–60 s then partially recovers —
+and it is probably driven by token count, not context length. The 198 s run's
+RTF of 0.289 is meaningless: it averages 57 s of compute over 198 s of audio,
+115 of which were never processed.
 
-RTF therefore climbs with duration — 0.218 at 33 s, 0.510 at 66 s, 1.287 at
-132 s, 2.705 at 198 s — and **a short clip flatters it completely**. A
-30-second demo looks like RTF 0.2. A two-minute meeting does not.
+**The 82-second ceiling is the actionable number.** A live stream on this model
+must be reset or restarted before 82 s, or a different model must be chosen.
+There is no configuration that extends it: `--context=4096` and `--context=8192`
+were tried on the CPU path and did not change the limit.
 
 On the CPU backend the growth has a worse ending. The same curve, from the run
 that aborted:
@@ -133,8 +152,9 @@ that aborted:
 | 80–82 | 1652 ms |
 | 83 | **abort** |
 
-A second degradation regime opens at feed 74 (~73 s) at 4–5x the plateau cost,
-and then **feed 83 aborts the process at 82 s of accumulated audio**:
+**Feed 83 aborts the process at 82 s of accumulated audio** — exactly at the
+model's frame limit. The abort is likely the native code failing to handle the
+boundary cleanly rather than a genuine overflow:
 
 ```
 GGML_ASSERT(i01 >= 0 && i01 < ne01) failed   ggml-cpu/ops.cpp:5015
@@ -205,13 +225,20 @@ long-form audio were not measured; only `moonshine-streaming-tiny` on the CPU wa
 - **There is no tuning knob that saves this.** Default, decode interval and
   stable-prefix commit are the same number. A stream that falls behind is not
   misconfigured.
-- **A stream cannot currently be trusted to run for minutes on CPU.** The
-  CPU abort at ~82 s is real and reproducible; the "~5.5x real time" floor
-  above is provisional (contaminated run) and must not be quoted until it is
-  re-measured. The CPU abort is upstream — transcribe.cpp 0.2.4 and ggml, not
-  the wrapper — and no amount of wrapper code intercepts an uncatchable native
-  abort. A live service needs process isolation: run the transcriber in a child
-  process it can restart.
+- **A stream cannot run past 82 s on this model, full stop.** Moonshine
+  streaming tiny stops processing at 81.9 s (4096 frames) and ignores the rest.
+  The CPU abort at feed 83 (82 s) lands exactly on that boundary, which suggests
+  the native code does not handle the limit cleanly — but even if it did not
+  crash, the audio after 82 s would be silently dropped. A live pipeline must
+  reset or restart the stream before 82 s, or use a model without this ceiling.
+- **RTF on the valid range is ~0.68.** The 1.287 and 2.705 figures were
+  averages over ignored audio and are meaningless. A 30-second demo looks fast;
+  an 80-second stream is where this model stops, not where it slows down.
+- **The CPU abort at ~82 s is real and reproducible** (five attempts, idle
+  machine). It is upstream — transcribe.cpp 0.2.4 and ggml, not the wrapper —
+  and no amount of wrapper code intercepts an uncatchable native abort. A live
+  service needs process isolation: run the transcriber in a child process it can
+  restart.
 - **The cascade still pays.** The failure is per-stream, on one session, and the
   offline re-transcription pass
   ([Concurrency](concurrency.md)) is unaffected. If the live stage dies, the
@@ -246,6 +273,14 @@ here because the mistake is the useful part:
   value is 0.218 with a 553 ms worst feed.
 - The CPU abort at ~82 s, the RTF growth, and the lack of any useful knob all
   **survive** re-measurement. Those were real.
+- **The 81.9 s frame ceiling was missed entirely in the first version.** The
+  198 s run was read as "monotonic growth plateauing at ~5.5x" when it was
+  actually the model hitting its 4096-frame limit and returning 0 ms. The bench
+  now prints the native warning that announces this, so the limit is visible in
+  the output rather than inferred. The "~5.5x real time" claim is withdrawn.
+- **The 198 s run's RTF of 0.289 was meaningless.** It averaged 57 s of compute
+  over 198 s of audio, 115 s of which were never processed. Only the 33 s and
+  66 s rows are valid speed measurements.
 
 The bench now prints the load average beside every result, and flushes each line,
 so a run that aborts leaves evidence instead of an empty log.
