@@ -34,6 +34,12 @@ still build every framework and keep the full portable `runtimes/` tree, and
 `-p:TranscribeTargetFrameworks=net8.0;net9.0;net10.0` (or any list) when a
 local build needs another set.
 
+A pack that would be incomplete is refused instead of produced: `dotnet pack -c
+Debug` now fails with `TRANS001` and the command to use, because it would write a
+package whose `lib/` holds `net10.0` only while the nuspec advertises three
+frameworks. `dotnet pack` defaults to Release, which builds all of them, and the
+content-only packages (the natives and the bundle) are exempt.
+
 ## [0.4.4] - wrapper release
 
 ### Upstream pin: transcribe.cpp v0.4.2

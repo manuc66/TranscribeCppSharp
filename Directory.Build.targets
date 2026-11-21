@@ -43,6 +43,24 @@
     <PackageReference Include="StyleCop.Analyzers" Version="1.3.180" PrivateAssets="All" />
   </ItemGroup>
 
+  <!-- A package must ship every framework it advertises.
+
+       A local Debug build targets net10.0 only (see TranscribeTargetFrameworks),
+       so `dotnet pack -c Debug` would produce a package with lib/net10.0 alone
+       and no sign in the file that net8.0/net9.0 are missing. Pack defaults to
+       Release, which builds all three, but "defaults to" is not a guarantee: a
+       pack that would be incomplete fails here instead. Content-only packages
+       (IncludeBuildOutput=false) are exempt: they ship no assembly. -->
+  <Target Name="RefuseIncompletePack"
+          BeforeTargets="GenerateNuspec"
+          Condition="'$(IsPackable)' == 'true'
+                     and '$(IncludeBuildOutput)' != 'false'
+                     and '$(TargetFrameworks)' == '$(TranscribeTargetFrameworks)'
+                     and '$(TranscribeTargetFrameworks)' != 'net8.0;net9.0;net10.0'">
+    <Error Code="TRANS001"
+           Text="This pack would ship $(TranscribeTargetFrameworks) only, not every framework the package advertises. Pack in Release (`dotnet pack -c Release`), which builds all of them, or pass -p:TranscribeTargetFrameworks=net8.0;net9.0;net10.0 deliberately." />
+  </Target>
+
   <!-- Keep a local Debug build from carrying every platform's native assets.
 
        A build without a RuntimeIdentifier copies the whole runtimes/ tree of the
