@@ -135,6 +135,22 @@ public class TranscriptionFeedbackTests
     }
 
     [Fact]
+    public async Task AVadPassThatFindsNoSpeechIsAStatusNotACopyableError()
+    {
+        var service = new FailingService(new NoSpeechException("silero-vad-v6.2"));
+        await WithViewModel(service, async viewModel =>
+        {
+            await viewModel.TranscribeCommand.ExecuteAsync(null);
+
+            Assert.Contains("no usable speech", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Skip silence", viewModel.StatusMessage, StringComparison.Ordinal);
+            Assert.False(viewModel.CanCopyError);
+            Assert.Null(viewModel.LastError);
+            Assert.False(viewModel.HasResult);
+        });
+    }
+
+    [Fact]
     public async Task ASuccessfulRunClearsThePreviousError()
     {
         var failing = new FailingService(new TranscribeException(Status.ErrOom, "transcribe_run"));

@@ -1796,6 +1796,12 @@ public partial class TranscriptionViewModel : ObservableObject
             // leaving a half-filled tab or logging a failure the reader caused.
             StatusMessage = "Transcription cancelled. The partial result was discarded.";
         }
+        catch (NoSpeechException ex)
+        {
+            // Silence or noise is a valid file, not a failed run: no error report,
+            // no log entry, no history. The status says what happened and the lever.
+            StatusMessage = $"{ex.Message} Try another file, or turn Skip silence off.";
+        }
         catch (TranscribeException ex)
         {
             // A native status is more useful than a sentence, and an out-of-memory

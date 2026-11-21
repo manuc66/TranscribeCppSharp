@@ -209,8 +209,7 @@ public partial class TranscriptionService : ITranscriptionService
             int total = (int)Math.Min(audioSource.LengthSamples, int.MaxValue);
             if (SpeechWindows.Plan(intervals, total, options.WindowSeconds * 1000).Count == 0)
             {
-                throw new InvalidOperationException(
-                    "The VAD model found no usable speech in this audio; nothing was transcribed.");
+                throw new NoSpeechException(options.VadModel!);
             }
 
             return (IReadOnlyList<SpeechInterval>)intervals;
@@ -276,8 +275,7 @@ public partial class TranscriptionService : ITranscriptionService
                     planned = windows.Count > 0;
                     if (!planned)
                     {
-                        throw new InvalidOperationException(
-                            "The VAD model found no usable speech in this audio; nothing was transcribed.");
+                        throw new NoSpeechException(options.VadModel ?? "the VAD model");
                     }
                 }
                 else

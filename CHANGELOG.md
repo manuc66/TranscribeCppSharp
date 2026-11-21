@@ -915,7 +915,9 @@ sentence was right. A second measurement on this machine (CPU, JFK plus
 synthetic silence and noise, Parakeet TDT 0.6B and Whisper large-v3-turbo, both
 Q5_K_M) found Whisper producing phantom "Thank you." over silence and noise
 without VAD and not with it; Parakeet produced no phantom text either way. One
-machine, two models, one language — not a general accuracy claim. The CLI's `--vad` remains
+machine, two models, one language — not a general accuracy claim. A file with no
+usable speech ends with a status saying so, not with a copyable error: no error
+report, no log entry and no history entry are produced. The CLI's `--vad` remains
 the reference; the desktop app's Advanced settings of an ASR goal offer **Skip
 silence with a VAD model**, off by default, with a VAD model picker and **Get a
 VAD model…** opening the Models tab filtered to the `vad` role. The VAD model is

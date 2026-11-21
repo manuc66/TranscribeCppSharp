@@ -212,7 +212,9 @@ either way. On the 71 s files VAD also shortened the Whisper runs (about 8–9 s
 is one machine, two models, synthetic silence and one language — not a general accuracy claim.
 It needs a VAD model on disk; **Get a VAD model…** opens the Models tab filtered to the `vad` role. A run
 with the option on and no VAD model selected is refused with that reason, not silently run over
-the whole file. The on/off choice and the VAD alias are remembered in `ui-settings.json`; an
+the whole file. A file where the VAD finds no usable speech (silence, noise, or clips too short
+after the planner's minimum) ends with a status saying so, not with a copyable error: nothing
+was transcribed, and the tab suggests another file or turning the option off. The on/off choice and the VAD alias are remembered in `ui-settings.json`; an
 alias that is no longer on disk falls back to the first downloaded VAD model, and with none the
 option stays on and the run stays refused rather than quietly turning it off. The VAD model a
 run used is recorded with the result in the history, so a restored run names it in the status.
