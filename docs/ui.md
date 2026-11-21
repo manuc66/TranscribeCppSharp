@@ -132,7 +132,9 @@ When no model for the goal is on disk, the picker is empty, the hint names the m
 **Get more…** opens the Models tab with that role filter already set. The goal also decides the
 speaker step: choosing the speaker goal includes it, and choosing text-only leaves it out. The
 goal is remembered in `ui-settings.json` and restored before the picker is built, so the tab
-opens on the role you last chose; an unknown or removed value falls back to speech to text.
+opens on the role you last chose; an unknown or removed value falls back to speech to text. The
+model last run is remembered **per goal**, so switching from "Speakers only" back to "Speech to
+text" restores that goal's text model rather than the diarizer that happened to be selected.
 
 The tab runs the **role** the selected model serves (transcribe.cpp 0.4), and the
 run button and the summary name it. An ASR model is transcribed as below; a

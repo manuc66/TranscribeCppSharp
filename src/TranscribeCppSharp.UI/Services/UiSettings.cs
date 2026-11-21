@@ -241,6 +241,38 @@ public static class UiSettings
         }
     }
 
+    /// <summary>
+    /// The model this tab last ran for a goal, or null when that goal has not run
+    /// here. Goals need separate entries: the diarizer chosen for "Speakers only"
+    /// is not a model the text goal can use.
+    /// </summary>
+    public static string? GoalModel(TranscriptionGoal goal)
+    {
+        lock (Gate)
+        {
+            return Read().TranscriptionGoalModels.TryGetValue(goal.ToString(), out string? alias)
+                && !string.IsNullOrEmpty(alias)
+                    ? alias
+                    : null;
+        }
+    }
+
+    /// <summary>Records the model a run of <paramref name="goal"/> used.</summary>
+    public static void SetGoalModel(TranscriptionGoal goal, string alias)
+    {
+        if (string.IsNullOrEmpty(alias))
+        {
+            return;
+        }
+
+        lock (Gate)
+        {
+            Document document = Read();
+            document.TranscriptionGoalModels[goal.ToString()] = alias;
+            Write(document);
+        }
+    }
+
     /// <summary>Whether Skip silence was on, false when nothing was saved.</summary>
     public static bool LoadTranscriptionUseVad()
     {
@@ -491,6 +523,10 @@ public static class UiSettings
 
         [JsonPropertyName("transcriptionGoal")]
         public string? TranscriptionGoal { get; set; }
+
+        [JsonPropertyName("transcriptionGoalModels")]
+        public Dictionary<string, string> TranscriptionGoalModels { get; init; } =
+            new(StringComparer.Ordinal);
 
         [JsonPropertyName("transcriptionUseVad")]
         public bool? TranscriptionUseVad { get; set; }

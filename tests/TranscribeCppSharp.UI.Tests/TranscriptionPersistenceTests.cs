@@ -34,10 +34,51 @@ public class TranscriptionPersistenceTests
         UiSettings.SaveTranscriptionGoal(TranscriptionGoal.SpeakersOnly);
         UiSettings.SaveTranscriptionUseVad(true);
         UiSettings.SaveTranscriptionVadModel(Vad);
+        UiSettings.SetGoalModel(TranscriptionGoal.Transcribe, "whisper-base");
+        UiSettings.SetGoalModel(TranscriptionGoal.SpeakersOnly, "diar_streaming_sortformer_4spk-v2.1");
 
         Assert.Equal(TranscriptionGoal.SpeakersOnly, UiSettings.LoadTranscriptionGoal());
         Assert.True(UiSettings.LoadTranscriptionUseVad());
         Assert.Equal(Vad, UiSettings.LoadTranscriptionVadModel());
+        Assert.Equal("whisper-base", UiSettings.GoalModel(TranscriptionGoal.Transcribe));
+        Assert.Equal(
+            "diar_streaming_sortformer_4spk-v2.1",
+            UiSettings.GoalModel(TranscriptionGoal.SpeakersOnly));
+        Assert.Null(UiSettings.GoalModel(TranscriptionGoal.DetectSpeech));
+    }
+
+    [Fact]
+    public void EachGoalKeepsItsOwnModel()
+    {
+        string? previous = ModelStore.CacheRootOverride;
+        ModelStore.CacheRootOverride = Path.Combine(
+            Path.GetTempPath(), "tcsharp-goal-model-" + Guid.NewGuid().ToString("N"));
+        using var settings = new UiSettingsScope();
+        try
+        {
+            Plant("whisper-tiny");
+            Plant("whisper-base");
+            Plant("diar_streaming_sortformer_4spk-v2.1");
+            UiSettings.SetGoalModel(TranscriptionGoal.Transcribe, "whisper-base");
+            UiSettings.SetGoalModel(
+                TranscriptionGoal.SpeakersOnly, "diar_streaming_sortformer_4spk-v2.1");
+
+            TranscriptionViewModel viewModel = NewViewModel();
+            Assert.Equal(TranscriptionGoal.Transcribe, viewModel.Goal);
+            Assert.Equal("whisper-base", viewModel.ModelAlias);
+
+            viewModel.Goal = TranscriptionGoal.SpeakersOnly;
+            Assert.Equal("diar_streaming_sortformer_4spk-v2.1", viewModel.ModelAlias);
+
+            // Returning to the text goal lands on the text model, not on the
+            // diarizer that happened to be selected a moment ago.
+            viewModel.Goal = TranscriptionGoal.Transcribe;
+            Assert.Equal("whisper-base", viewModel.ModelAlias);
+        }
+        finally
+        {
+            ModelStore.CacheRootOverride = previous;
+        }
     }
 
     [Fact]

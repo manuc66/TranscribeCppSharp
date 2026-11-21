@@ -1647,6 +1647,7 @@ public partial class TranscriptionViewModel : ObservableObject
         StatusMessage = "Starting…";
         HasResult = false;
         UiSettings.SetLastModel(UiSettings.TranscriptionTab, ModelAlias);
+        UiSettings.SetGoalModel(Goal, ModelAlias);
         _elapsedTimer.Start();
 
         try

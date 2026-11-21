@@ -875,7 +875,9 @@ reopening the app starts on the role you last chose and with the VAD choice you
 left. The VAD alias is remembered too; a model that is no longer on disk falls
 back to the first downloaded VAD model, and with none the option stays on and
 the run stays refused instead of being silently switched off. An unknown goal
-falls back to speech to text.
+falls back to speech to text. The model last run is remembered per goal, so
+switching from "Speakers only" back to "Speech to text" restores that goal's
+text model rather than the diarizer selected a moment ago.
 
 #### Dedicated diarizer
 

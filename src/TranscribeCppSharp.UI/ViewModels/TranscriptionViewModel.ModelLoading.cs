@@ -74,8 +74,13 @@ public partial class TranscriptionViewModel
         // The global language list is rebuilt on goal change and on refresh, not
         // on every language change: rebuilding it here would clear the ComboBox
         // and drop its selection.
+        // The goal's last-run model wins over the tab's last run: the diarizer
+        // used for "Speakers only" is not a model the text goal can use, and
+        // switching back should land on the ASR model this goal last ran.
+        string? remembered = UiSettings.GoalModel(Goal)
+            ?? UiSettings.LastModel(UiSettings.TranscriptionTab);
         ModelAlias = DownloadedModelCatalog.Selection(
-            currentModelAlias, AvailableModels, UiSettings.LastModel(UiSettings.TranscriptionTab));
+            currentModelAlias, AvailableModels, remembered);
 
         LoadDiarizers();
         LoadVadModels();
