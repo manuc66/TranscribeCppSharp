@@ -43,6 +43,50 @@
     <PackageReference Include="StyleCop.Analyzers" Version="1.3.180" PrivateAssets="All" />
   </ItemGroup>
 
+  <!-- Link the staged native runtime instead of copying it, on Unix, locally.
+
+       Every output that runs the library stages the same ~65 MiB of natives
+       (43 MiB of it the Vulkan backend); measured on this machine, eleven copies
+       of libggml-vulkan.so and 148 of the CPU variants were sitting in the tree,
+       which is what was left of the build footprint after the platform and
+       framework trimming. The bytes are identical, and a hardlink is the same
+       file: nothing about what a build produces or loads changes, only how many
+       inodes it takes. A later build re-links whichever pin is in use, so a
+       FetchNative bump cannot leave an old library behind.
+
+       CI keeps copying: its outputs are ephemeral, and they must be exactly what
+       a normal build produces. Windows keeps copying too (link creation there
+       needs a different API and the saving is the same only on one volume). -->
+  <Target Name="LinkNativeRuntime"
+          AfterTargets="CopyNativeLib"
+          Condition="'$(CI)' != 'true'
+                     and '$(RuntimeIdentifier)' == ''
+                     and !$([MSBuild]::IsOSPlatform('Windows'))">
+    <ItemGroup>
+      <_NativeCanonical
+          Include="$(MSBuildThisFileDirectory)native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.so"
+          Condition="!$([MSBuild]::IsOSPlatform('OSX'))" />
+      <_NativeCanonical
+          Include="$(MSBuildThisFileDirectory)native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libtranscribe.dylib"
+          Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+      <_NativeCanonical
+          Include="$(MSBuildThisFileDirectory)native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libggml*.so"
+          Condition="!$([MSBuild]::IsOSPlatform('OSX'))" />
+      <_NativeCanonical
+          Include="$(MSBuildThisFileDirectory)native-packages/$(NETCoreSdkPortableRuntimeIdentifier)/runtimes/$(NETCoreSdkPortableRuntimeIdentifier)/native/libggml*.dylib"
+          Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+      <_NativeStaged Include="@(_NativeCanonical->'$(OutputPath)%(Filename)%(Extension)')" />
+    </ItemGroup>
+    <!-- Remove first: ln refuses to replace a link that already points at the
+         same inode, so a second build would fail without this. -->
+    <Delete Files="@(_NativeStaged)" />
+    <!-- The transform's second argument is the separator: without it, MSBuild
+         joins with ';', and the shell runs every path after the first as its own
+         command (a shared library, which dies with SIGSEGV). -->
+    <Exec Command="ln @(_NativeCanonical->'&quot;%(FullPath)&quot;', ' ') &quot;$(OutputPath)&quot;"
+          Condition="'@(_NativeCanonical)' != ''" />
+  </Target>
+
   <!-- A package must ship every framework it advertises.
 
        A local Debug build targets net10.0 only (see TranscribeTargetFrameworks),

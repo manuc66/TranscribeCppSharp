@@ -25,9 +25,13 @@ causes, both local-only:
 - the projects shipping `net8.0`/`net9.0`/`net10.0` assets built all three, so
   every sample output existed three times. A local Debug build targets
   `net10.0`; restore still resolves all three, so `packages.lock.json` does not
-  change.
+  change;
+- each output stages its own copy of the native runtime (65 MiB, 43 MiB of it
+  the Vulkan backend). On Unix local builds those copies are now **hardlinks**
+  to `native-packages/`, so the ten outputs share one file on disk — eleven
+  copies of `libggml-vulkan.so` had been sitting in the tree.
 
-Measured here: the UI's Debug output 263 → 97 MiB, the whole tree 1.6 → 0.7 GiB.
+Measured here: the UI's Debug output 263 → 97 MiB, the whole tree 1.6 → 0.2 GiB.
 **Nothing that ships changes**: `CI=true`, `Release`, `pack` and `publish`
 still build every framework and keep the full portable `runtimes/` tree, and
 `-r <rid>` is untouched. Override with

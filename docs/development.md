@@ -57,10 +57,14 @@ rest from its output:
 - the projects that ship `net8.0`/`net9.0`/`net10.0` assets build `net10.0`
   only, so a sample that references them is not copied three times. Restore
   still resolves all three, so `packages.lock.json` keeps its per-framework
-  sections and a local build cannot rewrite a versioned file.
+  sections and a local build cannot rewrite a versioned file;
+- the native runtime each output stages (65 MiB, 43 MiB of it the Vulkan
+  backend) is **hardlinked** from `native-packages/` on Unix instead of copied,
+  so the ten outputs share one copy on disk. Same bytes, same inode: nothing a
+  build produces or loads changes.
 
 Measured here, the UI's Debug output went from 263 MiB to 97 MiB and the whole
-`bin`+`obj` tree from 1.6 GiB to 0.7 GiB. **What ships does not change**: with
+`bin`+`obj` tree from 1.6 GiB to 200 MiB. **What ships does not change**: with
 `CI=true`, in `Release`, and for a pack or a publish, every framework is built
 and the full portable `runtimes/` tree is kept (`-r <rid>`); the trim is skipped
 outside a local Debug build. See `TranscribeTargetFrameworks` in
