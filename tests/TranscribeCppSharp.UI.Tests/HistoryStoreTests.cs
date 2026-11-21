@@ -53,6 +53,27 @@ public class HistoryStoreTests
     }
 
     [Fact]
+    public void TheVadModelSurvivesTheHistoryRoundTrip()
+    {
+        using var directory = new HistoryDirectoryScope();
+
+        HistoryEntry saved = TranscriptionHistory.Save(
+            "/audio/interview.wav",
+            "whisper-tiny",
+            "en",
+            "on",
+            300,
+            Result(),
+            new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero),
+            vadModel: "silero-vad-v6.2");
+
+        HistoryEntry entry = Assert.Single(TranscriptionHistory.List());
+
+        Assert.Equal("silero-vad-v6.2", saved.VadModel);
+        Assert.Equal("silero-vad-v6.2", entry.VadModel);
+    }
+
+    [Fact]
     public void TheListIsNewestFirst()
     {
         using var directory = new HistoryDirectoryScope();

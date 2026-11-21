@@ -10,6 +10,13 @@ public class TranscriptionResult
     public string FullText { get; set; } = string.Empty;
     public string DetectedLanguage { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The VAD model that trimmed silence before this run, or null when the run
+    /// saw the whole file. Kept with the result so a restored run can say what
+    /// produced it; the saved history carries the same value in its own field.
+    /// </summary>
+    public string? VadModel { get; set; }
+
     public bool WasAborted { get; set; }
     public bool WasTruncated { get; set; }
 

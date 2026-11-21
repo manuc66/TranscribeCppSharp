@@ -863,9 +863,10 @@ offered at all for a model that reports no segment timings, and the note in its
 place explains why.
 
 This is the recipe layer the existing roles can actually support today. It is
-not a free-form step editor: no pre-ASR VAD, no word-level speaker fusion, and
-no multi-role combined run are exposed, because the wrapper does not implement
-them.
+not a free-form step editor, and no multi-role combined run is exposed. The
+pre-ASR VAD trim is an opt-in Advanced step, and the speaker join prefers the
+transcriber's word timings (falling back to the segment overlap); neither is a
+claim of measured accuracy.
 
 The goal and the opt-in Skip silence choice are now written to
 `ui-settings.json`, beside the last-run models, the compute choice and the
@@ -908,13 +909,13 @@ language or Detect speech.
 first and transcribes only the speech intervals, off by default and documented
 as unmeasured. Measured on a single clip: a 500 ms merge gap split the clip
 into four cues and one decoded as "IS NOT" instead of "ask not"; at 1 s it
-merged back into one cue and the sentence was right. Not wired: the server and
-the desktop app do not expose `--vad`. The desktop app's Advanced settings of
-an ASR goal offer **Skip silence with a VAD model**, off by default, with a VAD
-model picker and **Get a VAD model…** opening the Models tab filtered to the
-`vad` role. The VAD model is disposed before the ASR model is loaded, so only
-one model is in memory at a time. The status after a run names the VAD model
-used; the saved history does not carry that field yet.)
+merged back into one cue and the sentence was right. The CLI's `--vad` remains
+the reference; the desktop app's Advanced settings of an ASR goal offer **Skip
+silence with a VAD model**, off by default, with a VAD model picker and **Get a
+VAD model…** opening the Models tab filtered to the `vad` role. The VAD model is
+disposed before the ASR model is loaded, so only one model is in memory at a
+time. The status after a run names the VAD model used, and the saved history
+records it; a restored run names it too.)
 
 #### Models tab
 

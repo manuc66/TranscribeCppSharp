@@ -52,6 +52,10 @@ public static class TranscriptionHistory
     /// <param name="windowSeconds">The window the run used.</param>
     /// <param name="result">The transcript to keep.</param>
     /// <param name="savedAt">When to record it; now when omitted.</param>
+    /// <param name="vadModel">
+    /// The VAD model that trimmed silence before the run, or null when the run saw
+    /// the whole file.
+    /// </param>
     /// <exception cref="IOException">The directory or file could not be written.</exception>
     public static HistoryEntry Save(
         string audioPath,
@@ -60,7 +64,8 @@ public static class TranscriptionHistory
         string diarize,
         int windowSeconds,
         TranscriptionResult result,
-        DateTimeOffset? savedAt = null)
+        DateTimeOffset? savedAt = null,
+        string? vadModel = null)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -72,6 +77,7 @@ public static class TranscriptionHistory
             ModelAlias = modelAlias,
             Language = language,
             Diarize = diarize,
+            VadModel = vadModel,
             WindowSeconds = windowSeconds,
             Result = result,
         };
@@ -194,6 +200,7 @@ public static class TranscriptionHistory
             ModelAlias = document.ModelAlias,
             Language = document.Language,
             Diarize = document.Diarize,
+            VadModel = document.VadModel,
             WindowSeconds = document.WindowSeconds,
             SegmentCount = document.Result?.Segments.Count ?? 0,
             Duration = document.Result?.Duration,
@@ -253,6 +260,13 @@ public static class TranscriptionHistory
 
         [JsonPropertyName("windowSeconds")]
         public int WindowSeconds { get; init; }
+
+        /// <summary>
+        /// The VAD model that trimmed silence, or null for a run that saw the whole
+        /// file. Older entries have no value.
+        /// </summary>
+        [JsonPropertyName("vadModel")]
+        public string? VadModel { get; init; }
 
         [JsonPropertyName("result")]
         public TranscriptionResult? Result { get; init; }

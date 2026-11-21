@@ -208,7 +208,8 @@ VAD model on disk; **Get a VAD model…** opens the Models tab filtered to the `
 with the option on and no VAD model selected is refused with that reason, not silently run over
 the whole file. The on/off choice and the VAD alias are remembered in `ui-settings.json`; an
 alias that is no longer on disk falls back to the first downloaded VAD model, and with none the
-option stays on and the run stays refused rather than quietly turning it off.
+option stays on and the run stays refused rather than quietly turning it off. The VAD model a
+run used is recorded with the result in the history, so a restored run names it in the status.
 
 **Cancel** stops the run in flight. The native abort is polled between decode steps, so it is
 not instant, and the wrapper turns a native abort into cancellation *before* it reads the

@@ -25,6 +25,12 @@ public sealed class HistoryEntry
     /// <summary>Whether attribution was requested, as the exports spell it.</summary>
     public string Diarize { get; init; } = string.Empty;
 
+    /// <summary>
+    /// The VAD model that trimmed silence before the run, or null when the run
+    /// saw the whole file. Older entries have no value.
+    /// </summary>
+    public string? VadModel { get; init; }
+
     /// <summary>The window the run used, in seconds.</summary>
     public int WindowSeconds { get; init; }
 

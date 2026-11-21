@@ -1738,7 +1738,11 @@ public partial class TranscriptionViewModel : ObservableObject
             ShowResult(
                 Result,
                 new ResultProvenance(
-                    _runModelAlias, EffectiveLanguage(), DiarizeLabel(options.DiarizeMode), usedWindow));
+                    _runModelAlias,
+                    EffectiveLanguage(),
+                    DiarizeLabel(options.DiarizeMode),
+                    usedWindow,
+                    options.VadModel));
 
             if (adjusted)
             {
@@ -2166,11 +2170,18 @@ public partial class TranscriptionViewModel : ObservableObject
         AudioPath = entry.AudioPath;
         ShowResult(
             result,
-            new ResultProvenance(entry.ModelAlias, entry.Language, entry.Diarize, entry.WindowSeconds));
+            new ResultProvenance(
+                entry.ModelAlias,
+                entry.Language,
+                entry.Diarize,
+                entry.WindowSeconds,
+                entry.VadModel));
         string name = string.IsNullOrEmpty(entry.AudioPath)
             ? "the saved result"
             : Path.GetFileName(entry.AudioPath);
-        StatusMessage = $"Restored {name} from history.";
+        StatusMessage = entry.VadModel is { } vad
+            ? $"Restored {name} from history (VAD: {vad})."
+            : $"Restored {name} from history.";
     }
 
     /// <summary>
@@ -2188,8 +2199,13 @@ public partial class TranscriptionViewModel : ObservableObject
         try
         {
             TranscriptionHistory.Save(
-                AudioPath, provenance.ModelAlias, provenance.Language, provenance.Diarize,
-                provenance.WindowSeconds, Result);
+                AudioPath,
+                provenance.ModelAlias,
+                provenance.Language,
+                provenance.Diarize,
+                provenance.WindowSeconds,
+                Result,
+                vadModel: provenance.VadModel);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
@@ -2323,7 +2339,12 @@ public partial class TranscriptionViewModel : ObservableObject
     {
         if (_provenance is not { } provenance)
         {
-            return new ResultProvenance(ModelAlias, EffectiveLanguage(), DiarizeLabel(), WindowSeconds);
+            return new ResultProvenance(
+                ModelAlias,
+                EffectiveLanguage(),
+                DiarizeLabel(),
+                WindowSeconds,
+                UseVad && GoalIsAsr ? SelectedVadModel?.Alias : null);
         }
 
         return provenance with
@@ -2339,7 +2360,8 @@ public partial class TranscriptionViewModel : ObservableObject
         string ModelAlias,
         string Language,
         string Diarize,
-        int WindowSeconds);
+        int WindowSeconds,
+        string? VadModel);
 
     [RelayCommand]
     private async System.Threading.Tasks.Task ExportAsync()

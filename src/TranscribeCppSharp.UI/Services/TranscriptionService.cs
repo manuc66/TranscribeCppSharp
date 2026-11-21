@@ -43,6 +43,7 @@ public partial class TranscriptionService : ITranscriptionService
         // Pass one: the selected model, through the role it serves.
         TranscriptionResult result = await RunSelectedModel(
             audioPath, modelPath, options, passOneProgress, liveText, phase, stepProgress, speech, cancellationToken).ConfigureAwait(false);
+        result.VadModel = options.VadModel;
 
         // Pass two: an optional separate diarizer, for a transcriber that cannot
         // attribute speakers itself. It runs after pass one, with that model already
