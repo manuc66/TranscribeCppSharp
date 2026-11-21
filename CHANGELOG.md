@@ -906,10 +906,14 @@ language or Detect speech.
 #### Opt-in VAD trim
 
 (See Transcription — `transcribe <audio> --vad silero-vad-v6.2` runs a VAD model
-first and transcribes only the speech intervals, off by default and documented
-as unmeasured. Measured on a single clip: a 500 ms merge gap split the clip
-into four cues and one decoded as "IS NOT" instead of "ask not"; at 1 s it
-merged back into one cue and the sentence was right. The CLI's `--vad` remains
+first and transcribes only the speech intervals, off by default. Measured on a
+single clip: a 500 ms merge gap split the clip into four cues and one decoded as
+"IS NOT" instead of "ask not"; at 1 s it merged back into one cue and the
+sentence was right. A second measurement on this machine (CPU, JFK plus
+synthetic silence and noise, Parakeet TDT 0.6B and Whisper large-v3-turbo, both
+Q5_K_M) found Whisper producing phantom "Thank you." over silence and noise
+without VAD and not with it; Parakeet produced no phantom text either way. One
+machine, two models, one language — not a general accuracy claim. The CLI's `--vad` remains
 the reference; the desktop app's Advanced settings of an ASR goal offer **Skip
 silence with a VAD model**, off by default, with a VAD model picker and **Get a
 VAD model…** opening the Models tab filtered to the `vad` role. The VAD model is

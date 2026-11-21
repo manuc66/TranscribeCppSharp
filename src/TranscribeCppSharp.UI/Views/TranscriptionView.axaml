@@ -427,9 +427,9 @@
                       IsChecked="{Binding UseVad}"
                       AutomationProperties.AutomationId="transcription-vad"
                       AutomationProperties.Name="Skip silence with a VAD model"
-                      ToolTip.Tip="Run a VAD model over the file before the transcriber and send only the speech it finds. Off by default. Unmeasured: it changes what the model sees, and the context across a pause is gone, so the text can differ." />
+                      ToolTip.Tip="Run a VAD model over the file before the transcriber and send only the speech it finds. Off by default. It changes what the model sees (no context across a pause). On one machine, with Whisper large-v3-turbo on JFK plus silence or noise, it removed phantom 'Thank you.' text and shortened the run; Parakeet was unaffected. Not a general accuracy claim." />
             <TextBlock Classes="hint" TextWrapping="Wrap"
-                       Text="Runs the VAD model first, then transcribes only the speech intervals it found. Timestamps stay on the original timeline. Off by default; this project has not measured the effect on accuracy." />
+                       Text="Runs the VAD model first, then transcribes only the speech intervals it found. Timestamps stay on the original timeline. Off by default: measured only on a small JFK/silence sample, not a general accuracy claim." />
             <StackPanel Spacing="4" IsVisible="{Binding UseVad}">
               <TextBlock Text="VAD model" Classes="label" />
               <ComboBox ItemsSource="{Binding VadOptions}"

@@ -202,9 +202,13 @@ Detect speech), so the action is visible before the run rather than only in the 
 (`silero-vad-v6.2`, 1.2 MB) over the file first, then plans the ASR windows over the speech
 intervals with the same padding, merge and split rules as the CLI's `--vad`
 (`src/Shared/SpeechWindows.cs`). Timestamps stay on the original timeline. The option is **off
-by default** and **unmeasured**: it changes what the model sees and removes the context across a
-pause, so the text can differ; this project has not measured the effect on accuracy. It needs a
-VAD model on disk; **Get a VAD model…** opens the Models tab filtered to the `vad` role. A run
+by default**. It changes what the model sees and removes the context across a pause. Measured on
+this machine (CPU, 30 s window, JFK plus synthetic leading/trailing silence and noise, Parakeet
+TDT 0.6B and Whisper large-v3-turbo, both Q5_K_M): Whisper produced phantom `Thank you.` text over
+silence and noise without VAD and the correct JFK text with it; Parakeet produced no phantom text
+either way. On the 71 s files VAD also shortened the Whisper runs (about 8–9 s against 26 s). That
+is one machine, two models, synthetic silence and one language — not a general accuracy claim.
+It needs a VAD model on disk; **Get a VAD model…** opens the Models tab filtered to the `vad` role. A run
 with the option on and no VAD model selected is refused with that reason, not silently run over
 the whole file. The on/off choice and the VAD alias are remembered in `ui-settings.json`; an
 alias that is no longer on disk falls back to the first downloaded VAD model, and with none the
