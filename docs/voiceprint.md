@@ -1010,13 +1010,13 @@ pas `nl`, pas accuracy.
   `speakerNames` can feed `SubtitleWriter` / `HtmlTranscriptWriter`; **name != verified identity**;
   **raw transcript unchanged**. `SpeakerAssignment` remains **not called inside `VoiceprintMatcher`**.
 - `SpeakerAssignment` shared source included in `TranscribeCppSharp.Voiceprint`:
-  `SpeakerAssignment.Apply(segments, turns, words)`, word-level + largest-overlap fallback, ties,
+  `SpeakerAssignment.Apply(segments, turns, words)`, word-level + largest-overlap fallback, ties + segment-level lower-id,
   `Speaker 0`; **not identity**, **`SpeakerAssignment` `Probability` not propagated**, `MergedSegment`.
 - `IVoiceprintStore`; `JsonVoiceprintStore : IVoiceprintStore`; `LoadAsync`, `AddOrUpdateAsync`, `RemoveAsync`.
   **No `IVoiceAudioStore`, compression, encryption, schema migration, concurrency, `schemaVersion`.**
 - `TranscribeCppSharp.Voiceprint` `ImplicitUsings=enable`; `SpeakerAssignment.cs` linked.
 - Tests added `AmbiguityRecheckerTests`, `SpeakerNameMapperTests`; synthetic `StubSpeakerEmbedder`,
-  **not `nl`, not real diarization quality**, not production. `Voiceprint` **13/13**.
+  **not `nl`, not real diarization quality**, not production.
 - Full `dotnet test TranscribeCppSharp.slnx` with `VK_ICD_FILENAMES=/nonexistent
   GGML_VK_VISIBLE_DEVICES=-1`: **1 132 réussis / 8 ignorés / 0 échec**.
 - Still **not `fr/en/nl`, not `nl`, not `Sortformer nl`, not `hr16` `fr/nl`, not `nl`, no
@@ -1057,7 +1057,9 @@ pas `nl`, pas accuracy.
   **No raw transcript rewriting; no `SubtitleWriter` shared in `Voiceprint`.**
 - Can feed shared `SubtitleWriter` / `HtmlTranscriptWriter`; `SpeakerNameMapper` separate.
   **name != verified identity.**
-- Tests `UnknownSpeakerTrackerTests`, `JsonUnknownSpeakerStoreTests`, `UnknownSpeakerSafetyTests`; `Voiceprint` **24/24**.
+- Tests `UnknownSpeakerTrackerTests`, `JsonUnknownSpeakerStoreTests`, `UnknownSpeakerSafetyTests`;
+  `VoiceprintMatcherSafetyTests`, `SpeakerSnippetExtractorSafetyTests`, `SpeakerAssignmentSafetyTests`,
+  `SpeakerNameMappingSafetyTests`; `Voiceprint` **40/40**.
 - `UnknownSpeakerMatcher` + `UnknownSpeakerTracker` reject `NaN`/Inf embeddings; **`DiarizationProbability` `NaN` allowed**.
 - `UnknownSpeakerSafetyTests`: `Pending` not identity, no `PersonCorrect`, no raw rewrite, `Speaker 0`, `transcript`, `model`, `dimension`, `margin`, `close voice`, `Rejected`, `Identified`, `nonfinite`, lifecycle.
 - `SpeakerMatch.Unknown` still no persistence by itself; persistence requires `UnknownSpeakerTracker`.
@@ -1069,4 +1071,19 @@ pas `nl`, pas accuracy.
 ## Full `dotnet test` after `UnknownSpeaker`
 
 `dotnet test TranscribeCppSharp.slnx` with `VK_ICD_FILENAMES=/nonexistent GGML_VK_VISIBLE_DEVICES=-1`:
-**1 143 réussis / 8 ignorés / 0 échec**.
+**1 159 réussis / 8 ignorés / 0 échec**.
+
+## Progressive sensitive-parts test loop
+
+- `VoiceprintMatcherSafetyTests`: `model`, `dimension`, `empty`, `NaN/Inf`, `MinScore/MinMargin`,
+  `Unknown` vs `Ambiguous`, `Known != PersonCorrect`, `tie`, `norm0`, saved invalid sample, `MaxRechecks`.
+- `SpeakerSnippetExtractorSafetyTests`: `Speaker 0`, `end<=start`, `minTurn`, `padding`, `maxSnippet`,
+  `sampleRate`, no resampling, `NaN`, no noise/overlap filtering, no `SpeakerAssignment`.
+- `SpeakerAssignmentSafetyTests`: word-level, fallback, **segment-level lower-id tie**, no turn,
+  `Speaker 0`, no `Probability`, no `PersonId`, no raw rewrite.
+- `SpeakerNameMappingSafetyTests`: `Known`, `Unknown`, `Pending`, `Identified`, `Speaker 0`,
+  `speakerNames`, `TranscriptId`, `RunSpeakerId`, raw unchanged.
+- Existing `AmbiguityRecheckerTests`, `UnknownSpeaker*`, `Json*`, `VoiceprintEval` tests.
+- Fix: `SpeakerAssignment.SpeakerFromOverlap` segment-level **tie-break lower `SpeakerId`**.
+- `Voiceprint` **40/40**, full `dotnet test` **1 159 / 8 skipped / 0 failed** with Vulkan env.
+- Not `nl`, not `fr/en/nl`, not `SpeakerEmbeddingManager`, not `SpeakerAssignment` probability, not production.

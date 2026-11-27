@@ -131,7 +131,11 @@ public static class SpeakerAssignment
         foreach (SpeakerSegmentResult turn in turns)
         {
             long overlap = OverlapTicks(start, end, turn.Start, turn.End);
-            if (overlap > best)
+            if (overlap > best
+                || (speaker is { } current
+                    && overlap > 0
+                    && overlap == best
+                    && turn.SpeakerId < current))
             {
                 best = overlap;
                 speaker = turn.SpeakerId;
