@@ -903,3 +903,92 @@ concurrency-safe**. Un conteneur compressé `.zip/.tgz/.zst`, voix brutes sépar
 chiffrement.** `hr16` `EmbeddingModelId`, `Dimension`, modèle/quantization/SHA requis;
 **no model mixing**; `fr/en/nl` profiles séparés si besoin. **Prototype, pas production,
 pas seuils universels, pas `nl` garanti.**
+
+## Ce qui ferait passer du prototype à une version supportée / production
+
+**Pas juste « commité + tests verts ».** Ce reste `IsPackable=false`, additif,
+`TranscribeCppSharp.Voiceprint`, samples `VoiceprintEval`, pas `transcribe.cpp`, pas UI,
+pas `nl`, pas accuracy.
+
+### API + packaging + produit
+
+- `IsPackable=true`, NuGet, SemVer, multi-TFM `net8.0/net9.0/net10.0`, RID sherpa runtime
+  séparé, pas runtime `linux-x64` sample-only, licences, CI, changelog, support.
+- API stable: `ISpeakerEmbedder`, `IVoiceprintStore` (actuellement **pas** `IVoiceprintStore`,
+  `JsonVoiceprintStore`), `IVoiceprintMatcher`, `Voiceprint`, `SpeakerMatch`, `AmbiguityPolicy`,
+  `SpeakerSnippet`, `SpeakerSnippetExtractor`.
+- `schemaVersion`, `EmbeddingModelId`, `Dimension`, model version + quantization + **SHA256**,
+  `CreatedAt`, `SourceSampleCount`, `PersonId`, `DisplayName`, `language`, `condition`, no mixing.
+- cancellation, `Dispose`, thread-safety déclarée; actuel `SherpaOnnxSpeakerEmbedder` pas thread-safe.
+
+### `fr` + `en` + `nl` + diarization réels
+
+- Pas seulement `sr-data`. Corpus internet réel `TidyM`, `X-Voice`, Common Voice, etc.
+- Même locuteur `fr/en/nl`, cross-lingual, inconnu, noisy, short, overlap, multi-session/device.
+- **`nl` pas prouvé.** `hr16` `TidyVoiceX` `nl` model card ≠ `nl` mesuré. `wespeaker_en` pas `nl`.
+- Modèle speaker choisi mesuré `hr16`, `wespeaker`, CAM++, `SpeechBrain`, `TitaNet`, quantisé,
+  version, `Dimension`, `numThreads`; pas `EER` upstream seul.
+- Diarization `fr/en/nl` testée séparément. `Sortformer diar_streaming_sortformer_4spk-v2.1`
+  **English only docs**; `moss`, `granite`, `multitalker` à tester `fr/nl`.
+- `transcribe.cpp` **pas speaker embedding**, `SpeakerId` per-run non stable, `Speaker 0`,
+  `Probability` `NaN`, `SpeakerAssignment` heuristique. `hr16` ne corrige pas diarization.
+
+### `fr/en/nl` calibration + qualité
+
+- `fr`, `en`, `nl`, `nl-possible`, `cross`, `unknown`, `condition`, `clean/noisy/short/overlap`.
+- `FAR/FRR`, `EER`, `MinDCF`, unknown rejection, `Ambiguous`, `PersonCorrect`, `Finite`, `NaN`,
+  `too-short`, `coverage`, `BER`, `FAR=0`, `FRR`, `CPU`, `accuracy`, pas seuil universel.
+- Pas `MinScore=0.525` prod. Actuel `VoiceprintEval` `--by-language`, pas `--by-condition`,
+  pas `--by-cross-lingual`, pas `nl`.
+- `Known` score threshold **≠ identité vérifiée**. `Unknown speaker` peut `Ambiguous`.
+- `unknown no candidate` vs `wrong saved candidate` pas entièrement distingué. Abstention `Unknown/Ambiguous`.
+
+### Re-verification bornée
+
+- `MatchWithRechecks` actuel prend **alternatives fournies**, `MaxRechecks`.
+- Production : `NeedsReverification`, re-crop, drop overlap/short/noisy, re-embed, re-diarize borné,
+  re-map ids, vote/fusion, `MaxRechecks`, no loop, `Unknown/Ambiguous`, pas hook natif, pas auto.
+- `SpeakerAssignment` pas `Probability` propagation; `MergedSegment` no probability.
+- Actuel `VoiceprintEval` pas recheck, pas `SpeakerAssignment`, pas auto `nl`.
+
+### `SpeakerAssignment` + noms + sortie
+
+- `SpeakerSnippetExtractor` + `SpeakerAssignment.Apply`, conserver turns bruts.
+- `SpeakerId` per-run remapping, `SpeakerId != PersonId`, renumérotation seams, `Speaker 0`.
+- `speakerNames`, `SubtitleWriter`, `HtmlTranscriptWriter`, `SpeakerNames`, user-approved names,
+  **nom export ≠ vérification**, raw transcript inchangé, `Known` auto-nomming séparé.
+
+### Stockage / privacy / conteneurs compressés
+
+- Actuel `JsonVoiceprintStore` JSON local atomique; pas `IVoiceprintStore`, pas compression,
+  pas chiffrement, pas concurrency-safe, pas migration, pas backup/restore, pas retention,
+  pas secure delete, pas `IVoiceAudioStore`.
+- `Voiceprint` **embeddings seulement, pas audio**.
+- `.zip/.tgz/.zst`/SQLite optional, `schemaVersion`, `model sha`, `IVoiceprintStore`, voix brutes
+  séparées, migration, locks, atomic.
+- **Compression ≠ chiffrement.** Chiffrement local, clés hors conteneur, `Password/Key` hors store,
+  consent/retention, `PersonId` privacy, no cloud. Empreinte vocale = donnée sensible.
+
+### CPU / robustesse
+
+- Benchmark total transcribe + diarize + embeddings + rechecks + matching.
+- `EmbeddingCpuMsPerAudioSecond`, `EmbeddingWallMsPerAudioSecond`, `EmbeddingAllocatedBytes`,
+  `audioSeconds`, `embeddings`, `rechecks`, memory, `numThreads`, model size, `Provider`.
+- Actuel pas batching, pas `SpeakerEmbeddingManager`, pas parallel sharing, `NumThreads=1`,
+  native compute pas cancellable, `MESA Vulkan` env, no `nl`.
+- `MaxRechecks`, no unknown extra model call, no auto recheck, `SpeakerSnippetExtractor`.
+- `PcmExtensions.ReadWavToPcm` actuel 16-bit PCM 16 kHz **pas resampling**; `VoiceprintEval`
+  pas `.zip`, pas `AudioLoader`; production `AudioLoader` + resampling + streams.
+- `Finite=false`, unreadable, too-short, no `Skipped`, no `NaN`, cancellation, no partial claims.
+
+### Tests + readiness
+
+- `dotnet test TranscribeCppSharp.slnx` final **1 127 réussis / 8 ignorés / 0 échec**, avec
+  `VK_ICD_FILENAMES=/nonexistent GGML_VK_VISIBLE_DEVICES=-1`.
+- `Voiceprint` **8/8**, pas `fr/en/nl`, pas `nl`, pas `hr16 fr/nl`, pas `SpeakerAssignment`
+  integration, pas UI, pas `transcribe.cpp` speaker embedding, pas persistence production.
+- `CliProcessTests` sans env `Vulkan`, `CLI --backend cpu`, `MESA-INTEL`, `GGML_VK_VISIBLE_DEVICES`.
+- `hr16` `sr-data`, `personCorrect=5/5`, `unknownRejected=2`, `MinScore=0.525 MinMargin=0`,
+  `~175 ms/audio s`, **7 lignes `sr-data`, pas `fr/en/nl`, pas accuracy**.
+- Production = API stability + packaging + `fr/en/nl` + `nl` + diarization non-English + recheck +
+  `SpeakerAssignment` + names + storage security + CPU + docs + support. Sinon **prototype honnête**.
