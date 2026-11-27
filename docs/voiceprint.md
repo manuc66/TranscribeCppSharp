@@ -1087,3 +1087,57 @@ pas `nl`, pas accuracy.
 - Fix: `SpeakerAssignment.SpeakerFromOverlap` segment-level **tie-break lower `SpeakerId`**.
 - `Voiceprint` **40/40**, full `dotnet test` **1 159 / 8 skipped / 0 failed** with Vulkan env.
 - Not `nl`, not `fr/en/nl`, not `SpeakerEmbeddingManager`, not `SpeakerAssignment` probability, not production.
+
+## Qualité audio d’entrée vs qualité de l’empreinte produite
+
+**Oui, il faut évaluer les deux.** Un audio propre n’implique pas une bonne empreinte ; une empreinte
+numérique finie/matchée n’implique pas un bon `PersonId`, un bon `nl`, une bonne diarization, ni un
+transcript fiable.
+
+### 1. Qualité de l’audio candidat avant empreinte
+
+- `PcmExtensions.ReadWavToPcm` `VoiceprintEval` : **16-bit PCM WAV, 16 kHz**, mono/stéréo downmix,
+  no resampling ici ; `ffmpeg` externe si besoin.
+- `SherpaOnnxSpeakerEmbedder` : **16 kHz mono finite**, no `NaN`/Inf, no empty, `IsReady`, `InputFinished`.
+- `SpeakerSnippetExtractor` `SpeakerId !=0`, `end>start`, `minTurnMs`, `maxSnippetMs`, `paddingMs`;
+  **no noise/overlap filtering inside**, `SpeakerAssignment` separate.
+- `VoiceprintEval` `Finite=false`, unreadable, unsupported, too-short, no `Skipped`; no `RMS`, `SNR`,
+  `clipping`, `silence`, `noise`, `overlap`, `quality`, `VAD`, `SpeakerSegmentResult.Probability`
+  filters inside. `DiarizationProbability` `NaN` allowed.
+- `transcribe.cpp` diarization quality séparée: `SpeakerAssignment` heuristic, `SpeakerId` per-run,
+  `Speaker 0`, `SpeakerAssignment` probability not propagated, `Sortformer English only`, no `nl`,
+  no combined ASR+diarize, no streaming diarization.
+- Filtres production suggérés: `minDuration`, `minTurnMs`, `maxSnippetMs`, `speech`, `VAD`, `no silence`,
+  `RMS`, `SNR`, `noise`, `no clipping`, `no overlap`, `quality`, `SpeakerSegmentResult.Probability`,
+  `DiarizationProbability`, `PersonCorrect`, `Unknown`, `Ambiguous`, `NeedsReverification`.
+- `UnknownSpeakerTracker` `NaN`/Inf + empty embedding rejected; `UnknownSpeakerMatcher` query
+  nonfinite rejected; `DiarizationProbability NaN` source allowed; no `nl`.
+
+### 2. Qualité de l’empreinte produite / reçue
+
+- `SherpaOnnxSpeakerEmbedder` output `float[]`, `Dimension`, `float.IsFinite`, no `NaN`/Inf, no empty,
+  no zero-norm claim, `ModelId`, `SampleRate`, `NumThreads`, `Dispose`, not thread-safe.
+- `hr16` output **256-dim**, `EmbeddingModelId`, pinned model/version/quantization + **SHA256**,
+  no model mixing; `Dimension`.
+- `Voiceprint.Embeddings`, `SourceSampleCount`, `CreatedAt`, `PersonId`, `DisplayName`;
+  `JsonVoiceprintStore` no `schemaVersion`, no encryption, no compression, no concurrency.
+- `VoiceprintMatcher` `BestScore`, `SecondBestScore`, `Margin`, `MinScore`, `MinMargin`, `MaxRechecks`,
+  `Known/Unknown/Ambiguous`, `NeedsReverification`, `ReverifiedCount`, `PersonCorrect` separate,
+  `Known` score != real `PersonId`, `Unknown` vs `Ambiguous`.
+- `UnknownSpeakerMatcher.MatchPending`, `UnknownSpeaker`, `UnknownSpeakerStatus`, `UnknownId`,
+  `RunSpeakerId`, `TranscriptId`, `SnippetSha256`, `SourceSampleCount`, `Sources`, `Embeddings`.
+- `UnknownSpeakerMatch.Matched` anonymous cluster != `Known`; `UnknownSpeakerStatus.Identified`
+  user `PersonId`, not `PersonCorrect`.
+- `AmbiguityRechecker`, `MatchWithRechecks`, `MaxRechecks`, no auto re-diarization, no noise filtering,
+  no `nl`.
+- `SpeakerAssignment` + `SpeakerNameMapper` + `RetroactiveSpeakerRelabeler` separate;
+  `speakerNames` != verified identity; raw transcript unchanged.
+- Qualité production = `FAR/FRR`, `EER`, `MinDCF`, `unknownRejected`, `UnknownRejectionRate`,
+  `Ambiguous`, `Coverage`, `BalancedErrorRate`, `Accuracy`, `PersonCorrect`, per `fr/en/nl`,
+  `nl-possible`, `cross`, `unknown`, `noisy/short/overlap`, `session`, `device`, `Finite`, `NaN`.
+- `VoiceprintEval` + `ThresholdCalibrator`, `MinScore/MinMargin`, `calibrate --by-language`;
+  `sr-data` numbers not universal, no `nl`, no `fr/en/nl`, no production.
+
+**Conclusion : filtrer audio d’entrée + mesurer empreinte sortie + calibrer.** Pas juste `Finite`.
+**Qualité audio ≠ qualité empreinte.** `Known`/`Matched` ≠ `PersonCorrect`. `UnknownSpeaker.Pending` ≠ `PersonId`.
+No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embedding, no production.
