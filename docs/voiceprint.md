@@ -869,3 +869,37 @@ no production claims. `SpeakerAssignment` not verified. **This is a prototype.**
 - `VoiceprintEval eval` + `calibrate --by-language`: real `sr-data` run.
 - `git diff --check`: clean.
 - `hr16` **tested on `sr-data`, not `fr/en/nl`**; **not `nl`**; **branch committed before attempt**.
+
+## Conclusion finale
+
+**L’idée est techniquement atteignable, pas déjà fournie par `transcribe.cpp`.** `transcribe.cpp`
+ne connaît que la **diarization anonyme** (`Speaker N`, `SpeakerId`, `Speaker 0`, `Probability`,
+pas `NaN` identité), pas l’**empreinte vocale sauvegardée**, pas l’**enrôlement**, pas la
+**reconnaissance `PersonId`**, pas la **re-vérification d’ambiguïté**, pas le **speaker embedding
+natif**. Cette branche ajoute une couche **locale additive** : `sherpa-onnx` ONNX speaker
+embedding, `Voiceprint`, `JsonVoiceprintStore`, cosinus + `MinScore/MinMargin`, `Known/Unknown/
+Ambiguous`, `NeedsReverification`, **`MaxRechecks` borné**, `VoiceprintEval` `fr/en/nl` +
+calibration `--by-language`. **`SpeakerId` numérique n’est pas une identité stable**;
+**`SpeakerAssignment` reste heuristique**; **`Probability` diarization ≠ score identité**;
+**nom export ≠ vérification**; **raw transcript non réécrit**.
+
+**Pour `fr` + `en` + `nl`, choisir un modèle speaker multilingual/cross-lingual, pas
+`wespeaker_en`.** Candidat concret **`hr16/tidyvoicex-samresnet34-onnx`**. **`nl` non prouvé.**
+`Sortformer` diarization **English only** selon docs; `fr/nl` diarization séparée. **`hr16`
+ne corrige pas la diarization.** `SpeakerSnippetExtractor` exige de bons turns + PCM 16 kHz;
+**pas streaming diarization**; **pas `SpeakerAssignment` intégré**.
+
+**Validation.** `dotnet test TranscribeCppSharp.slnx` final : **1 127 réussis / 8 ignorés /
+0 échec**, avec `VK_ICD_FILENAMES=/nonexistent GGML_VK_VISIBLE_DEVICES=-1`. Sans env,
+`CliProcessTests` `auto` peut échouer `134` `MESA-INTEL` `Vulkan`; `CLI --backend cpu` marche.
+`Voiceprint` **8/8**. `hr16` + `sr-data` tentative réelle `personCorrect=5/5`, `unknownRejected=2`,
+`MinScore=0.525 MinMargin=0`, `CPU ~175 ms/audio s`, **7 lignes `sr-data`, pas `fr/en/nl`,
+pas accuracy**. Branch commits `0b46188`, `79ddb2d`.
+
+**Stockage.** `Voiceprint` embeddings seulement; `JsonVoiceprintStore` JSON local atomique;
+**pas audio**, **pas compression**, **pas chiffrement**, **pas `IVoiceprintStore`**, **pas
+concurrency-safe**. Un conteneur compressé `.zip/.tgz/.zst`, voix brutes séparées, chiffrement,
+`schemaVersion`, `model sha`, `IVoiceprintStore` restent **future**. **Compression ≠
+chiffrement.** `hr16` `EmbeddingModelId`, `Dimension`, modèle/quantization/SHA requis;
+**no model mixing**; `fr/en/nl` profiles séparés si besoin. **Prototype, pas production,
+pas seuils universels, pas `nl` garanti.**
