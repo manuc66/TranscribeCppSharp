@@ -1023,3 +1023,48 @@ pas `nl`, pas accuracy.
   `SpeakerEmbeddingManager`, no `SpeakerAssignment` probability, no `PersonCorrect` auto, no
   `nl`, no `fr`, no `en`, no `nl`, no production security/privacy**, no `SubtitleWriter` shared
   in `TranscribeCppSharp.Voiceprint`, no `HtmlTranscriptWriter`, no `transcribe.cpp` changes.
+
+## `UnknownSpeaker`: retain anonymous speakers across transcripts, identify later
+
+**Pas seulement recommandation : cette partie est maintenant code.**
+
+- `UnknownSpeaker(UnknownId, EmbeddingModelId, Dimension, Embeddings, Sources, FirstSeen, LastSeen,
+  Status, PersonId, DisplayName, SourceSampleCount)`.
+- `UnknownSpeakerStatus.Pending / Identified / Rejected`.
+- `UnknownSpeakerSource(TranscriptId, RunSpeakerId, Start, End, DiarizationProbability,
+  SnippetSha256, Language, Condition)`.
+- **No audio by default**, no raw transcript rewrite; `SnippetSha256`, provenance, `fr/en/nl` `Language`,
+  `Condition`, `DiarizationProbability` `NaN`, `RunSpeakerId`.
+- `IUnknownSpeakerStore`, `JsonUnknownSpeakerStore`, local JSON, `LoadAsync`, `AddOrUpdateAsync`,
+  `RemoveAsync`, atomic temp+move; **no `IVoiceAudioStore`, no compression, no encryption,
+  no concurrency, no `schemaVersion`.**
+- `UnknownSpeakerMatcher.MatchPending`: previous `Pending` cluster matching via `VoiceprintMatcher`.
+  **`Matched` anonymous cluster != `Known`, `PersonId`, identity.** no `nl`.
+- `UnknownSpeakerTracker.RecordUnknownAsync(transcriptId, snippet, embedding, language, condition)`.
+  Caller calls for `Unknown`; `Ambiguous` should normally re-check first; no `nl`; no audio.
+- Cross-transcript retention uses **`UnknownId`**, not numeric `SpeakerId`. `RunSpeakerId` per-run
+  can repeat `1` in `transcript-1` and `transcribe-2`; no `SpeakerId` remapping.
+- Cluster matching uses same `EmbeddingModelId`, `Dimension`, `MinScore`, `MinMargin`, `MaxRechecks=0`.
+  `Pending` only. `Rejected`, `Identified` not pending. `SpeakerAssignment` not inside.
+- `UnknownSpeakerTracker.IdentifyLaterAsync(unknownId, personId, displayName)`.
+  Sets `Pending -> Identified`, `PersonId`, `DisplayName`, builds `Voiceprint`, optionally
+  `IVoiceprintStore.AddOrUpdateAsync`. **No `PersonCorrect`; no automatic `Known`; no `nl`.**
+  `PersonId` user assertion, not speaker verification.
+- `UnknownSpeakerTracker.RejectAsync`. `UnknownSpeaker.ToPendingVoiceprint` only cluster matching.
+- `RetroactiveSpeakerRelabeler.NamesForTranscript(transcriptId, originalSegments, identified)` /
+  `NamesOnly`. `speakerNames` keyed numeric `SpeakerId`; **only `Identified`** sources in that
+  `TranscriptId`, `Speaker 0` skipped; `originalSegments` unchanged, `SpeakerId` not `PersonId`.
+  **No raw transcript rewriting; no `SubtitleWriter` shared in `Voiceprint`.**
+- Can feed shared `SubtitleWriter` / `HtmlTranscriptWriter`; `SpeakerNameMapper` separate.
+  **name != verified identity.**
+- Tests `UnknownSpeakerTrackerTests`, `JsonUnknownSpeakerStoreTests`; `Voiceprint` **16/16**.
+- `SpeakerMatch.Unknown` still no persistence by itself; persistence requires `UnknownSpeakerTracker`.
+- Still **not `nl`, not `fr`, not `en`, not `nl` diarization, not `hr16 nl`, not `SpeakerEmbeddingManager`,
+  not `SpeakerAssignment` cross-transcript, not `SpeakerAssignment` probability, not production,
+  not `UnknownSpeaker` auto `Known`, not `PersonCorrect`, not `unknown close voice`, not `FAR/FRR` proof,
+  not `nl` proof, not `SpeakerNameMapper` auto retroactive, not raw audio, not `IVoiceAudioStore`.**
+
+## Full `dotnet test` after `UnknownSpeaker`
+
+`dotnet test TranscribeCppSharp.slnx` with `VK_ICD_FILENAMES=/nonexistent GGML_VK_VISIBLE_DEVICES=-1`:
+**1 135 réussis / 8 ignorés / 0 échec**.
