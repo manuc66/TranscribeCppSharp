@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(TranscribeTargetFrameworks)</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsLibrary>true</IsLibrary>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- sherpa-onnx provides ONNX speaker embeddings; model weights are NOT bundled.
+         Runtime native package for the target RID is selected by the consumer. -->
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.8" />
+  </ItemGroup>
+
+</Project>

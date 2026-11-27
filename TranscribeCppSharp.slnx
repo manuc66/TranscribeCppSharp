@@ -10,6 +10,7 @@
   <Folder Name="/src/">
     <Project Path="src/Generator/Generator.csproj" />
     <Project Path="src/TranscribeCppSharp/TranscribeCppSharp.csproj" />
+    <Project Path="src/TranscribeCppSharp.Voiceprint/TranscribeCppSharp.Voiceprint.csproj" />
     <Project Path="src/TranscribeCppSharp.Cli/TranscribeCppSharp.Cli.csproj" />
     <Project Path="src/TranscribeCppSharp.Server/TranscribeCppSharp.Server.csproj" />
     <Project Path="src/TranscribeCppSharp.UI/TranscribeCppSharp.UI.csproj" />
@@ -21,9 +22,12 @@
     <Project Path="tests/TranscribeCppSharp.Interop.Tests/TranscribeCppSharp.Interop.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.Server.Tests/TranscribeCppSharp.Server.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.UI.Tests/TranscribeCppSharp.UI.Tests.csproj" />
+    <Project Path="tests/TranscribeCppSharp.Voiceprint.Tests/TranscribeCppSharp.Voiceprint.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SmokeTest/SmokeTest.csproj" />
+    <Project Path="samples/VoiceprintSmoke/VoiceprintSmoke.csproj" />
+    <Project Path="samples/VoiceprintEval/VoiceprintEval.csproj" />
     <Project Path="samples/StreamingBench/StreamingBench.csproj" />
     <Project Path="samples/UIScreenshot/UIScreenshot.csproj" />
   </Folder>

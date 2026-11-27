@@ -1,0 +1,35 @@
+{
+  "persons": [
+    {
+      "id": "alice",
+      "displayName": "Alice",
+      "language": "fr",
+      "condition": "clean",
+      "enrollment": [
+        "alice-fr-enroll-1.wav",
+        "alice-en-enroll-1.wav",
+        "alice-nl-enroll-1.wav"
+      ],
+      "test": [
+        "alice-fr-test.wav",
+        "alice-en-test.wav",
+        "alice-nl-test.wav"
+      ]
+    },
+    {
+      "id": "bob",
+      "displayName": "Bob",
+      "language": "en",
+      "condition": "noisy",
+      "enrollment": ["bob-en-enroll-1.wav", "bob-fr-enroll-1.wav"],
+      "test": ["bob-en-test.wav", "bob-fr-test.wav", "bob-nl-test.wav"]
+    }
+  ],
+  "unknown": ["unknown.wav"],
+  "unknownCases": [
+    { "path": "unknown-fr.wav", "language": "fr", "condition": "clean" },
+    { "path": "unknown-en.wav", "language": "en", "condition": "noisy" },
+    { "path": "unknown-nl.wav", "language": "nl", "condition": "clean" },
+    { "path": "short-nl.wav", "language": "nl", "condition": "short" }
+  ]
+}
