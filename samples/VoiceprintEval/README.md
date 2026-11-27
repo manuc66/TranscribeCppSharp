@@ -74,7 +74,7 @@ dotnet run --project samples/VoiceprintEval -- calibrate \
 **`hr16/tidyvoicex-samresnet34-onnx`**, `tidyvoicex_samresnet34.onnx`, ~101 MB, **Apache-2.0**,
 ONNX + sherpa-onnx, **cross-lingual/multilingual**, **256-d**, **16 kHz**, **80-d log Mel**,
 `VoxCeleb2` + `VoxBlink2` + `TidyVoiceX`; model card `EER 3.07%`, `MinDCF 0.82`, **not measured here**,
-**not `fr/en/nl` proof**, **not tested in this session**. `wespeaker_en...` not sufficient for `nl`.
+**not `fr/en/nl` proof**. `hr16` tested on `sr-data`, not `fr/en/nl`. `wespeaker_en...` not sufficient for `nl`.
 
 ## Outputs
 

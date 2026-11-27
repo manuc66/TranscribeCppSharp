@@ -426,7 +426,7 @@ Raw `eval` row:
 - `unknownCandidateRate` raw has candidate; **not unknown rejection**; `unknownRejected` in calibration.
 - `embeddingsTotal` counts `finite`.
 - no `unknownRejected` raw summary.
-- no `CPU total` outside embedding; no process total CPU; no total wall; no peak memory; no `hr16` numbers.
+- no `CPU total` outside embedding; no process total CPU; no total wall; no peak memory. `hr16` `sr-data` numbers below; no `fr/en/nl`.
 
 ### `calibrate` output
 
@@ -504,8 +504,8 @@ ONNX, but `wespeaker_en` should not be default for target.
 - upstream challenge `TidyVoice 2026`, `TidyVoiceX`, `TidyVoice2026`.
 - sherpa-onnx example `provider=cuda` in card; **our CPU provider**.
 - `modelId` suggestion `tidyvoicex_samresnet34@hr16-ONNX-sherpa-1.13.8`.
-- **not tested in this session**; **not downloaded into repo**; **no `nl` result**.
-- **no `VoiceprintEval` `hr16` numbers**.
+- **tested in this session on English `sr-data`, not `fr/en/nl`**; model **not committed**; **no `nl` result**.
+- `VoiceprintEval` `hr16` `sr-data` numbers below; no `fr/en/nl`.
 - **no universal seuil** from `EER`.
 
 Download shape:
@@ -567,10 +567,39 @@ license/gating verify. `transcribe.cpp` does not expose `pyannote` speaker embed
 **Memory growth issue in sherpa C# `SpeakerEmbeddingExtractor` seen; `Dispose` streams/embedder; not solved.**
 **No `SpeakerEmbeddingExtractor` streaming diarization proof.**
 
-### Internet test voices found (not bundled, not measured)
+### Measured `hr16/tidyvoiceX` `VoiceprintEval` run on internet `sr-data`
+
+After committing branch, model `hr16/tidyvoicex-samresnet34-onnx` `tidyvoicex_samresnet34.onnx`
+was downloaded outside repo (**~96.24 MB**, not committed). `VoiceprintEval eval` + `calibrate --by-language`
+was run on `csukuangfj/sr-data`, same small `sr-data` `corpus.json`, sherpa-onnx **1.13.8 linux-x64 CPU**,
+`numThreads=1`, `model-id=tidyvoicex_samresnet34@hr16-ONNX-sherpa-1.13.8`.
+**Downloaded model SHA256 `93e35d944e90d50a8d3768b06695b1384aae43880eac05a966006a7bb1127a0a`.**
+**Not `fr/en/nl`, not `nl`, not `hr16` on real `fr/nl`, not diarization, not accuracy production.**
+
+```text
+total=7 known=5 unknown=2
+personCorrect=5/5 personCorrectRate=1.0
+unknownCandidate=2 unknownCandidateRate=1
+unknownRejected=2 unknownRejectionRate=1
+FAR=0 FRR=0 accuracy=1.0 balancedError=0 coverage=0.714285714
+knownCount=5 ambiguous=0
+meanBestScore=0.657684706 meanMargin=0.1936188019
+provisional MinScore=0.525 MinMargin=0
+audioSecondsTotal=33.898875 embeddings=7
+embeddingWallMsTotal=5925.9235 embeddingCpuMsTotal=5933.239
+embeddingWallMsPerAudioSecond=174.8118 embeddingCpuMsPerAudioSecond=175.0276
+embeddingAllocatedBytesTotal=2178512
+unit tests=8/8; build=0 warnings/errors
+```
+
+`calibrate` `MinScore=0.525`, `MinMargin=0`, `candidateCount=7744` **on this 7-row corpus only**;
+**not `fr/en/nl`, not production**. `wespeaker_en...` comparison on same `sr-data` had lower `personCorrectRate`;
+different model + `modelId`, not comparable calibration. `hr16` still **not `nl` proof**.
+
+### Internet test voices found (not bundled; `hr16` + `fr/en/nl` not measured)
 
 You do **not** need your own recording to smoke-test. Public datasets can provide internet
-voices. **No audio copied into branch; no `hr16` + `fr/en/nl` test run; no accuracy; verify
+voices. **No audio copied into branch; no `hr16` + `fr/en/nl` test run on these datasets; no accuracy; verify
 current URLs/licenses; `VoiceprintEval` needs 16-bit PCM WAV 16 kHz after conversion.**
 
 - **`areffarhadi/tidyM-pairs`** (Hugging Face, **CC-BY-4.0**, text-only trials):
@@ -824,7 +853,7 @@ currently **caller-composed**; not one `transcribe.cpp` call.
 
 No `transcribe.cpp` speaker embedding, no `transcribe.cpp` `PersonId`, no `SpeakerId` stable,
 no `SpeakerAssignment` probability, no streaming diarization, no combined ASR+diarize, no `nl`,
-no `fr/en/nl` accuracy, no `hr16` test, no universal thresholds, no `FAR/FRR` guarantee, no re-verification
+no `fr/en/nl` accuracy, no `hr16` `fr/en/nl` test, no universal thresholds, no `FAR/FRR` guarantee, no re-verification
 automation, no `VoiceprintEval` recheck, no `VoiceprintEval` diarization, no `SpeakerNames`, no
 `IVoiceprintStore`, no compression, no encryption, no concurrent writes, no raw audio, no `transcribe`
 ASR `nl` proof, no `Sortformer nl`, no `Sortformer` unEnglish proof, no `SpeakerEmbeddingManager`,
@@ -839,4 +868,4 @@ no production claims. `SpeakerAssignment` not verified. **This is a prototype.**
 - `VoiceprintSmoke`: real `wespeaker_en...` inference.
 - `VoiceprintEval eval` + `calibrate --by-language`: real `sr-data` run.
 - `git diff --check`: clean.
-- `hr16` **not run**; **`fr/en/nl` not run**; **nothing committed**.
+- `hr16` **tested on `sr-data`, not `fr/en/nl`**; **not `nl`**; **branch committed before attempt**.
