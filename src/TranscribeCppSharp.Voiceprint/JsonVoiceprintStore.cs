@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 /// <summary>Local JSON store for voiceprints. No cloud, no audio storage.</summary>
 /// <remarks>Not safe for concurrent writers. Personal/sensitive data: protect storage.</remarks>
-public sealed class JsonVoiceprintStore
+public sealed class JsonVoiceprintStore : IVoiceprintStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {

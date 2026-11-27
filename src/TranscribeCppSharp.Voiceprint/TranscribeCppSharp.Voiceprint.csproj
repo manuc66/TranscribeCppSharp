@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>$(TranscribeTargetFrameworks)</TargetFrameworks>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
+    <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsLibrary>true</IsLibrary>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -11,6 +11,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TranscribeCppSharp\TranscribeCppSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared source: heuristic speaker-turn -> transcript join. Not identity. -->
+    <Compile Include="..\Shared\SpeakerAssignment.cs" Link="Shared\SpeakerAssignment.cs" />
   </ItemGroup>
 
   <ItemGroup>

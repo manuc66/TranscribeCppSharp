@@ -191,7 +191,7 @@ Voiceprint(
 - path + `.tmp`.
 - `CancellationToken`.
 - **`VoiceprintEval` does not use `JsonVoiceprintStore`**; `VoiceprintEval` builds transient voiceprints.
-- no `IVoiceprintStore` yet.
+- `JsonVoiceprintStore : IVoiceprintStore`; no compression/encryption/concurrency added.
 - `VoiceprintEval` not persistence proof.
 
 #### `VoiceprintMatcher`
@@ -255,7 +255,7 @@ SpeakerSnippetExtractor.Extract(
 - `sampleRate > 0`, no resampling; **caller must provide 16 kHz mono finite PCM**.
 - `Probability` preserved, `NaN` allowed.
 - no text/word/language/condition/overlap filtering inside; caller filters.
-- no `SpeakerAssignment`; no identity.
+- not inside `SpeakerSnippetExtractor`; `SpeakerAssignment` separate; no identity.
 - no PCM validation here; embedder validates finite.
 
 ## `samples/VoiceprintSmoke`
@@ -289,7 +289,7 @@ Real inference smoke test. `VoiceprintSmoke model.onnx a1.wav a2.wav b1.wav`.
 
 `VoiceprintEval` = local **`enroll` + `identify` + petit test annoté + `eval` + `calibrate`**.
 **No diarization, no re-verification, no UI, no cloud, no `VoiceprintStore`.**
-**No `SpeakerAssignment`, no `speakerNames`.**
+**`VoiceprintEval` no `SpeakerAssignment` / automatic `speakerNames`; `SpeakerAssignment` + `SpeakerNameMapper` separate.**
 
 ### `VoiceprintEvalRunner`
 
@@ -300,7 +300,7 @@ Real inference smoke test. `VoiceprintSmoke model.onnx a1.wav a2.wav b1.wav`.
 - **no raw `SpeakerMatch.Decision` output**; `PersonCorrect`, `HasCandidate`, `Finite`.
 - no persistence.
 - no `SpeakerSnippetExtractor`; no diarization.
-- no `SpeakerAssignment`.
+- `SpeakerAssignment` separate; no identity/probability propagation.
 - `PcmExtensions.ReadWavToPcm`.
 - **unknown short/noisy etc `unknownCases`.**
 - **not `SpeakerSnippet` input.**
@@ -445,7 +445,7 @@ Raw `eval` row:
 - no `Condition` output; `Language`.
 - no `CalibrateByCondition`.
 - no diarization `Probability`.
-- no `ReverifiedCount`; no `SpeakerAssignment`.
+- `ReverifiedCount` propagated by `VoiceprintMatcher`; no `SpeakerAssignment` probability propagation.
 - no `CrossLingual` metric explicit; `language` + `condition` + `PersonCorrect`.
 - no `nl` proof.
 
@@ -463,7 +463,7 @@ Raw `eval` row:
 ### `VoiceprintEval` learnings
 
 - `VoiceprintEval` no diarization; no recheck; no UI.
-- `VoiceprintMatcher.MatchWithRechecks` exists but **not used by `VoiceprintEval`.**
+- `VoiceprintMatcher.MatchWithRechecks` exists but **not used by `VoiceprintEval`.** `AmbiguityRechecker` implements bounded same-crop recheck.
 - `VoiceprintMatcher` `Unknown/Ambiguous` not eval output; calibration infers `Known`.
 - no `sherpa-onnx SpeakerEmbeddingManager`.
 - no `SpeakerEmbeddingExtractorConfig` C# direct; wrapped.
@@ -778,14 +778,14 @@ embeddings. Suggested bounded caller logic:
 10. user confirmation / abstain.
 11. `NeedsReverification` does not itself call anything.
 
-**No `AmbiguityRechecker`, no automatic second diarizer pass, no `SpeakerEmbeddingManager` integration.**
+**`AmbiguityRechecker` bounded same-crop recheck; no automatic second diarizer pass; no `SpeakerEmbeddingManager` integration.**
 
 ## Future storage: compressed containers
 
 Current storage is **local JSON embeddings**. **Compression is not encryption.** No raw voice.
 
 **`JsonVoiceprintStore` current:** JSON + atomic temp+move; no `.zip`, no `.tgz`, no `.zst`, no `SQLite`,
-no `IVoiceprintStore`, no `IVoiceAudioStore`, no `CompressedVoiceprintStore`, no `EncryptedVoiceprintStore`,
+`IVoiceprintStore` now exists (`JsonVoiceprintStore`); no `IVoiceAudioStore`, no `CompressedVoiceprintStore`, no `EncryptedVoiceprintStore`,
 no audio backup, no `fr/en/nl` `Voiceprint.Language`, no `Condition`, no schema version, no `model sha` field
 beyond `EmbeddingModelId`, no `CreatedAt` UTC enforcement, no concurrent writes, no encryption.
 
@@ -887,7 +887,7 @@ calibration `--by-language`. **`SpeakerId` numérique n’est pas une identité 
 `wespeaker_en`.** Candidat concret **`hr16/tidyvoicex-samresnet34-onnx`**. **`nl` non prouvé.**
 `Sortformer` diarization **English only** selon docs; `fr/nl` diarization séparée. **`hr16`
 ne corrige pas la diarization.** `SpeakerSnippetExtractor` exige de bons turns + PCM 16 kHz;
-**pas streaming diarization**; **pas `SpeakerAssignment` intégré**.
+**pas streaming diarization**; `SpeakerAssignment` séparé; `SpeakerNameMapper` produit `speakerNames`.
 
 **Validation.** `dotnet test TranscribeCppSharp.slnx` final : **1 127 réussis / 8 ignorés /
 0 échec**, avec `VK_ICD_FILENAMES=/nonexistent GGML_VK_VISIBLE_DEVICES=-1`. Sans env,
@@ -897,7 +897,7 @@ ne corrige pas la diarization.** `SpeakerSnippetExtractor` exige de bons turns +
 pas accuracy**. Branch commits `0b46188`, `79ddb2d`.
 
 **Stockage.** `Voiceprint` embeddings seulement; `JsonVoiceprintStore` JSON local atomique;
-**pas audio**, **pas compression**, **pas chiffrement**, **pas `IVoiceprintStore`**, **pas
+**pas audio**, **pas compression**, **pas chiffrement**, `IVoiceprintStore` + `JsonVoiceprintStore`; **pas compression**, **pas
 concurrency-safe**. Un conteneur compressé `.zip/.tgz/.zst`, voix brutes séparées, chiffrement,
 `schemaVersion`, `model sha`, `IVoiceprintStore` restent **future**. **Compression ≠
 chiffrement.** `hr16` `EmbeddingModelId`, `Dimension`, modèle/quantization/SHA requis;
@@ -949,7 +949,7 @@ pas `nl`, pas accuracy.
 - Production : `NeedsReverification`, re-crop, drop overlap/short/noisy, re-embed, re-diarize borné,
   re-map ids, vote/fusion, `MaxRechecks`, no loop, `Unknown/Ambiguous`, pas hook natif, pas auto.
 - `SpeakerAssignment` pas `Probability` propagation; `MergedSegment` no probability.
-- Actuel `VoiceprintEval` pas recheck, pas `SpeakerAssignment`, pas auto `nl`.
+- `VoiceprintEval` pas recheck; `AmbiguityRechecker` séparé; `SpeakerAssignment` séparé; pas auto `nl`.
 
 ### `SpeakerAssignment` + noms + sortie
 
@@ -960,7 +960,7 @@ pas `nl`, pas accuracy.
 
 ### Stockage / privacy / conteneurs compressés
 
-- Actuel `JsonVoiceprintStore` JSON local atomique; pas `IVoiceprintStore`, pas compression,
+- `JsonVoiceprintStore : IVoiceprintStore` JSON local atomique; pas compression,
   pas chiffrement, pas concurrency-safe, pas migration, pas backup/restore, pas retention,
   pas secure delete, pas `IVoiceAudioStore`.
 - `Voiceprint` **embeddings seulement, pas audio**.
@@ -985,10 +985,41 @@ pas `nl`, pas accuracy.
 
 - `dotnet test TranscribeCppSharp.slnx` final **1 127 réussis / 8 ignorés / 0 échec**, avec
   `VK_ICD_FILENAMES=/nonexistent GGML_VK_VISIBLE_DEVICES=-1`.
-- `Voiceprint` **8/8**, pas `fr/en/nl`, pas `nl`, pas `hr16 fr/nl`, pas `SpeakerAssignment`
-  integration, pas UI, pas `transcribe.cpp` speaker embedding, pas persistence production.
+- `Voiceprint` **13/13** incl `AmbiguityRechecker` + `SpeakerNameMapper` + `SpeakerAssignment`,
+  pas `fr/en/nl`, pas `nl`, pas `hr16 fr/nl`, pas UI, pas `transcribe.cpp` speaker embedding, pas persistence production.
 - `CliProcessTests` sans env `Vulkan`, `CLI --backend cpu`, `MESA-INTEL`, `GGML_VK_VISIBLE_DEVICES`.
 - `hr16` `sr-data`, `personCorrect=5/5`, `unknownRejected=2`, `MinScore=0.525 MinMargin=0`,
   `~175 ms/audio s`, **7 lignes `sr-data`, pas `fr/en/nl`, pas accuracy**.
 - Production = API stability + packaging + `fr/en/nl` + `nl` + diarization non-English + recheck +
   `SpeakerAssignment` + names + storage security + CPU + docs + support. Sinon **prototype honnête**.
+
+## Code update: `AmbiguityRechecker`, `SpeakerAssignment`, `speakerNames`, `IVoiceprintStore`
+
+**Yes, parts are now code, not only recommendations; still prototype, not production.**
+
+- `AmbiguityRechecker.RecheckAsync`: `SpeakerSnippet`, `ISpeakerEmbedder`, `Voiceprint`, `AmbiguityPolicy`.
+  If `SpeakerMatch.Decision != Known` and `MaxRechecks > 0`, computes **bounded alternative-crop**
+  embeddings (`Trim` edges, center, smaller trim, original; sequential; max `MaxRechecks`) and calls
+  `VoiceprintMatcher.MatchWithRechecks`. `Known` short-circuits. **No automatic re-diarization**,
+  **no noise/overlap/short filtering**, **no vote/fusion beyond matcher**, **no loop**, **no `nl`**,
+  **no `SpeakerId` remapping**, **no `SpeakerAssignment` inside**. `NeedsReverification` remains.
+- `VoiceprintMatcher.MatchWithRechecks` `ReverifiedCount` is propagated even when result does not improve.
+- `SpeakerNameMapper` + `SpeakerIdentity(RunSpeakerId, SpeakerMatch)` -> `KnownSpeakerNames`:
+  numeric per-run `SpeakerId` -> `DisplayName`; **only `Known` named**; `Unknown/Ambiguous` keep `Speaker N`;
+  `Speaker 0` skipped; blank skipped. `KnownSpeakerNamesForSegments` after `SpeakerAssignment`.
+  `speakerNames` can feed `SubtitleWriter` / `HtmlTranscriptWriter`; **name != verified identity**;
+  **raw transcript unchanged**. `SpeakerAssignment` remains **not called inside `VoiceprintMatcher`**.
+- `SpeakerAssignment` shared source included in `TranscribeCppSharp.Voiceprint`:
+  `SpeakerAssignment.Apply(segments, turns, words)`, word-level + largest-overlap fallback, ties,
+  `Speaker 0`; **not identity**, **`SpeakerAssignment` `Probability` not propagated**, `MergedSegment`.
+- `IVoiceprintStore`; `JsonVoiceprintStore : IVoiceprintStore`; `LoadAsync`, `AddOrUpdateAsync`, `RemoveAsync`.
+  **No `IVoiceAudioStore`, compression, encryption, schema migration, concurrency, `schemaVersion`.**
+- `TranscribeCppSharp.Voiceprint` `ImplicitUsings=enable`; `SpeakerAssignment.cs` linked.
+- Tests added `AmbiguityRecheckerTests`, `SpeakerNameMapperTests`; synthetic `StubSpeakerEmbedder`,
+  **not `nl`, not real diarization quality**, not production. `Voiceprint` **13/13**.
+- Full `dotnet test TranscribeCppSharp.slnx` with `VK_ICD_FILENAMES=/nonexistent
+  GGML_VK_VISIBLE_DEVICES=-1`: **1 132 réussis / 8 ignorés / 0 échec**.
+- Still **not `fr/en/nl`, not `nl`, not `Sortformer nl`, not `hr16` `fr/nl`, not `nl`, no
+  `SpeakerEmbeddingManager`, no `SpeakerAssignment` probability, no `PersonCorrect` auto, no
+  `nl`, no `fr`, no `en`, no `nl`, no production security/privacy**, no `SubtitleWriter` shared
+  in `TranscribeCppSharp.Voiceprint`, no `HtmlTranscriptWriter`, no `transcribe.cpp` changes.

@@ -59,7 +59,7 @@ public static class VoiceprintMatcher
             }
         }
 
-        return best;
+        return best with { ReverifiedCount = reverifiedCount };
     }
 
     private static SpeakerMatch MatchOnce(
