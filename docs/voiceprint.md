@@ -1057,7 +1057,9 @@ pas `nl`, pas accuracy.
   **No raw transcript rewriting; no `SubtitleWriter` shared in `Voiceprint`.**
 - Can feed shared `SubtitleWriter` / `HtmlTranscriptWriter`; `SpeakerNameMapper` separate.
   **name != verified identity.**
-- Tests `UnknownSpeakerTrackerTests`, `JsonUnknownSpeakerStoreTests`; `Voiceprint` **16/16**.
+- Tests `UnknownSpeakerTrackerTests`, `JsonUnknownSpeakerStoreTests`, `UnknownSpeakerSafetyTests`; `Voiceprint` **24/24**.
+- `UnknownSpeakerMatcher` + `UnknownSpeakerTracker` reject `NaN`/Inf embeddings; **`DiarizationProbability` `NaN` allowed**.
+- `UnknownSpeakerSafetyTests`: `Pending` not identity, no `PersonCorrect`, no raw rewrite, `Speaker 0`, `transcript`, `model`, `dimension`, `margin`, `close voice`, `Rejected`, `Identified`, `nonfinite`, lifecycle.
 - `SpeakerMatch.Unknown` still no persistence by itself; persistence requires `UnknownSpeakerTracker`.
 - Still **not `nl`, not `fr`, not `en`, not `nl` diarization, not `hr16 nl`, not `SpeakerEmbeddingManager`,
   not `SpeakerAssignment` cross-transcript, not `SpeakerAssignment` probability, not production,
@@ -1067,4 +1069,4 @@ pas `nl`, pas accuracy.
 ## Full `dotnet test` after `UnknownSpeaker`
 
 `dotnet test TranscribeCppSharp.slnx` with `VK_ICD_FILENAMES=/nonexistent GGML_VK_VISIBLE_DEVICES=-1`:
-**1 135 réussis / 8 ignorés / 0 échec**.
+**1 143 réussis / 8 ignorés / 0 échec**.

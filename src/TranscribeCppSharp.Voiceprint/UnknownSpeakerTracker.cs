@@ -55,6 +55,8 @@ public sealed class UnknownSpeakerTracker
         ArgumentException.ThrowIfNullOrWhiteSpace(transcriptId);
         ArgumentNullException.ThrowIfNull(snippet);
         ArgumentNullException.ThrowIfNull(embedding);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(embedding.Length);
+        ValidateFinite(embedding);
 
         IReadOnlyList<UnknownSpeaker> current = await store.LoadAsync(cancellationToken).ConfigureAwait(false);
         UnknownSpeakerMatch match = UnknownSpeakerMatcher.MatchPending(embedding, embeddingModelId, current, clusterPolicy);
@@ -164,6 +166,17 @@ public sealed class UnknownSpeakerTracker
         UnknownSpeaker rejected = existing with { Status = UnknownSpeakerStatus.Rejected, LastSeen = DateTimeOffset.UtcNow };
         await store.AddOrUpdateAsync(rejected, cancellationToken).ConfigureAwait(false);
         return rejected;
+    }
+
+    private static void ValidateFinite(float[] values)
+    {
+        foreach (float value in values)
+        {
+            if (!float.IsFinite(value))
+            {
+                throw new ArgumentException("Embedding contains NaN or infinity.", nameof(values));
+            }
+        }
     }
 
     private static string SnippetSha256(float[] pcm)

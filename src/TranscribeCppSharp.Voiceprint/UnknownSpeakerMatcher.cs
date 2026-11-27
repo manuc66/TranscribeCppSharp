@@ -37,6 +37,8 @@ public static class UnknownSpeakerMatcher
             return UnknownSpeakerMatch.Unknown();
         }
 
+        ValidateFinite(embedding);
+
         SpeakerMatch match = VoiceprintMatcher.Match(embedding, embeddingModelId, pending, policy);
 
         // Unknown anonymous cluster is not `SpeakerIdentityDecision.Known` real-person identity.
@@ -49,5 +51,16 @@ public static class UnknownSpeakerMatcher
             match.SecondBestScore,
             match.Margin,
             match.ReverifiedCount);
+    }
+
+    private static void ValidateFinite(float[] values)
+    {
+        foreach (float value in values)
+        {
+            if (!float.IsFinite(value))
+            {
+                throw new ArgumentException("Embedding contains NaN or infinity.", nameof(values));
+            }
+        }
     }
 }
