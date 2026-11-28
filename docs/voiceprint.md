@@ -1229,3 +1229,30 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 ## `schemaVersion` + `model sha`
 
 **`nl` laissé de côté.** `Voiceprint.SchemaVersion="1"`, `Voiceprint.ModelSha256` optional, `UnknownSpeaker.SchemaVersion="1"`, `UnknownSpeaker.ModelSha256`, `UnknownSpeakerTracker(..., modelSha256)`, `UnknownSpeaker.ToPendingVoiceprint`, `UnknownSpeakerTracker.IdentifyLaterAsync` -> `Voiceprint`. `JsonVoiceprintStore`, `JsonUnknownSpeakerStore`, local JSON. No `nl`, no `PersonCorrect`, no provenance verification, no model-mixing check by sha, no migration, no encryption, no `schemaVersion` enforcement. `EmbeddingModelId` + `Dimension` matching separate. `Voiceprint` **59/59**; full **1 178 / 8 skipped / 0 failed**.
+
+## Current verified state — supersedes historical sections
+
+**`nl` laissé de côté.** `docs/voiceprint.md` is append-only; earlier “not implemented” lines are historical. Current branch `feat/local-voiceprint`.
+
+- `VoiceprintEval`: now `eval`, `calibrate`, `enroll`, `identify` + `--by-language`.
+- `enroll`: `--model`, `--model-id`, `--model-sha256`, `--schema-version`, `--store`, `--num-threads`, transient source corpus -> `JsonVoiceprintStore`.
+- `identify`: `--model`, `--model-id`, `--store`, `--audio`, `--min-score`, `--min-margin`, `--max-rechecks`, `--out`, `--num-threads`; raw `SpeakerMatch`; no `PersonCorrect`; no `nl`.
+- `identify --max-rechecks` sets `AmbiguityPolicy.MaxRechecks`, but CLI `identify` supplies no `recheckEmbeddings`; use `VoiceprintMatcher.MatchWithRechecks` / `AmbiguityRechecker` for actual rechecks.
+- `SubtitleWriter` shared source is in `TranscribeCppSharp.Voiceprint`.
+- `schemaVersion` + optional `ModelSha256` present; **not enforced, no migration, no sha verification, no `nl`**.
+- `SpeakerMatch` `Unknown/Ambiguous/Known`, `PersonCorrect` separate, no `nl`, no `SpeakerEmbeddingManager`, no `transcribe.cpp` speaker embedding.
+- `SpeakerAssignmentWithProbability`, `UnknownSpeakerSource.Quality`, `UnknownSpeakerTrackerOptions`, `MatchPendingWithRechecks`, `AudioQuality`, `VoiceprintQuality`.
+- `VoiceprintEval` `unreadable/too-short/unsupported/nonfinite` handling includes `InvalidDataException`, `FileNotFoundException`, `IOException`, `UnauthorizedAccessException`, `System.Security.SecurityException`, `ArgumentException`, `InvalidOperationException`; not `Unknown` for `NaN/Inf` `UnknownSpeakerMatcher`.
+- `UnknownSpeakerMatcher` rejects `NaN/Inf` before `pending.Count==0`; `UnknownSpeakerTracker` rejects `NaN/Inf`; `VoiceprintMatcher` rejects nonfinite query and invalid saved samples; `DiarizationProbability NaN` allowed.
+- `Voiceprint` **60/60**; full `dotnet test` **1 179 / 8 skipped / 0 failed** expected after tests; verify.
+
+## `FAR/FRR` calibration correction
+
+- previous `falseAcceptRate = falseAccept / knownTotal` was **not standard FAR**; retained as `FalseAcceptRateAmongKnown`.
+- `FAR = falseAccept / (falseAccept + trueReject)` non-target trials; `FalseAcceptRate` + `Far`.
+- `FRR = falseReject / (trueAccept + falseReject)` target `PersonCorrect` trials; `FalseRejectRate` + `Frr`.
+- `TrueReject`, `NonTargetCount`, `TrueAccept`, `FalseAccept`, `FalseReject`, `UnknownRejected`, `UnknownCount`, `KnownCount`, `AmbiguousCount`.
+- `BalancedErrorRate = (FAR + FRR)/2`.
+- `Accuracy = (trueAccept + trueReject)/total` where `total=results.Count`.
+- `UnknownRejectionRate` separate; `unknown no candidate` separate; `unknown` + known-wrong non-target; `PersonCorrect` separate.
+- no `EER`, no `MinDCF`, no `nl`, no `PersonCorrect` auto, no production; closed-set vs unknown metrics not universal.

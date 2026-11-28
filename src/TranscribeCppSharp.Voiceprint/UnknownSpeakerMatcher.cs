@@ -45,12 +45,13 @@ public static class UnknownSpeakerMatcher
             .Select(u => u.ToPendingVoiceprint())
             .ToList();
 
+        // Reject NaN/Inf even when there is no pending cluster; do not hide invalid input as Unknown.
+        ValidateFinite(embedding);
+
         if (pending.Count == 0 || embedding.Length == 0)
         {
             return UnknownSpeakerMatch.Unknown();
         }
-
-        ValidateFinite(embedding);
 
         SpeakerMatch match = VoiceprintMatcher.MatchWithRechecks(embedding, embeddingModelId, pending, policy, recheckEmbeddings);
 

@@ -88,12 +88,17 @@ public sealed record CalibrationCandidate(
     int UnknownCount,
     int KnownCount,
     int AmbiguousCount,
+    int TrueReject,
+    int NonTargetCount,
     double FalseAcceptRate,
     double FalseRejectRate,
     double UnknownRejectionRate,
     double Accuracy,
     double BalancedErrorRate,
-    double Coverage);
+    double Coverage,
+    double FalseAcceptRateAmongKnown,
+    double Far,
+    double Frr);
 
 /// <summary>Calibration output. Apply manually; no automatic production threshold.</summary>
 public sealed record ThresholdCalibration(

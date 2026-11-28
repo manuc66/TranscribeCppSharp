@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TranscribeCppSharp.Voiceprint\TranscribeCppSharp.Voiceprint.csproj" />
+    <ProjectReference Include="..\..\samples\VoiceprintEval\VoiceprintEval.csproj" />
   </ItemGroup>
 
 </Project>

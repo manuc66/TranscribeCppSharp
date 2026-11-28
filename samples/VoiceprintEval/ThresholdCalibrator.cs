@@ -39,7 +39,7 @@ public static class ThresholdCalibrator
 
         CalibrationCandidate best = candidates
             .OrderBy(c => c.BalancedErrorRate)
-            .ThenBy(c => c.FalseAcceptRate)
+            .ThenBy(c => c.Far)
             .ThenBy(c => c.FalseRejectRate)
             .ThenByDescending(c => c.Accuracy)
             .ThenByDescending(c => c.UnknownRejectionRate)
@@ -81,6 +81,8 @@ public static class ThresholdCalibrator
         int unknownCount = 0;
         int knownCount = 0;
         int ambiguousCount = 0;
+        int trueReject = 0;
+        int nonTargetCount = 0;
 
         foreach (VoiceprintEvalResult result in results)
         {
@@ -89,8 +91,17 @@ public static class ThresholdCalibrator
             bool marginOk = hasCandidate && result.Margin >= minMargin;
             bool known = scoreOk && marginOk;
 
-            bool actualKnownPerson = result.ExpectedPersonId is not null;
             bool predictedCorrect = known && result.PersonCorrect;
+            bool nonTarget = !result.PersonCorrect; // wrong known + unknown + no candidate + invalid
+
+            if (!nonTarget)
+            {
+                // target count tracked via trueAccept + falseReject below
+            }
+            else
+            {
+                nonTargetCount++;
+            }
 
             if (known)
             {
@@ -110,13 +121,17 @@ public static class ThresholdCalibrator
             {
                 falseAccept++;
             }
-
-            if (actualKnownPerson && !known)
+            else if (nonTarget)
             {
-                falseReject++;
+                trueReject++; // non-target correctly rejected; standard FAR denominator
             }
 
-            if (!actualKnownPerson)
+            if (result.PersonCorrect && !known)
+            {
+                falseReject++; // target trial rejected; standard FRR numerator
+            }
+
+            if (result.ExpectedPersonId is null)
             {
                 unknownCount++;
                 if (!known)
@@ -129,10 +144,14 @@ public static class ThresholdCalibrator
         int total = results.Count;
         int knownTotal = trueAccept + falseAccept;
         int expectedKnown = trueAccept + falseReject;
-        double falseAcceptRate = knownTotal == 0 ? 0.0 : (double)falseAccept / knownTotal;
+        int falseAcceptDenominator = falseAccept + trueReject;
+        double falseAcceptRateAmongKnown = knownTotal == 0 ? 0.0 : (double)falseAccept / knownTotal;
+        // Standard FAR: false accepts / all non-target trials.
+        double falseAcceptRate = falseAcceptDenominator == 0 ? 0.0 : (double)falseAccept / falseAcceptDenominator;
+        // Standard FRR: false rejects / all target trials.
         double falseRejectRate = expectedKnown == 0 ? 0.0 : (double)falseReject / expectedKnown;
         double unknownRejectionRate = unknownCount == 0 ? double.NaN : (double)unknownRejected / unknownCount;
-        double accuracy = total == 0 ? double.NaN : (double)(trueAccept + unknownRejected) / total;
+        double accuracy = total == 0 ? double.NaN : (double)(trueAccept + trueReject) / total;
         double balancedError = (falseAcceptRate + falseRejectRate) / 2.0;
 
         return new CalibrationCandidate(
@@ -146,12 +165,17 @@ public static class ThresholdCalibrator
             unknownCount,
             knownCount,
             ambiguousCount,
+            trueReject,
+            nonTargetCount,
             falseAcceptRate,
             falseRejectRate,
             unknownRejectionRate,
             accuracy,
             balancedError,
-            total == 0 ? double.NaN : (double)knownCount / total);
+            total == 0 ? double.NaN : (double)knownCount / total,
+            falseAcceptRateAmongKnown,
+            falseAcceptRate,
+            falseRejectRate);
     }
 
     private static List<double> Grid(double min, double max, double step, IEnumerable<double> observed)

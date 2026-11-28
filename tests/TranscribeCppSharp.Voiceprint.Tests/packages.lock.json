@@ -192,6 +192,13 @@
           "TranscribeCppSharp": "[0.4.4, )",
           "org.k2fsa.sherpa.onnx": "[1.13.8, )"
         }
+      },
+      "voiceprinteval": {
+        "type": "Project",
+        "dependencies": {
+          "TranscribeCppSharp.Voiceprint": "[0.4.2, )",
+          "org.k2fsa.sherpa.onnx.runtime.linux-x64": "[1.13.8, )"
+        }
       }
     }
   }

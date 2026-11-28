@@ -127,6 +127,8 @@ public sealed class UnknownSpeakerSafetyTests
 
         Assert.Throws<ArgumentException>(() => UnknownSpeakerMatcher.MatchPending([float.NaN, 0f], "model-v1", [pending], Policy));
         Assert.Throws<ArgumentException>(() => UnknownSpeakerMatcher.MatchPending([1f, float.PositiveInfinity], "model-v1", [pending], Policy));
+        Assert.Throws<ArgumentException>(() => UnknownSpeakerMatcher.MatchPending([float.NaN, 0f], "model-v1", [], Policy)); // no early Unknown
+        Assert.Throws<ArgumentException>(() => UnknownSpeakerMatcher.MatchPending([1f, float.PositiveInfinity], "model-v1", [], Policy));
     }
 
     [Fact]

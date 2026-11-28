@@ -83,6 +83,99 @@ internal static class Program
             return 0;
         }
 
+
+        if (string.Equals(args[0], "enroll", StringComparison.OrdinalIgnoreCase))
+        {
+            string? model = GetOption(args, "--model");
+            string? manifest = GetOption(args, "--manifest");
+            string? storePath = GetOption(args, "--store");
+            int numThreads = int.TryParse(GetOption(args, "--num-threads"), out int parsedThreads) ? parsedThreads : 1;
+
+            if (model is null || manifest is null || storePath is null)
+            {
+                Usage();
+                return 2;
+            }
+
+            string modelId = GetOption(args, "--model-id")
+                ?? Path.GetFileNameWithoutExtension(model) + "@sherpa-onnx-1.13.8";
+            string? modelSha256 = GetOption(args, "--model-sha256");
+            string schemaVersion = GetOption(args, "--schema-version") ?? "1";
+            string json = await File.ReadAllTextAsync(manifest).ConfigureAwait(false);
+            VoiceprintEvalCorpus corpus = JsonSerializer.Deserialize<VoiceprintEvalCorpus>(json, JsonOptions) ?? new VoiceprintEvalCorpus();
+            string baseDirectory = Path.GetDirectoryName(Path.GetFullPath(manifest)) ?? Directory.GetCurrentDirectory();
+            var store = new TranscribeCppSharp.Voiceprint.JsonVoiceprintStore(storePath);
+            using var embedder = new TranscribeCppSharp.Voiceprint.SherpaOnnxSpeakerEmbedder(model, modelId, numThreads);
+
+            foreach (VoiceprintEvalPerson person in corpus.Persons)
+            {
+                var embeddings = new List<float[]>();
+                foreach (string enrollment in person.Enrollment)
+                {
+                    string path = Path.GetFullPath(Path.Combine(baseDirectory, enrollment));
+                    float[] pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(path);
+                    embeddings.Add(await embedder.EmbedAsync(pcm).ConfigureAwait(false));
+                }
+
+                var voiceprint = new TranscribeCppSharp.Voiceprint.Voiceprint(
+                    person.Id,
+                    string.IsNullOrWhiteSpace(person.DisplayName) ? person.Id : person.DisplayName,
+                    modelId,
+                    embedder.Dimension,
+                    embeddings,
+                    DateTimeOffset.UtcNow,
+                    embeddings.Count,
+                    schemaVersion,
+                    modelSha256);
+
+                await store.AddOrUpdateAsync(voiceprint).ConfigureAwait(false);
+            }
+
+            Console.WriteLine($"wrote {storePath}");
+            return 0;
+        }
+
+        if (string.Equals(args[0], "identify", StringComparison.OrdinalIgnoreCase))
+        {
+            string? model = GetOption(args, "--model");
+            string? audio = GetOption(args, "--audio");
+            string? storePath = GetOption(args, "--store");
+            int numThreads = int.TryParse(GetOption(args, "--num-threads"), out int parsedThreads) ? parsedThreads : 1;
+
+            if (model is null || audio is null || storePath is null)
+            {
+                Usage();
+                return 2;
+            }
+
+            string modelId = GetOption(args, "--model-id")
+                ?? Path.GetFileNameWithoutExtension(model) + "@sherpa-onnx-1.13.8";
+            double minScore = GetOption(args, "--min-score") is { } minScoreText && double.TryParse(minScoreText, out double parsedMinScore) ? parsedMinScore : 0.75;
+            double minMargin = GetOption(args, "--min-margin") is { } minMarginText && double.TryParse(minMarginText, out double parsedMinMargin) ? parsedMinMargin : 0.0;
+            int maxRechecks = int.TryParse(GetOption(args, "--max-rechecks"), out int parsedMaxRechecks) ? parsedMaxRechecks : 0;
+            var policy = new TranscribeCppSharp.Voiceprint.AmbiguityPolicy(minScore, minMargin, maxRechecks);
+
+            using var embedder = new TranscribeCppSharp.Voiceprint.SherpaOnnxSpeakerEmbedder(model, modelId, numThreads);
+            float[] pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(audio);
+            float[] embedding = await embedder.EmbedAsync(pcm).ConfigureAwait(false);
+            var store = new TranscribeCppSharp.Voiceprint.JsonVoiceprintStore(storePath);
+            var voiceprints = await store.LoadAsync().ConfigureAwait(false);
+            var match = TranscribeCppSharp.Voiceprint.VoiceprintMatcher.Match(embedding, modelId, voiceprints, policy);
+            string output = JsonSerializer.Serialize(match, JsonOptions);
+
+            if (GetOption(args, "--out") is { } outPath)
+            {
+                await File.WriteAllTextAsync(outPath, output).ConfigureAwait(false);
+                Console.WriteLine($"wrote {outPath}");
+            }
+            else
+            {
+                Console.WriteLine(output);
+            }
+
+            return 0;
+        }
+
         Usage();
         return 2;
     }
@@ -103,7 +196,7 @@ internal static class Program
     private static void Usage()
     {
         Console.Error.WriteLine("VoiceprintEval eval --model model.onnx --manifest corpus.json [--out results.json] [--num-threads N] [--model-id ID]");
-        Console.Error.WriteLine("VoiceprintEval calibrate --results results.json [--out thresholds.json]");
+        Console.Error.WriteLine("VoiceprintEval enroll --model model.onnx --manifest corpus.json --store voiceprints.json\nVoiceprintEval identify --model model.onnx --store voiceprints.json --audio test.wav\nVoiceprintEval calibrate --results results.json [--out thresholds.json]");
         Console.Error.WriteLine("WAV input: 16-bit PCM, 16 kHz, mono or stereo. No diarization, no recheck, no UI.");
     }
 }

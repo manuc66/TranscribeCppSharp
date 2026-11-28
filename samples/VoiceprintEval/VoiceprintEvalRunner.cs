@@ -168,6 +168,12 @@ public sealed class VoiceprintEvalRunner
         catch (IOException)
         {
         }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        catch (System.Security.SecurityException)
+        {
+        }
         catch (ArgumentException)
         {
         }
