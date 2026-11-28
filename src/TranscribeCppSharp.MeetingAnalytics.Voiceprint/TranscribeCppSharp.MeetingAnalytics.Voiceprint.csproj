@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(TranscribeTargetFrameworks)</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsLibrary>true</IsLibrary>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TranscribeCppSharp.MeetingAnalytics\TranscribeCppSharp.MeetingAnalytics.csproj" />
+    <ProjectReference Include="..\TranscribeCppSharp.Voiceprint\TranscribeCppSharp.Voiceprint.csproj" />
+  </ItemGroup>
+
+</Project>

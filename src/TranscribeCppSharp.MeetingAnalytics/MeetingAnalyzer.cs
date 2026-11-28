@@ -139,7 +139,8 @@ public static class MeetingAnalyzer
             interruptions,
             backchannels,
             changes,
-            ignored);
+            ignored,
+            SpeakerLabels: []);
     }
 
     private static Dictionary<int, int> AssignWords(IReadOnlyList<TurnInterval> turns, IReadOnlyList<WordResult> words)

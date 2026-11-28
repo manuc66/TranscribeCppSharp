@@ -1,7 +1,9 @@
 namespace TranscribeCppSharp.MeetingAnalytics;
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 /// <summary>Markdown exporter for anonymous meeting analytics.</summary>
@@ -24,10 +26,15 @@ public static class MeetingAnalyticsMarkdown
         builder.AppendLine();
         builder.AppendLine("| Speaker | Talk time | Share | Turns | Words | Words/min |");
         builder.AppendLine("|---|---:|---:|---:|---:|---:|");
+        Dictionary<int, MeetingSpeakerLabel> labels = analytics.SpeakerLabels.ToDictionary(l => l.SpeakerId);
 
         foreach (SpeakerTalkStats speaker in analytics.Speakers)
         {
-            builder.Append("| Speaker ").Append(speaker.SpeakerId.ToString(CultureInfo.InvariantCulture))
+            MeetingSpeakerLabel? label = labels.GetValueOrDefault(speaker.SpeakerId);
+            string name = string.IsNullOrWhiteSpace(label?.DisplayName)
+                ? $"Speaker {speaker.SpeakerId.ToString(CultureInfo.InvariantCulture)}"
+                : label.DisplayName.Trim();
+            builder.Append("| ").Append(name.Replace("|", "\\|", StringComparison.Ordinal))
                 .Append(" | ").Append(Format(speaker.TalkTime))
                 .Append(" | ").Append(speaker.TalkShare.ToString("0.0%", CultureInfo.InvariantCulture))
                 .Append(" | ").Append(speaker.TurnCount.ToString(CultureInfo.InvariantCulture))

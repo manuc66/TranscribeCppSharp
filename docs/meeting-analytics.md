@@ -60,3 +60,47 @@ turn/word unless `RecordingDuration` is supplied; a longer supplied duration win
 `tests/TranscribeCppSharp.MeetingAnalytics.Tests`: pure timeline tests for union talk time,
 silence, overlap, invalid turns, empty input, word assignment, words/minute, interruption vs
 backchannel, speaker changes, silence/overlap thresholds, transcript overload, JSON/CSV/Markdown.
+
+## Optional voiceprint resolution
+
+`TranscribeCppSharp.MeetingAnalytics.Voiceprint` is an **opt-in integration** with
+`TranscribeCppSharp.Voiceprint`. Core analytics remains anonymous.
+
+```csharp
+var resolver = new MeetingSpeakerResolver(
+    embedder,
+    voiceprintStore,
+    unknownSpeakerStore,
+    new MeetingSpeakerResolutionOptions(
+        IdentityPolicy: new AmbiguityPolicy(0.75, 0.10, MaxRechecks: 1),
+        PersistUnknownSpeakers: true,
+        MaxSnippetsPerSpeaker: 3,
+        AudioQuality: new AudioQualityPolicy(MinRms: 0.01)));
+
+MeetingSpeakerResolution resolved = await resolver.ResolveAsync(
+    pcm16kMono,
+    transcript.SpeakerSegments,
+    transcript.Words,
+    transcriptId: "meeting-1",
+    language: "fr",
+    condition: "clean");
+
+MeetingAnalytics labelled = resolved.Analytics;
+Dictionary<int, string> knownNames = resolved.SpeakerNames;
+```
+
+- `MeetingSpeakerLabel` = `SpeakerId`, optional `PersonId`, `DisplayName`,
+  `Anonymous/Known/Unknown/Ambiguous`, optional `UnknownId`.
+- `MeetingAnalytics.WithSpeakerLabels`; statistics unchanged.
+- JSON/CSV/Markdown include labels; anonymous output remains `Speaker N`.
+- `MeetingSpeakerResolver` uses `SpeakerSnippetExtractor`, `ISpeakerEmbedder`,
+  `VoiceprintMatcher.MatchWithRechecks`, `UnknownSpeakerTracker`, `SpeakerNameMapper`.
+- Rechecks are bounded by `AmbiguityPolicy.MaxRechecks`; only the longest snippets are considered.
+- Unknown/ambiguous speakers can be persisted as pending `UnknownSpeaker`; `SpeakerNames`
+  contains **Known only**. Unknown labels are not `PersonId`.
+- `AudioQualityPolicy` can reject snippets before embedding.
+- No snippet -> no embedding, no invented `UnknownId`.
+- No raw transcript rewrite, no `SpeakerAssignment`, no `SubtitleWriter`, no `PersonCorrect`,
+  no `nl`, no production identity guarantee.
+- `ModelSha256` is optional and propagated to `UnknownSpeakerTracker`; model-file verification
+  remains the embedder's responsibility.

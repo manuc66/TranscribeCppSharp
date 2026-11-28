@@ -12,6 +12,7 @@
     <Project Path="src/TranscribeCppSharp/TranscribeCppSharp.csproj" />
     <Project Path="src/TranscribeCppSharp.Voiceprint/TranscribeCppSharp.Voiceprint.csproj" />
     <Project Path="src/TranscribeCppSharp.MeetingAnalytics/TranscribeCppSharp.MeetingAnalytics.csproj" />
+    <Project Path="src/TranscribeCppSharp.MeetingAnalytics.Voiceprint/TranscribeCppSharp.MeetingAnalytics.Voiceprint.csproj" />
     <Project Path="src/TranscribeCppSharp.Cli/TranscribeCppSharp.Cli.csproj" />
     <Project Path="src/TranscribeCppSharp.Server/TranscribeCppSharp.Server.csproj" />
     <Project Path="src/TranscribeCppSharp.UI/TranscribeCppSharp.UI.csproj" />
@@ -22,6 +23,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/TranscribeCppSharp.Interop.Tests/TranscribeCppSharp.Interop.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.MeetingAnalytics.Tests/TranscribeCppSharp.MeetingAnalytics.Tests.csproj" />
+    <Project Path="tests/TranscribeCppSharp.MeetingAnalytics.Voiceprint.Tests/TranscribeCppSharp.MeetingAnalytics.Voiceprint.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.Server.Tests/TranscribeCppSharp.Server.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.UI.Tests/TranscribeCppSharp.UI.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.Voiceprint.Tests/TranscribeCppSharp.Voiceprint.Tests.csproj" />
