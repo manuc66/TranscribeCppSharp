@@ -30,6 +30,7 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/SmokeTest/SmokeTest.csproj" />
+    <Project Path="samples/MeetingAnalyticsSmoke/MeetingAnalyticsSmoke.csproj" />
     <Project Path="samples/VoiceprintSmoke/VoiceprintSmoke.csproj" />
     <Project Path="samples/VoiceprintEval/VoiceprintEval.csproj" />
     <Project Path="samples/StreamingBench/StreamingBench.csproj" />

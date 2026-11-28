@@ -104,3 +104,28 @@ Dictionary<int, string> knownNames = resolved.SpeakerNames;
   no `nl`, no production identity guarantee.
 - `ModelSha256` is optional and propagated to `UnknownSpeakerTracker`; model-file verification
   remains the embedder's responsibility.
+
+## Real end-to-end smoke
+
+`samples/MeetingAnalyticsSmoke` runs the full pipeline with real models:
+
+```text
+WAV -> ASR -> Sortformer -> SpeakerAssignment -> MeetingAnalyzer
+    -> MeetingSpeakerResolver -> JSON/CSV/Markdown + transcript.vtt
+```
+
+Actual run on this branch:
+
+- 10 s two-speaker `sr-data` mix (`fangjun`, `leijun`);
+- `whisper-tiny` ASR;
+- `diar_streaming_sortformer_4spk-v2.1-Q8_0` diarizer;
+- `hr16/tidyvoicex-samresnet34-onnx` speaker embedder;
+- enrolled `sr-data` voiceprints;
+- `MinScore=0.5`, `MinMargin=0`, `MaxRechecks=1` — smoke only;
+- **2 speakers, 2 Known, 0 Unknown, 0 Ambiguous**;
+- speech `6.56 s`, silence `3.44 s`, overlap `0 s`, speaker changes `1`;
+- `analytics.json`, `analytics.csv`, `analytics.md`, `transcript.vtt` produced.
+
+This proves the real pipeline runs. It does **not** prove `fr/en/nl`, `nl`, identity/diarization
+accuracy, production thresholds, or word-rate accuracy (`whisper-tiny` emitted no word timings).
+See `samples/MeetingAnalyticsSmoke/README.md`.
