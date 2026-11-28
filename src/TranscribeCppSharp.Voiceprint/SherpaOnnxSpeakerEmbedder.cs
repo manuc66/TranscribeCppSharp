@@ -22,7 +22,8 @@ public sealed class SherpaOnnxSpeakerEmbedder : ISpeakerEmbedder, IDisposable
     /// <param name="modelPath">Path to a sherpa-onnx speaker embedding .onnx model.</param>
     /// <param name="modelId">Stable id persisted with voiceprints; pin version + quantization.</param>
     /// <param name="numThreads">ONNX Runtime CPU threads. Benchmark; do not assume more is faster.</param>
-    public SherpaOnnxSpeakerEmbedder(string modelPath, string modelId, int numThreads = 1)
+    /// <param name="modelSha256">Optional expected SHA-256 of model file; verified against actual bytes. No `nl`.</param>
+    public SherpaOnnxSpeakerEmbedder(string modelPath, string modelId, int numThreads = 1, string? modelSha256 = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
@@ -31,6 +32,11 @@ public sealed class SherpaOnnxSpeakerEmbedder : ISpeakerEmbedder, IDisposable
         if (!File.Exists(modelPath))
         {
             throw new FileNotFoundException("Speaker embedding model not found.", modelPath);
+        }
+
+        if (modelSha256 is not null && !ModelSha256Verifier.Verify(modelPath, modelSha256))
+        {
+            throw new ArgumentException("Speaker embedding model SHA-256 mismatch.", nameof(modelSha256));
         }
 
         ModelId = modelId;

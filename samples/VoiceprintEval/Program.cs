@@ -105,7 +105,7 @@ internal static class Program
             VoiceprintEvalCorpus corpus = JsonSerializer.Deserialize<VoiceprintEvalCorpus>(json, JsonOptions) ?? new VoiceprintEvalCorpus();
             string baseDirectory = Path.GetDirectoryName(Path.GetFullPath(manifest)) ?? Directory.GetCurrentDirectory();
             var store = new TranscribeCppSharp.Voiceprint.JsonVoiceprintStore(storePath);
-            using var embedder = new TranscribeCppSharp.Voiceprint.SherpaOnnxSpeakerEmbedder(model, modelId, numThreads);
+            using var embedder = new TranscribeCppSharp.Voiceprint.SherpaOnnxSpeakerEmbedder(model, modelId, numThreads, modelSha256);
 
             foreach (VoiceprintEvalPerson person in corpus.Persons)
             {
@@ -150,13 +150,14 @@ internal static class Program
 
             string modelId = GetOption(args, "--model-id")
                 ?? Path.GetFileNameWithoutExtension(model) + "@sherpa-onnx-1.13.8";
+            string? modelSha256 = GetOption(args, "--model-sha256");
             double minScore = GetOption(args, "--min-score") is { } minScoreText && double.TryParse(minScoreText, out double parsedMinScore) ? parsedMinScore : 0.75;
             double minMargin = GetOption(args, "--min-margin") is { } minMarginText && double.TryParse(minMarginText, out double parsedMinMargin) ? parsedMinMargin : 0.0;
             int maxRechecks = int.TryParse(GetOption(args, "--max-rechecks"), out int parsedMaxRechecks) ? parsedMaxRechecks : 0;
             var policy = new TranscribeCppSharp.Voiceprint.AmbiguityPolicy(minScore, minMargin, maxRechecks);
             var recheckEmbeddings = new List<float[]>();
 
-            using var embedder = new TranscribeCppSharp.Voiceprint.SherpaOnnxSpeakerEmbedder(model, modelId, numThreads);
+            using var embedder = new TranscribeCppSharp.Voiceprint.SherpaOnnxSpeakerEmbedder(model, modelId, numThreads, modelSha256);
             float[] pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(audio);
             float[] embedding = await embedder.EmbedAsync(pcm).ConfigureAwait(false);
 
