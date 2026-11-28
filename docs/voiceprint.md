@@ -786,7 +786,7 @@ Current storage is **local JSON embeddings**. **Compression is not encryption.**
 
 **`JsonVoiceprintStore` current:** JSON + atomic temp+move; no `.zip`, no `.tgz`, no `.zst`, no `SQLite`,
 `IVoiceprintStore` now exists (`JsonVoiceprintStore`); no `IVoiceAudioStore`, no `CompressedVoiceprintStore`, no `EncryptedVoiceprintStore`,
-no audio backup, no `fr/en/nl` `Voiceprint.Language`, no `Condition`, no schema version, no `model sha` field
+no audio backup, no `fr/en/nl` `Voiceprint.Language`, no `Condition`; `schemaVersion`, `model sha` optional, no migration
 beyond `EmbeddingModelId`, no `CreatedAt` UTC enforcement, no concurrent writes, no encryption.
 
 **Voiceprint compression** (`.zip`, `.tgz`, `.zst`, `SQLite`, etc.) can be added later as a store
@@ -899,7 +899,7 @@ pas accuracy**. Branch commits `0b46188`, `79ddb2d`.
 **Stockage.** `Voiceprint` embeddings seulement; `JsonVoiceprintStore` JSON local atomique;
 **pas audio**, **pas compression**, **pas chiffrement**, `IVoiceprintStore` + `JsonVoiceprintStore`; **pas compression**, **pas
 concurrency-safe**. Un conteneur compressé `.zip/.tgz/.zst`, voix brutes séparées, chiffrement,
-`schemaVersion`, `model sha`, `IVoiceprintStore` restent **future**. **Compression ≠
+`schemaVersion`, `model sha` partiels; `IVoiceprintStore` concurrency/migration restent **future**. **Compression ≠
 chiffrement.** `hr16` `EmbeddingModelId`, `Dimension`, modèle/quantization/SHA requis;
 **no model mixing**; `fr/en/nl` profiles séparés si besoin. **Prototype, pas production,
 pas seuils universels, pas `nl` garanti.**
@@ -1013,7 +1013,7 @@ pas `nl`, pas accuracy.
   `SpeakerAssignment.Apply(segments, turns, words)`, word-level + largest-overlap fallback, ties + segment-level lower-id,
   `Speaker 0`; **not identity**, **`SpeakerAssignment` `Probability` not propagated**, `MergedSegment`.
 - `IVoiceprintStore`; `JsonVoiceprintStore : IVoiceprintStore`; `LoadAsync`, `AddOrUpdateAsync`, `RemoveAsync`.
-  **No `IVoiceAudioStore`, compression, encryption, schema migration, concurrency, `schemaVersion`.**
+  **No `IVoiceAudioStore`, compression, encryption, schema migration, concurrency; `schemaVersion` + optional `model sha`.**
 - `TranscribeCppSharp.Voiceprint` `ImplicitUsings=enable`; `SpeakerAssignment.cs` linked.
 - Tests added `AmbiguityRecheckerTests`, `SpeakerNameMapperTests`; synthetic `StubSpeakerEmbedder`,
   **not `nl`, not real diarization quality**, not production.
@@ -1037,7 +1037,7 @@ pas `nl`, pas accuracy.
   `Condition`, `DiarizationProbability` `NaN`, `RunSpeakerId`.
 - `IUnknownSpeakerStore`, `JsonUnknownSpeakerStore`, local JSON, `LoadAsync`, `AddOrUpdateAsync`,
   `RemoveAsync`, atomic temp+move; **no `IVoiceAudioStore`, no compression, no encryption,
-  no concurrency, no `schemaVersion`.**
+  no concurrency; `schemaVersion` + optional `model sha`.**
 - `UnknownSpeakerMatcher.MatchPending`: previous `Pending` cluster matching via `VoiceprintMatcher`.
   **`Matched` anonymous cluster != `Known`, `PersonId`, identity.** no `nl`.
 - `UnknownSpeakerTracker.RecordUnknownAsync(transcriptId, snippet, embedding, language, condition)`.
@@ -1120,7 +1120,7 @@ transcript fiable.
 - `hr16` output **256-dim**, `EmbeddingModelId`, pinned model/version/quantization + **SHA256**,
   no model mixing; `Dimension`.
 - `Voiceprint.Embeddings`, `SourceSampleCount`, `CreatedAt`, `PersonId`, `DisplayName`;
-  `JsonVoiceprintStore` no `schemaVersion`, no encryption, no compression, no concurrency.
+  `JsonVoiceprintStore` `schemaVersion`, optional `model sha`, no encryption, no compression, no concurrency, no migration.
 - `VoiceprintMatcher` `BestScore`, `SecondBestScore`, `Margin`, `MinScore`, `MinMargin`, `MaxRechecks`,
   `Known/Unknown/Ambiguous`, `NeedsReverification`, `ReverifiedCount`, `PersonCorrect` separate,
   `Known` score != real `PersonId`, `Unknown` vs `Ambiguous`.
@@ -1225,3 +1225,7 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 `SpeakerNameMapper.KnownSpeakerNames` -> `speakerNames`; `SubtitleWriter` SRT/VTT/ASS; `Unknown/Ambiguous` `Speaker N`; `Speaker 0`.
 `SpeakerAssignmentWithProbability` + `SpeakerNameMapper`; raw unchanged. No `nl`, no `HtmlTranscriptWriter`, no `PersonId`, no auto `Known`.
 `Voiceprint` **57/57**; full **1 176 / 8 skipped / 0 failed**.
+
+## `schemaVersion` + `model sha`
+
+**`nl` laissé de côté.** `Voiceprint.SchemaVersion="1"`, `Voiceprint.ModelSha256` optional, `UnknownSpeaker.SchemaVersion="1"`, `UnknownSpeaker.ModelSha256`, `UnknownSpeakerTracker(..., modelSha256)`, `UnknownSpeaker.ToPendingVoiceprint`, `UnknownSpeakerTracker.IdentifyLaterAsync` -> `Voiceprint`. `JsonVoiceprintStore`, `JsonUnknownSpeakerStore`, local JSON. No `nl`, no `PersonCorrect`, no provenance verification, no model-mixing check by sha, no migration, no encryption, no `schemaVersion` enforcement. `EmbeddingModelId` + `Dimension` matching separate. `Voiceprint` **59/59**; full **1 178 / 8 skipped / 0 failed**.

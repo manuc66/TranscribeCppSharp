@@ -11,6 +11,8 @@ using System.Collections.Generic;
 /// <param name="Embeddings">One or more enrollment embeddings for the same person.</param>
 /// <param name="CreatedAt">UTC creation time.</param>
 /// <param name="SourceSampleCount">Number of enrollment snippets used.</param>
+/// <param name="SchemaVersion">Local schema version.</param>
+/// <param name="ModelSha256">Optional pinned speaker model SHA-256; not provenance verification here.</param>
 public sealed record Voiceprint(
     string PersonId,
     string DisplayName,
@@ -18,4 +20,6 @@ public sealed record Voiceprint(
     int Dimension,
     IReadOnlyList<float[]> Embeddings,
     DateTimeOffset CreatedAt,
-    int SourceSampleCount);
+    int SourceSampleCount,
+    string SchemaVersion = "1",
+    string? ModelSha256 = null);

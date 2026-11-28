@@ -22,6 +22,7 @@ public sealed class UnknownSpeakerTracker
     private readonly string embeddingModelId;
     private readonly AmbiguityPolicy clusterPolicy;
     private readonly UnknownSpeakerTrackerOptions options;
+    private readonly string? modelSha256;
 
     /// <summary>Creates tracker over local unknown + optional known voiceprint stores.</summary>
     public UnknownSpeakerTracker(
@@ -29,7 +30,8 @@ public sealed class UnknownSpeakerTracker
         string embeddingModelId,
         AmbiguityPolicy clusterPolicy,
         IVoiceprintStore? voiceprintStore = null,
-        UnknownSpeakerTrackerOptions? options = null)
+        UnknownSpeakerTrackerOptions? options = null,
+        string? modelSha256 = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentException.ThrowIfNullOrWhiteSpace(embeddingModelId);
@@ -43,6 +45,7 @@ public sealed class UnknownSpeakerTracker
         this.embeddingModelId = embeddingModelId;
         this.clusterPolicy = clusterPolicy;
         this.options = options;
+        this.modelSha256 = modelSha256;
     }
 
     /// <summary>
@@ -114,7 +117,9 @@ public sealed class UnknownSpeakerTracker
                 UnknownSpeakerStatus.Pending,
                 PersonId: null,
                 DisplayName: $"Unknown {id}",
-                SourceSampleCount: 1);
+                SourceSampleCount: 1,
+                SchemaVersion: "1",
+                ModelSha256: modelSha256);
         }
 
         await store.AddOrUpdateAsync(updated, cancellationToken).ConfigureAwait(false);
@@ -154,7 +159,9 @@ public sealed class UnknownSpeakerTracker
             identified.Dimension,
             identified.Embeddings,
             DateTimeOffset.UtcNow,
-            identified.SourceSampleCount);
+            identified.SourceSampleCount,
+            identified.SchemaVersion,
+            identified.ModelSha256);
 
         await store.AddOrUpdateAsync(identified, cancellationToken).ConfigureAwait(false);
 

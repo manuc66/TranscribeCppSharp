@@ -15,7 +15,9 @@ public sealed record UnknownSpeaker(
     UnknownSpeakerStatus Status,
     string? PersonId,
     string? DisplayName,
-    int SourceSampleCount)
+    int SourceSampleCount,
+    string SchemaVersion = "1",
+    string? ModelSha256 = null)
 {
     /// <summary>Converts a pending unknown for **cluster matching only**; not identity verification.</summary>
     public Voiceprint ToPendingVoiceprint() => new(
@@ -25,5 +27,7 @@ public sealed record UnknownSpeaker(
         Dimension,
         Embeddings,
         FirstSeen,
-        SourceSampleCount);
+        SourceSampleCount,
+        SchemaVersion,
+        ModelSha256);
 }
