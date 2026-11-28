@@ -1218,3 +1218,10 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 - source `SpeakerSegmentResult.Probability`, `NaN`, `Infinity`, `-Infinity`, `value`, no turn -> null; no invented probability; `SpeakerAssignment` probability still not inside `MergedSegment`; no `PersonId`, no `nl`.
 - `UnknownSpeakerSourceQualityTests`, `SpeakerAssignmentWithProbabilityTests`.
 - `Voiceprint` **56/56**; full `dotnet test` **1 175 / 8 skipped / 0 failed** with Vulkan env.
+
+## Shared `SubtitleWriter` in `TranscribeCppSharp.Voiceprint`
+
+**`nl` laissé de côté.** `SubtitleWriter.cs` shared source linked; no `transcribe.cpp`.
+`SpeakerNameMapper.KnownSpeakerNames` -> `speakerNames`; `SubtitleWriter` SRT/VTT/ASS; `Unknown/Ambiguous` `Speaker N`; `Speaker 0`.
+`SpeakerAssignmentWithProbability` + `SpeakerNameMapper`; raw unchanged. No `nl`, no `HtmlTranscriptWriter`, no `PersonId`, no auto `Known`.
+`Voiceprint` **57/57**; full **1 176 / 8 skipped / 0 failed**.
