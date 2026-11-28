@@ -90,3 +90,5 @@ best provisional candidate; global + `byLanguage`. **No automatic production thr
 Calibration outputs thresholds; apply manually. no `--by-condition`, no `--by-cross-lingual`.
 
 See `docs/voiceprint.md` for full findings, diarization, CPU, storage, `fr/en/nl`, model candidates.
+
+`identify --max-rechecks` + `--recheck-audio` uses `MatchWithRechecks`.

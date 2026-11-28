@@ -154,13 +154,29 @@ internal static class Program
             double minMargin = GetOption(args, "--min-margin") is { } minMarginText && double.TryParse(minMarginText, out double parsedMinMargin) ? parsedMinMargin : 0.0;
             int maxRechecks = int.TryParse(GetOption(args, "--max-rechecks"), out int parsedMaxRechecks) ? parsedMaxRechecks : 0;
             var policy = new TranscribeCppSharp.Voiceprint.AmbiguityPolicy(minScore, minMargin, maxRechecks);
+            var recheckEmbeddings = new List<float[]>();
 
             using var embedder = new TranscribeCppSharp.Voiceprint.SherpaOnnxSpeakerEmbedder(model, modelId, numThreads);
             float[] pcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(audio);
             float[] embedding = await embedder.EmbedAsync(pcm).ConfigureAwait(false);
+
+            if (GetOption(args, "--recheck-audio") is { } recheckAudio)
+            {
+                foreach (string recheckPath in recheckAudio.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    float[] recheckPcm = TranscribeCppSharp.PcmExtensions.ReadWavToPcm(recheckPath);
+                    recheckEmbeddings.Add(await embedder.EmbedAsync(recheckPcm).ConfigureAwait(false));
+                }
+            }
+
             var store = new TranscribeCppSharp.Voiceprint.JsonVoiceprintStore(storePath);
             var voiceprints = await store.LoadAsync().ConfigureAwait(false);
-            var match = TranscribeCppSharp.Voiceprint.VoiceprintMatcher.Match(embedding, modelId, voiceprints, policy);
+            var match = TranscribeCppSharp.Voiceprint.VoiceprintMatcher.MatchWithRechecks(
+                embedding,
+                modelId,
+                voiceprints,
+                policy,
+                recheckEmbeddings);
             string output = JsonSerializer.Serialize(match, JsonOptions);
 
             if (GetOption(args, "--out") is { } outPath)

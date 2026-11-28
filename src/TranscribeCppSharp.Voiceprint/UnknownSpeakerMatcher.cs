@@ -39,6 +39,8 @@ public static class UnknownSpeakerMatcher
         List<Voiceprint> pending = unknowns
             .Where(u => u is not null
                 && u.Status == UnknownSpeakerStatus.Pending
+                && !string.IsNullOrWhiteSpace(u.SchemaVersion)
+                && string.Equals(u.SchemaVersion, VoiceprintMatcher.SupportedSchemaVersion, StringComparison.Ordinal)
                 && string.Equals(u.EmbeddingModelId, embeddingModelId, StringComparison.Ordinal)
                 && u.Dimension == embedding.Length
                 && u.Embeddings is { Count: > 0 })

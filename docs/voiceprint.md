@@ -1236,8 +1236,8 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 
 - `VoiceprintEval`: now `eval`, `calibrate`, `enroll`, `identify` + `--by-language`.
 - `enroll`: `--model`, `--model-id`, `--model-sha256`, `--schema-version`, `--store`, `--num-threads`, transient source corpus -> `JsonVoiceprintStore`.
-- `identify`: `--model`, `--model-id`, `--store`, `--audio`, `--min-score`, `--min-margin`, `--max-rechecks`, `--out`, `--num-threads`; raw `SpeakerMatch`; no `PersonCorrect`; no `nl`.
-- `identify --max-rechecks` sets `AmbiguityPolicy.MaxRechecks`, but CLI `identify` supplies no `recheckEmbeddings`; use `VoiceprintMatcher.MatchWithRechecks` / `AmbiguityRechecker` for actual rechecks.
+- `identify`: `--model`, `--model-id`, `--store`, `--audio`, `--min-score`, `--min-margin`, `--max-rechecks`, `--recheck-audio`, `--out`, `--num-threads`; raw `SpeakerMatch`; no `PersonCorrect`; no `nl`.
+- `identify --max-rechecks` + `--recheck-audio` uses `VoiceprintMatcher.MatchWithRechecks`; `AmbiguityRechecker` separate.
 - `SubtitleWriter` shared source is in `TranscribeCppSharp.Voiceprint`.
 - `schemaVersion` + optional `ModelSha256` present; **not enforced, no migration, no sha verification, no `nl`**.
 - `SpeakerMatch` `Unknown/Ambiguous/Known`, `PersonCorrect` separate, no `nl`, no `SpeakerEmbeddingManager`, no `transcribe.cpp` speaker embedding.

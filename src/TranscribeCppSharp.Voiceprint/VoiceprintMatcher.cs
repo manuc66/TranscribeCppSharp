@@ -7,6 +7,9 @@ using System.Linq;
 /// <summary>Cosine matching against local voiceprints. No identity claim beyond score + margin.</summary>
 public static class VoiceprintMatcher
 {
+    /// <summary>Only local schema version supported by matcher. No migration; no `nl`.</summary>
+    public const string SupportedSchemaVersion = "1";
+
     /// <summary>Matches one embedding. Caller must re-verify ambiguity.</summary>
     public static SpeakerMatch Match(
         float[] embedding,
@@ -77,6 +80,16 @@ public static class VoiceprintMatcher
             if (voiceprint is null)
             {
                 continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(voiceprint.SchemaVersion))
+            {
+                throw new ArgumentException("Voiceprint SchemaVersion is required.", nameof(voiceprints));
+            }
+
+            if (!string.Equals(voiceprint.SchemaVersion, SupportedSchemaVersion, StringComparison.Ordinal))
+            {
+                continue; // no migration; unsupported schema cannot match
             }
 
             if (voiceprint.Dimension != embedding.Length || voiceprint.Embeddings is null || voiceprint.Embeddings.Count == 0)
