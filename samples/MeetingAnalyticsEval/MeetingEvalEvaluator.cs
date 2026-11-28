@@ -38,6 +38,8 @@ public static class MeetingEvalEvaluator
 
             speakers.Add(new MeetingEvalSpeakerResult(
                 meetingId,
+                meeting.Language,
+                meeting.Condition,
                 stats.SpeakerId,
                 hasExpectation,
                 expected,

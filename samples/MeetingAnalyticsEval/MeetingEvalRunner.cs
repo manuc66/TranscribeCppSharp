@@ -144,17 +144,19 @@ public sealed class MeetingEvalRunner
         }
 
         MeetingEvalSummary summary = MeetingEvalEvaluator.Summarize(meetings);
-        MeetingEvalCalibration calibration = MeetingEvalCalibrator.Calibrate(meetings.SelectMany(m => m.Speakers).ToList());
+        MeetingEvalCalibrationSet calibration = MeetingEvalCalibrator.CalibrateSet(meetings.SelectMany(m => m.Speakers).ToList());
         var results = new MeetingEvalResults(summary, meetings);
 
         await File.WriteAllTextAsync(Path.Combine(outDir, "results.json"), JsonSerializer.Serialize(results, JsonOptions), cancellationToken).ConfigureAwait(false);
         await File.WriteAllTextAsync(Path.Combine(outDir, "summary.json"), JsonSerializer.Serialize(summary, JsonOptions), cancellationToken).ConfigureAwait(false);
-        await File.WriteAllTextAsync(Path.Combine(outDir, "thresholds.json"), JsonSerializer.Serialize(calibration, JsonOptions), cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(Path.Combine(outDir, "thresholds.json"), JsonSerializer.Serialize(calibration.Global, JsonOptions), cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(Path.Combine(outDir, "thresholds-by-language.json"), JsonSerializer.Serialize(calibration.ByLanguage, JsonOptions), cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(Path.Combine(outDir, "thresholds-by-condition.json"), JsonSerializer.Serialize(calibration.ByCondition, JsonOptions), cancellationToken).ConfigureAwait(false);
         await File.WriteAllTextAsync(Path.Combine(outDir, "summary.csv"), MeetingEvalCsv.Write(summary), cancellationToken).ConfigureAwait(false);
 
         Console.WriteLine($"meetings={summary.TotalMeetings} speakers={summary.TotalSpeakers} evaluated={summary.EvaluatedSpeakers}");
         Console.WriteLine($"FAR={summary.Far:0.0000} FRR={summary.Frr:0.0000} unknownRejection={summary.UnknownRejectionRate:0.0000}");
-        Console.WriteLine($"best MinScore={calibration.Best.MinScore:0.000} MinMargin={calibration.Best.MinMargin:0.000}");
+        Console.WriteLine($"best MinScore={calibration.Global.Best.MinScore:0.000} MinMargin={calibration.Global.Best.MinMargin:0.000}");
         Console.WriteLine($"outputs: {outDir}");
         return results;
     }

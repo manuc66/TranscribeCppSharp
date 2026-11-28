@@ -151,3 +151,25 @@ Actual E2E runs on the 10 s `sr-data` mix with `whisper-tiny`, Sortformer Q8_0 a
 
 These prove E2E eval paths execute. They do not prove `fr/en/nl`, `nl`, production accuracy,
 diarization accuracy, or calibrated thresholds. See `samples/MeetingAnalyticsEval/README.md`.
+
+## Real `fr`/`en` Common Voice corpus
+
+A 16-meeting corpus was built from `fixie-ai/common_voice_17_0` (CC-0): 6 French + 6 English
+speakers, 5 clips each, covering clean known, known+unknown, unknown+unknown, pink noise,
+1 s turns, overlap and close-voice candidates. Audio is not committed.
+
+With `whisper-tiny`, Sortformer Q8_0, `hr16`, `MinScore=0.5`, `MinMargin=0.05`,
+`MaxRechecks=1`, CPU 1 thread:
+
+- 30 diarized speakers, 29 evaluated;
+- PersonCorrect 17/19;
+- FAR 0.10, FRR 0.2632, unknown rejection 0.90;
+- accuracy 0.7931, balanced error 0.1816, coverage 0.5172;
+- resolve CPU ~160.4 ms/audio s;
+- global provisional best `0.468 / 0.039`.
+
+Per language: `en` FAR 0 / FRR 0 / unknown rejection 1; `fr` FAR 0.25 / FRR 0.444 /
+unknown rejection 0.75. One French unknown close-voice candidate was falsely accepted as
+an English known speaker. Diarization also merged/split speakers inconsistently, so the
+metrics mix diarization, segmentation and identity errors. Not production calibration;
+`nl` remains out of scope.

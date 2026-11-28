@@ -21,6 +21,8 @@ public sealed class MeetingEvalCase
 /// <summary>Raw speaker-row evaluation before threshold calibration.</summary>
 public sealed record MeetingEvalSpeakerResult(
     string MeetingId,
+    string Language,
+    string Condition,
     int RunSpeakerId,
     bool HasExpectation,
     string? ExpectedPersonId,
@@ -115,7 +117,14 @@ public sealed record MeetingEvalCalibrationCandidate(
 
 /// <summary>Provisional calibration result.</summary>
 public sealed record MeetingEvalCalibration(
+    string Group,
     MeetingEvalCalibrationCandidate Best,
     int CandidateCount,
     List<MeetingEvalCalibrationCandidate> Candidates,
     string Note);
+
+/// <summary>Global + per-language + per-condition calibration.</summary>
+public sealed record MeetingEvalCalibrationSet(
+    MeetingEvalCalibration Global,
+    List<MeetingEvalCalibration> ByLanguage,
+    List<MeetingEvalCalibration> ByCondition);

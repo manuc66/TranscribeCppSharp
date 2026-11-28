@@ -54,6 +54,27 @@ public sealed class MeetingEvalCalibratorTests
         Assert.Equal(1, candidate.AmbiguousCount);
     }
 
+
+    [Fact]
+    public void CalibrationSetGroupsByLanguageAndCondition()
+    {
+        var rows = new List<MeetingEvalSpeakerResult>
+        {
+            Row("m1", 1, "p1", "p1", 0.9, 0.2),
+            Row("m2", 1, null, "p1", 0.4, 0.1, language: "en", condition: "noisy"),
+        };
+
+        MeetingEvalCalibrationSet set = MeetingEvalCalibrator.CalibrateSet(rows);
+
+        Assert.Equal(string.Empty, set.Global.Group);
+        Assert.Equal(2, set.ByLanguage.Count);
+        Assert.Contains(set.ByLanguage, c => c.Group == "fr");
+        Assert.Contains(set.ByLanguage, c => c.Group == "en");
+        Assert.Equal(2, set.ByCondition.Count);
+        Assert.Contains(set.ByCondition, c => c.Group == "clean");
+        Assert.Contains(set.ByCondition, c => c.Group == "noisy");
+    }
+
     private static MeetingEvalSpeakerResult Row(
         string meetingId,
         int speakerId,
@@ -61,13 +82,17 @@ public sealed class MeetingEvalCalibratorTests
         string? actual,
         double bestScore,
         double margin,
-        bool hasExpectation = true)
+        bool hasExpectation = true,
+        string language = "fr",
+        string condition = "clean")
     {
         bool target = hasExpectation && expected is not null;
         bool nonTarget = hasExpectation && !target;
         bool personCorrect = target && string.Equals(expected, actual, StringComparison.Ordinal);
         return new MeetingEvalSpeakerResult(
             meetingId,
+            language,
+            condition,
             speakerId,
             hasExpectation,
             expected,

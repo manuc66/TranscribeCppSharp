@@ -104,3 +104,51 @@ Duplicate identical `fangjun` voiceprint + `MinMargin=0.1`:
 
 These prove the **E2E eval paths execute**, not `fr/en/nl`, `nl`, production accuracy,
 diarization accuracy, or calibrated thresholds.
+
+## Per-language and per-condition calibration
+
+Outputs also include:
+
+- `thresholds-by-language.json`
+- `thresholds-by-condition.json`
+
+`MeetingEvalCalibrator.CalibrateSet` groups raw rows by `Language` and `Condition`.
+A global threshold can hide French/English or clean/noisy/overlap differences.
+
+## Real Common Voice fr/en corpus run
+
+A 16-meeting corpus was generated from `fixie-ai/common_voice_17_0` (unofficial mirror,
+CC-0) with 6 French + 6 English speakers, 5 clips each. Audio is not committed.
+Meetings cover clean known, known+unknown, unknown+unknown, pink-noise, 1 s turns,
+2 s overlap, and close-voice candidates.
+
+Run configuration: `whisper-tiny`, Sortformer Q8_0, `hr16`, `MinScore=0.5`,
+`MinMargin=0.05`, `MaxRechecks=1`, CPU 1 thread.
+
+Aggregate:
+
+- 16 meetings, 30 diarized speakers, 29 evaluated;
+- target 19, non-target/unknown 10;
+- PersonCorrect 17/19;
+- FAR 0.10, FRR 0.2632, unknown rejection 0.90;
+- accuracy 0.7931, balanced error 0.1816, coverage 0.5172;
+- resolve CPU ~160.4 ms/audio s;
+- global provisional best `MinScore=0.468`, `MinMargin=0.039`.
+
+Per language:
+
+- `en`: FAR 0, FRR 0, unknown rejection 1; provisional best `-1 / 0.072`;
+- `fr`: FAR 0.25, FRR 0.444, unknown rejection 0.75; provisional best `0.635 / 0.039`.
+
+Important failures:
+
+- one French unknown close-voice candidate was falsely accepted as an English known speaker
+  (score ~0.635, margin ~0.381);
+- French overlap swapped the two expected identities;
+- diarization itself was inconsistent: one French clean meeting produced 3 speaker ids,
+  while French known+unknown/noisy/short meetings produced only 1;
+- therefore these metrics mix diarization, segmentation and identity errors.
+
+This is **not production calibration**. It is evidence that `fr` and close-voice cases need
+more data, better diarization/segmentation, and language-specific thresholds. `nl` remains
+out of scope.

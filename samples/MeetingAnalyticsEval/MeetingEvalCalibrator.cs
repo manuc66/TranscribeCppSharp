@@ -11,6 +11,27 @@ public static class MeetingEvalCalibrator
         "Provisional on this corpus only. Apply manually. No universal threshold, no production accuracy claim.";
 
     public static MeetingEvalCalibration Calibrate(IReadOnlyList<MeetingEvalSpeakerResult> rows)
+        => Calibrate(string.Empty, rows);
+
+    public static MeetingEvalCalibrationSet CalibrateSet(IReadOnlyList<MeetingEvalSpeakerResult> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+
+        List<MeetingEvalCalibration> byLanguage = rows
+            .GroupBy(r => r.Language, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => Calibrate(g.Key, g.ToList()))
+            .ToList();
+        List<MeetingEvalCalibration> byCondition = rows
+            .GroupBy(r => r.Condition, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => Calibrate(g.Key, g.ToList()))
+            .ToList();
+
+        return new MeetingEvalCalibrationSet(Calibrate(rows), byLanguage, byCondition);
+    }
+
+    public static MeetingEvalCalibration Calibrate(string group, IReadOnlyList<MeetingEvalSpeakerResult> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
         List<MeetingEvalSpeakerResult> evaluated = rows.Where(r => r.HasExpectation).ToList();
@@ -37,7 +58,7 @@ public static class MeetingEvalCalibrator
             .ThenBy(c => c.MinMargin)
             .First();
 
-        return new MeetingEvalCalibration(best, candidates.Count, candidates, Note);
+        return new MeetingEvalCalibration(group, best, candidates.Count, candidates, Note);
     }
 
     private static MeetingEvalCalibrationCandidate Evaluate(List<MeetingEvalSpeakerResult> rows, double minScore, double minMargin)
