@@ -74,7 +74,8 @@ public sealed class UnknownSpeakerTracker
             snippet.DiarizationProbability,
             SnippetSha256(snippet.Pcm16kMono),
             language,
-            condition);
+            condition,
+            snippet.Quality);
 
         UnknownSpeaker updated;
 

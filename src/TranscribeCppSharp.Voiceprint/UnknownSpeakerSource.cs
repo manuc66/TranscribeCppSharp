@@ -2,7 +2,7 @@ namespace TranscribeCppSharp.Voiceprint;
 
 using System;
 
-/// <summary>Provenance of an unknown speaker observation. No audio by default; no raw transcript rewrite.</summary>
+/// <summary>Provenance of an unknown speaker observation. No audio by default; no raw transcript rewrite. `Quality` not identity.</summary>
 public sealed record UnknownSpeakerSource(
     string TranscriptId,
     int RunSpeakerId,
@@ -11,4 +11,5 @@ public sealed record UnknownSpeakerSource(
     float DiarizationProbability,
     string SnippetSha256,
     string Language,
-    string Condition);
+    string Condition,
+    AudioQuality? Quality = null);

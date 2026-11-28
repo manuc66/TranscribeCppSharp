@@ -1205,3 +1205,16 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 - **`Matched` anonymous `Pending` cluster != `Known`, `PersonId`, `PersonCorrect`.** no re-diarization, no `nl`.
 - `UnknownSpeakerLimitsTests`: `MaxEmbeddingsPerUnknown`, `MaxSources`, `MaxSourcesPerTranscript`, rechecks.
 - `Voiceprint` **53/53**; full `dotnet test` **1 172 / 8 skipped / 0 failed** with Vulkan env.
+
+## `UnknownSpeakerSource.Quality` + `SpeakerAssignmentWithProbability`
+
+**`nl` laissé de côté.** Code + tests.
+
+- `UnknownSpeakerSource(..., AudioQuality? Quality = null)`.
+- `UnknownSpeakerTracker.RecordUnknownAsync` copies `SpeakerSnippet.Quality`; `SpeakerSnippetExtractor` fills when `AudioQualityPolicy`.
+- **quality != identity**, `Pending`, no `PersonCorrect`, no `nl`, no auto `Known`, no raw audio, `DiarizationProbability NaN`, no `SpeakerAssignment` inside.
+- `SpeakerAssignmentWithProbability.Apply(segments, turns, words)` runs `SpeakerAssignment`, then outputs `AssignedSpeakerSegment`.
+- `AssignedSpeakerSegment(Segment, SpeakerId, DiarizationProbability, DiarizationProbabilityState)`.
+- source `SpeakerSegmentResult.Probability`, `NaN`, `Infinity`, `-Infinity`, `value`, no turn -> null; no invented probability; `SpeakerAssignment` probability still not inside `MergedSegment`; no `PersonId`, no `nl`.
+- `UnknownSpeakerSourceQualityTests`, `SpeakerAssignmentWithProbabilityTests`.
+- `Voiceprint` **56/56**; full `dotnet test` **1 175 / 8 skipped / 0 failed** with Vulkan env.
