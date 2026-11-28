@@ -1141,3 +1141,49 @@ transcript fiable.
 **Conclusion : filtrer audio d’entrée + mesurer empreinte sortie + calibrer.** Pas juste `Finite`.
 **Qualité audio ≠ qualité empreinte.** `Known`/`Matched` ≠ `PersonCorrect`. `UnknownSpeaker.Pending` ≠ `PersonId`.
 No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embedding, no production.
+
+## `AudioQualityAnalyzer` + `VoiceprintQualityAnalyzer`
+
+**`nl` laissé de côté.** Les deux qualités sont maintenant séparées et testées; pas production.
+
+### Qualité audio d’entrée
+
+- `AudioQualityAnalyzer.Analyze(pcm, sampleRate, policy, channels, bitDepth, isPcm, overlap, minTurnMs, maxSnippetMs)`.
+- `AudioQuality`, `AudioQualityPolicy`.
+- `SampleRate`, `Duration`, `SampleCount`, `Finite`, `Rms`, `Peak`, `ClippingRatio`, `SilenceRatio`,
+  `NonSilenceRatio`, `SpeechDetected`, `SpeechKnown`, `SnrDb`, `NoiseKnown`, `Overlap`, `OverlapKnown`,
+  `Passed`, `Reason`.
+- basic `finite`, no `NaN/Inf`, empty, `minDuration`, `maxDuration`, `minTurn`, `maxSnippet`, `RMS`, `peak`,
+  `clipping`, `silence`, `nonSilence`, structural `sampleRate`, `channels`, `bitDepth`, `isPcm`, `overlap`.
+- `AudioQualityPolicy.MinSampleRate`, `RequiredSampleRate=16000`, `RequireResampled16k`, `RequireMono`,
+  `Require16BitPcm`, `MinBitDepth`, `BitDepth`, `MinChannels`, `Channels`, `MinDurationMs`, `MaxDurationMs`,
+  `MinTurnMs`, `MaxSnippetMs`, `MinRms`, `MaxPeak`, `MaxClippingRatio`, `MaxSilenceRatio`, `MinSnrDb`,
+  `MinSpeakerProbability`, `RequireFinite`, `RequireSpeech`, `RejectOverlap`.
+- `SpeakerSnippetExtractor.Extract(..., audioQualityPolicy)` filters on quality; `SpeakerSnippet.Quality`.
+- `SpeakerSnippetExtractor` uses `SpeakerSegmentResult.Probability`, `MinSpeakerProbability`, `NaN`.
+- **not noise reduction, not VAD, not speech recognition, not `nl`, not `SpeakerAssignment`, not identity.**
+- `SnrDb=NaN`, `NoiseKnown=false`, `SpeechKnown=false`, `MinSnrDb` -> `snr-unavailable`; **no invented SNR**.
+- `RequireSpeech` currently **non-silence**, not VAD; `SpeechKnown=false`.
+- `RejectOverlap` needs caller `overlap`; `SpeakerSnippetExtractor` no overlap filtering.
+- `Require16BitPcm` uses `isPcm` + `bitDepth` + `PcmExtensions`; not raw file inspection.
+- `SpeakerSnippetExtractor` `Pcm16kMono`, `sampleRate`, no resampling; `PcmExtensions` separate.
+- `PcmExtensions.ReadWavToPcm` `16k/16-bit`, `VoiceprintEval` `16k` WAV; no `nl`.
+
+### Qualité empreinte produite
+
+- `VoiceprintQualityAnalyzer.Analyze(voiceprint, policy)`.
+- `VoiceprintQuality`, `VoiceprintQualityPolicy`.
+- `Dimension`, `EmbeddingCount`, `SourceSampleCount`, `Finite`, `SameModel`, `SameDimension`, `EmbeddingModelId`.
+- `MinNorm`, `MaxNorm`, `MeanNorm`, `MeanPairwiseCosine`, `MinSelfMatch`, `MaxOutlierScore`, `Passed`, `Reason`.
+- `MinSourceSampleCount`, `MinEmbeddingCount`, `RequiredDimension`, `MinNorm`, `MaxNorm`,
+  `MinMeanPairwiseCosine`, `MinSelfMatch`, `MaxOutlierScore`, `RequireFinite`, `RequireSameModel`, `RequireSameDimension`.
+- invalid `NaN/Inf`, empty, `norm0`, `dimension`, `model`, `outlier`, `contamination`, `pairwise`, `self`.
+- `SameModel` nonblank + no mixing in `VoiceprintMatcher`; no external sha unless `EmbeddingModelId`; no `nl`.
+- **not `PersonCorrect`, not `Known`, not `SpeakerMatch`, not `UnknownSpeakerMatch`, not identity.**
+- `VoiceprintMatcher` separate `MinScore`, `MinMargin`, `MaxRechecks`, `Unknown`, `Ambiguous`, `PersonCorrect`.
+- `UnknownSpeakerTracker` only feed `Unknown` + `NaN/Inf` guard + `UnknownSpeakerMatcher`; no `AudioQualityPolicy` auto.
+- no `VoiceprintEval` `AudioQuality` output, no `UnknownSpeakerSource.Quality`, no `Voiceprint.Quality`.
+- `SpeakerAssignment` diarization no probability, no `nl`, no `SpeakerAssignment` cross-transcript.
+- `AudioQuality` != `VoiceprintQuality` != `SpeakerMatch` != diarization `Probability`.
+- **`FAR/FRR`, `EER`, `MinDCF`, `PersonCorrect`, `fr/en`, `nl` later; `nl` left aside.**
+- `Voiceprint` **50/50**; full `dotnet test` **1 169 / 8 skipped / 0 failed** with Vulkan env.

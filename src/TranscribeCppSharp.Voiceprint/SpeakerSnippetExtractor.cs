@@ -17,13 +17,20 @@ public static class SpeakerSnippetExtractor
         int sampleRate = 16_000,
         int minTurnMs = 0,
         int paddingMs = 0,
-        int maxSnippetMs = 0)
+        int maxSnippetMs = 0,
+        AudioQualityPolicy? audioQualityPolicy = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sampleRate);
         ArgumentNullException.ThrowIfNull(turns);
         ArgumentOutOfRangeException.ThrowIfNegative(minTurnMs);
         ArgumentOutOfRangeException.ThrowIfNegative(paddingMs);
         ArgumentOutOfRangeException.ThrowIfNegative(maxSnippetMs);
+        audioQualityPolicy?.Validate();
+
+        int effectiveMinTurnMs = Math.Max(minTurnMs, audioQualityPolicy?.MinTurnMs ?? 0);
+        int effectiveMaxSnippetMs = maxSnippetMs > 0
+            ? (audioQualityPolicy?.MaxSnippetMs > 0 ? Math.Min(maxSnippetMs, audioQualityPolicy.MaxSnippetMs) : maxSnippetMs)
+            : audioQualityPolicy?.MaxSnippetMs ?? 0;
 
         var snippets = new List<SpeakerSnippet>();
         long totalSamples = pcm16kMono.Length;
@@ -36,7 +43,7 @@ public static class SpeakerSnippetExtractor
             }
 
             double durationMs = (turn.End - turn.Start).TotalMilliseconds;
-            if (durationMs < minTurnMs)
+            if (durationMs < effectiveMinTurnMs)
             {
                 continue;
             }
@@ -46,20 +53,45 @@ public static class SpeakerSnippetExtractor
             long startSample = Math.Clamp(MsToSample(startMs, sampleRate), 0, totalSamples);
             long endSample = Math.Clamp(MsToSample(endMs, sampleRate), startSample, totalSamples);
 
-            int maxSamples = maxSnippetMs > 0 ? MsToSample(maxSnippetMs, sampleRate) : int.MaxValue;
+            int maxSamples = effectiveMaxSnippetMs > 0 ? MsToSample(effectiveMaxSnippetMs, sampleRate) : int.MaxValue;
             int length = (int)Math.Min(endSample - startSample, maxSamples);
             if (length <= 0)
             {
                 continue;
             }
 
+            if (audioQualityPolicy is { MinSpeakerProbability: { } minSpeakerProbability }
+                && !double.IsNaN(minSpeakerProbability)
+                && (!float.IsFinite(turn.Probability) || turn.Probability < minSpeakerProbability))
+            {
+                continue;
+            }
+
             float[] slice = pcm16kMono.Slice((int)startSample, length).ToArray();
+            AudioQuality? quality = audioQualityPolicy is null
+                ? null
+                : AudioQualityAnalyzer.Analyze(
+                    slice,
+                    sampleRate,
+                    audioQualityPolicy,
+                    channels: 1,
+                    bitDepth: 16,
+                    isPcm: true,
+                    minTurnMs: effectiveMinTurnMs,
+                    maxSnippetMs: effectiveMaxSnippetMs);
+
+            if (quality is { Passed: false })
+            {
+                continue;
+            }
+
             snippets.Add(new SpeakerSnippet(
                 turn.SpeakerId,
                 turn.Start,
                 turn.End,
                 slice,
-                turn.Probability));
+                turn.Probability,
+                quality));
         }
 
         return snippets;
