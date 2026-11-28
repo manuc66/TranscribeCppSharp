@@ -1256,3 +1256,10 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 - `Accuracy = (trueAccept + trueReject)/total` where `total=results.Count`.
 - `UnknownRejectionRate` separate; `unknown no candidate` separate; `unknown` + known-wrong non-target; `PersonCorrect` separate.
 - no `EER`, no `MinDCF`, no `nl`, no `PersonCorrect` auto, no production; closed-set vs unknown metrics not universal.
+
+## `PersonCorrectEvaluator`
+
+**`nl` laissé de côté.** `PersonCorrectEvaluator.Evaluate(expectedPersonId, match)` -> `PersonCorrectEvaluation`.
+`PersonCorrect` exact `Ordinal` expected vs actual `PersonId`; `KnownPersonCorrect=Known && PersonCorrect`; `NonTarget`, `FalseAccept`, `FalseReject`, `TrueReject`.
+**`Known` != `PersonCorrect`; no `SpeakerMatch.PersonCorrect`, no `UnknownSpeaker.PersonCorrect`, no `PersonId` invented, no `nl`, no `PersonCorrect` auto.**
+`VoiceprintEvalResult.PersonCorrect` raw separate; `ThresholdCalibrator` uses it. `Voiceprint` **62/62**; full **1 181 / 8 skipped / 0 failed** with Vulkan env.
