@@ -21,23 +21,28 @@ public sealed class UnknownSpeakerTracker
     private readonly IVoiceprintStore? voiceprintStore;
     private readonly string embeddingModelId;
     private readonly AmbiguityPolicy clusterPolicy;
+    private readonly UnknownSpeakerTrackerOptions options;
 
     /// <summary>Creates tracker over local unknown + optional known voiceprint stores.</summary>
     public UnknownSpeakerTracker(
         IUnknownSpeakerStore store,
         string embeddingModelId,
         AmbiguityPolicy clusterPolicy,
-        IVoiceprintStore? voiceprintStore = null)
+        IVoiceprintStore? voiceprintStore = null,
+        UnknownSpeakerTrackerOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentException.ThrowIfNullOrWhiteSpace(embeddingModelId);
         ArgumentNullException.ThrowIfNull(clusterPolicy);
         clusterPolicy.Validate();
+        options ??= new UnknownSpeakerTrackerOptions();
+        options.Validate();
 
         this.store = store;
         this.voiceprintStore = voiceprintStore;
         this.embeddingModelId = embeddingModelId;
         this.clusterPolicy = clusterPolicy;
+        this.options = options;
     }
 
     /// <summary>
@@ -77,7 +82,13 @@ public sealed class UnknownSpeakerTracker
         {
             UnknownSpeaker existing = current.First(u => string.Equals(u.UnknownId, unknownId, StringComparison.Ordinal));
             var embeddings = existing.Embeddings.Concat([embedding]).ToArray();
+            if (options.MaxEmbeddingsPerUnknown > 0 && embeddings.Length > options.MaxEmbeddingsPerUnknown)
+            {
+                embeddings = embeddings.Skip(embeddings.Length - options.MaxEmbeddingsPerUnknown).ToArray();
+            }
+
             var sources = existing.Sources.Concat([source]).ToArray();
+            sources = BoundSources(sources, options);
 
             updated = existing with
             {
@@ -166,6 +177,40 @@ public sealed class UnknownSpeakerTracker
         UnknownSpeaker rejected = existing with { Status = UnknownSpeakerStatus.Rejected, LastSeen = DateTimeOffset.UtcNow };
         await store.AddOrUpdateAsync(rejected, cancellationToken).ConfigureAwait(false);
         return rejected;
+    }
+
+    private static UnknownSpeakerSource[] BoundSources(
+        UnknownSpeakerSource[] sources,
+        UnknownSpeakerTrackerOptions options)
+    {
+        IEnumerable<UnknownSpeakerSource> result = sources;
+
+        if (options.MaxSourcesPerTranscript > 0)
+        {
+            // Keep latest source(s) per transcript while preserving original insertion order.
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            bool[] keep = new bool[sources.Length];
+            for (int i = sources.Length - 1; i >= 0; i--)
+            {
+                string transcriptId = sources[i].TranscriptId;
+                counts.TryGetValue(transcriptId, out int count);
+                if (count < options.MaxSourcesPerTranscript)
+                {
+                    keep[i] = true;
+                    counts[transcriptId] = count + 1;
+                }
+            }
+
+            result = sources.Where((_, i) => keep[i]);
+        }
+
+        var list = result.ToList();
+        if (options.MaxSources > 0 && list.Count > options.MaxSources)
+        {
+            list = list.TakeLast(options.MaxSources).ToList();
+        }
+
+        return list.ToArray();
     }
 
     private static void ValidateFinite(float[] values)

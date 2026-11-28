@@ -16,11 +16,24 @@ public static class UnknownSpeakerMatcher
         string embeddingModelId,
         IReadOnlyList<UnknownSpeaker> unknowns,
         AmbiguityPolicy policy)
+        => MatchPendingWithRechecks(embedding, embeddingModelId, unknowns, policy, recheckEmbeddings: []);
+
+    /// <summary>
+    /// `MatchPending` + bounded alternative embeddings. `Matched` anonymous cluster != `Known`, `PersonId`.
+    /// Caller supplies rechecks; no re-diarization, no `nl`, no `PersonCorrect`.
+    /// </summary>
+    public static UnknownSpeakerMatch MatchPendingWithRechecks(
+        float[] embedding,
+        string embeddingModelId,
+        IReadOnlyList<UnknownSpeaker> unknowns,
+        AmbiguityPolicy policy,
+        IReadOnlyList<float[]> recheckEmbeddings)
     {
         ArgumentNullException.ThrowIfNull(embedding);
         ArgumentException.ThrowIfNullOrWhiteSpace(embeddingModelId);
         ArgumentNullException.ThrowIfNull(unknowns);
         ArgumentNullException.ThrowIfNull(policy);
+        ArgumentNullException.ThrowIfNull(recheckEmbeddings);
         policy.Validate();
 
         List<Voiceprint> pending = unknowns
@@ -39,7 +52,7 @@ public static class UnknownSpeakerMatcher
 
         ValidateFinite(embedding);
 
-        SpeakerMatch match = VoiceprintMatcher.Match(embedding, embeddingModelId, pending, policy);
+        SpeakerMatch match = VoiceprintMatcher.MatchWithRechecks(embedding, embeddingModelId, pending, policy, recheckEmbeddings);
 
         // Unknown anonymous cluster is not `SpeakerIdentityDecision.Known` real-person identity.
         bool matched = match.Decision == SpeakerIdentityDecision.Known && match.PersonId is not null;

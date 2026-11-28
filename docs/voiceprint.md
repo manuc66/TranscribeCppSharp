@@ -1187,3 +1187,21 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 - `AudioQuality` != `VoiceprintQuality` != `SpeakerMatch` != diarization `Probability`.
 - **`FAR/FRR`, `EER`, `MinDCF`, `PersonCorrect`, `fr/en`, `nl` later; `nl` left aside.**
 - `Voiceprint` **50/50**; full `dotnet test` **1 169 / 8 skipped / 0 failed** with Vulkan env.
+
+## TDD `UnknownSpeaker` limits + `MatchPendingWithRechecks`
+
+**`nl` laissé de côté.** Code + tests ajoutés.
+
+- `UnknownSpeakerTrackerOptions(MaxEmbeddingsPerUnknown=0, MaxSources=0, MaxSourcesPerTranscript=0)`.
+- `UnknownSpeakerTracker(..., options)`.
+- `0` = no cap; negative invalid.
+- `MaxEmbeddingsPerUnknown`: append embeddings then keep **latest N**; `SourceSampleCount=embeddings.Length`.
+- `MaxSources`: keep latest N `UnknownSpeakerSource`, order preserved.
+- `MaxSourcesPerTranscript`: keep latest N per `TranscriptId`, order preserved, `Speaker 0`, no raw rewrite.
+- `UnknownSpeakerMatcher.MatchPending` now calls `MatchPendingWithRechecks(..., recheckEmbeddings=[])`.
+- `UnknownSpeakerMatcher.MatchPendingWithRechecks(embedding, modelId, unknowns, policy, recheckEmbeddings)`.
+- bounded by `AmbiguityPolicy.MaxRechecks` via `VoiceprintMatcher.MatchWithRechecks`.
+- `UnknownSpeakerMatch.ReverifiedCount`.
+- **`Matched` anonymous `Pending` cluster != `Known`, `PersonId`, `PersonCorrect`.** no re-diarization, no `nl`.
+- `UnknownSpeakerLimitsTests`: `MaxEmbeddingsPerUnknown`, `MaxSources`, `MaxSourcesPerTranscript`, rechecks.
+- `Voiceprint` **53/53**; full `dotnet test` **1 172 / 8 skipped / 0 failed** with Vulkan env.
