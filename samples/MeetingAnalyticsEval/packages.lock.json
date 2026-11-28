@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.SourceLink.GitHub": {
+        "type": "Direct",
+        "requested": "[11.*, )",
+        "resolved": "11.0.100",
+        "contentHash": "aBHHGAxLog2OC1nbXyCFyfy1lG9qwYO/COBPc/5cJEqbXpiznmz+wxLU+TVrI+2LzQYFSKpn7pk+RHtx9eHe9w==",
+        "dependencies": {
+          "Microsoft.Build.Tasks.Git": "11.0.100",
+          "Microsoft.SourceLink.Common": "11.0.100",
+          "System.IO.Hashing": "11.0.0"
+        }
+      },
+      "org.k2fsa.sherpa.onnx.runtime.linux-x64": {
+        "type": "Direct",
+        "requested": "[1.13.8, )",
+        "resolved": "1.13.8",
+        "contentHash": "rqWNcekzaZHKX0xwYHePwGMwa9lb/JiuNh6Cc0f+Jnz6r5U45BdAtqUUJNh9F5DO2d2CuabAbBe3IqkngtVR8w=="
+      },
+      "TranscribeCppSharp.Native.linux-x64": {
+        "type": "Direct",
+        "requested": "[0.4.2, )",
+        "resolved": "0.4.2",
+        "contentHash": "bD9HKQ1ioFo4rHZuVJD2Z8gW6DKqf8OTAP4tr2XnyAmIXH1IRcQYBEIPAec6qB4Iv6hLd1beFCpdMZ43unnTXQ=="
+      },
+      "Microsoft.Build.Tasks.Git": {
+        "type": "Transitive",
+        "resolved": "11.0.100",
+        "contentHash": "juE7HH7MfWolKodshqdxaJjFK3A4wp/UqMN69sVtBBU2hT2Bs1vwjAy0dwdsIUFlff0jEOqT7qcXQiD8l3+z3A==",
+        "dependencies": {
+          "System.IO.Hashing": "11.0.0"
+        }
+      },
+      "Microsoft.SourceLink.Common": {
+        "type": "Transitive",
+        "resolved": "11.0.100",
+        "contentHash": "7BbbX7EWxjEEU1Evc5hPF7aoncC/qq0avTgyUQN7fXXexWbfy4PgDFd35U90wdomwBGkn1zaYTW7kdwxiVdtnQ=="
+      },
+      "org.k2fsa.sherpa.onnx": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "CVBBX154lJ0STD8At5t0LvnSuOiXRwOI/8YeTvEEd+K1xwbtLZTQ4tQESyGEcfdIXTf+ucaGF4LMpHfI4R5yCw==",
+        "dependencies": {
+          "org.k2fsa.sherpa.onnx.runtime.android-arm64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.android-x64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.linux-arm64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.linux-x64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.osx-arm64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.osx-x64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.win-arm64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.win-x64": "1.13.8",
+          "org.k2fsa.sherpa.onnx.runtime.win-x86": "1.13.8"
+        }
+      },
+      "org.k2fsa.sherpa.onnx.runtime.android-arm64": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "0bEXZHGGu3ywaXjx0nwmHoBkPsVDKQjfC6FpqGGpBLnfokMbvPaGXgFShFW73bW8PSOB4gc9cLrVRkgOImy67A=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.android-x64": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "BMltFcQOnoIgWRUDb2lNGF2FHuoWoWMP6DKrJgzsdkRXCIdl3jX0lpbj+etBeW+8wdXmKxREGA2hrvO8h42k0g=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.linux-arm64": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "Vg6iDY3YDILvapwKrCrByAnBu2OImxuZNsB0Sg1k+Gox3GV2runHidTZtNTHJZUA9zFdjAz9Ab4HzqsaATjrzg=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.osx-arm64": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "lhEqIPi/KlleNXrNMxXLpBrT1e3uONY/Nt0v7kswxXzvOwj89484ylpMu4jns7rpVug0Y/MfFP6kCDuV2CZo5Q=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.osx-x64": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "jUYwCbi+y7yNHbAFB3u2pyQihsrdk0fl8tC5yPvaqeLqgfUn1wdsrXsS+maJTx/8Phxfx+HHlcii31zlQHSv2w=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.win-arm64": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "EQk0M1dpvIOG9uVtYz7kgkmlrdajQcqbzAPCdTHeOOSYy68biXk1/O8pyHeBwTF9J9i2xDiJq+PtyNc7C8Vmbg=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.win-x64": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "qQS9IQTRet05fl82IlM93XLNnuhW50lhepOBR2qzbjxWKjSXFTvx8SlALAoCLDGyURrQ5iOgl97JZFEeIG9A9g=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.win-x86": {
+        "type": "Transitive",
+        "resolved": "1.13.8",
+        "contentHash": "QbpkOX0LBcYq/AUZTIlrwz7tPunhqVAFT8A9+JnVw6a6TYRFKvSBwxIWUPbNfpyGYPkTFNunpFIJzcLyiek0gg=="
+      },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
+      },
+      "transcribecppsharp": {
+        "type": "Project",
+        "dependencies": {
+          "TranscribeCppSharp.Interop": "[0.4.4, )"
+        }
+      },
+      "transcribecppsharp.interop": {
+        "type": "Project"
+      },
+      "transcribecppsharp.meetinganalytics": {
+        "type": "Project",
+        "dependencies": {
+          "TranscribeCppSharp": "[0.4.4, )"
+        }
+      },
+      "transcribecppsharp.meetinganalytics.voiceprint": {
+        "type": "Project",
+        "dependencies": {
+          "TranscribeCppSharp.MeetingAnalytics": "[0.4.2, )",
+          "TranscribeCppSharp.Voiceprint": "[0.4.2, )"
+        }
+      },
+      "transcribecppsharp.voiceprint": {
+        "type": "Project",
+        "dependencies": {
+          "TranscribeCppSharp": "[0.4.4, )",
+          "org.k2fsa.sherpa.onnx": "[1.13.8, )"
+        }
+      }
+    }
+  }
+}

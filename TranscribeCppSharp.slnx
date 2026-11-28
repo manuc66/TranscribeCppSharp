@@ -24,6 +24,7 @@
     <Project Path="tests/TranscribeCppSharp.Interop.Tests/TranscribeCppSharp.Interop.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.MeetingAnalytics.Tests/TranscribeCppSharp.MeetingAnalytics.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.MeetingAnalytics.Voiceprint.Tests/TranscribeCppSharp.MeetingAnalytics.Voiceprint.Tests.csproj" />
+    <Project Path="tests/MeetingAnalyticsEval.Tests/MeetingAnalyticsEval.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.Server.Tests/TranscribeCppSharp.Server.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.UI.Tests/TranscribeCppSharp.UI.Tests.csproj" />
     <Project Path="tests/TranscribeCppSharp.Voiceprint.Tests/TranscribeCppSharp.Voiceprint.Tests.csproj" />
@@ -31,6 +32,7 @@
   <Folder Name="/samples/">
     <Project Path="samples/SmokeTest/SmokeTest.csproj" />
     <Project Path="samples/MeetingAnalyticsSmoke/MeetingAnalyticsSmoke.csproj" />
+    <Project Path="samples/MeetingAnalyticsEval/MeetingAnalyticsEval.csproj" />
     <Project Path="samples/VoiceprintSmoke/VoiceprintSmoke.csproj" />
     <Project Path="samples/VoiceprintEval/VoiceprintEval.csproj" />
     <Project Path="samples/StreamingBench/StreamingBench.csproj" />

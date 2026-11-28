@@ -129,3 +129,25 @@ Actual run on this branch:
 This proves the real pipeline runs. It does **not** prove `fr/en/nl`, `nl`, identity/diarization
 accuracy, production thresholds, or word-rate accuracy (`whisper-tiny` emitted no word timings).
 See `samples/MeetingAnalyticsSmoke/README.md`.
+
+## `MeetingAnalyticsEval`
+
+`samples/MeetingAnalyticsEval` runs the real pipeline over an annotated corpus and computes
+`PersonCorrect`, target/non-target counts, `FAR/FRR`, unknown rejection, ambiguous count,
+accuracy, balanced error, coverage, resolve wall/CPU and CPU per audio second.
+`MeetingEvalCalibrator` sweeps `MinScore`/`MinMargin`; `MaxRechecks` is fixed per run.
+
+Corpus `expectedSpeakers` keys are per-run numeric `SpeakerId`; `null` means expected unknown.
+Missing keys are unlabeled and excluded. No per-utterance language/condition, no `nl`.
+
+Actual E2E runs on the 10 s `sr-data` mix with `whisper-tiny`, Sortformer Q8_0 and `hr16`:
+
+- **Known**: 2/2 PersonCorrect, FAR 0, FRR 0, accuracy 1, coverage 1;
+  resolve CPU ~111.9 ms/audio s. Calibration selects `-1/0` because no negatives — not production.
+- **Unknown**: empty voiceprint store; 2 true rejects, unknown rejection 1, FAR 0,
+  coverage 0; 2 pending `UnknownSpeaker` clusters persisted.
+- **Ambiguous**: duplicate identical `fangjun` voiceprint + `MinMargin=0.1`;
+  one Ambiguous, one Known, FAR 0, FRR 0.5, ambiguous 1, coverage 0.5.
+
+These prove E2E eval paths execute. They do not prove `fr/en/nl`, `nl`, production accuracy,
+diarization accuracy, or calibrated thresholds. See `samples/MeetingAnalyticsEval/README.md`.
