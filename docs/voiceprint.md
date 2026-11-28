@@ -123,7 +123,7 @@ SpeakerAssignment.Apply(segments, turns, words)
 No speaker renaming in `transcribe.cpp`. `transcribe.cpp` `Speaker N` numeric. `SubtitleWriter`
 and `HtmlTranscriptWriter` accept caller `speakerNames`. App `SpeakerNames` in-memory +
 keeps name if same numeric id after rerun; **not persisted voiceprint**. `TranscribeCppSharp.Voiceprint`
-does not integrate `SubtitleWriter` / `HtmlTranscriptWriter`. **Raw transcript is not rewritten.**
+`SubtitleWriter` shared source is in `TranscribeCppSharp.Voiceprint`; `HtmlTranscriptWriter` not. **Raw transcript is not rewritten.**
 
 ## What branch `feat/local-voiceprint` adds
 
@@ -1021,7 +1021,7 @@ pas `nl`, pas accuracy.
   GGML_VK_VISIBLE_DEVICES=-1`: **1 132 réussis / 8 ignorés / 0 échec**.
 - Still **not `fr/en/nl`, not `nl`, not `Sortformer nl`, not `hr16` `fr/nl`, not `nl`, no
   `SpeakerEmbeddingManager`, no `SpeakerAssignment` probability, no `PersonCorrect` auto, no
-  `nl`, no `fr`, no `en`, no `nl`, no production security/privacy**, no `SubtitleWriter` shared
+  `nl`, no `fr`, no `en`, no `nl`, no production security/privacy**; `SubtitleWriter` shared
   in `TranscribeCppSharp.Voiceprint`, no `HtmlTranscriptWriter`, no `transcribe.cpp` changes.
 
 ## `UnknownSpeaker`: retain anonymous speakers across transcripts, identify later
@@ -1054,7 +1054,7 @@ pas `nl`, pas accuracy.
 - `RetroactiveSpeakerRelabeler.NamesForTranscript(transcriptId, originalSegments, identified)` /
   `NamesOnly`. `speakerNames` keyed numeric `SpeakerId`; **only `Identified`** sources in that
   `TranscriptId`, `Speaker 0` skipped; `originalSegments` unchanged, `SpeakerId` not `PersonId`.
-  **No raw transcript rewriting; no `SubtitleWriter` shared in `Voiceprint`.**
+  **No raw transcript rewriting; `SubtitleWriter` shared in `Voiceprint`; no `HtmlTranscriptWriter`.**
 - Can feed shared `SubtitleWriter` / `HtmlTranscriptWriter`; `SpeakerNameMapper` separate.
   **name != verified identity.**
 - Tests `UnknownSpeakerTrackerTests`, `JsonUnknownSpeakerStoreTests`, `UnknownSpeakerSafetyTests`;
@@ -1228,7 +1228,7 @@ No `nl`, no `SpeakerAssignment` probability, no `transcribe.cpp` speaker embeddi
 
 ## `schemaVersion` + `model sha`
 
-**`nl` laissé de côté.** `Voiceprint.SchemaVersion="1"`, `Voiceprint.ModelSha256` optional, `UnknownSpeaker.SchemaVersion="1"`, `UnknownSpeaker.ModelSha256`, `UnknownSpeakerTracker(..., modelSha256)`, `UnknownSpeaker.ToPendingVoiceprint`, `UnknownSpeakerTracker.IdentifyLaterAsync` -> `Voiceprint`. `JsonVoiceprintStore`, `JsonUnknownSpeakerStore`, local JSON. No `nl`, no `PersonCorrect`, no provenance verification, no model-mixing check by sha, no migration, no encryption, no `schemaVersion` enforcement. `EmbeddingModelId` + `Dimension` matching separate. `Voiceprint` **59/59**; full **1 178 / 8 skipped / 0 failed**.
+**`nl` laissé de côté.** `Voiceprint.SchemaVersion="1"`, `Voiceprint.ModelSha256` optional, `UnknownSpeaker.SchemaVersion="1"`, `UnknownSpeaker.ModelSha256`, `UnknownSpeakerTracker(..., modelSha256)`, `UnknownSpeaker.ToPendingVoiceprint`, `UnknownSpeakerTracker.IdentifyLaterAsync` -> `Voiceprint`. `JsonVoiceprintStore`, `JsonUnknownSpeakerStore`, local JSON. No `nl`, no `PersonCorrect`, no `Voiceprint` provenance verification, no `ModelSha256` matching, no migration, no encryption; `schemaVersion=1`, actual model SHA-256 verified only by `SherpaOnnxSpeakerEmbedder` + `ModelSha256Verifier`. `EmbeddingModelId` + `Dimension` matching separate. `Voiceprint` **59/59**; full **1 178 / 8 skipped / 0 failed**.
 
 ## Current verified state — supersedes historical sections
 
